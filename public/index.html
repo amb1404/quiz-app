@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Test</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <title>Moct Test</title>
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
     <div class="quiz-container">
@@ -52,9 +52,19 @@
             <h2>Quiz Completed!</h2>
             <h3 id="final-score" style="font-size: 24px; color: #10b981; margin: 15px 0;"></h3>
             <p id="final-breakdown" style="color: #475569; margin-bottom: 20px;"></p>
+            <div style="display: flex; justify-content: center; gap: 10px;">
+                <button onclick="showReview()" class="nav-btn" style="background: #0284c7;">Review Answers</button>
+                <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Main Menu</button>
+            </div>
+        </div>
+
+        <!-- Review / Preview Screen -->
+        <div id="review-screen" class="hidden">
+            <h2>Detailed Quiz Review</h2>
+            <div id="review-container" style="max-height: 450px; overflow-y: auto; text-align: left; margin-bottom: 20px; padding-right: 10px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; background: #f8fafc;"></div>
             <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Main Menu</button>
         </div>
     </div>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
 </body>
 </html>
