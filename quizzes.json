@@ -3,7 +3,7 @@
     "subject": "Physics",
     "chapters": [
       { "id": "machine", "title": "Machines", "duration": 900 },
-      { "id": "energy", "title": "Work Energy Power", "duration": 950 }
+      { "id": "energy", "title": "Work Energy Power", "duration": 950 },
       { "id": "force", "title": "Force", "duration": 900 }
     ]
   },
