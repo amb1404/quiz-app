@@ -79,8 +79,8 @@ h2 {
 }
 
 .option-btn.selected {
-    background: #3b82f6;
-    color: #ffffff;
+    background: lightyellow;
+    color: black;
     border-color: #2563eb;
 }
 
