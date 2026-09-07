@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chemistry & Physics Quiz Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="quiz-container">
+        <!-- Subject Selection Menu -->
+        <div id="subject-menu">
+            <h2>Select a Subject</h2>
+            <div id="subject-list"></div>
+        </div>
+
+        <!-- Chapter Selection Menu (Hidden initially) -->
+        <div id="chapter-menu" class="hidden">
+            <button onclick="backToSubjects()" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
+            <h2 id="selected-subject-title">Chapters</h2>
+            <div id="chapter-list"></div>
+        </div>
+
+        <!-- Actual Quiz Screen -->
+        <div id="quiz-screen" class="hidden" style="position: relative;">
+            <!-- Pause Overlay -->
+            <div id="pause-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center;">
+                <h2 style="color: #1e293b; margin-bottom: 10px;">Quiz Paused</h2>
+                <p style="color: #64748b; margin-bottom: 20px;">Your timer is paused. Take a breather!</p>
+                <button onclick="togglePause()" style="background: #3b82f6; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer;">Resume Quiz</button>
+            </div>
+
+            <div id="stats-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                <span id="timer">Time: </span>
+                <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
+                <div>
+                    <button id="pause-btn" onclick="togglePause()" style="background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-right: 5px;">Pause</button>
+                    <button id="early-submit-btn" onclick="confirmSubmit()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Submit Quiz</button>
+                </div>
+            </div>
+            <div id="question-box"></div>
+            <div id="options-box"></div>
+            <div class="nav-buttons">
+                <button id="prev-btn" onclick="prevQuestion()">Previous</button>
+                <button id="skip-btn" onclick="skipQuestion()" style="background: #f59e0b;">Skip</button>
+                <button id="next-btn" onclick="nextQuestion()">Next</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[
+  {
+    "subject": "Physics",
+    "chapters": [
+      { "id": "motion", "title": "Motion in a Straight Line", "duration": 300 },
+      { "id": "current", "title": "Current Electricity", "duration": 450 }
+    ]
+  },
+  {
+    "subject": "Chemistry",
+    "chapters": [
+      { "id": "bonding", "title": "Chemical Bonding", "duration": 1200 },
+      { "id": "HCl", "title": "HCl", "duration": 1200 }
+    ]
+  },
+  {
+    "subject": "Biology",
+    "chapters": [
+      { "id": "cell", "title": "Cell Biology", "duration": 300 },
+      { "id": "genetics", "title": "Principles of Inheritance", "duration": 400 }
+    ]
+  }
+]

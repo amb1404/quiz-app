@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "The type of chemical bond present in sodium chloride (NaCl) is:",
+    "options": [
+      "Covalent bond",
+      "Electrovalent (ionic) bond",
+      "Coordinate bond",
+      "Metallic bond"
+    ],
+    "answer": 1,
+    "explanation": "Sodium is a metal that transfers an electron to non-metal chlorine, resulting in a strong electrostatic attraction between oppositely charged ions to form an electrovalent bond."
+  },
+  {
+    "id": 2,
+    "question": "Which of the following conditions favors the formation of an ionic bond?",
+    "options": [
+      "High ionization energy and high electron affinity",
+      "Low ionization energy and low electron affinity",
+      "Low ionization energy and high electron affinity",
+      "High ionization energy and low electron affinity"
+    ],
+    "answer": 2,
+    "explanation": "A low ionization energy allows the metal to easily lose electrons to form a cation, while a high electron affinity enables the non-metal to readily accept electrons to form an anion."
+  },
+  {
+    "id": 3,
+    "question": "Electrovalent compounds generally possess:",
+    "options": [
+      "Low melting and boiling points",
+      "High melting and boiling points",
+      "High volatility",
+      "Weak electrostatic forces of attraction"
+    ],
+    "answer": 1,
+    "explanation": "The strong electrostatic forces of attraction between oppositely charged ions within an ionic crystal lattice require a high amount of thermal energy to break."
+  },
+  {
+    "id": 4,
+    "question": "A covalent bond is formed by:",
+    "options": [
+      "Complete transfer of electrons from one atom to another",
+      "Mutual sharing of electrons between two atoms",
+      "Transfer of protons between nuclei",
+      "Attraction between free electrons and positive ions"
+    ],
+    "answer": 1,
+    "explanation": "Covalent bonds typically form between non-metal atoms by sharing one or more pairs of electrons to achieve a stable noble gas electronic configuration."
+  },
+  {
+    "id": 5,
+    "question": "Which of the following molecules contains a triple covalent bond?",
+    "options": [
+      "Water (H₂O)",
+      "Oxygen (O₂)",
+      "Nitrogen (N₂)",
+      "Ammonia (NH₃)"
+    ],
+    "answer": 2,
+    "explanation": "Each nitrogen atom has 5 valence electrons and requires 3 more to complete its octet, leading to the mutual sharing of three pairs of electrons between two nitrogen atoms."
+  },
+  {
+    "id": 6,
+    "question": "Which of the following is a polar covalent compound?",
+    "options": [
+      "Methane (CH₄)",
+      "Hydrogen chloride (HCl)",
+      "Chlorine gas (Cl₂)",
+      "Carbon tetrachloride (CCl₄)"
+    ],
+    "answer": 1,
+    "explanation": "HCl is formed between two different non-metals with different electronegativities, causing the shared electron pair to be pulled closer to chlorine and creating a polar bond."
+  },
+  {
+    "id": 7,
+    "question": "A coordinate bond (dative bond) is formed when:",
+    "options": [
+      "Electrons are completely transferred from a metal to a non-metal",
+      "A shared pair of electrons is contributed by only one of the combining atoms",
+      "Two atoms share three pairs of electrons equally",
+      "Delocalized electrons move freely through a crystal lattice"
+    ],
+    "answer": 1,
+    "explanation": "A coordinate bond requires a donor atom possessing a lone pair of electrons and an acceptor atom with a vacant orbital to share that electron pair."
+  },
+  {
+    "id": 8,
+    "question": "Which of the following ions contains a coordinate covalent bond?",
+    "options": [
+      "Sodium ion (Na⁺)",
+      "Chloride ion (Cl⁻)",
+      "Ammonium ion (NH₄⁺)",
+      "Oxide ion (O²⁻)"
+    ],
+    "answer": 2,
+    "explanation": "The ammonium ion is formed when an ammonia molecule (NH₃) donates its lone pair of electrons on nitrogen to a hydrogen ion (H⁺) via a coordinate covalent bond."
+  },
+  {
+    "id": 9,
+    "question": "Molten or aqueous solutions of electrovalent compounds conduct electricity because:",
+    "options": [
+      "Free electrons are present",
+      "Free mobile ions are present",
+      "Molecules break down into atoms",
+      "They undergo thermal decomposition"
+    ],
+    "answer": 1,
+    "explanation": "When melted or dissolved, the rigid ionic crystal lattice breaks down, freeing the ions to move towards oppositely charged electrodes and carry an electric current."
+  },
+  {
+    "id": 10,
+    "question": "Which of the following compounds contains both ionic and covalent bonds?",
+    "options": [
+      "Sodium chloride (NaCl)",
+      "Water (H₂O)",
+      "Ammonium chloride (NH₄Cl)",
+      "Carbon dioxide (CO₂)"
+    ],
+    "answer": 2,
+    "explanation": "Ammonium chloride contains an ionic bond between the ammonium cation (NH₄⁺) and chloride anion (Cl⁻), while the internal bonds within the ammonium ion itself are covalent and coordinate covalent."
+  },
+  {
+    "id": 11,
+    "question": "The number of electrons shared in a double covalent bond is:",
+    "options": [
+      "1",
+      "2",
+      "4",
+      "6"
+    ],
+    "answer": 2,
+    "explanation": "A single bond involves 2 shared electrons (1 pair), a double bond involves 4 shared electrons (2 pairs), and a triple bond involves 6 shared electrons (3 pairs)."
+  },
+  {
+    "id": 12,
+    "question": "Covalent compounds are generally insoluble in:",
+    "options": [
+      "Benzene",
+      "Carbon tetrachloride",
+      "Water",
+      "Ether"
+    ],
+    "answer": 2,
+    "explanation": "Most covalent compounds are non-polar and dissolve well in non-polar organic solvents rather than polar solvents like water, following the principle of 'like dissolves like'."
+  },
+  {
+    "id": 13,
+    "question": "Which of the following elements has an electrovalency of 2?",
+    "options": [
+      "Sodium",
+      "Magnesium",
+      "Aluminium",
+      "Fluorine"
+    ],
+    "answer": 1,
+    "explanation": "Magnesium has 2 valence electrons which it loses during ionic bond formation to complete its octet, giving it an electrovalency of 2."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following substances does not conduct electricity in the solid state but is a good conductor in the molten state?",
+    "options": [
+      "Sugar",
+      "Molten paraffin wax",
+      "Sodium chloride",
+      "Carbon tetrachloride"
+    ],
+    "answer": 2,
+    "explanation": "Sodium chloride is an ionic solid whose ions are locked in place; melting it frees the ions to move and carry electric current."
+  },
+  {
+    "id": 15,
+    "question": "In a water molecule (H₂O), the number of lone pairs of electrons on the oxygen atom is:",
+    "options": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ],
+    "answer": 2,
+    "explanation": "Oxygen has 6 valence electrons; two are used to form single bonds with two hydrogen atoms, leaving 4 unshared valence electrons, which constitute 2 lone pairs."
+  },
+  {
+    "id": 16,
+    "question": "Which of the following is an example of a non-polar covalent molecule?",
+    "options": [
+      "Hydrogen chloride (HCl)",
+      "Ammonia (NH₃)",
+      "Carbon dioxide (CO₂)",
+      "Water (H₂O)"
+    ],
+    "answer": 2,
+    "explanation": "Although CO₂ has polar double bonds between carbon and oxygen, its linear, symmetrical shape causes individual bond dipoles to cancel each other out, making the molecule overall non-polar."
+  },
+  {
+    "id": 17,
+    "question": "The atom that donates its lone pair during the formation of a coordinate bond is called the:",
+    "options": [
+      "Acceptor",
+      "Donor",
+      "Catalyst",
+      "Reducing agent"
+    ],
+    "answer": 1,
+    "explanation": "The species providing the electron pair is designated as the donor, while the species accepting it to complete its electron shell is the acceptor."
+  },
+  {
+    "id": 18,
+    "question": "During the formation of a sodium ion (Na⁺), a sodium atom:",
+    "options": [
+      "Gains one electron",
+      "Loses one electron",
+      "Shares one electron",
+      "Gains a proton"
+    ],
+    "answer": 1,
+    "explanation": "Sodium (atomic number 11, configuration 2,8,1) loses its single valence electron to achieve a stable noble gas configuration, forming a positively charged Na⁺ cation."
+  },
+  {
+    "id": 19,
+    "question": "Which of the following has a complete octet of electrons in its valence shell?",
+    "options": [
+      "Helium atom",
+      "Hydrogen atom",
+      "Neon atom",
+      "Lithium ion (Li⁺)"
+    ],
+    "answer": 2,
+    "explanation": "Neon is a noble gas with 8 electrons in its valence shell, satisfying the octet rule. Helium and Li⁺ follow the duplet rule with 2 electrons."
+  },
+  {
+    "id": 20,
+    "question": "The force of attraction holding two atoms together in a covalent molecule is due to:",
+    "options": [
+      "Electrostatic attraction between oppositely charged ions",
+      "Attraction between nuclei and shared pairs of electrons",
+      "Delocalized valence electrons",
+      "Magnetic forces between spinning electrons"
+    ],
+    "answer": 1,
+    "explanation": "A covalent bond is established because the positively charged nuclei of the bonded atoms simultaneously attract the negatively charged shared electron pair between them."
+  }
+]
