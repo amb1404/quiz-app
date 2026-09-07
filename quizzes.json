@@ -22,6 +22,3 @@
     ]
   }
 ]
-```[cite: 1]
-
-Save this updated code into your root **`quizzes.json`** file, and don't forget to create a corresponding **`analytical-questions.json`** (or `analytical.json` depending on your routing setup) containing the questions for this chapter. Upload it to GitHub and Render will automatically apply the changes.
