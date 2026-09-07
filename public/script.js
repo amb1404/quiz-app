@@ -1,383 +1,179 @@
-let questions = [];
-let currentIndex = 0;
-let userAnswers = [];
-let timerInterval = null;
-let timeLeft = 0;
-let isPaused = false;
+let quizData = {};
 let currentQuizId = null;
-let currentDuration = 300;
-let studentName = "Anonymous";
-let skippedIndices = new Set();
+let questions = [];
+let currentQuestionIndex = 0;
+let answers = [];
+let timerInterval;
+let timeLeft = 0;
 
-document.addEventListener('DOMContentLoaded', () => {
-    fetch('/api/quizzes')
-        .then(res => res.json())
-        .then(data => {
-            const subjectsList = Array.isArray(data) ? data : data.subjects;
-            renderSubjects(subjectsList);
-        })
-        .catch(err => console.error('Error fetching quiz list:', err));
-});
+// Fetch course structure on load
+window.onload = async () => {
+    try {
+        const response = await fetch('/api/quizzes');
+        quizData = await response.json();
+        renderSubjects();
+    } catch (error) {
+        document.getElementById('subject-list').innerHTML = "<li>Error loading subjects.</li>";
+    }
+};
 
-function renderSubjects(subjects) {
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+        screen.classList.add('hidden');
+    });
+    document.getElementById(screenId).classList.remove('hidden');
+    document.getElementById(screenId).classList.add('active');
+}
+
+function renderSubjects() {
     const list = document.getElementById('subject-list');
-    if (!list || !subjects) return;
     list.innerHTML = '';
-
-    subjects.forEach(sub => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const subName = sub.subject || sub.name;
-        card.innerHTML = `<h3>${subName}</h3><p>${sub.description || ''}</p>`;
-        card.onclick = () => showChapters(sub);
-        list.appendChild(card);
+    Object.keys(quizData).forEach(subject => {
+        const li = document.createElement('li');
+        li.textContent = subject;
+        li.onclick = () => renderChapters(subject);
+        list.appendChild(li);
     });
 }
 
-function showChapters(subject) {
-    document.getElementById('subject-menu').classList.add('hidden');
-    document.getElementById('chapter-menu').classList.remove('hidden');
-    document.getElementById('selected-subject-title').innerText = subject.subject || subject.name;
-
+function renderChapters(subject) {
     const list = document.getElementById('chapter-list');
-    if (!list) return;
     list.innerHTML = '';
-
-    subject.chapters.forEach(chap => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const chapTitle = chap.title || chap.name;
-        card.innerHTML = `<h4>${chapTitle}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
-        // Instead of loading immediately, prompt for student name first
-        card.onclick = () => promptForStudentName(chap.id, chap.duration);
-        list.appendChild(card);
+    quizData[subject].forEach(chapter => {
+        const li = document.createElement('li');
+        li.textContent = chapter.title;
+        li.onclick = () => {
+            currentQuizId = chapter.id;
+            timeLeft = (chapter.duration || 10) * 60; 
+            showScreen('name-screen');
+        };
+        list.appendChild(li);
     });
+    showScreen('chapter-screen');
 }
 
-function backToSubjects() {
-    document.getElementById('chapter-menu').classList.add('hidden');
-    document.getElementById('subject-menu').classList.remove('hidden');
-}
+async function startQuiz() {
+    const nameInput = document.getElementById('student-name').value.trim();
+    if (!nameInput) return alert("Please enter your name.");
 
-function promptForStudentName(quizId, duration) {
-    currentQuizId = quizId;
-    currentDuration = duration;
-
-    document.getElementById('chapter-menu').classList.add('hidden');
-    document.getElementById('name-screen').classList.remove('hidden');
-    
-    const nameInput = document.getElementById('student-name-input');
-    if (nameInput) {
-        nameInput.value = '';
-        nameInput.focus();
+    try {
+        const response = await fetch(`/api/quiz/${currentQuizId}`);
+        questions = await response.json();
+        answers = new Array(questions.length).fill(null);
+        currentQuestionIndex = 0;
+        
+        showScreen('quiz-screen');
+        startTimer();
+        renderQuestion();
+    } catch (error) {
+        alert("Failed to load questions for this chapter.");
     }
-}
-
-function backToChaptersFromNamed() {
-    document.getElementById('name-screen').classList.add('hidden');
-    document.getElementById('chapter-menu').classList.remove('hidden');
-}
-
-function startQuizWithName() {
-    const nameInput = document.getElementById('student-name-input');
-    if (nameInput && nameInput.value.trim() !== '') {
-        studentName = nameInput.value.trim();
-    } else {
-        studentName = "Anonymous";
-    }
-
-    document.getElementById('name-screen').classList.add('hidden');
-    loadQuiz(currentQuizId, currentDuration);
-}
-
-function loadQuiz(quizId, duration) {
-    timeLeft = duration || 300;
-    isPaused = false;
-
-    skippedIndices.clear();
-
-    const statsEl = document.getElementById('counter-stats');
-    if (statsEl) {
-        statsEl.innerText = 'Attempted: 0 | Skipped: 0';
-    }
-
-    document.getElementById('pause-overlay').classList.add('hidden');
-    document.getElementById('pause-btn').innerText = 'Pause';
-
-    fetch(`/api/quiz/${quizId}`)
-        .then(res => res.json())
-        .then(data => {
-            questions = data;
-            userAnswers = new Array(questions.length).fill(null);
-            currentIndex = 0;
-
-            document.getElementById('quiz-screen').classList.remove('hidden');
-            startQuiz();
-        })
-        .catch(err => console.error('Error loading questions:', err));
-}
-
-function startQuiz() {
-    startTimer();
-    renderQuestionUI();
-    refreshCounters();
 }
 
 function startTimer() {
     clearInterval(timerInterval);
-    updateTimerDisplay();
-
     timerInterval = setInterval(() => {
-        if (!isPaused) {
-            timeLeft--;
-            updateTimerDisplay();
-
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                submitQuiz();
-            }
+        timeLeft--;
+        let minutes = Math.floor(timeLeft / 60);
+        let seconds = timeLeft % 60;
+        document.getElementById('timer').textContent = `Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            submitQuiz();
         }
     }, 1000);
 }
 
-function updateTimerDisplay() {
-    let minutes = Math.floor(timeLeft / 60);
-    let seconds = timeLeft % 60;
-    let formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    const timerEl = document.getElementById('timer-display');
-    if (timerEl) {
-        timerEl.innerText = `Time Left: ${formatted}`;
-    }
+function updateCounter() {
+    let attempted = answers.filter(a => a !== null).length;
+    let skipped = currentQuestionIndex + 1 - attempted; 
+    // Shows skipped based on how many questions they have navigated past without answering
+    if (skipped < 0) skipped = 0;
+    
+    document.getElementById('counter').textContent = `Attempted: ${attempted} | Skipped: ${skipped}`;
 }
 
-function togglePause() {
-    isPaused = !isPaused;
-    const overlay = document.getElementById('pause-overlay');
-    const pauseBtn = document.getElementById('pause-btn');
-
-    if (isPaused) {
-        overlay.classList.remove('hidden');
-        pauseBtn.innerText = 'Resume';
-    } else {
-        overlay.classList.add('hidden');
-        pauseBtn.innerText = 'Pause';
-    }
-}
-
-function refreshCounters() {
-    let attempted = 0;
-    for (let i = 0; i < userAnswers.length; i++) {
-        if (userAnswers[i] !== null && userAnswers[i] !== undefined) {
-            attempted++;
+function renderQuestion() {
+    const q = questions[currentQuestionIndex];
+    document.getElementById('question-text').textContent = `Q${currentQuestionIndex + 1}: ${q.question}`;
+    
+    const optionsList = document.getElementById('options-list');
+    optionsList.innerHTML = '';
+    
+    q.options.forEach((opt, index) => {
+        const li = document.createElement('li');
+        li.textContent = opt;
+        li.className = 'option-btn';
+        if (answers[currentQuestionIndex] === index) {
+            li.classList.add('selected');
         }
-    }
-
-    let skipped = skippedIndices.size;
-
-    const statsEl = document.getElementById('counter-stats');
-    if (statsEl) {
-        statsEl.innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
-    }
-}
-
-function renderQuestionUI() {
-    if (isPaused || !questions.length) return;
-
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-
-    if (prevBtn) prevBtn.style.display = currentIndex === 0 ? 'none' : 'block';
-    if (nextBtn) nextBtn.style.display = currentIndex === questions.length - 1 ? 'none' : 'block';
-
-    let q = questions[currentIndex];
-    const qBox = document.getElementById('question-box');
-    if (qBox) {
-        qBox.innerText = `Q${currentIndex + 1}: ${q.question}`;
-    }
-
-    let optionsBox = document.getElementById('options-box');
-    if (!optionsBox) return;
-    optionsBox.innerHTML = '';
-
-    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-    q.options.forEach((opt, idx) => {
-        let btn = document.createElement('button');
-        let prefix = letters[idx] ? `${letters[idx]}. ` : '';
-        btn.innerText = prefix + opt;
-        btn.className = 'option-btn';
-        if (userAnswers[currentIndex] === idx) {
-            btn.classList.add('selected');
-        }
-        btn.onclick = () => selectOption(idx);
-        optionsBox.appendChild(btn);
+        li.onclick = () => selectOption(index);
+        optionsList.appendChild(li);
     });
+
+    document.getElementById('prev-btn').disabled = currentQuestionIndex === 0;
+    document.getElementById('next-btn').disabled = currentQuestionIndex === questions.length - 1;
+    
+    updateCounter();
 }
 
-function selectOption(idx) {
-    if (isPaused) return;
-
-    userAnswers[currentIndex] = idx;
-    skippedIndices.delete(currentIndex);
-
-    renderQuestionUI();
-    refreshCounters();
+function selectOption(index) {
+    answers[currentQuestionIndex] = index;
+    renderQuestion(); 
 }
 
 function prevQuestion() {
-    if (isPaused) return;
-    if (currentIndex > 0) {
-        currentIndex--;
-        renderQuestionUI();
-        refreshCounters();
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        renderQuestion();
     }
 }
 
 function nextQuestion() {
-    if (isPaused) return;
-
-    if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
-        skippedIndices.add(currentIndex);
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        renderQuestion();
     }
-
-    if (currentIndex < questions.length - 1) {
-        currentIndex++;
-        renderQuestionUI();
-    }
-    refreshCounters();
 }
 
-function skipQuestion() {
-    if (isPaused) return;
-
-    if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
-        skippedIndices.add(currentIndex);
-    }
-
-    if (currentIndex < questions.length - 1) {
-        currentIndex++;
-        renderQuestionUI();
-    } else {
-        alert("This is the last question. You can use 'Submit Quiz' when you are ready.");
-    }
-    refreshCounters();
-}
-
-function getCorrectIndex(q) {
-    let rawCorrect = q.answer !== undefined ? q.answer : 
-                     (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
-
-    if (typeof rawCorrect === 'number') {
-        return rawCorrect;
-    } else if (typeof rawCorrect === 'string') {
-        let trimmed = rawCorrect.trim();
-        let parsedNum = parseInt(trimmed, 10);
-        if (!isNaN(parsedNum)) {
-            return parsedNum;
-        } else if (trimmed.length === 1) {
-            return trimmed.toUpperCase().charCodeAt(0) - 65;
-        } else {
-            return q.options.indexOf(trimmed);
-        }
-    }
-    return -1;
-}
-
-function submitQuiz() {
+async function submitQuiz() {
     clearInterval(timerInterval);
-
+    const studentName = document.getElementById('student-name').value.trim();
+    
     let score = 0;
-    let attempted = 0;
-
-    questions.forEach((q, idx) => {
-        const userAns = userAnswers[idx];
-        
-        if (userAns !== null && userAns !== undefined) {
-            attempted++;
-            let correctIdx = getCorrectIndex(q);
-            if (userAns === correctIdx) {
-                score++;
-            }
-        }
+    answers.forEach((ans, idx) => {
+        if (ans === questions[idx].answer) score++;
     });
 
-    let incorrect = attempted - score;
-    let skipped = questions.length - attempted;
+    document.getElementById('score-display').textContent = `Score: ${score} / ${questions.length}`;
+    document.getElementById('submission-status').textContent = "Submitting your results...";
+    showScreen('result-screen');
 
-    const payload = {
-        studentName: studentName,
-        quizId: currentQuizId,
-        score: score,
-        total: questions.length,
-        answers: userAnswers
-    };
-
-    fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).catch(err => console.error('Error submitting answers:', err));
-
-    displayResults(score, attempted, incorrect, skipped, questions.length);
-}
-
-function displayResults(score, attempted, incorrect, skipped, total) {
-    document.getElementById('quiz-screen').classList.add('hidden');
-    document.getElementById('result-screen').classList.remove('hidden');
-
-    document.getElementById('final-score').innerText = `Score: ${score} / ${total}`;
-    document.getElementById('final-breakdown').innerText = `Student: ${studentName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
-}
-
-function showReview() {
-    document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('review-screen').classList.remove('hidden');
-
-    const container = document.getElementById('review-container');
-    container.innerHTML = '';
-
-    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-
-    questions.forEach((q, idx) => {
-        const userAns = userAnswers[idx];
-        const correctIdx = getCorrectIndex(q);
-        const isSkipped = (userAns === null || userAns === undefined);
-        const isCorrect = (!isSkipped && userAns === correctIdx);
-
-        let statusText = isSkipped ? '<span style="color: #f59e0b; font-weight: bold;">Skipped</span>' :
-                         isCorrect ? '<span style="color: #10b981; font-weight: bold;">Correct</span>' : 
-                         '<span style="color: #ef4444; font-weight: bold;">Incorrect</span>';
-
-        let card = document.createElement('div');
-        card.style.cssText = "background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;";
-
-        let html = `<p style="font-weight: bold; margin-bottom: 8px;">Q${idx + 1}: ${q.question} [${statusText}]</p>`;
-        
-        html += `<ul style="list-style-type: none; padding-left: 0; margin-bottom: 8px;">`;
-        q.options.forEach((opt, optIdx) => {
-            let prefix = letters[optIdx] ? `${letters[optIdx]}. ` : '';
-            let style = "padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;";
-            
-            if (optIdx === correctIdx) {
-                style += " background: #d1fae5; color: #065f46; font-weight: 500;";
-            } else if (optIdx === userAns && !isCorrect) {
-                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;";
-            }
-
-            html += `<li style="${style}">${prefix}${opt}</li>`;
+    try {
+        const res = await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                studentName,
+                quizId: currentQuizId,
+                score,
+                total: questions.length,
+                answers
+            })
         });
-        html += `</ul>`;
-
-        if (q.explanation) {
-            html += `<p style="font-size: 13px; color: #475569; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-top: 6px;"><strong>Explanation:</strong> ${q.explanation}</p>`;
+        const data = await res.json();
+        if(data.success) {
+            document.getElementById('submission-status').textContent = "Results successfully emailed!";
+        } else {
+            document.getElementById('submission-status').textContent = "Failed to email results.";
         }
-
-        card.innerHTML = html;
-        container.appendChild(card);
-    });
+    } catch (err) {
+        document.getElementById('submission-status').textContent = "Network error during submission.";
+    }
 }
 
-function returnToMenu() {
-    document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('review-screen').classList.add('hidden');
-    document.getElementById('subject-menu').classList.remove('hidden');
+function reviewAnswers() {
+    alert("Review logic can be built here reading the answers array and questions array!");
 }
