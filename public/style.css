@@ -12,11 +12,10 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
-    position: relative;
     padding: 20px;
+    position: relative;
 }
 
 /* Repeating Diagonal Watermark */
@@ -27,109 +26,140 @@ body::after {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' transform='rotate(-30, 200, 200)' font-family='sans-serif' font-size='24' font-weight='bold' fill='rgba(0, 0, 0, 0.06)'>Aniruddha Banerjee</text></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' transform='rotate(-30, 200, 200)' font-family='sans-serif' font-size='24' font-weight='bold' fill='rgba(0, 0, 0, 0.05)'>Aniruddha Banerjee</text></svg>");
     background-repeat: repeat;
     pointer-events: none;
     z-index: 9999;
 }
 
-/* Main UI Boxes */
-div, section, .container {
-    background: transparent;
-}
-
-/* Target the central white boxes specifically */
-div[id$="-screen"], .quiz-container, #app {
-    background: #ffffff;
-    padding: 30px;
+/* Central Light Blue Box */
+.main-container {
+    background: #eaf4fc; /* Light blue tint */
+    padding: 35px;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     width: 100%;
     max-width: 600px;
     z-index: 1;
     position: relative;
-    margin: 15px auto;
+}
+
+/* Screen Visibility Logic (Fixes the overlapping bug) */
+.screen {
+    display: none;
+}
+.screen.active {
+    display: block;
+}
+
+h2, h3 {
+    color: #2c3e50;
+    margin-bottom: 20px;
     text-align: center;
 }
 
-/* Force Hover Effects on all Lists/Subjects/Options */
+/* Interactive Lists & Options */
 ul {
     list-style-type: none;
-    padding: 0;
 }
 
-li, .option, .subject-item {
+li, .option-btn {
     display: block;
     width: 100%;
-    padding: 15px;
+    padding: 14px 18px;
     margin: 10px 0;
-    background: #f8f9fa;
-    border: 2px solid #e9ecef;
+    background: #ffffff;
+    border: 2px solid #dce4ec;
     border-radius: 8px;
     font-size: 1.05rem;
-    cursor: pointer !important; /* Forces the hand icon */
+    cursor: pointer !important;
     text-align: left;
     transition: all 0.2s ease;
+    color: #333;
 }
 
-li:hover, .option:hover {
-    background: #e2e6ea;
-    border-color: #cbd3da;
-    transform: translateY(-1px);
+li:hover, .option-btn:hover {
+    background: #f1f7fd;
+    border-color: #a9c6e2;
+    transform: translateY(-2px);
 }
 
-.selected {
-    background: #cce5ff !important;
-    border-color: #b8daff !important;
-}
-
-/* Universal Button Fixes */
-button {
-    display: block;
-    width: 100%;
-    padding: 14px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
+.option-btn.selected {
+    background: #cce5ff;
+    border-color: #007bff;
+    color: #004085;
     font-weight: bold;
-    cursor: pointer !important; /* Forces the hand icon */
-    margin: 15px 0;
+}
+
+/* Buttons */
+button {
+    cursor: pointer !important;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-radius: 8px;
+    border: none;
     transition: background 0.2s ease;
 }
 
-button:hover {
-    background: #0056b3;
+.btn-primary {
+    background: #007bff;
+    color: white;
 }
+.btn-primary:hover { background: #0056b3; }
 
-/* Fix Side-by-Side Buttons (Start/Back, Review/Return) */
-div[style*="flex"], .button-group, #nav-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    justify-content: center;
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+.btn-secondary:hover { background: #5a6268; }
+
+.btn-submit {
+    background: #28a745;
+    color: white;
     width: 100%;
-    margin-top: 15px;
 }
+.btn-submit:hover { background: #218838; }
 
-div[style*="flex"] button, .button-group button {
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+.button-group button {
     flex: 1;
-    margin: 0; /* Removes vertical margin when side-by-side */
-    min-width: 120px; /* Prevents text squishing */
 }
 
-/* Input Form */
+.mt-15 { margin-top: 15px; width: 100%; }
+
+/* Input Field */
 input[type="text"] {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     margin: 15px 0;
     border: 2px solid #ced4da;
     border-radius: 8px;
     font-size: 1rem;
     outline: none;
 }
+input[type="text"]:focus { border-color: #007bff; }
 
-input[type="text"]:focus {
-    border-color: #007bff;
+/* Quiz Top Stats Panel */
+.quiz-stats {
+    display: flex;
+    justify-content: space-between;
+    background: #ffffff;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #dce4ec;
+    font-weight: bold;
+    color: #495057;
+}
+
+.timer-box { color: #dc3545; }
+
+.score-text {
+    font-size: 1.5rem;
+    color: #28a745;
 }
