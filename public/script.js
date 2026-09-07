@@ -244,14 +244,31 @@ function submitQuiz() {
     let score = 0;
     let attempted = 0;
 
-    questions.forEach((q, idx) => {
-        if (userAnswers[idx] !== null && userAnswers[idx] !== undefined) {
+    // Build detailed question analysis for the email report
+    let questionDetails = questions.map((q, idx) => {
+        const userAns = userAnswers[idx];
+        const correctIdx = getCorrectIndex(q);
+        const isSkipped = (userAns === null || userAns === undefined);
+        const isCorrect = (!isSkipped && userAns === correctIdx);
+        
+        if (!isSkipped) {
             attempted++;
-            let correctIdx = getCorrectIndex(q);
-            if (userAnswers[idx] === correctIdx) {
+            if (isCorrect) {
                 score++;
             }
         }
+
+        let status = isSkipped ? "Skipped" : (isCorrect ? "Correct" : "Incorrect");
+        let userOptText = isSkipped ? "None" : (q.options[userAns] || ("Option " + (userAns + 1)));
+        let correctOptText = q.options[correctIdx] || ("Option " + (correctIdx + 1));
+
+        return {
+            questionNum: idx + 1,
+            question: q.question,
+            status: status,
+            userAnswer: userOptText,
+            correctAnswer: correctOptText
+        };
     });
 
     let incorrect = attempted - score;
@@ -262,8 +279,10 @@ function submitQuiz() {
         lastName: studentLastName,
         quizId: currentQuizId,
         score: score,
+        incorrect: incorrect,
+        skipped: skipped,
         total: questions.length,
-        answers: userAnswers
+        details: questionDetails
     };
 
     fetch('/api/submit', {
