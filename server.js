@@ -1,65 +1,67 @@
 const express = require('express');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const PORT = 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Pre-load chapter question files into memory based on the nested structure
-const quizzesCache = {};
-const quizListPath = path.join(__dirname, 'quizzes.json');
-
-if (fs.existsSync(quizListPath)) {
-    const subjects = JSON.parse(fs.readFileSync(quizListPath, 'utf8'));
-    subjects.forEach(subj => {
-        if (subj.chapters) {
-            subj.chapters.forEach(ch => {
-                const filePath = path.join(__dirname, `${ch.id}-questions.json`);
-                if (fs.existsSync(filePath)) {
-                    quizzesCache[ch.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                }
-            });
-        }
-    });
-}
-
-app.get('/api/quizzes', (req, res) => {
-    if (fs.existsSync(quizListPath)) {
-        res.json(JSON.parse(fs.readFileSync(quizListPath, 'utf8')));
-    } else {
-        res.status(404).json({ error: 'Quizzes configuration not found' });
+// Configure Nodemailer with your email credentials (pulled from environment variables)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, // Your email address
+        pass: process.env.EMAIL_PASS  // Your 16-character Google App Password
     }
 });
 
+// API Route: Fetch main quizzes structure from quizzes.json[cite: 1]
+app.get('/api/quizzes', (req, res) => {
+    fs.readFile(path.join(__dirname, 'quizzes.json'), 'utf8', (err, data) => {
+        if (err) return res.status(500).json({ error: 'Failed to load quizzes list' });
+        res.json(JSON.parse(data));
+    });
+});
+
+// API Route: Fetch questions for a specific chapter or mock test file
 app.get('/api/quiz/:id', (req, res) => {
     const quizId = req.params.id;
-    if (quizzesCache[quizId]) {
-        res.json(quizzesCache[quizId]);
-    } else {
-        res.status(404).json({ error: 'Quiz questions not found' });
-    }
-});
-
-app.post('/api/submit', (req, res) => {
-    const submission = req.body;
-    const submissionsFile = path.join(__dirname, 'submissions.json');
-    
-    let allSubmissions = [];
-    if (fs.existsSync(submissionsFile)) {
-        allSubmissions = JSON.parse(fs.readFileSync(submissionsFile, 'utf8'));
-    }
-    
-    allSubmissions.push({
-        timestamp: new Date().toISOString(),
-        ...submission
+    const fileName = `${quizId}-questions.json`;
+    fs.readFile(path.join(__dirname, fileName), 'utf8', (err, data) => {
+        if (err) return res.status(404).json({ error: 'Question file not found' });
+        res.json(JSON.parse(data));
     });
-    
-    fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-    res.json({ success: true, message: 'Response saved successfully!' });
 });
 
+// API Route: Email student attempt directly upon submission
+app.post('/api/submit', async (req, res) => {
+    const { studentName, quizId, score, total, answers } = req.body;
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.TARGET_EMAIL || process.env.EMAIL_USER, // Where you want to receive reports
+        subject: `New Quiz Submission: ${quizId} - ${studentName || 'Anonymous'}`,
+        text: `A student has completed a quiz on your portal.
+
+Student Name: ${studentName || 'Anonymous'}
+Chapter/Quiz ID: ${quizId}
+Score Achieved: ${score} / ${total}
+Submission Time: ${new Date().toLocaleString()}
+
+Raw Option Answers Index Array: ${JSON.stringify(answers)}`
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).json({ success: true, message: 'Result emailed successfully!' });
+    } catch (err) {
+        console.error('Error sending email:', err);
+        res.status(500).json({ success: false, message: 'Failed to send result email' });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
