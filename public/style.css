@@ -16,6 +16,7 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
+    padding: 20px;
 }
 
 /* Repeating Diagonal Watermark */
@@ -26,28 +27,23 @@ body::after {
     left: 0;
     width: 100vw;
     height: 100vh;
-    /* 
-      Customize Watermark Size and Color here:
-      - Change font-size='24' to make the text larger or smaller.
-      - Change fill='rgba(0, 0, 0, 0.05)' to adjust color and opacity.
-    */
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' transform='rotate(-30, 200, 200)' font-family='sans-serif' font-size='24' font-weight='bold' fill='rgba(0, 0, 0, 0.06)'>Aniruddha Banerjee</text></svg>");
     background-repeat: repeat;
-    pointer-events: none; /* Allows students to click and interact normally */
-    z-index: 9999;        /* Keeps the watermark layered cleanly across the background */
+    pointer-events: none;
+    z-index: 9999;
 }
 
-/* Quiz Container & Cards */
-.container, .quiz-container {
+/* Main Container / Card Wrapper */
+.container, .quiz-container, div[class*="screen"] {
     background: #ffffff;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     width: 100%;
-    max-width: 600px;
+    max-width: 650px;
     z-index: 1;
     position: relative;
-    margin: 20px;
+    margin: 15px auto;
 }
 
 h1, h2 {
@@ -56,48 +52,95 @@ h1, h2 {
     text-align: center;
 }
 
-/* Quiz Options / Buttons */
-.option-btn {
+/* Clickable Subjects, Chapters, and Options */
+.subject-item, .chapter-item, .option-btn {
     display: block;
     width: 100%;
-    padding: 12px 15px;
-    margin: 10px 0;
+    padding: 14px 18px;
+    margin: 12px 0;
     background: #f8f9fa;
     border: 2px solid #e9ecef;
-    border-radius: 6px;
-    font-size: 1rem;
+    border-radius: 8px;
+    font-size: 1.05rem;
     cursor: pointer;
     text-align: left;
+    text-decoration: none;
+    color: #333;
     transition: all 0.2s ease;
 }
 
-.option-btn:hover {
+.subject-item:hover, .chapter-item:hover, .option-btn:hover {
     background: #e2e6ea;
     border-color: #cbd3da;
+    transform: translateY(-1px);
 }
 
 .option-btn.selected {
     background: #cce5ff;
     border-color: #b8daff;
+    color: #004085;
+}
+
+/* Button Layout & Preventing Overlaps */
+button, .btn-primary, .btn-secondary {
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .btn-primary {
-    display: inline-block;
-    width: 100%;
-    padding: 12px;
     background: #007bff;
     color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
+    width: 100%;
     margin-top: 15px;
-    transition: background 0.2s ease;
+    display: inline-block;
+    text-align: center;
 }
 
 .btn-primary:hover {
     background: #0056b3;
+}
+
+/* Button Group Container for side-by-side buttons without overlap */
+.button-group, .nav-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.button-group button, .button-group .btn-secondary, .nav-buttons button {
+    flex: 1;
+    margin: 0;
+    background: #6c757d;
+    color: white;
+    text-align: center;
+}
+
+.button-group button:hover, .nav-buttons button:hover {
+    background: #5a6268;
+}
+
+/* Input Fields */
+input[type="text"] {
+    width: 100%;
+    padding: 12px 15px;
+    margin: 15px 0;
+    border: 2px solid #ced4da;
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    border-color: #007bff;
 }
 
 /* Quiz Header & Timer */
@@ -108,6 +151,8 @@ h1, h2 {
     margin-bottom: 20px;
     font-weight: bold;
     color: #6c757d;
+    border-bottom: 2px solid #f1f3f5;
+    padding-bottom: 10px;
 }
 
 #timer {
