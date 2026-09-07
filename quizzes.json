@@ -9,8 +9,8 @@
   {
     "subject": "Chemistry",
     "chapters": [
-      { "id": "bonding", "title": "Chemical Bonding", "duration": 1200 },
-      { "id": "HCl", "title": "HCl", "duration": 1200 }
+      { "id": "bonding", "title": "Chemical Bonding", "duration": 900 },
+      { "id": "HCl", "title": "HCl", "duration": 900 }
     ]
   },
   {

@@ -1,242 +1,242 @@
 [
   {
     "id": 1,
-    "question": "The type of chemical bond present in a hydrogen chloride molecule is:",
+    "question": "An inverted funnel is used to dissolve hydrogen chloride gas in water because it:",
     "options": [
-      "Pure covalent bond",
-      "Polar covalent bond",
-      "Electrovalent bond",
-      "Coordinate bond"
+      "Increases the density of the gas",
+      "Prevents back-suction and provides a larger surface area for absorption",
+      "Decreases the solubility of the gas to a manageable rate",
+      "Condenses the gas into a liquid before it enters the water"
     ],
     "answer": 1,
-    "explanation": "HCl is formed between two different non-metals with different electronegativities, making the shared electron pair shift towards chlorine and forming a polar covalent bond."
+    "explanation": "The inverted funnel arrangement prevents water from rushing back into the generating flask (back-suction) and provides a large surface area for the maximum absorption of the highly soluble HCl gas."
   },
   {
     "id": 2,
-    "question": "Which of the following reagents is used in the laboratory preparation of hydrogen chloride gas?",
+    "question": "When dilute hydrochloric acid is reacted with iron sulfide (FeS), a gas is evolved. This gas can be identified by its ability to:",
     "options": [
-      "Sodium chloride and dilute sulfuric acid",
-      "Sodium chloride and concentrated sulfuric acid",
-      "Sodium chloride and concentrated nitric acid",
-      "Sodium carbonate and concentrated sulfuric acid"
+      "Turn lime water milky",
+      "Turn acidified potassium dichromate paper green",
+      "Turn lead acetate paper silvery black",
+      "Bleach moist litmus paper"
     ],
-    "answer": 1,
-    "explanation": "Concentrated sulfuric acid is a non-volatile acid that displaces volatile hydrogen chloride gas from sodium chloride upon heating below 200°C."
+    "answer": 2,
+    "explanation": "Hydrogen sulfide gas (H₂S) is evolved when dilute HCl reacts with a sulfide like FeS, which has the characteristic property of turning lead acetate paper silvery black."
   },
   {
     "id": 3,
-    "question": "Why is the temperature maintained below 200°C during the laboratory preparation of HCl gas?",
+    "question": "Why is hydrogen chloride gas termed a polar covalent compound?",
     "options": [
-      "To prevent the melting of the glass apparatus",
-      "To prevent the formation of normal sodium sulfate which sticks to the glass",
-      "To increase the yield of hydrochloric acid",
-      "To prevent the decomposition of HCl gas"
+      "It contains a metallic and a non-metallic atom",
+      "Chlorine is more electronegative than hydrogen, creating partial charges",
+      "It dissolves in water to form a strong base",
+      "It completely transfers an electron from hydrogen to chlorine"
     ],
     "answer": 1,
-    "explanation": "Keeping the temperature below 200°C ensures the formation of sodium hydrogen sulfate instead of hard normal sodium sulfate, which is difficult to remove from the glass apparatus and requires high heat that can crack the glass."
+    "explanation": "In an HCl molecule, chlorine is more electronegative than hydrogen. This unequal sharing pulls the shared electron pair towards chlorine, creating permanent partial positive and negative charges."
   },
   {
     "id": 4,
-    "question": "Which of the following drying agents is used to dry hydrogen chloride gas?",
+    "question": "If a constant boiling mixture of hydrochloric acid is boiled further, what happens to the composition of the vapor?",
     "options": [
-      "Quicklime (CaO)",
-      "Fused calcium chloride (CaCl2)",
-      "Concentrated sulfuric acid (H2SO4)",
-      "Phosphorus pentoxide (P2O5)"
+      "The vapor will contain only water",
+      "The vapor will contain only hydrogen chloride gas",
+      "The vapor will have the same composition as the liquid mixture (approx. 20.22% HCl and 79.78% water)",
+      "The liquid will eventually leave behind a solid residue"
     ],
     "answer": 2,
-    "explanation": "Concentrated sulfuric acid is a neutral/acidic drying agent that does not react with HCl, whereas basic drying agents like quicklime would react with it."
+    "explanation": "A constant boiling mixture is an azeotrope. At this composition, it boils without any change in its composition, meaning the vapor has the exact same ratio of acid to water as the liquid."
   },
   {
     "id": 5,
-    "question": "Hydrogen chloride gas is collected by the upward displacement of air because it is:",
+    "question": "Dry hydrogen chloride gas is passed through a U-tube containing fused calcium chloride. The gas emerging from the U-tube is then tested with dry blue litmus paper. What is the observation?",
     "options": [
-      "Lighter than air and insoluble in water",
-      "Heavier than air and highly soluble in water",
-      "Lighter than air and highly soluble in water",
-      "Heavier than air and insoluble in water"
+      "The litmus paper turns red",
+      "The litmus paper turns white (bleached)",
+      "The litmus paper remains blue",
+      "The litmus paper catches fire"
     ],
-    "answer": 1,
-    "explanation": "HCl has a vapor density higher than air (heavier than air) and cannot be collected over water due to its high solubility, requiring upward displacement of air."
+    "answer": 2,
+    "explanation": "Dry hydrogen chloride is a covalent molecule and does not ionize to form H⁺ ions in the absence of moisture, hence it has no acidic effect on dry blue litmus paper."
   },
   {
     "id": 6,
-    "question": "Hydrogen chloride gas cannot be collected over water because:",
+    "question": "Concentrated nitric acid is not used in the laboratory preparation of hydrogen chloride gas from sodium chloride because:",
     "options": [
-      "It reacts chemically with water",
-      "It is extremely soluble in water",
-      "It is lighter than water",
-      "It decomposes in water"
+      "Nitric acid is highly viscous",
+      "Nitric acid is a volatile acid and its vapors will mix with the hydrogen chloride gas",
+      "Nitric acid reacts with hydrogen chloride to form water",
+      "Nitric acid is a weak acid compared to hydrochloric acid"
     ],
     "answer": 1,
-    "explanation": "One volume of water dissolves about 450 volumes of HCl gas, making collection over water impossible as it dissolves instantly."
+    "explanation": "Nitric acid is highly volatile and will vaporize upon heating alongside the hydrogen chloride gas, resulting in an impure mixture rather than pure HCl gas."
   },
   {
     "id": 7,
-    "question": "The fountain experiment demonstrates which of the following properties of hydrogen chloride gas?",
+    "question": "When dilute hydrochloric acid reacts with a metallic thiosulfate, which unique observation helps identify the thiosulfate radical?",
     "options": [
-      "Its acidic nature and high solubility in water",
-      "Its heavy density and reducing property",
-      "Its bleaching action and combustibility",
-      "Its capacity to form coordinate bonds"
+      "Evolution of a gas that burns with a pop sound",
+      "Formation of a curdy white precipitate",
+      "Evolution of sulfur dioxide gas and precipitation of yellow sulfur",
+      "Evolution of brown fumes of nitrogen dioxide"
     ],
-    "answer": 0,
-    "explanation": "The high solubility creates a partial vacuum drawing water in, and the acidic nature turns the indicator solution red, demonstrating both properties."
+    "answer": 2,
+    "explanation": "Thiosulfates react with dilute acids to release sulfur dioxide gas (SO₂) along with a characteristic yellow precipitate of elemental sulfur, distinguishing them from sulfites."
   },
   {
     "id": 8,
-    "question": "When hydrogen chloride gas reacts with ammonia gas, the product formed is:",
+    "question": "In the reaction between manganese dioxide (MnO₂) and concentrated hydrochloric acid, the role of MnO₂ is:",
     "options": [
-      "Nitrogen gas and water",
-      "Dense white fumes of ammonium chloride",
-      "Ammonium hydroxide solution",
-      "Yellowish-green gas and ammonium nitrate"
+      "A catalyst",
+      "A dehydrating agent",
+      "An oxidizing agent",
+      "A reducing agent"
     ],
-    "answer": 1,
-    "explanation": "HCl reacts with NH3 gas to form solid ammonium chloride particles, which appear as dense white fumes."
+    "answer": 2,
+    "explanation": "Manganese dioxide oxidizes the chloride ions in concentrated hydrochloric acid to chlorine gas, while simultaneously getting reduced to manganese(II) chloride."
   },
   {
     "id": 9,
-    "question": "Dry hydrogen chloride gas does not affect dry blue litmus paper because:",
+    "question": "Why does an aqueous solution of hydrogen chloride conduct electricity, whereas a solution of hydrogen chloride in toluene does not?",
     "options": [
-      "It is neutral in the absence of water",
-      "It does not dissociate to produce hydrogen ions (H+) without water",
-      "It undergoes sublimation",
-      "It acts as a weak reducing agent"
+      "Toluene absorbs all the free electrons",
+      "Water is a polar solvent that causes HCl to ionize, while non-polar toluene does not",
+      "Toluene neutralizes the acidic nature of HCl completely",
+      "HCl forms a coordinate bond with toluene"
     ],
     "answer": 1,
-    "explanation": "Acids show their acidic behavior only in the presence of water due to the dissociation of hydrogen ions; dry HCl remains molecular and un-ionized."
+    "explanation": "Water is a polar solvent that facilitates the ionization of polar covalent HCl into hydronium and chloride ions. Toluene is non-polar, so HCl remains in its un-ionized molecular state."
   },
   {
     "id": 10,
-    "question": "Manganese dioxide reacts with concentrated hydrochloric acid to produce:",
+    "question": "Which gas is produced when dilute hydrochloric acid is added to sodium sulfite?",
     "options": [
-      "Hydrogen gas",
-      "Chlorine gas, manganese(II) chloride, and water",
-      "Oxygen gas and hydrogen chloride",
-      "Bleaching powder"
+      "Hydrogen sulfide",
+      "Carbon dioxide",
+      "Sulfur dioxide",
+      "Hydrogen"
     ],
-    "answer": 1,
-    "explanation": "MnO2 acts as an oxidizing agent, oxidizing concentrated HCl to yellowish-green chlorine gas alongside manganese(II) chloride and water."
+    "answer": 2,
+    "explanation": "Sulfites react with dilute acids to decompose and liberate sulfur dioxide (SO₂) gas, which can be identified by its suffocating, burning sulfur odor."
   },
   {
     "id": 11,
-    "question": "Aqua regia is a mixture of concentrated hydrochloric acid and concentrated nitric acid in the volume ratio of:",
+    "question": "Why is phosphorus pentoxide (P₂O₅) not suitable for drying hydrogen chloride gas?",
     "options": [
-      "1 : 3",
-      "3 : 1",
-      "1 : 1",
-      "2 : 3"
+      "It is less hygroscopic than concentrated sulfuric acid",
+      "It reacts with HCl gas to form phosphoryl chloride",
+      "It sublimates at the temperature of the reaction",
+      "It converts the gas into liquid HCl"
     ],
     "answer": 1,
-    "explanation": "Aqua regia is a freshly prepared mixture of 3 parts concentrated HCl and 1 part concentrated HNO3 by volume, used to dissolve noble metals like gold and platinum."
+    "explanation": "Although P₂O₅ is a powerful drying agent, it chemically reacts with hydrogen chloride to form phosphoryl chloride, making it unsuitable for drying this specific reactive gas."
   },
   {
     "id": 12,
-    "question": "When dilute hydrochloric acid is added to silver nitrate solution, a curdy white precipitate is formed. What is this precipitate?",
+    "question": "A glass rod dipped in ammonia solution is brought near the mouth of a jar containing hydrogen chloride gas. Dense white fumes are formed. These fumes are of:",
     "options": [
-      "Silver sulfate",
-      "Silver chloride",
-      "Silver oxide",
-      "Silver carbonate"
+      "Ammonium hydroxide droplets",
+      "Solid particles of ammonium chloride",
+      "Nitrogen trichloride gas",
+      "Liquid ammonium nitrate"
     ],
     "answer": 1,
-    "explanation": "Chloride ions react with silver ions to form insoluble silver chloride, which precipitates as a curdy white solid soluble in ammonium hydroxide."
+    "explanation": "Ammonia gas reacts instantly with hydrogen chloride gas to form fine, sublimable solid particles of ammonium chloride (NH₄Cl), which appear visually as dense white fumes."
   },
   {
     "id": 13,
-    "question": "One volume of water dissolves approximately how many volumes of hydrogen chloride gas at standard conditions?",
+    "question": "The dissolution of hydrogen chloride gas in water results in the formation of hydronium ions. What type of bond is formed between the water molecule and the hydrogen ion?",
     "options": [
-      "50 volumes",
-      "200 volumes",
-      "450 volumes",
-      "1000 volumes"
+      "Electrovalent bond",
+      "Pure covalent bond",
+      "Coordinate (dative) bond",
+      "Metallic bond"
     ],
     "answer": 2,
-    "explanation": "HCl has exceptional solubility in water; 1 volume of water can dissolve up to 450 volumes of HCl gas under standard conditions."
+    "explanation": "A water molecule donates a lone pair of electrons from its oxygen atom to the empty 1s orbital of the hydrogen ion (H⁺), forming a coordinate (dative) covalent bond."
   },
   {
     "id": 14,
-    "question": "When dilute hydrochloric acid reacts with iron, the salt formed is:",
+    "question": "Dilute hydrochloric acid reacts with active metals above hydrogen in the reactivity series. The salt formed when iron reacts with dilute HCl is iron(II) chloride, not iron(III) chloride. This is because:",
     "options": [
-      "Iron(III) chloride (FeCl3)",
-      "Iron(II) chloride (FeCl2)",
-      "Iron(II) hypochlorite",
-      "No reaction takes place"
+      "Iron can only exhibit a valency of 2",
+      "The liberated hydrogen gas acts as a reducing agent, preventing the formation of iron(III) chloride",
+      "Hydrochloric acid is a weak oxidizing agent",
+      "Iron(III) chloride is highly unstable at room temperature"
     ],
     "answer": 1,
-    "explanation": "The reaction of dilute HCl with an active metal like iron produces iron(II) chloride and hydrogen gas, with the reducing property of hydrogen preventing the formation of ferric chloride."
+    "explanation": "The reaction between iron and dilute HCl produces hydrogen gas. Hydrogen is a strong reducing agent that prevents the higher oxidation of iron to the +3 state, yielding only iron(II) chloride."
   },
   {
     "id": 15,
-    "question": "Why is quicklime (CaO) not used as a drying agent for hydrogen chloride gas?",
+    "question": "Aqua regia dissolves noble metals like gold and platinum. Which active species in aqua regia is responsible for this?",
     "options": [
-      "Because CaO is acidic and reacts with HCl",
-      "Because CaO is basic and reacts with acidic HCl gas to form salt and water",
-      "Because CaO dissolves in HCl",
-      "Because CaO absorbs moisture too slowly"
+      "Nitric oxide",
+      "Hydronium ions",
+      "Nascent chlorine",
+      "Nitrosyl chloride"
     ],
-    "answer": 1,
-    "explanation": "Quicklime is a basic oxide, so it will neutralize acidic hydrogen chloride gas rather than just drying it."
+    "answer": 2,
+    "explanation": "The mixture of concentrated HCl and HNO₃ generates nascent chlorine [Cl], a highly reactive atomic species that attacks and dissolves inert noble metals."
   },
   {
     "id": 16,
-    "question": "Dilute hydrochloric acid reacts with sodium carbonate to evolve a gas that:",
+    "question": "If the temperature during the laboratory preparation of HCl gas from NaCl and H₂SO₄ exceeds 200°C, a hard crust forms in the flask. This crust is:",
     "options": [
-      "Turns lime water milky",
-      "Burns with a pop sound",
-      "Has a rotten egg smell",
-      "Turns acidic potassium permanganate colorless"
+      "Sodium hydrogen sulfate (NaHSO₄)",
+      "Normal sodium sulfate (Na₂SO₄)",
+      "Solid hydrogen chloride",
+      "Unreacted sodium chloride"
     ],
-    "answer": 0,
-    "explanation": "The reaction produces carbon dioxide gas, which turns lime water milky due to the formation of insoluble calcium carbonate."
+    "answer": 1,
+    "explanation": "Exceeding 200°C drives the reaction to completion, producing normal sodium sulfate (Na₂SO₄) instead of the acid salt. This forms a hard crust that sticks strongly to glass."
   },
   {
     "id": 17,
-    "question": "Hydrogen chloride gas is:",
+    "question": "To distinguish between dilute hydrochloric acid and dilute sulfuric acid, one can use:",
     "options": [
-      "Unstable and decomposes easily upon heating",
-      "Highly stable to heat",
-      "Explosive when heated above 100°C",
-      "Converted into chlorine and hydrogen at room temperature"
+      "Barium chloride solution",
+      "Sodium hydroxide solution",
+      "Blue litmus solution",
+      "Phenolphthalein indicator"
     ],
-    "answer": 1,
-    "explanation": "Hydrogen chloride molecules have strong covalent bonds and are thermally stable, meaning they do not decompose easily upon heating."
+    "answer": 0,
+    "explanation": "Dilute sulfuric acid reacts with barium chloride to form a thick white precipitate of barium sulfate, while dilute hydrochloric acid produces no precipitate."
   },
   {
     "id": 18,
-    "question": "Hydrogen chloride is soluble in toluene or methyl benzene, but in these organic solvents it:",
+    "question": "When silver nitrate solution is added to dilute hydrochloric acid, a precipitate is formed. What happens to this precipitate when excess ammonium hydroxide is added to it?",
     "options": [
-      "Forms ions and conducts electricity",
-      "Does not form ions and behaves as a covalent compound without acidic properties",
-      "Reacts to form a precipitate",
-      "Undergoes polymerization"
+      "It turns black",
+      "It remains insoluble and turns yellow",
+      "It dissolves to form a clear, colorless complex solution",
+      "It evolves a brown gas"
     ],
-    "answer": 1,
-    "explanation": "Non-polar organic solvents like toluene cannot ionize covalent HCl molecules, so the solution contains no ions, does not conduct electricity, and shows no acid characteristics."
+    "answer": 2,
+    "explanation": "The curdy white precipitate of silver chloride is readily soluble in excess ammonium hydroxide due to the formation of a soluble complex salt, diamminesilver(I) chloride."
   },
   {
     "id": 19,
-    "question": "Which of the following reagents can be used to distinguish between hydrochloric acid and sulfuric acid?",
+    "question": "Hydrogen chloride gas is highly soluble in water. This is physically demonstrated in the laboratory by:",
     "options": [
-      "Barium chloride solution",
-      "Silver nitrate solution",
-      "Ammonium hydroxide",
-      "Sodium hydroxide solution"
+      "The brown ring test",
+      "The fountain experiment",
+      "The flame test",
+      "The sublimation process"
     ],
-    "answer": 0,
-    "explanation": "Sulfuric acid reacts with barium chloride to give a white precipitate of barium sulfate insoluble in mineral acids, whereas hydrochloric acid shows no precipitate."
+    "answer": 1,
+    "explanation": "The fountain experiment visibly demonstrates the extreme solubility of HCl gas; as the gas dissolves, it drastically reduces pressure inside the flask, pulling water rapidly upward."
   },
   {
     "id": 20,
-    "question": "At room temperature, pure hydrogen chloride exists as a:",
+    "question": "Lead(II) nitrate solution reacts with dilute hydrochloric acid to form a white precipitate of lead(II) chloride. Which property of this precipitate helps in its confirmation?",
     "options": [
-      "Colorless liquid",
-      "Colorless gas with a pungent choking smell",
-      "Greenish-yellow gas",
-      "White crystalline solid"
+      "It is highly soluble in cold water but insoluble in hot water",
+      "It is soluble in hot water but crystallizes out on cooling",
+      "It dissolves in dilute nitric acid",
+      "It dissolves in excess of sodium hydroxide"
     ],
     "answer": 1,
-    "explanation": "Pure hydrogen chloride is a colorless gas with a characteristic pungent, irritating odor at standard room temperature and pressure."
+    "explanation": "Lead(II) chloride has a unique solubility profile: it is insoluble in cold water, allowing it to precipitate, but dissolves readily when heated and recrystallizes upon cooling."
   }
 ]

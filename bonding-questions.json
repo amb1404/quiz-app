@@ -1,242 +1,242 @@
 [
   {
     "id": 1,
-    "question": "The type of chemical bond present in sodium chloride (NaCl) is:",
+    "question": "Which of the following best explains why an atom of neon does not readily form chemical bonds under normal conditions?",
     "options": [
-      "Covalent bond",
-      "Electrovalent (ionic) bond",
-      "Coordinate bond",
-      "Metallic bond"
+      "It has an equal number of protons and neutrons",
+      "It has a stable octet of electrons in its outermost shell",
+      "It has a very low ionization potential",
+      "It possesses strong intermolecular forces"
     ],
     "answer": 1,
-    "explanation": "Sodium is a metal that transfers an electron to non-metal chlorine, resulting in a strong electrostatic attraction between oppositely charged ions to form an electrovalent bond."
+    "explanation": "Neon is a noble gas with a complete valence shell (stable octet). Therefore, it does not need to lose, gain, or share electrons to achieve stability."
   },
   {
     "id": 2,
-    "question": "Which of the following conditions favors the formation of an ionic bond?",
+    "question": "During the formation of a calcium ion (Ca²⁺) from a neutral calcium atom, which of the following conceptual changes occurs?",
     "options": [
-      "High ionization energy and high electron affinity",
-      "Low ionization energy and low electron affinity",
-      "Low ionization energy and high electron affinity",
-      "High ionization energy and low electron affinity"
+      "The atomic radius increases due to the gain of protons",
+      "The atomic radius decreases due to the loss of its outermost electron shell and increased effective nuclear charge",
+      "The mass number of the atom decreases by two units",
+      "The number of protons decreases to balance the charge"
     ],
-    "answer": 2,
-    "explanation": "A low ionization energy allows the metal to easily lose electrons to form a cation, while a high electron affinity enables the non-metal to readily accept electrons to form an anion."
+    "answer": 1,
+    "explanation": "When a neutral calcium atom loses its two valence electrons to form a Ca²⁺ ion, it loses its outermost shell entirely, and the remaining electrons are pulled closer to the nucleus by the increased effective nuclear charge, decreasing the radius."
   },
   {
     "id": 3,
-    "question": "Electrovalent compounds generally possess:",
+    "question": "In the formation of an electrovalent (ionic) compound, the metal atom transfers electrons to the non-metal atom. In this process, the metal atom acts as a:",
     "options": [
-      "Low melting and boiling points",
-      "High melting and boiling points",
-      "High volatility",
-      "Weak electrostatic forces of attraction"
+      "Oxidizing agent because it undergoes reduction",
+      "Reducing agent because it undergoes oxidation",
+      "Catalyst to speed up the electron transfer",
+      "Dehydrating agent"
     ],
     "answer": 1,
-    "explanation": "The strong electrostatic forces of attraction between oppositely charged ions within an ionic crystal lattice require a high amount of thermal energy to break."
+    "explanation": "Metals lose electrons during ionic bond formation (oxidation). A substance that loses electrons causes another to be reduced, thus acting as a reducing agent."
   },
   {
     "id": 4,
-    "question": "A covalent bond is formed by:",
+    "question": "Solid sodium chloride does not conduct electricity, but molten sodium chloride is an excellent conductor. What is the primary conceptual reason for this difference?",
     "options": [
-      "Complete transfer of electrons from one atom to another",
-      "Mutual sharing of electrons between two atoms",
-      "Transfer of protons between nuclei",
-      "Attraction between free electrons and positive ions"
+      "Melting sodium chloride creates free electrons that carry the current",
+      "In the solid state, strong electrostatic forces hold the ions rigidly in a crystal lattice, but melting frees the ions to move",
+      "Melting breaks the covalent bonds within the sodium chloride molecules",
+      "Solid sodium chloride is a non-polar substance, while molten sodium chloride is polar"
     ],
     "answer": 1,
-    "explanation": "Covalent bonds typically form between non-metal atoms by sharing one or more pairs of electrons to achieve a stable noble gas electronic configuration."
+    "explanation": "Ionic compounds require mobile ions to conduct electricity. Melting breaks the rigid crystal lattice, allowing the ions to move freely and carry charge."
   },
   {
     "id": 5,
-    "question": "Which of the following molecules contains a triple covalent bond?",
+    "question": "A molecule of nitrogen (N₂) contains a triple covalent bond. Conceptually, this means that the two nitrogen atoms are held together by the mutual sharing of:",
     "options": [
-      "Water (H₂O)",
-      "Oxygen (O₂)",
-      "Nitrogen (N₂)",
-      "Ammonia (NH₃)"
+      "3 electrons in total",
+      "3 pairs of electrons (6 electrons in total)",
+      "2 pairs of electrons and 1 coordinate bond",
+      "8 valence electrons"
     ],
-    "answer": 2,
-    "explanation": "Each nitrogen atom has 5 valence electrons and requires 3 more to complete its octet, leading to the mutual sharing of three pairs of electrons between two nitrogen atoms."
+    "answer": 1,
+    "explanation": "A single bond consists of 1 pair of shared electrons. Therefore, a triple bond consists of 3 shared pairs, which equals 6 electrons in total."
   },
   {
     "id": 6,
-    "question": "Which of the following is a polar covalent compound?",
+    "question": "Carbon tetrachloride (CCl₄) is a non-polar covalent molecule. Based on this characteristic, which of the following properties is true?",
     "options": [
-      "Methane (CH₄)",
-      "Hydrogen chloride (HCl)",
-      "Chlorine gas (Cl₂)",
-      "Carbon tetrachloride (CCl₄)"
+      "It readily conducts electricity in an aqueous solution",
+      "It has a very high boiling point compared to ionic compounds",
+      "It is insoluble in water but highly soluble in organic solvents like benzene",
+      "It easily dissociates into ions when dissolved in water"
     ],
-    "answer": 1,
-    "explanation": "HCl is formed between two different non-metals with different electronegativities, causing the shared electron pair to be pulled closer to chlorine and creating a polar bond."
+    "answer": 2,
+    "explanation": "Non-polar covalent compounds adhere to the 'like dissolves like' principle, meaning they are generally insoluble in polar solvents like water but soluble in non-polar organic solvents."
   },
   {
     "id": 7,
-    "question": "A coordinate bond (dative bond) is formed when:",
+    "question": "In a Lewis electron dot diagram, a lone pair represents valence electrons that are not shared with another atom. Which of the following molecules possesses exactly one lone pair on its central atom?",
     "options": [
-      "Electrons are completely transferred from a metal to a non-metal",
-      "A shared pair of electrons is contributed by only one of the combining atoms",
-      "Two atoms share three pairs of electrons equally",
-      "Delocalized electrons move freely through a crystal lattice"
-    ],
-    "answer": 1,
-    "explanation": "A coordinate bond requires a donor atom possessing a lone pair of electrons and an acceptor atom with a vacant orbital to share that electron pair."
-  },
-  {
-    "id": 8,
-    "question": "Which of the following ions contains a coordinate covalent bond?",
-    "options": [
-      "Sodium ion (Na⁺)",
-      "Chloride ion (Cl⁻)",
-      "Ammonium ion (NH₄⁺)",
-      "Oxide ion (O²⁻)"
-    ],
-    "answer": 2,
-    "explanation": "The ammonium ion is formed when an ammonia molecule (NH₃) donates its lone pair of electrons on nitrogen to a hydrogen ion (H⁺) via a coordinate covalent bond."
-  },
-  {
-    "id": 9,
-    "question": "Molten or aqueous solutions of electrovalent compounds conduct electricity because:",
-    "options": [
-      "Free electrons are present",
-      "Free mobile ions are present",
-      "Molecules break down into atoms",
-      "They undergo thermal decomposition"
-    ],
-    "answer": 1,
-    "explanation": "When melted or dissolved, the rigid ionic crystal lattice breaks down, freeing the ions to move towards oppositely charged electrodes and carry an electric current."
-  },
-  {
-    "id": 10,
-    "question": "Which of the following compounds contains both ionic and covalent bonds?",
-    "options": [
-      "Sodium chloride (NaCl)",
       "Water (H₂O)",
-      "Ammonium chloride (NH₄Cl)",
+      "Methane (CH₄)",
+      "Ammonia (NH₃)",
       "Carbon dioxide (CO₂)"
     ],
     "answer": 2,
-    "explanation": "Ammonium chloride contains an ionic bond between the ammonium cation (NH₄⁺) and chloride anion (Cl⁻), while the internal bonds within the ammonium ion itself are covalent and coordinate covalent."
+    "explanation": "Nitrogen has 5 valence electrons. In ammonia (NH₃), it shares 3 of these with hydrogen atoms, leaving 2 unshared electrons, which form exactly one lone pair."
+  },
+  {
+    "id": 8,
+    "question": "Ammonium chloride (NH₄Cl) is a unique compound in the ICSE syllabus because it contains:",
+    "options": [
+      "Only electrovalent bonds",
+      "Only polar covalent bonds",
+      "Electrovalent, covalent, and coordinate bonds",
+      "Only coordinate and covalent bonds"
+    ],
+    "answer": 2,
+    "explanation": "It contains an ionic bond between the NH₄⁺ and Cl⁻ ions, covalent bonds between nitrogen and three hydrogens, and one coordinate bond between nitrogen and the fourth hydrogen ion."
+  },
+  {
+    "id": 9,
+    "question": "In a polar covalent bond, such as the one in hydrogen chloride (HCl), the shared electron pair is not completely centralized. This is conceptually due to:",
+    "options": [
+      "The larger atomic mass of chlorine compared to hydrogen",
+      "The higher electronegativity of chlorine, which pulls the shared pair closer to its nucleus",
+      "The presence of a lone pair on the hydrogen atom",
+      "The complete transfer of an electron from hydrogen to chlorine"
+    ],
+    "answer": 1,
+    "explanation": "Electronegativity is the tendency of an atom to attract a shared electron pair. Chlorine is more electronegative than hydrogen, pulling the electrons closer and creating a polar dipole."
+  },
+  {
+    "id": 10,
+    "question": "Which of the following conceptual combinations of atomic properties strongly favors the formation of a pure covalent bond between two atoms?",
+    "options": [
+      "Low ionization potential and high electron affinity for both atoms",
+      "High ionization potential and high electron affinity for both atoms",
+      "Low ionization potential for one atom and high electron affinity for the other",
+      "Low ionization potential and low electron affinity for both atoms"
+    ],
+    "answer": 1,
+    "explanation": "If both atoms have high ionization potential (hard to remove electrons) and high electron affinity (strong attraction for electrons), neither will give up an electron completely, forcing them to share."
   },
   {
     "id": 11,
-    "question": "The number of electrons shared in a double covalent bond is:",
+    "question": "Element X has the electronic configuration 2, 8, 3 and element Y has the configuration 2, 6. What will be the formula of the compound formed between X and Y, and what type of bond will it predominantly feature?",
     "options": [
-      "1",
-      "2",
-      "4",
-      "6"
+      "X₃Y₂, Covalent bond",
+      "X₂Y₃, Electrovalent bond",
+      "XY, Electrovalent bond",
+      "X₂Y, Covalent bond"
     ],
-    "answer": 2,
-    "explanation": "A single bond involves 2 shared electrons (1 pair), a double bond involves 4 shared electrons (2 pairs), and a triple bond involves 6 shared electrons (3 pairs)."
+    "answer": 1,
+    "explanation": "Element X (valency +3) is a metal that loses 3 electrons. Element Y (valency -2) is a non-metal that gains 2 electrons. Crisscrossing valencies gives X₂Y₃ with an electrovalent (ionic) bond."
   },
   {
     "id": 12,
-    "question": "Covalent compounds are generally insoluble in:",
+    "question": "The hydronium ion (H₃O⁺) is formed when a water molecule reacts with a hydrogen ion (H⁺). The bond formed between the oxygen atom of water and the hydrogen ion is a:",
     "options": [
-      "Benzene",
-      "Carbon tetrachloride",
-      "Water",
-      "Ether"
+      "Double covalent bond",
+      "Coordinate (dative) bond",
+      "Pure ionic bond",
+      "Non-polar single bond"
     ],
-    "answer": 2,
-    "explanation": "Most covalent compounds are non-polar and dissolve well in non-polar organic solvents rather than polar solvents like water, following the principle of 'like dissolves like'."
+    "answer": 1,
+    "explanation": "The oxygen atom in water has two lone pairs. It donates one of these lone pairs to the empty 1s orbital of a hydrogen ion (H⁺) to form a coordinate bond."
   },
   {
     "id": 13,
-    "question": "Which of the following elements has an electrovalency of 2?",
+    "question": "Covalent compounds generally exhibit low melting and boiling points. The conceptual reason for this physical property is that:",
     "options": [
-      "Sodium",
-      "Magnesium",
-      "Aluminium",
-      "Fluorine"
+      "The covalent bonds holding the atoms together are very weak and easily broken",
+      "The intermolecular forces (Van der Waals forces) holding the separate molecules together are weak",
+      "Covalent compounds do not contain any electrons",
+      "They exist only as gases at room temperature"
     ],
     "answer": 1,
-    "explanation": "Magnesium has 2 valence electrons which it loses during ionic bond formation to complete its octet, giving it an electrovalency of 2."
+    "explanation": "While the covalent bonds within the molecule are strong, the Van der Waals forces between separate molecules are weak, requiring little heat energy to overcome during melting or boiling."
   },
   {
     "id": 14,
-    "question": "Which of the following substances does not conduct electricity in the solid state but is a good conductor in the molten state?",
+    "question": "Which of the following statements correctly differentiates a neutral atom from its corresponding cation?",
     "options": [
-      "Sugar",
-      "Molten paraffin wax",
-      "Sodium chloride",
-      "Carbon tetrachloride"
+      "The cation has more electrons than protons, making it positively charged",
+      "The cation has the same number of protons as the neutral atom but fewer electrons",
+      "The cation has lost protons from its nucleus to achieve a positive charge",
+      "The neutral atom has a completely empty valence shell"
     ],
-    "answer": 2,
-    "explanation": "Sodium chloride is an ionic solid whose ions are locked in place; melting it frees the ions to move and carry electric current."
+    "answer": 1,
+    "explanation": "Cations are formed when a neutral atom loses one or more valence electrons. The nucleus remains unchanged, meaning the number of protons stays the same."
   },
   {
     "id": 15,
-    "question": "In a water molecule (H₂O), the number of lone pairs of electrons on the oxygen atom is:",
+    "question": "Water is often referred to as a universal solvent, particularly for electrovalent compounds. The primary conceptual reason ionic compounds dissolve readily in water is that:",
     "options": [
-      "0",
-      "1",
-      "2",
-      "3"
+      "Water has a high dielectric constant, which significantly weakens the electrostatic forces of attraction between the ions",
+      "Water molecules completely transfer electrons to the ionic solid",
+      "Water acts as a catalyst to break ionic bonds into covalent bonds",
+      "Water is a non-polar solvent that matches the polarity of ionic compounds"
     ],
-    "answer": 2,
-    "explanation": "Oxygen has 6 valence electrons; two are used to form single bonds with two hydrogen atoms, leaving 4 unshared valence electrons, which constitute 2 lone pairs."
+    "answer": 0,
+    "explanation": "The high dielectric constant of water drastically reduces the electrostatic force of attraction between oppositely charged ions in a lattice, allowing them to separate and dissolve."
   },
   {
     "id": 16,
-    "question": "Which of the following is an example of a non-polar covalent molecule?",
+    "question": "To form a coordinate bond, which of the following conceptual conditions is strictly necessary?",
     "options": [
-      "Hydrogen chloride (HCl)",
-      "Ammonia (NH₃)",
-      "Carbon dioxide (CO₂)",
-      "Water (H₂O)"
+      "Both combining atoms must be metals",
+      "One atom must possess a lone pair of electrons, and the other atom must have a vacant orbital",
+      "Both atoms must share one electron equally",
+      "One atom must completely lose a proton to the other atom"
     ],
-    "answer": 2,
-    "explanation": "Although CO₂ has polar double bonds between carbon and oxygen, its linear, symmetrical shape causes individual bond dipoles to cancel each other out, making the molecule overall non-polar."
+    "answer": 1,
+    "explanation": "A coordinate bond requires a donor atom that provides a full lone pair of electrons and an acceptor atom with an empty orbital to receive the pair."
   },
   {
     "id": 17,
-    "question": "The atom that donates its lone pair during the formation of a coordinate bond is called the:",
+    "question": "When a metal forms an electrovalent bond with a non-metal, the non-metal achieves a stable octet by:",
     "options": [
-      "Acceptor",
-      "Donor",
-      "Catalyst",
-      "Reducing agent"
+      "Undergoing oxidation (gaining electrons)",
+      "Undergoing reduction (gaining electrons)",
+      "Undergoing reduction (losing electrons)",
+      "Sharing its valence electrons equally"
     ],
     "answer": 1,
-    "explanation": "The species providing the electron pair is designated as the donor, while the species accepting it to complete its electron shell is the acceptor."
+    "explanation": "Non-metals need to gain electrons to complete their valence shell. The process of gaining electrons is defined as reduction."
   },
   {
     "id": 18,
-    "question": "During the formation of a sodium ion (Na⁺), a sodium atom:",
+    "question": "Which of the following ions has a noble gas electron configuration identical to that of an argon atom (atomic number 18)?",
     "options": [
-      "Gains one electron",
-      "Loses one electron",
-      "Shares one electron",
-      "Gains a proton"
+      "Sodium ion (Na⁺, atomic number 11)",
+      "Chloride ion (Cl⁻, atomic number 17)",
+      "Oxide ion (O²⁻, atomic number 8)",
+      "Magnesium ion (Mg²⁺, atomic number 12)"
     ],
     "answer": 1,
-    "explanation": "Sodium (atomic number 11, configuration 2,8,1) loses its single valence electron to achieve a stable noble gas configuration, forming a positively charged Na⁺ cation."
+    "explanation": "A neutral chlorine atom has 17 electrons. When it gains 1 electron to become a chloride ion (Cl⁻), it has 18 electrons, perfectly matching the electron configuration of argon."
   },
   {
     "id": 19,
-    "question": "Which of the following has a complete octet of electrons in its valence shell?",
+    "question": "Once a coordinate bond is formed between two atoms, how does its structural behavior compare to a standard single covalent bond?",
     "options": [
-      "Helium atom",
-      "Hydrogen atom",
-      "Neon atom",
-      "Lithium ion (Li⁺)"
+      "It behaves exactly like an ionic bond",
+      "It is physically longer and weaker than a single covalent bond",
+      "It is indistinguishable from a standard single covalent bond",
+      "It constantly shifts the shared electrons back and forth between the atoms"
     ],
     "answer": 2,
-    "explanation": "Neon is a noble gas with 8 electrons in its valence shell, satisfying the octet rule. Helium and Li⁺ follow the duplet rule with 2 electrons."
+    "explanation": "Although formed differently (one atom providing both electrons), a coordinate bond involves a shared pair of electrons between two nuclei, making it chemically and physically identical to a regular single covalent bond."
   },
   {
     "id": 20,
-    "question": "The force of attraction holding two atoms together in a covalent molecule is due to:",
+    "question": "Methane (CH₄) is a gas at room temperature, while water (H₂O) is a liquid, despite both being covalent molecules. This physical difference is primarily conceptually due to:",
     "options": [
-      "Electrostatic attraction between oppositely charged ions",
-      "Attraction between nuclei and shared pairs of electrons",
-      "Delocalized valence electrons",
-      "Magnetic forces between spinning electrons"
+      "Methane having a higher molecular mass than water",
+      "Water being a highly polar molecule leading to stronger intermolecular attraction, while methane is non-polar",
+      "Water containing ionic bonds, while methane contains covalent bonds",
+      "Methane having double bonds that make it lighter"
     ],
     "answer": 1,
-    "explanation": "A covalent bond is established because the positively charged nuclei of the bonded atoms simultaneously attract the negatively charged shared electron pair between them."
+    "explanation": "Water's high polarity leads to strong intermolecular hydrogen bonding, making it a liquid. Methane is completely non-polar, so it only has weak Van der Waals forces, making it a gas."
   }
 ]
