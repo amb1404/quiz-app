@@ -237,32 +237,39 @@ function submitQuiz() {
     let attempted = 0;
 
     questions.forEach((q, idx) => {
-        const userAns = userAnswers[idx];
+        const userAns = userAnswers[idx]; // 0-based index of clicked option (0, 1, 2, 3)
         
         if (userAns !== null && userAns !== undefined) {
             attempted++;
             
-            let isCorrect = false;
-            let correctVal = q.correctAnswer;
+            // Evaluates JSON files using 'answer' (supporting numbers like 1, 2, 3... or 0, 1, 2...)
+            let rawCorrect = q.answer !== undefined ? q.answer : 
+                             (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
 
-            // Handles numerical answers (supports both 0-based and 1-based indexing like 1, 2, 3...)
-            if (typeof correctVal === 'number') {
-                if (userAns === correctVal || userAns === correctVal - 1) {
+            let isCorrect = false;
+
+            if (typeof rawCorrect === 'number') {
+                if (userAns === rawCorrect || userAns === rawCorrect - 1) {
                     isCorrect = true;
                 }
-            } 
-            // Handles letter string answers ('A', 'B', etc.)
-            else if (typeof correctVal === 'string' && correctVal.length === 1) {
-                let correctIdx = correctVal.toUpperCase().charCodeAt(0) - 65;
-                if (userAns === correctIdx) {
-                    isCorrect = true;
-                }
-            } 
-            // Handles exact text string matching
-            else if (typeof correctVal === 'string') {
-                let correctIdx = q.options.indexOf(correctVal);
-                if (userAns === correctIdx) {
-                    isCorrect = true;
+            } else if (typeof rawCorrect === 'string') {
+                let trimmed = rawCorrect.trim();
+                let parsedNum = parseInt(trimmed, 10);
+
+                if (!isNaN(parsedNum)) {
+                    if (userAns === parsedNum || userAns === parsedNum - 1) {
+                        isCorrect = true;
+                    }
+                } else if (trimmed.length === 1) {
+                    let correctIdx = trimmed.toUpperCase().charCodeAt(0) - 65;
+                    if (userAns === correctIdx) {
+                        isCorrect = true;
+                    }
+                } else {
+                    let correctIdx = q.options.indexOf(trimmed);
+                    if (userAns === correctIdx) {
+                        isCorrect = true;
+                    }
                 }
             }
 
