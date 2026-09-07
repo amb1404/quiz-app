@@ -219,12 +219,12 @@ function getCorrectIndex(q) {
                      (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
 
     if (typeof rawCorrect === 'number') {
-        return (rawCorrect >= 1 && rawCorrect <= q.options.length) ? rawCorrect - 1 : rawCorrect;
+        return rawCorrect; 
     } else if (typeof rawCorrect === 'string') {
         let trimmed = rawCorrect.trim();
         let parsedNum = parseInt(trimmed, 10);
         if (!isNaN(parsedNum)) {
-            return (parsedNum >= 1 && parsedNum <= q.options.length) ? parsedNum - 1 : parsedNum;
+            return parsedNum;
         } else if (trimmed.length === 1) {
             return trimmed.toUpperCase().charCodeAt(0) - 65;
         } else {
