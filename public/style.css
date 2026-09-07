@@ -33,128 +33,103 @@ body::after {
     z-index: 9999;
 }
 
-/* Main Container / Card Wrapper */
-.container, .quiz-container, div[class*="screen"] {
+/* Main UI Boxes */
+div, section, .container {
+    background: transparent;
+}
+
+/* Target the central white boxes specifically */
+div[id$="-screen"], .quiz-container, #app {
     background: #ffffff;
-    padding: 35px;
+    padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     width: 100%;
-    max-width: 650px;
+    max-width: 600px;
     z-index: 1;
     position: relative;
     margin: 15px auto;
-}
-
-h1, h2 {
-    color: #2c3e50;
-    margin-bottom: 20px;
     text-align: center;
 }
 
-/* Clickable Subjects, Chapters, and Options */
-.subject-item, .chapter-item, .option-btn {
+/* Force Hover Effects on all Lists/Subjects/Options */
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li, .option, .subject-item {
     display: block;
     width: 100%;
-    padding: 14px 18px;
-    margin: 12px 0;
+    padding: 15px;
+    margin: 10px 0;
     background: #f8f9fa;
     border: 2px solid #e9ecef;
     border-radius: 8px;
     font-size: 1.05rem;
-    cursor: pointer;
+    cursor: pointer !important; /* Forces the hand icon */
     text-align: left;
-    text-decoration: none;
-    color: #333;
     transition: all 0.2s ease;
 }
 
-.subject-item:hover, .chapter-item:hover, .option-btn:hover {
+li:hover, .option:hover {
     background: #e2e6ea;
     border-color: #cbd3da;
     transform: translateY(-1px);
 }
 
-.option-btn.selected {
-    background: #cce5ff;
-    border-color: #b8daff;
-    color: #004085;
+.selected {
+    background: #cce5ff !important;
+    border-color: #b8daff !important;
 }
 
-/* Button Layout & Preventing Overlaps */
-button, .btn-primary, .btn-secondary {
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 600;
-    padding: 12px 20px;
-    border-radius: 8px;
-    border: none;
-    transition: background 0.2s ease, transform 0.1s ease;
-}
-
-.btn-primary {
+/* Universal Button Fixes */
+button {
+    display: block;
+    width: 100%;
+    padding: 14px;
     background: #007bff;
     color: white;
-    width: 100%;
-    margin-top: 15px;
-    display: inline-block;
-    text-align: center;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer !important; /* Forces the hand icon */
+    margin: 15px 0;
+    transition: background 0.2s ease;
 }
 
-.btn-primary:hover {
+button:hover {
     background: #0056b3;
 }
 
-/* Button Group Container for side-by-side buttons without overlap */
-.button-group, .nav-buttons {
+/* Fix Side-by-Side Buttons (Start/Back, Review/Return) */
+div[style*="flex"], .button-group, #nav-buttons {
     display: flex;
-    gap: 12px;
-    justify-content: space-between;
-    margin-top: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
     width: 100%;
+    margin-top: 15px;
 }
 
-.button-group button, .button-group .btn-secondary, .nav-buttons button {
+div[style*="flex"] button, .button-group button {
     flex: 1;
-    margin: 0;
-    background: #6c757d;
-    color: white;
-    text-align: center;
+    margin: 0; /* Removes vertical margin when side-by-side */
+    min-width: 120px; /* Prevents text squishing */
 }
 
-.button-group button:hover, .nav-buttons button:hover {
-    background: #5a6268;
-}
-
-/* Input Fields */
+/* Input Form */
 input[type="text"] {
     width: 100%;
-    padding: 12px 15px;
+    padding: 12px;
     margin: 15px 0;
     border: 2px solid #ced4da;
     border-radius: 8px;
     font-size: 1rem;
     outline: none;
-    transition: border-color 0.2s;
 }
 
 input[type="text"]:focus {
     border-color: #007bff;
-}
-
-/* Quiz Header & Timer */
-.quiz-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    font-weight: bold;
-    color: #6c757d;
-    border-bottom: 2px solid #f1f3f5;
-    padding-bottom: 10px;
-}
-
-#timer {
-    color: #dc3545;
 }
