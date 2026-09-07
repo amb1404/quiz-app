@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- You can change "Mock Test" to whatever you want your tab to say -->
-    <title>Mock Test</title>
-    <!-- The ?v=2 forces the browser to load the new CSS -->
-    <link rel="stylesheet" href="style.css?v=2">
+    <title>Online Quiz Portal</title>
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     <div class="quiz-container">
@@ -16,14 +14,14 @@
             <div id="subject-list"></div>
         </div>
 
-        <!-- Chapter Selection Menu (Hidden initially) -->
+        <!-- Chapter Selection Menu -->
         <div id="chapter-menu" class="hidden">
             <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
             <h2 id="selected-subject-title">Chapters</h2>
             <div id="chapter-list"></div>
         </div>
 
-        <!-- Actual Quiz Screen -->
+        <!-- Quiz Screen -->
         <div id="quiz-screen" class="hidden" style="position: relative;">
             <!-- Pause Overlay -->
             <div id="pause-overlay" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center;">
@@ -34,7 +32,6 @@
 
             <div id="stats-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
                 <span id="timer-display">Time Left: </span>
-                <!-- Hardcoded to 0 to prevent the Skipped: 1 flash -->
                 <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
                 <div>
                     <button id="pause-btn" onclick="togglePause()" style="background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-right: 5px;">Pause</button>
@@ -58,8 +55,6 @@
             <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Main Menu</button>
         </div>
     </div>
-    
-    <!-- The ?v=2 forces the browser to load the new JS -->
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>
