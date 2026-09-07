@@ -62,6 +62,10 @@ function promptForName(quizId, duration) {
     pendingQuizId = quizId;
     pendingDuration = duration;
     
+    // Clear the input text boxes to blank every time
+    document.getElementById('first-name').value = '';
+    document.getElementById('last-name').value = '';
+    
     document.getElementById('chapter-menu').classList.add('hidden');
     document.getElementById('name-screen').classList.remove('hidden');
 }
