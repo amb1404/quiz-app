@@ -7,27 +7,13 @@
 
 body {
     background-color: #bae6fd; /* Light blue background */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='450' height='300' viewBox='0 0 450 300'%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' transform='rotate(-35 225 150)' fill='rgba(15, 23, 42, 0.08)' font-size='22' font-weight='800' font-family='Segoe UI, sans-serif'%3EANIRUDDHA BANERJEE%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     padding: 20px;
-    position: relative;
-    overflow: hidden;
-}
-
-body::before {
-    content: "ANIRUDDHA BANERJEE";
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 3.5rem;
-    font-weight: 800;
-    color: rgba(15, 23, 42, 0.12);
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 0;
 }
 
 .quiz-container {
