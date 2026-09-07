@@ -41,6 +41,41 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
+app.post('/api/submit', async (req, res) => {
+    const submission = req.body;
+    const submissionsFile = path.join(__dirname, 'submissions.json');
+    
+    let allSubmissions = [];
+    if (fs.existsSync(submissionsFile)) {
+        allSubmissions = JSON.parse(fs.readFileSync(submissionsFile, 'utf8'));
+    }
+    
+    allSubmissions.push({
+        timestamp: new Date().toISOString(),
+        ...submission
+    });
+    
+    fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
+
+    if (process.env.APPS_SCRIPT_URL) {
+        try {
+            await fetch(process.env.APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    targetEmail: process.env.TARGET_EMAIL,
+                    ...submission
+                })
+            });
+        } catch (error) {
+            console.error('Failed to trigger Apps Script email:', error);
+        }
+    }
+    
+    res.json({ success: true, message: 'Response saved and email triggered successfully!' });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+            
