@@ -7,16 +7,16 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Configure Nodemailer with your email credentials (pulled from environment variables)
+// Configured with family: 4 to force IPv4 and bypass Render IPv6 limits
 const transporter = nodemailer.createTransport({
     service: 'gmail',
+    family: 4, 
     auth: {
-        user: process.env.EMAIL_USER, // Your email address
-        pass: process.env.EMAIL_PASS  // Your 16-character Google App Password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
-// API Route: Fetch main quizzes structure from quizzes.json[cite: 1]
 app.get('/api/quizzes', (req, res) => {
     fs.readFile(path.join(__dirname, 'quizzes.json'), 'utf8', (err, data) => {
         if (err) return res.status(500).json({ error: 'Failed to load quizzes list' });
@@ -24,7 +24,6 @@ app.get('/api/quizzes', (req, res) => {
     });
 });
 
-// API Route: Fetch questions for a specific chapter or mock test file
 app.get('/api/quiz/:id', (req, res) => {
     const quizId = req.params.id;
     const fileName = `${quizId}-questions.json`;
@@ -34,13 +33,12 @@ app.get('/api/quiz/:id', (req, res) => {
     });
 });
 
-// API Route: Email student attempt directly upon submission
 app.post('/api/submit', async (req, res) => {
     const { studentName, quizId, score, total, answers } = req.body;
 
     const mailOptions = {
         from: process.env.EMAIL_USER,
-        to: process.env.TARGET_EMAIL || process.env.EMAIL_USER, // Where you want to receive reports
+        to: process.env.TARGET_EMAIL || process.env.EMAIL_USER,
         subject: `New Quiz Submission: ${quizId} - ${studentName || 'Anonymous'}`,
         text: `A student has completed a quiz on your portal.
 
