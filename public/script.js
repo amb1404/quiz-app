@@ -5,26 +5,28 @@ let timerInterval = null;
 let timeLeft = 0;
 let isPaused = false;
 let currentQuizId = null;
-let skippedSet = new Set();
+let skippedIndices = new Set();
 
-// Fetch subjects and build main menu
 document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/quizzes')
         .then(res => res.json())
         .then(data => {
-            renderSubjects(data.subjects);
+            // Pass the raw data array directly
+            renderSubjects(data);
         })
         .catch(err => console.error('Error fetching quiz list:', err));
 });
 
 function renderSubjects(subjects) {
     const list = document.getElementById('subject-list');
+    if (!list) return;
     list.innerHTML = '';
 
     subjects.forEach(sub => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML = `<h3>${sub.name}</h3><p>${sub.description || ''}</p>`;
+        // Changed sub.name to sub.subject based on your JSON
+        card.innerHTML = `<h3>${sub.subject}</h3><p>${sub.description || ''}</p>`;
         card.onclick = () => showChapters(sub);
         list.appendChild(card);
     });
@@ -33,15 +35,18 @@ function renderSubjects(subjects) {
 function showChapters(subject) {
     document.getElementById('subject-menu').classList.add('hidden');
     document.getElementById('chapter-menu').classList.remove('hidden');
-    document.getElementById('selected-subject-title').innerText = subject.name;
+    // Changed subject.name to subject.subject
+    document.getElementById('selected-subject-title').innerText = subject.subject;
 
     const list = document.getElementById('chapter-list');
+    if (!list) return;
     list.innerHTML = '';
 
     subject.chapters.forEach(chap => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML = `<h4>${chap.name}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
+        // Changed chap.name to chap.title based on your JSON
+        card.innerHTML = `<h4>${chap.title}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
         card.onclick = () => loadQuiz(chap.id, chap.duration);
         list.appendChild(card);
     });
@@ -56,9 +61,9 @@ function loadQuiz(quizId, duration) {
     currentQuizId = quizId;
     timeLeft = duration || 300;
     isPaused = false;
-    
-    // Explicitly reset the set and counter UI on quiz entry
-    skippedSet = new Set();
+
+    skippedIndices.clear();
+
     const statsEl = document.getElementById('counter-stats');
     if (statsEl) {
         statsEl.innerText = 'Attempted: 0 | Skipped: 0';
@@ -83,7 +88,8 @@ function loadQuiz(quizId, duration) {
 
 function startQuiz() {
     startTimer();
-    showQuestion();
+    renderQuestionUI();
+    refreshCounters();
 }
 
 function startTimer() {
@@ -107,7 +113,10 @@ function updateTimerDisplay() {
     let minutes = Math.floor(timeLeft / 60);
     let seconds = timeLeft % 60;
     let formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    document.getElementById('timer-display').innerText = `Time Left: ${formatted}`;
+    const timerEl = document.getElementById('timer-display');
+    if (timerEl) {
+        timerEl.innerText = `Time Left: ${formatted}`;
+    }
 }
 
 function togglePause() {
@@ -124,31 +133,39 @@ function togglePause() {
     }
 }
 
-function updateStats() {
-    let attempted = userAnswers.filter(ans => ans !== null).length;
-    let skipped = skippedSet.size;
+function refreshCounters() {
+    let attempted = 0;
+    for (let i = 0; i < userAnswers.length; i++) {
+        if (userAnswers[i] !== null && userAnswers[i] !== undefined) {
+            attempted++;
+        }
+    }
+
+    let skipped = skippedIndices.size;
+
     const statsEl = document.getElementById('counter-stats');
     if (statsEl) {
         statsEl.innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
     }
 }
 
-function showQuestion() {
-    if (isPaused) return;
-    updateStats();
+function renderQuestionUI() {
+    if (isPaused || !questions.length) return;
 
-    document.getElementById('prev-btn').style.display = currentIndex === 0 ? 'none' : 'block';
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
 
-    if (currentIndex === questions.length - 1) {
-        document.getElementById('next-btn').style.display = 'none';
-    } else {
-        document.getElementById('next-btn').style.display = 'block';
-    }
+    if (prevBtn) prevBtn.style.display = currentIndex === 0 ? 'none' : 'block';
+    if (nextBtn) nextBtn.style.display = currentIndex === questions.length - 1 ? 'none' : 'block';
 
     let q = questions[currentIndex];
-    document.getElementById('question-box').innerText = `Q${currentIndex + 1}: ${q.question}`;
+    const qBox = document.getElementById('question-box');
+    if (qBox) {
+        qBox.innerText = `Q${currentIndex + 1}: ${q.question}`;
+    }
 
     let optionsBox = document.getElementById('options-box');
+    if (!optionsBox) return;
     optionsBox.innerHTML = '';
 
     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -160,54 +177,58 @@ function showQuestion() {
         if (userAnswers[currentIndex] === idx) {
             btn.classList.add('selected');
         }
-        btn.onclick = () => selectAnswer(idx);
+        btn.onclick = () => selectOption(idx);
         optionsBox.appendChild(btn);
     });
 }
 
-function selectAnswer(idx) {
+function selectOption(idx) {
     if (isPaused) return;
+
     userAnswers[currentIndex] = idx;
-    skippedSet.delete(currentIndex);
-    showQuestion();
+    skippedIndices.delete(currentIndex);
+
+    renderQuestionUI();
+    refreshCounters();
 }
 
 function prevQuestion() {
     if (isPaused) return;
     if (currentIndex > 0) {
         currentIndex--;
-        showQuestion();
+        renderQuestionUI();
+        refreshCounters();
     }
 }
 
 function nextQuestion() {
     if (isPaused) return;
 
-    // Only add to skipped if moving forward without selecting an answer
-    if (userAnswers[currentIndex] === null) {
-        skippedSet.add(currentIndex);
+    if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
+        skippedIndices.add(currentIndex);
     }
 
     if (currentIndex < questions.length - 1) {
         currentIndex++;
-        showQuestion();
+        renderQuestionUI();
     }
+    refreshCounters();
 }
 
 function skipQuestion() {
     if (isPaused) return;
 
-    if (userAnswers[currentIndex] === null) {
-        skippedSet.add(currentIndex);
+    if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
+        skippedIndices.add(currentIndex);
     }
 
     if (currentIndex < questions.length - 1) {
         currentIndex++;
-        showQuestion();
+        renderQuestionUI();
     } else {
-        updateStats();
-        alert("This is the last question. You can use 'Submit Quiz' at the top when ready.");
+        alert("This is the last question. You can use 'Submit Quiz' when you are ready.");
     }
+    refreshCounters();
 }
 
 function submitQuiz() {
@@ -231,8 +252,7 @@ function submitQuiz() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-    })
-    .catch(err => console.error('Error submitting answers:', err));
+    }).catch(err => console.error('Error submitting answers:', err));
 
     displayResults(score, questions.length);
 }
@@ -241,11 +261,17 @@ function displayResults(score, total) {
     document.getElementById('quiz-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
 
-    let attempted = userAnswers.filter(ans => ans !== null).length;
-    let skipped = total - attempted;
+    let attempted = 0;
+    for (let i = 0; i < userAnswers.length; i++) {
+        if (userAnswers[i] !== null && userAnswers[i] !== undefined) {
+            attempted++;
+        }
+    }
+
+    let finalSkipped = total - attempted;
 
     document.getElementById('final-score').innerText = `Score: ${score} / ${total}`;
-    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${attempted - score}`;
+    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${finalSkipped} | Correct: ${score} | Incorrect: ${attempted - score}`;
 }
 
 function returnToMenu() {
