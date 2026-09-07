@@ -1,179 +1,236 @@
-let quizData = {};
-let currentQuizId = null;
 let questions = [];
-let currentQuestionIndex = 0;
-let answers = [];
-let timerInterval;
+let currentIndex = 0;
+let userAnswers = [];
+let timerInterval = null;
 let timeLeft = 0;
+let currentQuizId = null;
+let skippedIndices = new Set();
 
-// Fetch course structure on load
-window.onload = async () => {
-    try {
-        const response = await fetch('/api/quizzes');
-        quizData = await response.json();
-        renderSubjects();
-    } catch (error) {
-        document.getElementById('subject-list').innerHTML = "<li>Error loading subjects.</li>";
-    }
-};
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/quizzes')
+        .then(res => res.json())
+        .then(data => {
+            const subjectsList = Array.isArray(data) ? data : data.subjects;
+            renderSubjects(subjectsList);
+        })
+        .catch(err => console.error('Error fetching quiz list:', err));
+});
 
-function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
-        screen.classList.add('hidden');
-    });
-    document.getElementById(screenId).classList.remove('hidden');
-    document.getElementById(screenId).classList.add('active');
-}
-
-function renderSubjects() {
+function renderSubjects(subjects) {
     const list = document.getElementById('subject-list');
     list.innerHTML = '';
-    Object.keys(quizData).forEach(subject => {
-        const li = document.createElement('li');
-        li.textContent = subject;
-        li.onclick = () => renderChapters(subject);
-        list.appendChild(li);
+
+    subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h3>${sub.subject || sub.name}</h3><p>${sub.chapters.length} Chapters</p>`;
+        card.onclick = () => showChapters(sub);
+        list.appendChild(card);
     });
 }
 
-function renderChapters(subject) {
+function showChapters(subject) {
+    document.getElementById('subject-menu').classList.add('hidden');
+    document.getElementById('chapter-menu').classList.remove('hidden');
+    document.getElementById('selected-subject-title').innerText = subject.subject || subject.name;
+
     const list = document.getElementById('chapter-list');
     list.innerHTML = '';
-    quizData[subject].forEach(chapter => {
-        const li = document.createElement('li');
-        li.textContent = chapter.title;
-        li.onclick = () => {
-            currentQuizId = chapter.id;
-            timeLeft = (chapter.duration || 10) * 60; 
-            showScreen('name-screen');
-        };
-        list.appendChild(li);
+
+    subject.chapters.forEach(chap => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h4>${chap.title || chap.name}</h4>`;
+        card.onclick = () => loadQuiz(chap.id, chap.duration);
+        list.appendChild(card);
     });
-    showScreen('chapter-screen');
 }
 
-async function startQuiz() {
-    const nameInput = document.getElementById('student-name').value.trim();
-    if (!nameInput) return alert("Please enter your name.");
-
-    try {
-        const response = await fetch(`/api/quiz/${currentQuizId}`);
-        questions = await response.json();
-        answers = new Array(questions.length).fill(null);
-        currentQuestionIndex = 0;
-        
-        showScreen('quiz-screen');
-        startTimer();
-        renderQuestion();
-    } catch (error) {
-        alert("Failed to load questions for this chapter.");
-    }
+function backToSubjects() {
+    document.getElementById('chapter-menu').classList.add('hidden');
+    document.getElementById('subject-menu').classList.remove('hidden');
 }
 
-function startTimer() {
+function loadQuiz(quizId, duration) {
+    currentQuizId = quizId;
+    timeLeft = duration || 300;
+    skippedIndices.clear();
+    document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
+
+    fetch(`/api/quiz/${quizId}`)
+        .then(res => res.json())
+        .then(data => {
+            questions = data;
+            userAnswers = new Array(questions.length).fill(null);
+            currentIndex = 0;
+
+            document.getElementById('chapter-menu').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            startQuiz();
+        })
+        .catch(err => console.error('Error loading questions:', err));
+}
+
+function startQuiz() {
     clearInterval(timerInterval);
+    updateTimerDisplay();
+
     timerInterval = setInterval(() => {
         timeLeft--;
-        let minutes = Math.floor(timeLeft / 60);
-        let seconds = timeLeft % 60;
-        document.getElementById('timer').textContent = `Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        
+        updateTimerDisplay();
+
         if (timeLeft <= 0) {
-            clearInterval(timerInterval);
             submitQuiz();
         }
     }, 1000);
+
+    renderQuestionUI();
+    refreshCounters();
 }
 
-function updateCounter() {
-    let attempted = answers.filter(a => a !== null).length;
-    let skipped = currentQuestionIndex + 1 - attempted; 
-    // Shows skipped based on how many questions they have navigated past without answering
-    if (skipped < 0) skipped = 0;
-    
-    document.getElementById('counter').textContent = `Attempted: ${attempted} | Skipped: ${skipped}`;
+function updateTimerDisplay() {
+    let minutes = Math.floor(timeLeft / 60);
+    let seconds = timeLeft % 60;
+    let formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    document.getElementById('timer-display').innerText = `Time Left: ${formatted}`;
 }
 
-function renderQuestion() {
-    const q = questions[currentQuestionIndex];
-    document.getElementById('question-text').textContent = `Q${currentQuestionIndex + 1}: ${q.question}`;
-    
-    const optionsList = document.getElementById('options-list');
-    optionsList.innerHTML = '';
-    
-    q.options.forEach((opt, index) => {
-        const li = document.createElement('li');
-        li.textContent = opt;
-        li.className = 'option-btn';
-        if (answers[currentQuestionIndex] === index) {
-            li.classList.add('selected');
+function refreshCounters() {
+    let attempted = userAnswers.filter(ans => ans !== null).length;
+    let skipped = skippedIndices.size;
+    document.getElementById('counter-stats').innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
+}
+
+function renderQuestionUI() {
+    if (!questions.length) return;
+
+    document.getElementById('prev-btn').style.display = currentIndex === 0 ? 'none' : 'block';
+    document.getElementById('next-btn').style.display = currentIndex === questions.length - 1 ? 'none' : 'block';
+
+    let q = questions[currentIndex];
+    document.getElementById('question-box').innerText = `Q${currentIndex + 1}: ${q.question}`;
+
+    let optionsBox = document.getElementById('options-box');
+    optionsBox.innerHTML = '';
+
+    const letters = ['a', 'b', 'c', 'd'];
+    q.options.forEach((opt, idx) => {
+        let btn = document.createElement('button');
+        let prefix = letters[idx] ? `${letters[idx]}. ` : '';
+        btn.innerText = prefix + opt;
+        btn.className = 'option-btn';
+        if (userAnswers[currentIndex] === idx) {
+            btn.classList.add('selected');
         }
-        li.onclick = () => selectOption(index);
-        optionsList.appendChild(li);
+        btn.onclick = () => selectOption(idx);
+        optionsBox.appendChild(btn);
     });
-
-    document.getElementById('prev-btn').disabled = currentQuestionIndex === 0;
-    document.getElementById('next-btn').disabled = currentQuestionIndex === questions.length - 1;
-    
-    updateCounter();
 }
 
-function selectOption(index) {
-    answers[currentQuestionIndex] = index;
-    renderQuestion(); 
+function selectOption(idx) {
+    userAnswers[currentIndex] = idx;
+    skippedIndices.delete(currentIndex);
+    renderQuestionUI();
+    refreshCounters();
 }
 
 function prevQuestion() {
-    if (currentQuestionIndex > 0) {
-        currentQuestionIndex--;
-        renderQuestion();
+    if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestionUI();
+        refreshCounters();
     }
 }
 
 function nextQuestion() {
-    if (currentQuestionIndex < questions.length - 1) {
-        currentQuestionIndex++;
-        renderQuestion();
+    if (userAnswers[currentIndex] === null) {
+        skippedIndices.add(currentIndex);
     }
+    if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestionUI();
+    }
+    refreshCounters();
 }
 
-async function submitQuiz() {
+function getCorrectIndex(q) {
+    return q.answer !== undefined ? q.answer : q.correctAnswer;
+}
+
+function submitQuiz() {
     clearInterval(timerInterval);
-    const studentName = document.getElementById('student-name').value.trim();
-    
+
     let score = 0;
-    answers.forEach((ans, idx) => {
-        if (ans === questions[idx].answer) score++;
+    let attempted = 0;
+
+    questions.forEach((q, idx) => {
+        if (userAnswers[idx] !== null) {
+            attempted++;
+            if (userAnswers[idx] === getCorrectIndex(q)) {
+                score++;
+            }
+        }
     });
 
-    document.getElementById('score-display').textContent = `Score: ${score} / ${questions.length}`;
-    document.getElementById('submission-status').textContent = "Submitting your results...";
-    showScreen('result-screen');
+    let incorrect = attempted - score;
+    let skipped = questions.length - attempted;
 
-    try {
-        const res = await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                studentName,
-                quizId: currentQuizId,
-                score,
-                total: questions.length,
-                answers
-            })
-        });
-        const data = await res.json();
-        if(data.success) {
-            document.getElementById('submission-status').textContent = "Results successfully emailed!";
-        } else {
-            document.getElementById('submission-status').textContent = "Failed to email results.";
-        }
-    } catch (err) {
-        document.getElementById('submission-status').textContent = "Network error during submission.";
-    }
+    document.getElementById('quiz-screen').classList.add('hidden');
+    document.getElementById('result-screen').classList.remove('hidden');
+    document.getElementById('final-score').innerText = `Score: ${score} / ${questions.length}`;
+    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
-function reviewAnswers() {
-    alert("Review logic can be built here reading the answers array and questions array!");
+function showReview() {
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('review-screen').classList.remove('hidden');
+
+    const container = document.getElementById('review-container');
+    container.innerHTML = '';
+
+    const letters = ['a', 'b', 'c', 'd'];
+
+    questions.forEach((q, idx) => {
+        const userAns = userAnswers[idx];
+        const correctIdx = getCorrectIndex(q);
+        const isSkipped = (userAns === null);
+        const isCorrect = (!isSkipped && userAns === correctIdx);
+
+        let statusText = isSkipped ? '<span style="color: #f59e0b; font-weight: bold;">Skipped</span>' :
+                         isCorrect ? '<span style="color: #10b981; font-weight: bold;">Correct</span>' : 
+                         '<span style="color: #ef4444; font-weight: bold;">Incorrect</span>';
+
+        let card = document.createElement('div');
+        card.style.cssText = "background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;";
+
+        let html = `<p style="font-weight: bold; margin-bottom: 8px;">Q${idx + 1}: ${q.question} [${statusText}]</p>`;
+        html += `<ul style="list-style-type: none; padding-left: 0; margin-bottom: 8px;">`;
+        
+        q.options.forEach((opt, optIdx) => {
+            let prefix = letters[optIdx] ? `${letters[optIdx]}. ` : '';
+            let style = "padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;";
+            
+            if (optIdx === correctIdx) {
+                style += " background: #d1fae5; color: #065f46; font-weight: 500;"; 
+            } else if (optIdx === userAns && !isCorrect) {
+                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;"; 
+            }
+
+            html += `<li style="${style}">${prefix}${opt}</li>`;
+        });
+        html += `</ul>`;
+
+        if (q.explanation) {
+            html += `<p style="font-size: 13px; color: #475569; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-top: 6px;"><strong>Explanation:</strong> ${q.explanation}</p>`;
+        }
+
+        card.innerHTML = html;
+        container.appendChild(card);
+    });
+}
+
+function returnToMenu() {
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('review-screen').classList.add('hidden');
+    document.getElementById('subject-menu').classList.remove('hidden');
 }
