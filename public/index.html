@@ -26,8 +26,8 @@
             <h2>Enter Your Details</h2>
             <p style="color: #64748b; margin-bottom: 20px;">Please enter your name to start the quiz.</p>
             <div style="display: flex; flex-direction: column; gap: 15px; max-width: 400px; margin: 0 auto 20px auto;">
-                <input type="text" id="first-name" placeholder="First Name" style="padding: 12px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px;">
-                <input type="text" id="last-name" placeholder="Last Name" style="padding: 12px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <input type="text" id="first-name" placeholder="First Name" oninput="this.value = this.value.toUpperCase()" style="padding: 12px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; text-transform: uppercase;">
+                <input type="text" id="last-name" placeholder="Last Name" oninput="this.value = this.value.toUpperCase()" style="padding: 12px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; text-transform: uppercase;">
             </div>
             <div style="display: flex; justify-content: center; gap: 10px;">
                 <button onclick="backToChapters()" class="nav-btn" style="background: #64748b;">Back</button>
