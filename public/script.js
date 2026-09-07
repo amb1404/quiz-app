@@ -11,22 +11,23 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/quizzes')
         .then(res => res.json())
         .then(data => {
-            // Pass the raw data array directly
-            renderSubjects(data);
+            // Handles both raw array format and { subjects: [...] } object format
+            const subjectsList = Array.isArray(data) ? data : data.subjects;
+            renderSubjects(subjectsList);
         })
         .catch(err => console.error('Error fetching quiz list:', err));
 });
 
 function renderSubjects(subjects) {
     const list = document.getElementById('subject-list');
-    if (!list) return;
+    if (!list || !subjects) return;
     list.innerHTML = '';
 
     subjects.forEach(sub => {
         const card = document.createElement('div');
         card.className = 'card';
-        // Changed sub.name to sub.subject based on your JSON
-        card.innerHTML = `<h3>${sub.subject}</h3><p>${sub.description || ''}</p>`;
+        const subName = sub.subject || sub.name;
+        card.innerHTML = `<h3>${subName}</h3><p>${sub.description || ''}</p>`;
         card.onclick = () => showChapters(sub);
         list.appendChild(card);
     });
@@ -35,8 +36,7 @@ function renderSubjects(subjects) {
 function showChapters(subject) {
     document.getElementById('subject-menu').classList.add('hidden');
     document.getElementById('chapter-menu').classList.remove('hidden');
-    // Changed subject.name to subject.subject
-    document.getElementById('selected-subject-title').innerText = subject.subject;
+    document.getElementById('selected-subject-title').innerText = subject.subject || subject.name;
 
     const list = document.getElementById('chapter-list');
     if (!list) return;
@@ -45,8 +45,8 @@ function showChapters(subject) {
     subject.chapters.forEach(chap => {
         const card = document.createElement('div');
         card.className = 'card';
-        // Changed chap.name to chap.title based on your JSON
-        card.innerHTML = `<h4>${chap.title}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
+        const chapTitle = chap.title || chap.name;
+        card.innerHTML = `<h4>${chapTitle}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
         card.onclick = () => loadQuiz(chap.id, chap.duration);
         list.appendChild(card);
     });
@@ -235,11 +235,30 @@ function submitQuiz() {
     clearInterval(timerInterval);
 
     let score = 0;
+    let attempted = 0;
+
     questions.forEach((q, idx) => {
-        if (userAnswers[idx] === q.correctAnswer) {
-            score++;
+        const userAns = userAnswers[idx];
+        
+        if (userAns !== null && userAns !== undefined) {
+            attempted++;
+            
+            let correctIdx = q.correctAnswer;
+            
+            if (typeof correctIdx === 'string' && correctIdx.length === 1) {
+                correctIdx = correctIdx.toUpperCase().charCodeAt(0) - 65;
+            } else if (typeof correctIdx === 'string') {
+                correctIdx = q.options.indexOf(correctIdx);
+            }
+
+            if (userAns === correctIdx) {
+                score++;
+            }
         }
     });
+
+    let incorrect = attempted - score;
+    let skipped = questions.length - attempted;
 
     const payload = {
         quizId: currentQuizId,
@@ -254,24 +273,15 @@ function submitQuiz() {
         body: JSON.stringify(payload)
     }).catch(err => console.error('Error submitting answers:', err));
 
-    displayResults(score, questions.length);
+    displayResults(score, attempted, incorrect, skipped, questions.length);
 }
 
-function displayResults(score, total) {
+function displayResults(score, attempted, incorrect, skipped, total) {
     document.getElementById('quiz-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
 
-    let attempted = 0;
-    for (let i = 0; i < userAnswers.length; i++) {
-        if (userAnswers[i] !== null && userAnswers[i] !== undefined) {
-            attempted++;
-        }
-    }
-
-    let finalSkipped = total - attempted;
-
     document.getElementById('final-score').innerText = `Score: ${score} / ${total}`;
-    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${finalSkipped} | Correct: ${score} | Incorrect: ${attempted - score}`;
+    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function returnToMenu() {
