@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/quizzes')
         .then(res => res.json())
         .then(data => {
-            // Handles both raw array format and { subjects: [...] } object format
             const subjectsList = Array.isArray(data) ? data : data.subjects;
             renderSubjects(subjectsList);
         })
@@ -243,15 +242,31 @@ function submitQuiz() {
         if (userAns !== null && userAns !== undefined) {
             attempted++;
             
-            let correctIdx = q.correctAnswer;
-            
-            if (typeof correctIdx === 'string' && correctIdx.length === 1) {
-                correctIdx = correctIdx.toUpperCase().charCodeAt(0) - 65;
-            } else if (typeof correctIdx === 'string') {
-                correctIdx = q.options.indexOf(correctIdx);
+            let isCorrect = false;
+            let correctVal = q.correctAnswer;
+
+            // Handles numerical answers (supports both 0-based and 1-based indexing like 1, 2, 3...)
+            if (typeof correctVal === 'number') {
+                if (userAns === correctVal || userAns === correctVal - 1) {
+                    isCorrect = true;
+                }
+            } 
+            // Handles letter string answers ('A', 'B', etc.)
+            else if (typeof correctVal === 'string' && correctVal.length === 1) {
+                let correctIdx = correctVal.toUpperCase().charCodeAt(0) - 65;
+                if (userAns === correctIdx) {
+                    isCorrect = true;
+                }
+            } 
+            // Handles exact text string matching
+            else if (typeof correctVal === 'string') {
+                let correctIdx = q.options.indexOf(correctVal);
+                if (userAns === correctIdx) {
+                    isCorrect = true;
+                }
             }
 
-            if (userAns === correctIdx) {
+            if (isCorrect) {
                 score++;
             }
         }
