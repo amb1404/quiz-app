@@ -234,13 +234,14 @@ function getCorrectIndex(q) {
     let rawCorrect = q.answer !== undefined ? q.answer : 
                      (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
 
+    // Since questions use 0-based indexing (0, 1, 2, 3) directly matching button indices:
     if (typeof rawCorrect === 'number') {
-        return (rawCorrect >= 1 && rawCorrect <= q.options.length) ? rawCorrect - 1 : rawCorrect;
+        return rawCorrect;
     } else if (typeof rawCorrect === 'string') {
         let trimmed = rawCorrect.trim();
         let parsedNum = parseInt(trimmed, 10);
         if (!isNaN(parsedNum)) {
-            return (parsedNum >= 1 && parsedNum <= q.options.length) ? parsedNum - 1 : parsedNum;
+            return parsedNum;
         } else if (trimmed.length === 1) {
             return trimmed.toUpperCase().charCodeAt(0) - 65;
         } else {
@@ -325,9 +326,9 @@ function showReview() {
             let style = "padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;";
             
             if (optIdx === correctIdx) {
-                style += " background: #d1fae5; color: #065f46; font-weight: 500;"; // Highlight correct green
+                style += " background: #d1fae5; color: #065f46; font-weight: 500;";
             } else if (optIdx === userAns && !isCorrect) {
-                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;"; // Highlight wrong user pick red
+                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;";
             }
 
             html += `<li style="${style}">${prefix}${opt}</li>`;
