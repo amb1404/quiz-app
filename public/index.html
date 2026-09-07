@@ -3,66 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Portal</title>
+    <title>Mock Test</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="main-container">
-        
-        <!-- Subject Selection Screen -->
-        <div id="subject-screen" class="screen active">
+    <div class="quiz-container">
+        <!-- Subject Selection Menu -->
+        <div id="subject-menu">
             <h2>Select a Subject</h2>
-            <ul id="subject-list"></ul>
+            <div id="subject-list"></div>
         </div>
 
-        <!-- Chapter Selection Screen -->
-        <div id="chapter-screen" class="screen hidden">
-            <h2>Select Chapter</h2>
-            <ul id="chapter-list"></ul>
-            <button class="btn-secondary mt-15" onclick="showScreen('subject-screen')">← Back to Subjects</button>
+        <!-- Chapter Selection Menu -->
+        <div id="chapter-menu" class="hidden">
+            <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
+            <h2 id="selected-subject-title">Chapters</h2>
+            <div id="chapter-list"></div>
         </div>
 
-        <!-- Student Details Screen -->
-        <div id="name-screen" class="screen hidden">
-            <h2>Enter Your Details</h2>
-            <p>Please enter your name before starting the quiz.</p>
-            <input type="text" id="student-name" placeholder="Enter your full name">
-            <div class="button-group">
-                <button class="btn-primary" onclick="startQuiz()">Start Quiz</button>
-                <button class="btn-secondary" onclick="showScreen('chapter-screen')">Back</button>
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden" style="position: relative;">
+            <div id="stats-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                <span id="timer-display">Time Left: 00:00</span>
+                <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
+                <button id="early-submit-btn" onclick="submitQuiz()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Submit Quiz</button>
+            </div>
+            <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;"></div>
+            <div id="options-box" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+            <div class="nav-buttons" style="display: flex; justify-content: space-between;">
+                <button id="prev-btn" onclick="prevQuestion()" class="nav-btn">Previous</button>
+                <button id="next-btn" onclick="nextQuestion()" class="nav-btn">Next</button>
             </div>
         </div>
 
-        <!-- Active Quiz Screen -->
-        <div id="quiz-screen" class="screen hidden">
-            <div class="quiz-stats">
-                <span id="timer" class="stat-box timer-box">Time: 00:00</span>
-                <span id="counter" class="stat-box">Attempted: 0 | Skipped: 0</span>
-            </div>
-            
-            <div class="question-container">
-                <h3 id="question-text">Loading question...</h3>
-                <ul id="options-list"></ul>
-            </div>
-
-            <div class="button-group">
-                <button id="prev-btn" class="btn-secondary" onclick="prevQuestion()">← Previous</button>
-                <button id="next-btn" class="btn-primary" onclick="nextQuestion()">Next →</button>
-            </div>
-            <button class="btn-submit mt-15" onclick="submitQuiz()">Submit Quiz</button>
-        </div>
-
-        <!-- Results Screen -->
-        <div id="result-screen" class="screen hidden">
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden" style="text-align: center;">
             <h2>Quiz Completed!</h2>
-            <h3 id="score-display" class="score-text"></h3>
-            <p id="submission-status"></p>
-            <div class="button-group">
-                <button class="btn-primary" onclick="reviewAnswers()">Review Answers</button>
-                <button class="btn-secondary" onclick="location.reload()">Return to Menu</button>
+            <h3 id="final-score" style="font-size: 24px; color: #10b981; margin: 15px 0;"></h3>
+            <p id="final-breakdown" style="color: #475569; margin-bottom: 20px;"></p>
+            <div style="display: flex; justify-content: center; gap: 10px;">
+                <button onclick="showReview()" class="nav-btn" style="background: #0284c7;">Preview Attempts</button>
+                <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Homepage</button>
             </div>
         </div>
 
+        <!-- Review / Preview Screen -->
+        <div id="review-screen" class="hidden">
+            <h2>Detailed Quiz Preview</h2>
+            <div id="review-container" style="max-height: 450px; overflow-y: auto; text-align: left; margin-bottom: 20px; padding-right: 10px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; background: #f8fafc;"></div>
+            <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Homepage</button>
+        </div>
     </div>
     <script src="script.js"></script>
 </body>
