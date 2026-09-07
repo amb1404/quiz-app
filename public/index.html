@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Chemistry & Physics Quiz Portal</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- You can change "Online Quiz Portal" to whatever you want your tab to say -->
+    <title>Online Quiz Portal</title>
+    <!-- The ?v=2 forces the browser to load the new CSS -->
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
     <div class="quiz-container">
@@ -15,7 +18,7 @@
 
         <!-- Chapter Selection Menu (Hidden initially) -->
         <div id="chapter-menu" class="hidden">
-            <button onclick="backToSubjects()" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
+            <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
             <h2 id="selected-subject-title">Chapters</h2>
             <div id="chapter-list"></div>
         </div>
@@ -30,22 +33,33 @@
             </div>
 
             <div id="stats-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-                <span id="timer">Time: </span>
+                <span id="timer-display">Time Left: </span>
+                <!-- Hardcoded to 0 to prevent the Skipped: 1 flash -->
                 <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
                 <div>
                     <button id="pause-btn" onclick="togglePause()" style="background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-right: 5px;">Pause</button>
-                    <button id="early-submit-btn" onclick="confirmSubmit()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Submit Quiz</button>
+                    <button id="early-submit-btn" onclick="submitQuiz()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Submit Quiz</button>
                 </div>
             </div>
-            <div id="question-box"></div>
-            <div id="options-box"></div>
-            <div class="nav-buttons">
-                <button id="prev-btn" onclick="prevQuestion()">Previous</button>
-                <button id="skip-btn" onclick="skipQuestion()" style="background: #f59e0b;">Skip</button>
-                <button id="next-btn" onclick="nextQuestion()">Next</button>
+            <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;"></div>
+            <div id="options-box" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
+            <div class="nav-buttons" style="display: flex; justify-content: space-between;">
+                <button id="prev-btn" onclick="prevQuestion()" class="nav-btn">Previous</button>
+                <button id="skip-btn" onclick="skipQuestion()" class="nav-btn" style="background: #f59e0b;">Skip</button>
+                <button id="next-btn" onclick="nextQuestion()" class="nav-btn">Next</button>
             </div>
         </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden" style="text-align: center;">
+            <h2>Quiz Completed!</h2>
+            <h3 id="final-score" style="font-size: 24px; color: #10b981; margin: 15px 0;"></h3>
+            <p id="final-breakdown" style="color: #475569; margin-bottom: 20px;"></p>
+            <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Main Menu</button>
+        </div>
     </div>
-    <script src="script.js"></script>
+    
+    <!-- The ?v=2 forces the browser to load the new JS -->
+    <script src="script.js?v=2"></script>
 </body>
 </html>

@@ -1,54 +1,101 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #b9e3ee;
+    background-color: #bae6fd; /* Light blue background */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    margin: 0;
+    min-height: 100vh;
+    padding: 20px;
 }
 
 .quiz-container {
-    background: white;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
     width: 100%;
-    max-width: 1200px;
+    max-width: 800px;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
-#question-box {
-    font-size: 20px; /* Increase this value for a larger question font */
-    font-weight: bold;
-    margin-bottom: 20px;
+h2 {
     color: #1e293b;
+    margin-bottom: 20px;
 }
 
-.option-btn { 
-    display: block; 
-    width: 100%; 
-    padding: 14px; /* Slightly increased padding to fit larger text */
-    margin: 8px 0; 
-    cursor: pointer; 
-    border: 2px solid #e2e8f0; 
-    background: white; 
-    border-radius: 4px; 
-    text-align: left; 
-    font-size: 18px; /* Increased from 16px to your preferred size */
-    color: black; 
+.hidden {
+    display: none !important;
 }
 
-.option-btn:hover { background: #f8fafc; }
-.option-btn.selected { background: #dbeafe; border-color: #3b82f6; }
+/* --- CARD STYLING (Adds boxes and mouse pointer) --- */
+.card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    cursor: pointer; /* This creates the hand/pointer icon */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
 
-.nav-buttons { display: flex; justify-content: space-between; margin-top: 20px; }
+.card h3, .card h4 {
+    color: #0f172a;
+    margin-bottom: 5px;
+    font-size: 18px;
+}
 
-button { padding: 10px 15px; cursor: pointer; border: none; background: #3b82f6; color: white; border-radius: 4px; font-size: 14px; }
-button:hover { opacity: 0.9; }
+.card p {
+    color: #64748b;
+    font-size: 14px;
+}
 
-.hidden { display: none !important; }
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    border-color: #3b82f6; /* Highlights blue on hover */
+}
 
-.review-item { border-bottom: 1px solid #cbd5e1; padding-bottom: 15px; margin-bottom: 15px; }
-.correct-text { color: #16a34a; font-weight: bold; }
-.incorrect-text { color: #dc2626; font-weight: bold; }
-.explanation { background: #eff6ff; padding: 10px; margin-top: 10px; border-left: 4px solid #3b82f6; font-size: 14px; }
+/* --- QUIZ BUTTONS --- */
+.option-btn {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    padding: 12px 15px;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.option-btn:hover {
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+.option-btn.selected {
+    background: #3b82f6;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.nav-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.nav-btn:hover {
+    opacity: 0.9;
+}
