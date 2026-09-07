@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online Quiz Portal</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
     <div class="quiz-container">
@@ -19,6 +19,17 @@
             <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
             <h2 id="selected-subject-title">Chapters</h2>
             <div id="chapter-list"></div>
+        </div>
+
+        <!-- Student Name Entry Screen (Appears after selecting a chapter) -->
+        <div id="name-screen" class="hidden" style="text-align: center; padding: 20px 0;">
+            <h2>Enter Your Details</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">Please enter your name before starting the quiz.</p>
+            <input type="text" id="student-name-input" placeholder="Enter your full name" style="padding: 12px; width: 100%; max-width: 400px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto;">
+            <div style="display: flex; justify-content: center; gap: 10px;">
+                <button onclick="startQuizWithName()" class="nav-btn" style="background: #3b82f6;">Start Quiz</button>
+                <button onclick="backToChaptersFromNamed()" class="nav-btn" style="background: #64748b;">Back</button>
+            </div>
         </div>
 
         <!-- Quiz Screen -->
@@ -65,6 +76,6 @@
             <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Main Menu</button>
         </div>
     </div>
-    <script src="script.js?v=7"></script>
+    <script src="script.js?v=8"></script>
 </body>
 </html>
