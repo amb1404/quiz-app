@@ -56,7 +56,13 @@ function loadQuiz(quizId, duration) {
     currentQuizId = quizId;
     timeLeft = duration || 300;
     isPaused = false;
-    skippedSet.clear();
+    
+    // Explicitly reset the set and counter UI on quiz entry
+    skippedSet = new Set();
+    const statsEl = document.getElementById('counter-stats');
+    if (statsEl) {
+        statsEl.innerText = 'Attempted: 0 | Skipped: 0';
+    }
 
     document.getElementById('pause-overlay').classList.add('hidden');
     document.getElementById('pause-btn').innerText = 'Pause';
@@ -121,7 +127,10 @@ function togglePause() {
 function updateStats() {
     let attempted = userAnswers.filter(ans => ans !== null).length;
     let skipped = skippedSet.size;
-    document.getElementById('counter-stats').innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
+    const statsEl = document.getElementById('counter-stats');
+    if (statsEl) {
+        statsEl.innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
+    }
 }
 
 function showQuestion() {
@@ -174,6 +183,7 @@ function prevQuestion() {
 function nextQuestion() {
     if (isPaused) return;
 
+    // Only add to skipped if moving forward without selecting an answer
     if (userAnswers[currentIndex] === null) {
         skippedSet.add(currentIndex);
     }
