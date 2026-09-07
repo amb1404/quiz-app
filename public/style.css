@@ -99,3 +99,26 @@ h2 {
 .nav-btn:hover {
     opacity: 0.9;
 }
+
+body {
+    position: relative;
+}
+
+body::before {
+    content: "ANIRUDDHA BANERJEE";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: rgba(15, 23, 42, 0.04);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.quiz-container {
+    position: relative;
+    z-index: 1;
+}
