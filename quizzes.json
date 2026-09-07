@@ -2,8 +2,9 @@
   {
     "subject": "Physics",
     "chapters": [
-      { "id": "motion", "title": "Motion in a Straight Line", "duration": 300 },
-      { "id": "current", "title": "Current Electricity", "duration": 450 }
+      { "id": "machine", "title": "Machines", "duration": 900 },
+      { "id": "energy", "title": "Work Energy Power", "duration": 950 }
+      { "id": "force", "title": "Force", "duration": 900 }
     ]
   },
   {
