@@ -230,6 +230,26 @@ function skipQuestion() {
     refreshCounters();
 }
 
+function getCorrectIndex(q) {
+    let rawCorrect = q.answer !== undefined ? q.answer : 
+                     (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
+
+    if (typeof rawCorrect === 'number') {
+        return (rawCorrect >= 1 && rawCorrect <= q.options.length) ? rawCorrect - 1 : rawCorrect;
+    } else if (typeof rawCorrect === 'string') {
+        let trimmed = rawCorrect.trim();
+        let parsedNum = parseInt(trimmed, 10);
+        if (!isNaN(parsedNum)) {
+            return (parsedNum >= 1 && parsedNum <= q.options.length) ? parsedNum - 1 : parsedNum;
+        } else if (trimmed.length === 1) {
+            return trimmed.toUpperCase().charCodeAt(0) - 65;
+        } else {
+            return q.options.indexOf(trimmed);
+        }
+    }
+    return -1;
+}
+
 function submitQuiz() {
     clearInterval(timerInterval);
 
@@ -237,43 +257,12 @@ function submitQuiz() {
     let attempted = 0;
 
     questions.forEach((q, idx) => {
-        const userAns = userAnswers[idx]; // 0-based index of clicked option (0, 1, 2, 3)
+        const userAns = userAnswers[idx];
         
         if (userAns !== null && userAns !== undefined) {
             attempted++;
-            
-            // Evaluates JSON files using 'answer' (supporting numbers like 1, 2, 3... or 0, 1, 2...)
-            let rawCorrect = q.answer !== undefined ? q.answer : 
-                             (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
-
-            let isCorrect = false;
-
-            if (typeof rawCorrect === 'number') {
-                if (userAns === rawCorrect || userAns === rawCorrect - 1) {
-                    isCorrect = true;
-                }
-            } else if (typeof rawCorrect === 'string') {
-                let trimmed = rawCorrect.trim();
-                let parsedNum = parseInt(trimmed, 10);
-
-                if (!isNaN(parsedNum)) {
-                    if (userAns === parsedNum || userAns === parsedNum - 1) {
-                        isCorrect = true;
-                    }
-                } else if (trimmed.length === 1) {
-                    let correctIdx = trimmed.toUpperCase().charCodeAt(0) - 65;
-                    if (userAns === correctIdx) {
-                        isCorrect = true;
-                    }
-                } else {
-                    let correctIdx = q.options.indexOf(trimmed);
-                    if (userAns === correctIdx) {
-                        isCorrect = true;
-                    }
-                }
-            }
-
-            if (isCorrect) {
+            let correctIdx = getCorrectIndex(q);
+            if (userAns === correctIdx) {
                 score++;
             }
         }
@@ -306,7 +295,56 @@ function displayResults(score, attempted, incorrect, skipped, total) {
     document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
+function showReview() {
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('review-screen').classList.remove('hidden');
+
+    const container = document.getElementById('review-container');
+    container.innerHTML = '';
+
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    questions.forEach((q, idx) => {
+        const userAns = userAnswers[idx];
+        const correctIdx = getCorrectIndex(q);
+        const isSkipped = (userAns === null || userAns === undefined);
+        const isCorrect = (!isSkipped && userAns === correctIdx);
+
+        let statusText = isSkipped ? '<span style="color: #f59e0b; font-weight: bold;">Skipped</span>' :
+                         isCorrect ? '<span style="color: #10b981; font-weight: bold;">Correct</span>' : 
+                         '<span style="color: #ef4444; font-weight: bold;">Incorrect</span>';
+
+        let card = document.createElement('div');
+        card.style.cssText = "background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;";
+
+        let html = `<p style="font-weight: bold; margin-bottom: 8px;">Q${idx + 1}: ${q.question} [${statusText}]</p>`;
+        
+        html += `<ul style="list-style-type: none; padding-left: 0; margin-bottom: 8px;">`;
+        q.options.forEach((opt, optIdx) => {
+            let prefix = letters[optIdx] ? `${letters[optIdx]}. ` : '';
+            let style = "padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;";
+            
+            if (optIdx === correctIdx) {
+                style += " background: #d1fae5; color: #065f46; font-weight: 500;"; // Highlight correct green
+            } else if (optIdx === userAns && !isCorrect) {
+                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;"; // Highlight wrong user pick red
+            }
+
+            html += `<li style="${style}">${prefix}${opt}</li>`;
+        });
+        html += `</ul>`;
+
+        if (q.explanation) {
+            html += `<p style="font-size: 13px; color: #475569; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-top: 6px;"><strong>Explanation:</strong> ${q.explanation}</p>`;
+        }
+
+        card.innerHTML = html;
+        container.appendChild(card);
+    });
+}
+
 function returnToMenu() {
     document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('review-screen').classList.add('hidden');
     document.getElementById('subject-menu').classList.remove('hidden');
 }
