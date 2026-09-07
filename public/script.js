@@ -5,6 +5,8 @@ let timerInterval = null;
 let timeLeft = 0;
 let isPaused = false;
 let currentQuizId = null;
+let currentDuration = 300;
+let studentName = "Anonymous";
 let skippedIndices = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,7 +48,8 @@ function showChapters(subject) {
         card.className = 'card';
         const chapTitle = chap.title || chap.name;
         card.innerHTML = `<h4>${chapTitle}</h4><p>Duration: ${chap.duration / 60} mins</p>`;
-        card.onclick = () => loadQuiz(chap.id, chap.duration);
+        // Instead of loading immediately, prompt for student name first
+        card.onclick = () => promptForStudentName(chap.id, chap.duration);
         list.appendChild(card);
     });
 }
@@ -56,8 +59,38 @@ function backToSubjects() {
     document.getElementById('subject-menu').classList.remove('hidden');
 }
 
-function loadQuiz(quizId, duration) {
+function promptForStudentName(quizId, duration) {
     currentQuizId = quizId;
+    currentDuration = duration;
+
+    document.getElementById('chapter-menu').classList.add('hidden');
+    document.getElementById('name-screen').classList.remove('hidden');
+    
+    const nameInput = document.getElementById('student-name-input');
+    if (nameInput) {
+        nameInput.value = '';
+        nameInput.focus();
+    }
+}
+
+function backToChaptersFromNamed() {
+    document.getElementById('name-screen').classList.add('hidden');
+    document.getElementById('chapter-menu').classList.remove('hidden');
+}
+
+function startQuizWithName() {
+    const nameInput = document.getElementById('student-name-input');
+    if (nameInput && nameInput.value.trim() !== '') {
+        studentName = nameInput.value.trim();
+    } else {
+        studentName = "Anonymous";
+    }
+
+    document.getElementById('name-screen').classList.add('hidden');
+    loadQuiz(currentQuizId, currentDuration);
+}
+
+function loadQuiz(quizId, duration) {
     timeLeft = duration || 300;
     isPaused = false;
 
@@ -78,7 +111,6 @@ function loadQuiz(quizId, duration) {
             userAnswers = new Array(questions.length).fill(null);
             currentIndex = 0;
 
-            document.getElementById('chapter-menu').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
             startQuiz();
         })
@@ -234,7 +266,6 @@ function getCorrectIndex(q) {
     let rawCorrect = q.answer !== undefined ? q.answer : 
                      (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
 
-    // Since questions use 0-based indexing (0, 1, 2, 3) directly matching button indices:
     if (typeof rawCorrect === 'number') {
         return rawCorrect;
     } else if (typeof rawCorrect === 'string') {
@@ -273,6 +304,7 @@ function submitQuiz() {
     let skipped = questions.length - attempted;
 
     const payload = {
+        studentName: studentName,
         quizId: currentQuizId,
         score: score,
         total: questions.length,
@@ -293,7 +325,7 @@ function displayResults(score, attempted, incorrect, skipped, total) {
     document.getElementById('result-screen').classList.remove('hidden');
 
     document.getElementById('final-score').innerText = `Score: ${score} / ${total}`;
-    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
+    document.getElementById('final-breakdown').innerText = `Student: ${studentName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function showReview() {
