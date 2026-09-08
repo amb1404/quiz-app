@@ -48,23 +48,25 @@ app.post('/api/submit', async (req, res) => {
     if (fs.existsSync(submissionsFile)) {
         allSubmissions = JSON.parse(fs.readFileSync(submissionsFile, 'utf8'));
     }
-    
-    allSubmissions.push({
-        timestamp: new Date().toISOString(),
-        ...submission
-    });
-    
-    fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
 
-    // Build detailed question-by-question breakdown text
-    let detailedBreakdown = "";
     const questions = quizzesCache[submission.quizId] || [];
+    
+    let score = 0;
+    let attempted = 0;
+    let detailedBreakdown = "";
     
     questions.forEach((q, idx) => {
         const userAnsIdx = submission.answers[idx];
         const correctIdx = q.answer !== undefined ? q.answer : q.correctAnswer;
         const isSkipped = (userAnsIdx === null || userAnsIdx === undefined);
         const isCorrect = (!isSkipped && userAnsIdx === correctIdx);
+        
+        if (!isSkipped) {
+            attempted++;
+            if (isCorrect) {
+                score++;
+            }
+        }
         
         const status = isSkipped ? "Skipped" : (isCorrect ? "Correct" : "Incorrect");
         const userChoice = isSkipped ? "None" : q.options[userAnsIdx];
@@ -80,6 +82,20 @@ app.post('/api/submit', async (req, res) => {
         detailedBreakdown += `----------------------------------------\n`;
     });
 
+    let incorrect = attempted - score;
+    let skipped = questions.length - attempted;
+    
+    allSubmissions.push({
+        timestamp: new Date().toISOString(),
+        score,
+        attempted,
+        skipped,
+        incorrect,
+        ...submission
+    });
+    
+    fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
+
     if (process.env.APPS_SCRIPT_URL) {
         try {
             await fetch(process.env.APPS_SCRIPT_URL, {
@@ -90,8 +106,12 @@ app.post('/api/submit', async (req, res) => {
                     firstName: submission.firstName,
                     lastName: submission.lastName,
                     chapterTitle: submission.chapterTitle,
-                    score: submission.score,
-                    total: submission.total,
+                    score: score,
+                    total: questions.length,
+                    attempted: attempted,
+                    skipped: skipped,
+                    correct: score,
+                    incorrect: incorrect,
                     breakdown: detailedBreakdown
                 })
             });
