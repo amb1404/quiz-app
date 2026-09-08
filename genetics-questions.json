@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "What exactly are alleles in the context of genetics?",
+    "options": [
+      "Different types of chromosomes found in a cell",
+      "Alternative forms of a gene occupying the same locus on homologous chromosomes",
+      "Genes that are present only on the sex chromosomes",
+      "Proteins that express physical traits in an organism"
+    ],
+    "answer": 1,
+    "explanation": "Alleles are different versions of the same gene. They govern the same character but might produce different expressions of that character (e.g., tallness vs. dwarfness) and are located at the exact same position (locus) on a pair of homologous chromosomes."
+  },
+  {
+    "id": 2,
+    "question": "A pure tall pea plant (TT) and a pure short pea plant (tt) are crossed. All F1 plants are tall. This demonstrates that for the F1 generation:",
+    "options": [
+      "The genotype is identical to the tall parent",
+      "The phenotype is identical to the tall parent",
+      "Both genotype and phenotype are identical to the tall parent",
+      "The phenotype is identical to the short parent"
+    ],
+    "answer": 1,
+    "explanation": "The F1 plants have a heterozygous genotype (Tt), which is genetically different from the pure tall parent (TT). However, their outward physical expression (phenotype) is tall, making their phenotype identical to the tall parent."
+  },
+  {
+    "id": 3,
+    "question": "Which of Mendel's laws states that during gamete formation, the two alleles for a trait separate, ensuring each gamete receives only one allele?",
+    "options": [
+      "Law of Dominance",
+      "Law of Segregation",
+      "Law of Independent Assortment",
+      "Law of Linkage"
+    ],
+    "answer": 1,
+    "explanation": "The Law of Segregation dictates that allele pairs separate (or segregate) during meiosis when gametes are formed. As a result, a gamete carries only one allele for any given biological trait."
+  },
+  {
+    "id": 4,
+    "question": "Homologous chromosomes are best defined as a pair of chromosomes that:",
+    "options": [
+      "Carry different genes for different traits",
+      "Are identical copies made during cell division (sister chromatids)",
+      "Correspond in shape, size, and carry genes for the same traits at the same loci",
+      "Are found only in the sex cells (sperm and egg)"
+    ],
+    "answer": 2,
+    "explanation": "One chromosome of a homologous pair is inherited from the mother and the other from the father. They are morphologically similar and carry genes controlling the same inherited traits at the exact same locations (loci)."
+  },
+  {
+    "id": 5,
+    "question": "In humans, the sex of the child is entirely determined by the sperm because:",
+    "options": [
+      "Sperm cells are structurally more complex than egg cells",
+      "Eggs only carry an X chromosome, while sperms can carry either an X or a Y chromosome",
+      "The Y chromosome contains dominant genes for male traits",
+      "The father's genes are always dominant over the mother's genes"
+    ],
+    "answer": 1,
+    "explanation": "Human females are XX (homogametic), so all ova contain an X chromosome. Males are XY (heterogametic), producing 50% X-bearing sperms and 50% Y-bearing sperms. Fertilization by an X-sperm yields a girl (XX), and by a Y-sperm yields a boy (XY)."
+  },
+  {
+    "id": 6,
+    "question": "In a monohybrid cross between two heterozygous tall pea plants (Tt x Tt), what is the expected phenotypic ratio of the offspring?",
+    "options": [
+      "1:2:1",
+      "3:1",
+      "1:1",
+      "9:3:3:1"
+    ],
+    "answer": 1,
+    "explanation": "A cross between Tt x Tt produces offspring with genotypes TT, Tt, Tt, and tt. Since TT and Tt both express the dominant tall trait, three plants will be tall and one will be dwarf, resulting in a 3:1 phenotypic ratio."
+  },
+  {
+    "id": 7,
+    "question": "In the same monohybrid cross (Tt x Tt), what is the expected genotypic ratio?",
+    "options": [
+      "3 Tall : 1 Dwarf",
+      "1 TT : 2 Tt : 1 tt",
+      "All Tt",
+      "1 Tt : 1 tt"
+    ],
+    "answer": 1,
+    "explanation": "A Punnett square for Tt x Tt shows one square with TT, two squares with Tt, and one square with tt. This gives the genotypic ratio of 1 homozygous dominant : 2 heterozygous : 1 homozygous recessive."
+  },
+  {
+    "id": 8,
+    "question": "Mendel’s Law of Independent Assortment can only be completely demonstrated by analyzing a:",
+    "options": [
+      "Monohybrid cross",
+      "Dihybrid cross",
+      "Test cross",
+      "Back cross"
+    ],
+    "answer": 1,
+    "explanation": "The Law of Independent Assortment involves the simultaneous inheritance of two or more pairs of contrasting traits (e.g., seed shape and seed color). Therefore, it requires at least a dihybrid cross to be observed."
+  },
+  {
+    "id": 9,
+    "question": "A normal human somatic (body) cell has 46 chromosomes. How many autosomes and sex chromosomes does a normal human sperm cell contain?",
+    "options": [
+      "44 autosomes and 2 sex chromosomes",
+      "22 autosomes and 2 sex chromosomes",
+      "22 autosomes and 1 sex chromosome",
+      "23 autosomes and 0 sex chromosomes"
+    ],
+    "answer": 2,
+    "explanation": "Gametes (sperm and eggs) are haploid, meaning they contain half the number of chromosomes of a somatic cell. Therefore, a sperm cell contains 23 chromosomes in total: 22 autosomes and exactly 1 sex chromosome (either X or Y)."
+  },
+  {
+    "id": 10,
+    "question": "A plant with purple flowers (dominant) could have the genotype PP or Pp. To accurately determine its exact genotype, it should be crossed with a plant that has:",
+    "options": [
+      "Homozygous dominant genotype (PP)",
+      "Heterozygous genotype (Pp)",
+      "Homozygous recessive genotype (pp)",
+      "Any purple-flowered plant"
+    ],
+    "answer": 2,
+    "explanation": "This is known as a test cross. Crossing the unknown dominant phenotype with a pure recessive (pp) plant will reveal the genotype. If all offspring are purple, the unknown was PP. If half are white, the unknown was Pp."
+  },
+  {
+    "id": 11,
+    "question": "A sudden, random, and heritable change in the genetic material (DNA sequence) of an organism is termed a:",
+    "options": [
+      "Crossing over",
+      "Mutation",
+      "Segregation",
+      "Genetic drift"
+    ],
+    "answer": 1,
+    "explanation": "A mutation is a permanent alteration in the nucleotide sequence of the genome. Mutations can happen naturally due to errors in DNA replication or be induced by radiation or chemicals."
+  },
+  {
+    "id": 12,
+    "question": "Which of the following is NOT a reason why Gregor Mendel chose the garden pea (Pisum sativum) for his experiments?",
+    "options": [
+      "They have a short life cycle",
+      "They produce many offspring in one generation",
+      "They naturally undergo cross-pollination in the wild",
+      "They have several easily observable contrasting traits"
+    ],
+    "answer": 2,
+    "explanation": "Pea plants naturally self-pollinate, not cross-pollinate, due to their closed flower structure. This was advantageous for Mendel as it allowed him to easily obtain pure-breeding lines."
+  },
+  {
+    "id": 13,
+    "question": "From a molecular perspective, a gene is best described as:",
+    "options": [
+      "A complete, coiled chromosome",
+      "A specific segment of DNA that provides instructions for building a particular protein",
+      "The entire nucleus of a eukaryotic cell",
+      "A protein that carries hereditary information to the next generation"
+    ],
+    "answer": 1,
+    "explanation": "A gene is a functional unit of heredity. Chemically, it is a specific sequence of nucleotides on a DNA molecule that encodes the instructions to synthesize a specific protein or RNA molecule, which in turn determines a trait."
+  },
+  {
+    "id": 14,
+    "question": "Colour blindness is a recessive sex-linked defect on the X chromosome. A normal woman whose father was colour-blind marries a normal man. What is the genetic status of this woman regarding colour blindness?",
+    "options": [
+      "She is completely free of the defective gene",
+      "She is a carrier (heterozygous) for the colour blindness gene",
+      "She is homozygous dominant",
+      "She will definitely develop colour blindness later in life"
+    ],
+    "answer": 1,
+    "explanation": "Since her father was colour-blind (X^cY), he must have passed his defective X chromosome to her. Because she has normal vision, her other X chromosome (from her mother) is normal. Thus, her genotype is XX^c, making her a carrier."
+  },
+  {
+    "id": 15,
+    "question": "Among the following contrasting traits of the garden pea studied by Mendel, which one is a DOMINANT trait?",
+    "options": [
+      "Wrinkled seeds",
+      "Green seeds",
+      "White flowers",
+      "Axial flowers"
+    ],
+    "answer": 3,
+    "explanation": "In Mendel's experiments, axial flower position is dominant over terminal flower position. Conversely, wrinkled seeds, green seeds, and white flowers are all recessive traits."
+  },
+  {
+    "id": 16,
+    "question": "Chromosomes are primarily composed of highly coiled and condensed chromatin fibers. What are the two main molecular components of these fibers?",
+    "options": [
+      "RNA and lipids",
+      "DNA and histone proteins",
+      "Carbohydrates and DNA",
+      "Amino acids and RNA"
+    ],
+    "answer": 1,
+    "explanation": "Chromatin is a macromolecular complex composed of approximately 40% DNA and 60% structural proteins called histones. The DNA tightly wraps around these histone cores to condense into a chromosome."
+  },
+  {
+    "id": 17,
+    "question": "Who is universally recognized as the 'Father of Genetics' for his pioneering work on the inheritance of traits?",
+    "options": [
+      "Charles Darwin",
+      "James Watson",
+      "Gregor Johann Mendel",
+      "Reginald Punnett"
+    ],
+    "answer": 2,
+    "explanation": "Gregor Johann Mendel, an Augustinian monk, conducted meticulous hybridization experiments on pea plants in the 1850s and 60s, discovering the fundamental laws of inheritance."
+  },
+  {
+    "id": 18,
+    "question": "Why is Mendel’s Law of Segregation also known as the Law of Purity of Gametes?",
+    "options": [
+      "Because gametes only contain dominant alleles",
+      "Because a gamete contains only one allele of a gene, meaning it cannot be heterozygous and is therefore 'pure' for that trait",
+      "Because gametes are shielded from genetic mutations",
+      "Because gametes contain double the normal number of chromosomes"
+    ],
+    "answer": 1,
+    "explanation": "Since alleles segregate during meiosis, a gamete only receives one allele for any given trait (e.g., just 'T' or just 't'). Therefore, the gamete is genetically pure for that trait, possessing no mixed or opposing instructions."
+  },
+  {
+    "id": 19,
+    "question": "When a pure breeding tall plant (TT) is crossed with a pure breeding dwarf plant (tt), the F1 generation consists entirely of tall plants. This observation directly led to the formulation of the:",
+    "options": [
+      "Law of Independent Assortment",
+      "Law of Segregation",
+      "Law of Dominance",
+      "Theory of Mutation"
+    ],
+    "answer": 2,
+    "explanation": "The Law of Dominance states that when two homozygous individuals with one or more sets of contrasting traits are crossed, the trait that appears in the F1 hybrid is the dominant trait, while the masked one is recessive."
+  },
+  {
+    "id": 20,
+    "question": "In a standard dihybrid cross between two plants that are heterozygous for both seed shape (Round/wrinkled) and seed colour (Yellow/green), what is the expected phenotypic ratio in the F2 generation?",
+    "options": [
+      "9:3:3:1",
+      "1:2:1",
+      "3:1",
+      "1:1:1:1"
+    ],
+    "answer": 0,
+    "explanation": "A cross between RrYy x RrYy yields a phenotypic ratio of 9 (Round Yellow) : 3 (Round Green) : 3 (Wrinkled Yellow) : 1 (Wrinkled Green). This demonstrates the independent assortment of the two traits."
+  }
+]
