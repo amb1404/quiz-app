@@ -40,7 +40,6 @@ app.get('/api/quiz/:id', (req, res) => {
         res.status(404).json({ error: 'Quiz questions not found' });
     }
 });
-
 app.post('/api/submit', async (req, res) => {
     const submission = req.body;
     const submissionsFile = path.join(__dirname, 'submissions.json');
@@ -57,6 +56,30 @@ app.post('/api/submit', async (req, res) => {
     
     fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
 
+    // Build detailed question-by-question breakdown text
+    let detailedBreakdown = "";
+    const questions = quizzesCache[submission.quizId] || [];
+    
+    questions.forEach((q, idx) => {
+        const userAnsIdx = submission.answers[idx];
+        const correctIdx = q.answer !== undefined ? q.answer : q.correctAnswer;
+        const isSkipped = (userAnsIdx === null || userAnsIdx === undefined);
+        const isCorrect = (!isSkipped && userAnsIdx === correctIdx);
+        
+        const status = isSkipped ? "Skipped" : (isCorrect ? "Correct" : "Incorrect");
+        const userChoice = isSkipped ? "None" : q.options[userAnsIdx];
+        const correctChoice = q.options[correctIdx];
+
+        detailedBreakdown += `Q${idx + 1}: ${q.question}\n`;
+        detailedBreakdown += `Status: ${status}\n`;
+        detailedBreakdown += `Student's Answer: ${userChoice}\n`;
+        detailedBreakdown += `Correct Answer: ${correctChoice}\n`;
+        if (q.explanation) {
+            detailedBreakdown += `Explanation: ${q.explanation}\n`;
+        }
+        detailedBreakdown += `----------------------------------------\n`;
+    });
+
     if (process.env.APPS_SCRIPT_URL) {
         try {
             await fetch(process.env.APPS_SCRIPT_URL, {
@@ -64,7 +87,12 @@ app.post('/api/submit', async (req, res) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     targetEmail: process.env.TARGET_EMAIL,
-                    ...submission
+                    firstName: submission.firstName,
+                    lastName: submission.lastName,
+                    chapterTitle: submission.chapterTitle,
+                    score: submission.score,
+                    total: submission.total,
+                    breakdown: detailedBreakdown
                 })
             });
         } catch (error) {
