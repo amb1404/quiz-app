@@ -40,6 +40,7 @@ app.get('/api/quiz/:id', (req, res) => {
         res.status(404).json({ error: 'Quiz questions not found' });
     }
 });
+
 app.post('/api/submit', async (req, res) => {
     const submission = req.body;
     const submissionsFile = path.join(__dirname, 'submissions.json');
@@ -105,6 +106,7 @@ app.post('/api/submit', async (req, res) => {
                     targetEmail: process.env.TARGET_EMAIL,
                     firstName: submission.firstName,
                     lastName: submission.lastName,
+                    email: submission.email,
                     chapterTitle: submission.chapterTitle,
                     score: score,
                     total: questions.length,
