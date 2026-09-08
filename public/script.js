@@ -170,6 +170,13 @@ function selectOption(idx) {
     refreshCounters();
 }
 
+function clearResponse() {
+    userAnswers[currentIndex] = null;
+    skippedIndices.add(currentIndex);
+    renderQuestionUI();
+    refreshCounters();
+}
+
 function prevQuestion() {
     if (currentIndex > 0) {
         currentIndex--;
