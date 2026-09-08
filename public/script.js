@@ -8,6 +8,7 @@ let currentChapterDuration = 300;
 let currentChapterTitleText = '';
 let studentFirstName = '';
 let studentLastName = '';
+let studentEmail = '';
 let skippedIndices = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -66,6 +67,7 @@ function prepareQuiz(quizId, duration, chapterTitle) {
     document.getElementById('selected-chapter-title').innerText = `Chapter: ${chapterTitle}`;
     document.getElementById('first-name-input').value = '';
     document.getElementById('last-name-input').value = '';
+    document.getElementById('email-input').value = '';
 }
 
 function backToChapters() {
@@ -76,14 +78,16 @@ function backToChapters() {
 function proceedToQuiz() {
     const firstName = document.getElementById('first-name-input').value.trim();
     const lastName = document.getElementById('last-name-input').value.trim();
+    const email = document.getElementById('email-input').value.trim();
 
-    if (!firstName || !lastName) {
-        alert('Please enter both your first name and last name.');
+    if (!firstName || !lastName || !email) {
+        alert('Please enter your first name, last name, and a valid email ID.');
         return;
     }
 
     studentFirstName = firstName;
     studentLastName = lastName;
+    studentEmail = email;
     timeLeft = currentChapterDuration;
     skippedIndices.clear();
     document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
@@ -210,6 +214,7 @@ function submitQuiz() {
     const payload = {
         firstName: studentFirstName,
         lastName: studentLastName,
+        email: studentEmail,
         quizId: currentQuizId,
         chapterTitle: currentChapterTitleText,
         score: score,
@@ -226,7 +231,7 @@ function submitQuiz() {
     document.getElementById('quiz-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
     document.getElementById('final-score').innerText = `Score: ${score} / ${questions.length}`;
-    document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
+    document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} (${studentEmail}) | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function returnToMenu() {
