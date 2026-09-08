@@ -21,6 +21,21 @@
             <div id="chapter-list"></div>
         </div>
 
+        <!-- Student Details Screen (Name Input) -->
+        <div id="name-screen" class="hidden" style="text-align: left;">
+            <button onclick="backToChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Chapters</button>
+            <h2 id="selected-chapter-title" style="margin-bottom: 20px;">Enter Your Details</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">First Name:</label>
+                <input type="text" id="first-name-input" oninput="this.value = this.value.toUpperCase()" placeholder="ENTER FIRST NAME" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 16px; text-transform: uppercase;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">Last Name:</label>
+                <input type="text" id="last-name-input" oninput="this.value = this.value.toUpperCase()" placeholder="ENTER LAST NAME" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 16px; text-transform: uppercase;">
+            </div>
+            <button onclick="proceedToQuiz()" class="nav-btn" style="width: 100%; background: #3b82f6; padding: 12px; font-size: 16px;">Start Quiz</button>
+        </div>
+
         <!-- Quiz Screen -->
         <div id="quiz-screen" class="hidden" style="position: relative;">
             <h3 id="current-chapter-heading" style="color: #1e293b; font-size: 16px; margin-bottom: 10px; font-weight: bold;"></h3>
