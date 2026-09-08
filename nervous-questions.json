@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "A person consumes a large amount of alcohol and subsequently exhibits a clumsy, staggering walk. Which specific part of the brain is most directly affected by the alcohol to cause this lack of coordination?",
+    "options": [
+      "Cerebrum",
+      "Cerebellum",
+      "Medulla oblongata",
+      "Hypothalamus"
+    ],
+    "answer": 1,
+    "explanation": "The cerebellum is responsible for maintaining body balance, posture, and coordinating muscular activity. Alcohol depresses the activity of the cerebellum, leading to a clumsy and uncoordinated walk."
+  },
+  {
+    "id": 2,
+    "question": "If the ventral root of a spinal nerve is accidentally severed or destroyed, what will be the physiological consequence for the affected body part?",
+    "options": [
+      "Complete loss of both sensation and movement",
+      "Loss of sensation, but movement remains intact",
+      "Loss of movement, but sensation remains intact",
+      "No effect on either sensation or movement"
+    ],
+    "answer": 2,
+    "explanation": "Spinal nerves are mixed nerves. The dorsal root carries only sensory fibers (transmitting impulses to the CNS), while the ventral root carries only motor fibers (transmitting impulses to muscles). Cutting the ventral root paralyzes the muscle, but sensation is preserved."
+  },
+  {
+    "id": 3,
+    "question": "In the human brain, the outer portion is composed of gray matter and the inner portion is white matter. What primarily constitutes the 'gray matter'?",
+    "options": [
+      "Myelinated axons",
+      "Cerebrospinal fluid",
+      "Cell bodies (cytons) of neurons",
+      "Meningeal membranes"
+    ],
+    "answer": 2,
+    "explanation": "Gray matter gets its grayish appearance because it contains a dense concentration of neuron cell bodies (cytons) and unmyelinated dendrites. White matter is white due to the presence of lipid-rich myelin sheaths covering the axons."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following correctly outlines the transmission of a nerve impulse through a standard reflex arc?",
+    "options": [
+      "Receptor → Motor neuron → Association neuron → Sensory neuron → Effector",
+      "Effector → Motor neuron → Association neuron → Sensory neuron → Receptor",
+      "Receptor → Sensory neuron → Association neuron → Motor neuron → Effector",
+      "Receptor → Sensory neuron → Motor neuron → Association neuron → Effector"
+    ],
+    "answer": 2,
+    "explanation": "A stimulus is picked up by a receptor, travels via a sensory neuron to the spinal cord, crosses an association (relay) neuron, and travels via a motor neuron to an effector (muscle or gland) to produce a response."
+  },
+  {
+    "id": 5,
+    "question": "What is the primary function of the corpus callosum in the human brain?",
+    "options": [
+      "It regulates body temperature and the urge to eat",
+      "It connects the two cerebral hemispheres, allowing them to communicate",
+      "It controls involuntary functions like heartbeat and breathing",
+      "It connects the brain to the spinal cord"
+    ],
+    "answer": 1,
+    "explanation": "The corpus callosum is a thick band of nerve fibers that bridges the left and right cerebral hemispheres, ensuring that both sides of the brain can communicate and share information."
+  },
+  {
+    "id": 6,
+    "question": "During a synapse, how is the nerve impulse transmitted from the axon terminal of one neuron to the dendrite of the next?",
+    "options": [
+      "Via a continuous electrical spark",
+      "By physical contact and fusion of the two neurons",
+      "By the release of a chemical neurotransmitter, such as acetylcholine",
+      "By the flow of cerebrospinal fluid across the gap"
+    ],
+    "answer": 2,
+    "explanation": "Neurons do not physically touch at a synapse. Instead, the electrical impulse triggers the release of chemical messengers (neurotransmitters) into the synaptic cleft, which bind to receptors on the next neuron to generate a new electrical impulse."
+  },
+  {
+    "id": 7,
+    "question": "Which of the following scenarios is an example of an unconditioned (natural) reflex?",
+    "options": [
+      "Salivating at the sight of a favorite bakery",
+      "Applying the brakes of a car when a child runs into the street",
+      "Typing on a keyboard without looking at the keys",
+      "Constriction of the pupil when a bright light is shone into the eye"
+    ],
+    "answer": 3,
+    "explanation": "An unconditioned reflex is an inborn, involuntary response to a stimulus that requires no previous learning or experience. Pupillary constriction is innate, whereas the other options require learning and past experience (conditioned reflexes)."
+  },
+  {
+    "id": 8,
+    "question": "The central nervous system is protected by three membranous coverings collectively called the meninges. What is the correct sequence of these membranes from the outermost to the innermost?",
+    "options": [
+      "Pia mater → Arachnoid → Dura mater",
+      "Dura mater → Pia mater → Arachnoid",
+      "Dura mater → Arachnoid → Pia mater",
+      "Arachnoid → Dura mater → Pia mater"
+    ],
+    "answer": 2,
+    "explanation": "The outermost tough layer is the Dura mater, the middle web-like layer is the Arachnoid, and the innermost, highly vascular layer directly covering the brain is the Pia mater."
+  },
+  {
+    "id": 9,
+    "question": "The Nodes of Ranvier are periodic gaps found in the myelin sheath of an axon. What is their physiological significance?",
+    "options": [
+      "They store neurotransmitters for synaptic transmission",
+      "They allow the nerve impulse to 'jump' from node to node, significantly increasing conduction speed",
+      "They are the sites where the cell body produces metabolic energy",
+      "They absorb physical shocks to prevent neuron damage"
+    ],
+    "answer": 1,
+    "explanation": "The myelin sheath acts as an electrical insulator. The action potential can only occur at the unmyelinated Nodes of Ranvier, causing the impulse to jump rapidly down the axon in a process called saltatory conduction."
+  },
+  {
+    "id": 10,
+    "question": "How many pairs of cranial nerves and spinal nerves are present in the human peripheral nervous system?",
+    "options": [
+      "10 pairs of cranial nerves and 31 pairs of spinal nerves",
+      "12 pairs of cranial nerves and 31 pairs of spinal nerves",
+      "12 pairs of cranial nerves and 33 pairs of spinal nerves",
+      "31 pairs of cranial nerves and 12 pairs of spinal nerves"
+    ],
+    "answer": 1,
+    "explanation": "The human body has 12 pairs of cranial nerves that emerge directly from the brain and 31 pairs of spinal nerves that emerge from the spinal cord."
+  },
+  {
+    "id": 11,
+    "question": "When you encounter a sudden frightening situation (like a snake in your path), your heart rate increases and your pupils dilate. Which part of the nervous system is responsible for this 'fight or flight' response?",
+    "options": [
+      "Parasympathetic nervous system",
+      "Sympathetic nervous system",
+      "Somatic nervous system",
+      "Central nervous system"
+    ],
+    "answer": 1,
+    "explanation": "The sympathetic nervous system prepares the body for intense physical activity and emergencies (fight or flight) by accelerating heart rate, dilating pupils, and redirecting blood to skeletal muscles."
+  },
+  {
+    "id": 12,
+    "question": "In the structural arrangement of the spinal cord, how are the gray and white matters distributed?",
+    "options": [
+      "Gray matter is on the outside, white matter is on the inside",
+      "White matter is on the outside, gray matter is on the inside",
+      "Both are uniformly mixed throughout the spinal cord",
+      "Gray matter forms the dorsal root, white matter forms the ventral root"
+    ],
+    "answer": 1,
+    "explanation": "Unlike the brain, the spinal cord has white matter on the outside and an H-shaped or butterfly-shaped core of gray matter on the inside."
+  },
+  {
+    "id": 13,
+    "question": "Medulla oblongata is a critical part of the brainstem. Total damage to this region is immediately fatal because it controls:",
+    "options": [
+      "Memory, intelligence, and conscious thought",
+      "Body temperature and water balance",
+      "Involuntary vital functions such as breathing and heartbeat",
+      "Voluntary muscle movements"
+    ],
+    "answer": 2,
+    "explanation": "The medulla oblongata contains the cardiac and respiratory centers. It controls vital involuntary actions like heartbeat, breathing, and blood pressure, without which an organism cannot survive."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following statements accurately differentiates a 'nerve' from a 'neuron'?",
+    "options": [
+      "A nerve is a single microscopic cell, while a neuron is a bundle of nerves",
+      "A neuron is the basic cellular unit of the nervous system, while a nerve is a bundle of axons enclosed in a tubular sheath",
+      "A nerve transmits electrical impulses, while a neuron only provides structural support",
+      "They are synonymous terms used interchangeably in biology"
+    ],
+    "answer": 1,
+    "explanation": "A neuron is a single individual nerve cell (comprising a cyton, axon, and dendrites). A nerve is a macroscopic structure formed by bundling many nerve fibers (axons) together, wrapped in connective tissue."
+  },
+  {
+    "id": 15,
+    "question": "Cerebrospinal fluid (CSF) is found in the ventricles of the brain, the central canal of the spinal cord, and between the meninges. Which of the following is NOT a function of CSF?",
+    "options": [
+      "Acting as a shock absorber to protect the central nervous system",
+      "Providing nutrients and oxygen to the brain cells",
+      "Transmitting nerve impulses between the brain and spinal cord",
+      "Carrying away metabolic waste products from the brain"
+    ],
+    "answer": 2,
+    "explanation": "CSF provides mechanical protection (cushioning), supplies nutrients, and removes waste. However, the transmission of nerve impulses is the exclusive function of neurons via electrical signals and neurotransmitters, not the fluid itself."
+  },
+  {
+    "id": 16,
+    "question": "The parasympathetic nervous system acts to restore the body to a state of calm. Which of the following is an effect of parasympathetic stimulation?",
+    "options": [
+      "Dilation of the pupils",
+      "Inhibition of saliva secretion",
+      "Relaxation of the urinary bladder",
+      "Stimulation of digestive system activity"
+    ],
+    "answer": 3,
+    "explanation": "The parasympathetic system promotes 'rest and digest' activities. It stimulates digestion, increases salivation, constricts pupils, and contracts the urinary bladder, countering the sympathetic 'fight or flight' responses."
+  },
+  {
+    "id": 17,
+    "question": "What is the specific role of sensory (afferent) neurons?",
+    "options": [
+      "To conduct impulses from the central nervous system to the effector organs",
+      "To conduct impulses from the receptor organs to the central nervous system",
+      "To connect motor neurons with other motor neurons",
+      "To release hormones into the bloodstream"
+    ],
+    "answer": 1,
+    "explanation": "Sensory neurons act as input pathways, carrying nerve impulses from sensory receptors (like skin, eyes, ears) towards the Central Nervous System (brain and spinal cord) for processing."
+  },
+  {
+    "id": 18,
+    "question": "A doctor gently taps a patient's knee with a rubber hammer, causing the lower leg to jerk forward. This knee-jerk reflex is primarily controlled by the:",
+    "options": [
+      "Cerebrum",
+      "Cerebellum",
+      "Spinal cord",
+      "Medulla oblongata"
+    ],
+    "answer": 2,
+    "explanation": "The knee-jerk reflex is a simple spinal reflex. The sensory impulse travels directly to the spinal cord, which immediately sends a motor impulse to the leg muscle without requiring conscious thought or processing from the brain."
+  },
+  {
+    "id": 19,
+    "question": "Which part of the brain acts as the body's thermostat, regulating internal body temperature and producing sensations of hunger and thirst?",
+    "options": [
+      "Thalamus",
+      "Hypothalamus",
+      "Pons",
+      "Cerebrum"
+    ],
+    "answer": 1,
+    "explanation": "The hypothalamus, located at the base of the forebrain, is the regulatory center for homeostasis. It controls body temperature, hunger, thirst, sleep-wake cycles, and controls the pituitary gland."
+  },
+  {
+    "id": 20,
+    "question": "What happens during the 'resting potential' of a neuron (when it is not conducting an impulse)?",
+    "options": [
+      "The outside of the axon membrane is negatively charged, and the inside is positively charged",
+      "Both the outside and inside of the membrane are neutrally charged",
+      "The outside of the axon membrane is positively charged, and the inside is negatively charged",
+      "Neurotransmitters are continuously released into the synapse"
+    ],
+    "answer": 2,
+    "explanation": "In a resting state, a neuron is polarized. Due to the sodium-potassium pump, there is a higher concentration of sodium ions outside the cell, making the outside positively charged relative to the negatively charged inside."
+  }
+]
