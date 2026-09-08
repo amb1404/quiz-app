@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "Conceptually, why is the muscular wall of the left ventricle significantly thicker than that of the right ventricle?",
+    "options": [
+      "The left ventricle contains a larger volume of blood.",
+      "The left ventricle must pump blood over a much longer distance to the entire body against higher resistance.",
+      "The left ventricle receives oxygenated blood, which is heavier.",
+      "The left ventricle beats at a faster rate than the right ventricle."
+    ],
+    "answer": 1,
+    "explanation": "The right ventricle only needs to pump blood a short distance to the lungs. The left ventricle, however, must generate sufficient high pressure to pump oxygenated blood through the systemic circulation to all distant body parts."
+  },
+  {
+    "id": 2,
+    "question": "Which of the following blood vessels represents an exception to the rule that veins carry deoxygenated blood?",
+    "options": [
+      "Renal vein",
+      "Hepatic portal vein",
+      "Pulmonary vein",
+      "Inferior vena cava"
+    ],
+    "answer": 2,
+    "explanation": "The pulmonary veins are the only veins in the human body that carry oxygen-rich (oxygenated) blood, transporting it from the lungs back to the left atrium of the heart."
+  },
+  {
+    "id": 3,
+    "question": "During the cardiac cycle, the first heart sound 'LUBB' is produced. What specific mechanical event causes this sound?",
+    "options": [
+      "The opening of the semilunar valves",
+      "The closure of the tricuspid and bicuspid (atrioventricular) valves during ventricular systole",
+      "The closure of the aortic and pulmonary semilunar valves during ventricular diastole",
+      "The rushing of blood into the ventricles from the atria"
+    ],
+    "answer": 1,
+    "explanation": "The 'LUBB' sound marks the beginning of ventricular systole. As the ventricles contract, the rising pressure forces the atrioventricular (tricuspid and bicuspid) valves to snap shut, producing the sound."
+  },
+  {
+    "id": 4,
+    "question": "What is the physiological role of the chordae tendineae found in the ventricles of the heart?",
+    "options": [
+      "They conduct electrical impulses to the ventricular walls.",
+      "They generate the force required for ventricular contraction.",
+      "They hold the flaps of the atrioventricular valves in place, preventing them from turning inside out into the atria under high pressure.",
+      "They separate the oxygenated blood from the deoxygenated blood."
+    ],
+    "answer": 2,
+    "explanation": "Chordae tendineae are strong, inelastic tendinous cords that anchor the cusps of the AV valves to the papillary muscles. During ventricular contraction (systole), they prevent the valves from prolapsing (flipping back) into the atria."
+  },
+  {
+    "id": 5,
+    "question": "A person with blood group AB is often called a 'universal recipient'. What is the conceptual reason behind this?",
+    "options": [
+      "Their red blood cells possess both anti-A and anti-B antibodies.",
+      "Their blood plasma entirely lacks both anti-A and anti-B antibodies, meaning it will not attack any transfused red blood cells.",
+      "Their red blood cells lack both A and B antigens.",
+      "Their blood plasma contains a universal neutralizing enzyme."
+    ],
+    "answer": 1,
+    "explanation": "Individuals with AB blood group have both A and B antigens on their RBCs, so their immune system does not produce anti-A or anti-B antibodies in the plasma. Thus, they can receive blood from any ABO group without a rejection reaction."
+  },
+  {
+    "id": 6,
+    "question": "The squeezing of white blood cells (specifically neutrophils) out through the intact walls of blood capillaries into the surrounding tissues to fight infection is known as:",
+    "options": [
+      "Phagocytosis",
+      "Osmosis",
+      "Diapedesis",
+      "Pinocytosis"
+    ],
+    "answer": 2,
+    "explanation": "Diapedesis is the amoeboid movement of white blood cells squeezing through the narrow pores of capillary walls to reach the site of tissue injury or infection."
+  },
+  {
+    "id": 7,
+    "question": "Which specific metallic ion is absolutely essential for the cascade of chemical reactions that lead to blood coagulation (clotting)?",
+    "options": [
+      "Iron (Fe²⁺)",
+      "Potassium (K⁺)",
+      "Calcium (Ca²⁺)",
+      "Sodium (Na⁺)"
+    ],
+    "answer": 2,
+    "explanation": "Calcium ions (Ca²⁺) act as a vital cofactor in several steps of the blood clotting cascade, particularly in the conversion of prothrombin to the active enzyme thrombin."
+  },
+  {
+    "id": 8,
+    "question": "The Hepatic Portal System is a unique circulatory pathway. Conceptually, what is its primary physiological purpose?",
+    "options": [
+      "To supply oxygenated blood directly to the liver tissue.",
+      "To carry deoxygenated blood directly from the liver to the heart.",
+      "To transport nutrient-rich blood from the digestive tract directly to the liver for processing and detoxification before it reaches the general circulation.",
+      "To bypass the liver completely during digestion."
+    ],
+    "answer": 2,
+    "explanation": "The hepatic portal vein collects nutrient-laden blood from the stomach and intestines and takes it to the liver. The liver then regulates glucose levels, stores vitamins, and detoxifies harmful substances before the blood joins the systemic circulation."
+  },
+  {
+    "id": 9,
+    "question": "Arteries have thick, highly elastic, and muscular walls compared to veins. This structural adaptation is necessary because:",
+    "options": [
+      "Arteries must carry a much larger volume of blood than veins.",
+      "Arteries must withstand the high hydrostatic pressure of blood being forcefully pumped directly from the heart.",
+      "Arteries need to prevent the diffusion of oxygen into surrounding tissues.",
+      "Arteries rely on skeletal muscle contractions to push blood forward."
+    ],
+    "answer": 1,
+    "explanation": "Blood is ejected from the ventricles into the arteries under immense pressure. The thick, elastic walls stretch to accommodate this pressure surge (systole) and recoil to maintain blood flow (diastole) without bursting."
+  },
+  {
+    "id": 10,
+    "question": "In the final step of blood clotting, which active enzyme is responsible for converting the soluble plasma protein fibrinogen into an insoluble mesh of fibrin threads?",
+    "options": [
+      "Thromboplastin",
+      "Prothrombin",
+      "Thrombin",
+      "Heparin"
+    ],
+    "answer": 2,
+    "explanation": "During coagulation, active thrombin acts as an enzyme that catalyzes the conversion of soluble fibrinogen into insoluble fibrin threads, which form the structural framework of the blood clot."
+  },
+  {
+    "id": 11,
+    "question": "Tissue fluid (interstitial fluid) surrounds the cells of the body. How is this fluid primarily formed?",
+    "options": [
+      "By the active secretion of water from tissue cells.",
+      "By the hydrostatic pressure of blood forcing water and small dissolved solutes out through the semi-permeable walls of capillaries.",
+      "By the direct draining of the lymphatic system into the tissues.",
+      "By the breakdown of red blood cells in the tissues."
+    ],
+    "answer": 1,
+    "explanation": "As blood flows into narrow capillaries, the high hydrostatic pressure forces blood plasma (minus large proteins and RBCs) out through the capillary walls, bathing the surrounding cells to form tissue fluid."
+  },
+  {
+    "id": 12,
+    "question": "The Sinoatrial (SA) node is often referred to as the natural 'pacemaker' of the heart. Where is it anatomically located?",
+    "options": [
+      "In the wall of the right ventricle.",
+      "In the interatrial septum.",
+      "In the upper wall of the right atrium, near the opening of the superior vena cava.",
+      "In the lower wall of the left atrium."
+    ],
+    "answer": 2,
+    "explanation": "The SA node is a specialized bundle of cardiac muscle located in the upper wall of the right atrium. It spontaneously generates the electrical impulses that initiate and set the rhythm of the heartbeat."
+  },
+  {
+    "id": 13,
+    "question": "Erythroblastosis fetalis (Hemolytic disease of the newborn) is a potentially fatal condition. Conceptually, under which specific circumstances can this occur?",
+    "options": [
+      "An Rh-positive mother carries an Rh-negative fetus.",
+      "An Rh-negative mother carries an Rh-positive fetus.",
+      "Both mother and fetus are Rh-negative.",
+      "The mother has blood group O and the fetus has blood group AB."
+    ],
+    "answer": 1,
+    "explanation": "If an Rh-negative mother carries an Rh-positive fetus, her immune system may become sensitized to the Rh antigen and produce anti-Rh antibodies. In a subsequent pregnancy, these antibodies can cross the placenta and destroy the Rh-positive RBCs of the fetus."
+  },
+  {
+    "id": 14,
+    "question": "Lymph differs structurally from blood plasma. Which of the following components is completely absent in lymph?",
+    "options": [
+      "White blood cells (Leukocytes)",
+      "Red blood cells (Erythrocytes)",
+      "Dissolved glucose and salts",
+      "Antibodies"
+    ],
+    "answer": 1,
+    "explanation": "Lymph is formed from tissue fluid that enters lymphatic vessels. Because red blood cells are too large to pass through the intact capillary walls during tissue fluid formation, lymph completely lacks RBCs."
+  },
+  {
+    "id": 15,
+    "question": "Veins contain internal pocket-like valves, whereas arteries do not. What is the physiological necessity of these valves?",
+    "options": [
+      "To increase the pressure of blood returning to the heart.",
+      "To filter impurities and dead cells out of the deoxygenated blood.",
+      "To prevent the backflow of blood, as blood in veins is under very low pressure and often moves against gravity.",
+      "To force blood from the superficial veins into the deep veins."
+    ],
+    "answer": 2,
+    "explanation": "By the time blood reaches the veins, its pressure is extremely low. To prevent blood from flowing backward—especially in the legs against gravity—veins possess one-way valves that only allow blood to flow toward the heart."
+  },
+  {
+    "id": 16,
+    "question": "Normal human blood pressure is typically recorded as 120/80 mmHg. What does the higher number (120) specifically represent?",
+    "options": [
+      "Diastolic pressure: The pressure in the arteries when the ventricles are relaxing.",
+      "Systolic pressure: The peak pressure in the arteries when the ventricles contract.",
+      "Pulse pressure: The difference between atrial and ventricular pressure.",
+      "Venous pressure: The pressure of blood entering the right atrium."
+    ],
+    "answer": 1,
+    "explanation": "The top number (120 mmHg) is the systolic pressure, which measures the maximum force exerted by blood against the arterial walls during ventricular contraction (systole)."
+  },
+  {
+    "id": 17,
+    "question": "The human circulatory system is described as a 'double circulation' system. This means that:",
+    "options": [
+      "The heart has two completely separate halves (left and right).",
+      "Blood passes through the heart twice (pulmonary and systemic circuits) to complete one full cycle of the body.",
+      "Blood is pumped simultaneously into the arteries and the veins.",
+      "There are two types of blood (oxygenated and deoxygenated) flowing mixed together."
+    ],
+    "answer": 1,
+    "explanation": "Double circulation means that in a single complete circuit of the body, blood passes through the heart twice: once through the right side to the lungs (pulmonary circulation) and once through the left side to the rest of the body (systemic circulation)."
+  },
+  {
+    "id": 18,
+    "question": "Which of the following blood cells plays a primary, active role in phagocytosis (engulfing and destroying harmful bacteria)?",
+    "options": [
+      "Erythrocytes (RBCs)",
+      "Lymphocytes",
+      "Neutrophils",
+      "Thrombocytes (Platelets)"
+    ],
+    "answer": 2,
+    "explanation": "Neutrophils are the most abundant type of white blood cell and act as the body's first responders, actively seeking out, engulfing, and destroying invading bacteria through phagocytosis."
+  },
+  {
+    "id": 19,
+    "question": "The heart muscle itself requires a continuous supply of oxygen and nutrients. Which blood vessels directly provide oxygenated blood to the tissues of the heart wall?",
+    "options": [
+      "Pulmonary arteries",
+      "Coronary arteries",
+      "Carotid arteries",
+      "Hepatic arteries"
+    ],
+    "answer": 1,
+    "explanation": "The coronary arteries branch off from the base of the aorta and encircle the heart, supplying the cardiac muscle (myocardium) with the oxygen-rich blood it needs to function continuously."
+  },
+  {
+    "id": 20,
+    "question": "Which organ in the human body is often referred to as the 'graveyard of RBCs' because it is primarily responsible for destroying old and worn-out red blood cells?",
+    "options": [
+      "Liver",
+      "Kidney",
+      "Bone marrow",
+      "Spleen"
+    ],
+    "answer": 3,
+    "explanation": "The spleen acts as a massive blood filter. As old, fragile RBCs (which have a lifespan of about 120 days) pass through the spleen, they are recognized, trapped, and destroyed by specialized phagocytic macrophages."
+  }
+]
