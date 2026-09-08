@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "For an ideal machine, the relationship between Mechanical Advantage (MA), Velocity Ratio (VR), and Efficiency (η) is:",
+    "options": [
+      "MA > VR, η < 100%",
+      "MA < VR, η < 100%",
+      "MA = VR, η = 100%",
+      "MA = VR, η = 0%"
+    ],
+    "answer": 2,
+    "explanation": "An ideal machine is frictionless and weightless, meaning there is no loss of energy. Therefore, the work output equals the work input (100% efficiency), which mathematically results in MA being exactly equal to VR."
+  },
+  {
+    "id": 2,
+    "question": "Which of the following statements explains why a machine cannot act as a force multiplier and a speed multiplier simultaneously?",
+    "options": [
+      "It would violate the principle of conservation of momentum",
+      "It would violate the principle of conservation of energy",
+      "Friction inside the machine prevents it",
+      "The velocity ratio would become zero"
+    ],
+    "answer": 1,
+    "explanation": "If a machine multiplied both force and speed, the work output would exceed the work input, which violates the law of conservation of energy. A machine can only do one or the other."
+  },
+  {
+    "id": 3,
+    "question": "In a practical machine, the Mechanical Advantage (MA) is always less than its Velocity Ratio (VR) because:",
+    "options": [
+      "Part of the effort is wasted in overcoming friction and lifting moving parts",
+      "The effort arm is always shorter than the load arm",
+      "The load is always greater than the effort",
+      "Velocity ratio depends on the weight of the machine"
+    ],
+    "answer": 0,
+    "explanation": "Velocity Ratio depends purely on the geometry and design of the machine and remains constant. However, friction and the weight of moving parts (like pulleys) waste some of the applied effort, reducing the useful MA."
+  },
+  {
+    "id": 4,
+    "question": "A lever of which class always acts as a force multiplier?",
+    "options": [
+      "Class I",
+      "Class II",
+      "Class III",
+      "None of the above"
+    ],
+    "answer": 1,
+    "explanation": "In a Class II lever, the load is between the fulcrum and the effort. Because of this, the effort arm is always longer than the load arm, making the Mechanical Advantage always greater than 1."
+  },
+  {
+    "id": 5,
+    "question": "Sugar tongs and tweezers are examples of Class III levers. What is the primary purpose of using such levers if their Mechanical Advantage is always less than 1?",
+    "options": [
+      "To multiply the force applied",
+      "To change the direction of the applied force",
+      "To obtain a gain in speed and larger displacement of the load",
+      "To reduce the effort required to zero"
+    ],
+    "answer": 2,
+    "explanation": "Class III levers have a Mechanical Advantage of less than 1, meaning they require more effort than the load. However, a small movement of the effort produces a large, rapid displacement of the load, acting as a speed multiplier."
+  },
+  {
+    "id": 6,
+    "question": "In a single fixed pulley, the ideal Mechanical Advantage is 1. What is the practical utility of this machine?",
+    "options": [
+      "It acts as a force multiplier",
+      "It acts as a speed multiplier",
+      "It changes the direction of the applied effort to a more convenient one",
+      "It reduces the velocity ratio of the system"
+    ],
+    "answer": 2,
+    "explanation": "A single fixed pulley does not multiply force or speed. Its sole purpose is to change the direction of the applied effort—usually downwards, allowing the user to utilize their own body weight to lift the load."
+  },
+  {
+    "id": 7,
+    "question": "A single movable pulley acts as a force multiplier with an ideal Mechanical Advantage of 2. What is its Velocity Ratio?",
+    "options": [
+      "1",
+      "2",
+      "0.5",
+      "4"
+    ],
+    "answer": 1,
+    "explanation": "For a single movable pulley, the load is supported by two segments of the same string. To lift the load by a distance 'd', the effort must be pulled by a distance '2d', making the Velocity Ratio exactly 2."
+  },
+  {
+    "id": 8,
+    "question": "In a block and tackle system with 'n' pulleys, if the free end of the string is pulled downwards, the Velocity Ratio (VR) of the system is:",
+    "options": [
+      "n - 1",
+      "n",
+      "n + 1",
+      "2n"
+    ],
+    "answer": 1,
+    "explanation": "When the effort is applied downwards in a block and tackle system, the number of string segments supporting the movable block is equal to the total number of pulleys (n). Therefore, VR = n."
+  },
+  {
+    "id": 9,
+    "question": "How does the weight of the lower movable block in a block and tackle system affect its physical parameters?",
+    "options": [
+      "It reduces the Velocity Ratio but keeps Mechanical Advantage constant",
+      "It reduces both Mechanical Advantage and Velocity Ratio",
+      "It reduces the Mechanical Advantage and Efficiency, but the Velocity Ratio remains constant",
+      "It increases the Efficiency of the system"
+    ],
+    "answer": 2,
+    "explanation": "Velocity Ratio is determined by the number of pulleys and string segments, so it never changes. However, lifting the heavy lower block wastes effort, reducing both the Mechanical Advantage and the overall efficiency."
+  },
+  {
+    "id": 10,
+    "question": "A pair of scissors used to cut cloth has blades longer than its handles, while shears used to cut metal sheets have handles much longer than their blades. Conceptually, why is this?",
+    "options": [
+      "Scissors need to act as force multipliers, shears act as speed multipliers",
+      "Scissors act as speed multipliers (MA < 1) for quick cutting, shears act as force multipliers (MA > 1) to cut hard metal",
+      "Both act as force multipliers but shears require less friction",
+      "Longer blades reduce the velocity ratio"
+    ],
+    "answer": 1,
+    "explanation": "Scissors have long blades (long load arm) for speed multiplying to cut thin cloth quickly. Metal shears have long handles (long effort arm) to act as a force multiplier (MA > 1) to easily cut through tough metal."
+  },
+  {
+    "id": 11,
+    "question": "If the efficiency of a machine decreases due to an increase in friction over time, which of the following properties remains completely unchanged?",
+    "options": [
+      "Mechanical Advantage",
+      "Velocity Ratio",
+      "Work output",
+      "Effort required for the same load"
+    ],
+    "answer": 1,
+    "explanation": "Velocity Ratio is the ratio of the distance moved by the effort to the distance moved by the load. It depends purely on the kinematic design and structure of the machine, making it immune to changes in friction."
+  },
+  {
+    "id": 12,
+    "question": "The human forearm lifting a load in the palm is an example of which class of lever?",
+    "options": [
+      "Class I lever",
+      "Class II lever",
+      "Class III lever",
+      "It is not a lever"
+    ],
+    "answer": 2,
+    "explanation": "In the forearm, the elbow is the fulcrum, the load is in the hand, and the biceps muscle applies the upward effort in between the two. This makes it a Class III lever."
+  },
+  {
+    "id": 13,
+    "question": "In a lever, the perpendicular distance from the fulcrum to the line of action of the effort is called the:",
+    "options": [
+      "Load arm",
+      "Effort arm",
+      "Velocity ratio",
+      "Mechanical advantage"
+    ],
+    "answer": 1,
+    "explanation": "According to the principle of moments, the lever's turning effect is calculated using distances from the pivot. The distance from the fulcrum to the effort is defined as the effort arm."
+  },
+  {
+    "id": 14,
+    "question": "A boy uses a single movable pulley in conjunction with a single fixed pulley to lift a heavy load. Why does he add the fixed pulley?",
+    "options": [
+      "To increase the Mechanical Advantage from 2 to 3",
+      "To increase the Velocity Ratio of the system",
+      "To change the direction of the effort downwards, allowing him to use his own weight",
+      "To eliminate the friction of the movable pulley"
+    ],
+    "answer": 2,
+    "explanation": "A single movable pulley requires an upward pull, which is inconvenient against gravity. Adding a single fixed pulley changes the direction of the pull downwards without altering the VR or ideal MA."
+  },
+  {
+    "id": 15,
+    "question": "Which of the following correctly defines the Velocity Ratio (VR) of a machine?",
+    "options": [
+      "Ratio of the velocity of the effort to the velocity of the load",
+      "Ratio of the load to the effort",
+      "Ratio of the velocity of the load to the velocity of the effort",
+      "Ratio of the effort to the load"
+    ],
+    "answer": 0,
+    "explanation": "Velocity Ratio (VR) is defined as the velocity of the effort (V_e) divided by the velocity of the load (V_l). It can also be expressed as the distance moved by effort over distance moved by load."
+  },
+  {
+    "id": 16,
+    "question": "If a machine has a Mechanical Advantage equal to 1, it implies that the machine is primarily used to:",
+    "options": [
+      "Multiply force",
+      "Multiply speed",
+      "Change the direction of the applied effort",
+      "Perform work without consuming energy"
+    ],
+    "answer": 2,
+    "explanation": "When MA = 1, the effort applied is equal to the load lifted. The machine offers no force or speed multiplication; its sole purpose is to change the direction of the force to a more convenient one (e.g., a single fixed pulley)."
+  },
+  {
+    "id": 17,
+    "question": "In a block and tackle system consisting of 5 pulleys, the load is supported by how many segments of the string (assuming the effort is pulled downwards)?",
+    "options": [
+      "4",
+      "5",
+      "6",
+      "10"
+    ],
+    "answer": 1,
+    "explanation": "If the effort is pulled downwards, the free end of the string does not support the movable block. Therefore, the total number of string segments actually supporting the movable lower block is equal to the total number of pulleys, which is 5."
+  },
+  {
+    "id": 18,
+    "question": "What is the SI unit of Velocity Ratio?",
+    "options": [
+      "Meter per second (m/s)",
+      "Newton (N)",
+      "Joule (J)",
+      "It has no unit"
+    ],
+    "answer": 3,
+    "explanation": "Velocity ratio is the ratio of two similar physical quantities (velocity/velocity or distance/distance). Because the units cancel out, it is a pure dimensionless number."
+  },
+  {
+    "id": 19,
+    "question": "A nutcracker is an example of a Class II lever. Where is the load situated in this arrangement?",
+    "options": [
+      "Between the fulcrum and the effort",
+      "At the fulcrum",
+      "At the effort",
+      "Outside the fulcrum and effort"
+    ],
+    "answer": 0,
+    "explanation": "In a nutcracker, the hinge at the end acts as the fulcrum, the handles are where the effort is applied, and the nut (the load) is placed in the middle. This defines a Class II lever."
+  },
+  {
+    "id": 20,
+    "question": "As the load lifted by a practical pulley system increases, its efficiency:",
+    "options": [
+      "Decreases because friction increases",
+      "Increases and eventually reaches exactly 100%",
+      "Increases and approaches a maximum limit below 100%",
+      "Remains perfectly constant regardless of the load"
+    ],
+    "answer": 2,
+    "explanation": "As the load increases, the constant weight of the lower movable block and strings becomes a smaller fraction of the total force. Thus, efficiency increases with a larger load but will never reach 100% due to persistent friction."
+  }
+]
