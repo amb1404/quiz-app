@@ -4,6 +4,10 @@ let userAnswers = [];
 let timerInterval = null;
 let timeLeft = 0;
 let currentQuizId = null;
+let currentChapterDuration = 300;
+let currentChapterTitleText = '';
+let studentFirstName = '';
+let studentLastName = '';
 let skippedIndices = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -42,7 +46,7 @@ function showChapters(subject) {
         card.className = 'card';
         const chapTitle = chap.title || chap.name;
         card.innerHTML = `<h4>${chapTitle}</h4>`;
-        card.onclick = () => loadQuiz(chap.id, chap.duration, chapTitle);
+        card.onclick = () => prepareQuiz(chap.id, chap.duration, chapTitle);
         list.appendChild(card);
     });
 }
@@ -52,24 +56,47 @@ function backToSubjects() {
     document.getElementById('subject-menu').classList.remove('hidden');
 }
 
-function loadQuiz(quizId, duration, chapterTitle) {
+function prepareQuiz(quizId, duration, chapterTitle) {
     currentQuizId = quizId;
-    timeLeft = duration || 300;
-    skippedIndices.clear();
-    document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
-    
-    if (chapterTitle) {
-        document.getElementById('current-chapter-heading').innerText = chapterTitle;
+    currentChapterDuration = duration || 300;
+    currentChapterTitleText = chapterTitle;
+
+    document.getElementById('chapter-menu').classList.add('hidden');
+    document.getElementById('name-screen').classList.remove('hidden');
+    document.getElementById('selected-chapter-title').innerText = `Chapter: ${chapterTitle}`;
+    document.getElementById('first-name-input').value = '';
+    document.getElementById('last-name-input').value = '';
+}
+
+function backToChapters() {
+    document.getElementById('name-screen').classList.add('hidden');
+    document.getElementById('chapter-menu').classList.remove('hidden');
+}
+
+function proceedToQuiz() {
+    const firstName = document.getElementById('first-name-input').value.trim();
+    const lastName = document.getElementById('last-name-input').value.trim();
+
+    if (!firstName || !lastName) {
+        alert('Please enter both your first name and last name.');
+        return;
     }
 
-    fetch(`/api/quiz/${quizId}`)
+    studentFirstName = firstName;
+    studentLastName = lastName;
+    timeLeft = currentChapterDuration;
+    skippedIndices.clear();
+    document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
+    document.getElementById('current-chapter-heading').innerText = currentChapterTitleText;
+
+    fetch(`/api/quiz/${currentQuizId}`)
         .then(res => res.json())
         .then(data => {
             questions = data;
             userAnswers = new Array(questions.length).fill(null);
             currentIndex = 0;
 
-            document.getElementById('chapter-menu').classList.add('hidden');
+            document.getElementById('name-screen').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
             startQuiz();
         })
@@ -180,10 +207,26 @@ function submitQuiz() {
     let incorrect = attempted - score;
     let skipped = questions.length - attempted;
 
+    const payload = {
+        firstName: studentFirstName,
+        lastName: studentLastName,
+        quizId: currentQuizId,
+        chapterTitle: currentChapterTitleText,
+        score: score,
+        total: questions.length,
+        answers: userAnswers
+    };
+
+    fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(err => console.error('Error submitting answers:', err));
+
     document.getElementById('quiz-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
     document.getElementById('final-score').innerText = `Score: ${score} / ${questions.length}`;
-    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
+    document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function showReview() {
