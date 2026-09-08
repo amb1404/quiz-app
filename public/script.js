@@ -5,10 +5,6 @@ let timerInterval = null;
 let timeLeft = 0;
 let currentQuizId = null;
 let skippedIndices = new Set();
-let pendingQuizId = null;
-let pendingDuration = 0;
-let studentFirstName = "";
-let studentLastName = "";
 
 document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/quizzes')
@@ -22,14 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderSubjects(subjects) {
     const list = document.getElementById('subject-list');
-    if (!list || !subjects) return;
     list.innerHTML = '';
 
     subjects.forEach(sub => {
         const card = document.createElement('div');
         card.className = 'card';
-        const subName = sub.subject || sub.name;
-        card.innerHTML = `<h3>${subName}</h3><p>${sub.chapters ? sub.chapters.length : 0} Chapters</p>`;
+        card.innerHTML = `<h3>${sub.subject || sub.name}</h3><p>${sub.chapters.length} Chapters</p>`;
         card.onclick = () => showChapters(sub);
         list.appendChild(card);
     });
@@ -41,14 +35,14 @@ function showChapters(subject) {
     document.getElementById('selected-subject-title').innerText = subject.subject || subject.name;
 
     const list = document.getElementById('chapter-list');
-    if (!list) return;
     list.innerHTML = '';
 
     subject.chapters.forEach(chap => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML = `<h4>${chap.title || chap.name}</h4>`;
-        card.onclick = () => promptForName(chap.id, chap.duration);
+        const chapTitle = chap.title || chap.name;
+        card.innerHTML = `<h4>${chapTitle}</h4>`;
+        card.onclick = () => loadQuiz(chap.id, chap.duration, chapTitle);
         list.appendChild(card);
     });
 }
@@ -58,47 +52,14 @@ function backToSubjects() {
     document.getElementById('subject-menu').classList.remove('hidden');
 }
 
-function promptForName(quizId, duration) {
-    pendingQuizId = quizId;
-    pendingDuration = duration;
-    
-    // Clear the input text boxes to blank every time
-    document.getElementById('first-name').value = '';
-    document.getElementById('last-name').value = '';
-    
-    document.getElementById('chapter-menu').classList.add('hidden');
-    document.getElementById('name-screen').classList.remove('hidden');
-}
-
-function backToChapters() {
-    document.getElementById('name-screen').classList.add('hidden');
-    document.getElementById('chapter-menu').classList.remove('hidden');
-}
-
-function startQuizFromDetails() {
-    const fNameInput = document.getElementById('first-name').value.trim();
-    const lNameInput = document.getElementById('last-name').value.trim();
-
-    if (!fNameInput || !lNameInput) {
-        alert("Please enter both your first and last name.");
-        return;
-    }
-
-    studentFirstName = fNameInput;
-    studentLastName = lNameInput;
-
-    document.getElementById('name-screen').classList.add('hidden');
-    loadQuiz(pendingQuizId, pendingDuration);
-}
-
-function loadQuiz(quizId, duration) {
+function loadQuiz(quizId, duration, chapterTitle) {
     currentQuizId = quizId;
     timeLeft = duration || 300;
     skippedIndices.clear();
+    document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
     
-    const statsEl = document.getElementById('counter-stats');
-    if (statsEl) {
-        statsEl.innerText = 'Attempted: 0 | Skipped: 0';
+    if (chapterTitle) {
+        document.getElementById('current-chapter-heading').innerText = chapterTitle;
     }
 
     fetch(`/api/quiz/${quizId}`)
@@ -108,6 +69,7 @@ function loadQuiz(quizId, duration) {
             userAnswers = new Array(questions.length).fill(null);
             currentIndex = 0;
 
+            document.getElementById('chapter-menu').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
             startQuiz();
         })
@@ -115,12 +77,6 @@ function loadQuiz(quizId, duration) {
 }
 
 function startQuiz() {
-    startTimer();
-    renderQuestionUI();
-    refreshCounters();
-}
-
-function startTimer() {
     clearInterval(timerInterval);
     updateTimerDisplay();
 
@@ -129,56 +85,40 @@ function startTimer() {
         updateTimerDisplay();
 
         if (timeLeft <= 0) {
-            clearInterval(timerInterval);
             submitQuiz();
         }
     }, 1000);
+
+    renderQuestionUI();
+    refreshCounters();
 }
 
 function updateTimerDisplay() {
     let minutes = Math.floor(timeLeft / 60);
     let seconds = timeLeft % 60;
     let formatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    const timerEl = document.getElementById('timer-display');
-    if (timerEl) {
-        timerEl.innerText = `Time Left: ${formatted}`;
-    }
+    document.getElementById('timer-display').innerText = `Time Left: ${formatted}`;
 }
 
 function refreshCounters() {
-    let attempted = 0;
-    for (let i = 0; i < userAnswers.length; i++) {
-        if (userAnswers[i] !== null && userAnswers[i] !== undefined) {
-            attempted++;
-        }
-    }
+    let attempted = userAnswers.filter(ans => ans !== null).length;
     let skipped = skippedIndices.size;
-    const statsEl = document.getElementById('counter-stats');
-    if (statsEl) {
-        statsEl.innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
-    }
+    document.getElementById('counter-stats').innerText = `Attempted: ${attempted} | Skipped: ${skipped}`;
 }
 
 function renderQuestionUI() {
     if (!questions.length) return;
 
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-
-    if (prevBtn) prevBtn.style.display = currentIndex === 0 ? 'none' : 'block';
-    if (nextBtn) nextBtn.style.display = currentIndex === questions.length - 1 ? 'none' : 'block';
+    document.getElementById('prev-btn').style.display = currentIndex === 0 ? 'none' : 'block';
+    document.getElementById('next-btn').style.display = currentIndex === questions.length - 1 ? 'none' : 'block';
 
     let q = questions[currentIndex];
-    const qBox = document.getElementById('question-box');
-    if (qBox) {
-        qBox.innerText = `Q${currentIndex + 1}: ${q.question}`;
-    }
+    document.getElementById('question-box').innerText = `Q${currentIndex + 1}: ${q.question}`;
 
     let optionsBox = document.getElementById('options-box');
-    if (!optionsBox) return;
     optionsBox.innerHTML = '';
 
-    const letters = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const letters = ['a', 'b', 'c', 'd'];
     q.options.forEach((opt, idx) => {
         let btn = document.createElement('button');
         let prefix = letters[idx] ? `${letters[idx]}. ` : '';
@@ -208,7 +148,7 @@ function prevQuestion() {
 }
 
 function nextQuestion() {
-    if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
+    if (userAnswers[currentIndex] === null) {
         skippedIndices.add(currentIndex);
     }
     if (currentIndex < questions.length - 1) {
@@ -219,23 +159,7 @@ function nextQuestion() {
 }
 
 function getCorrectIndex(q) {
-    let rawCorrect = q.answer !== undefined ? q.answer : 
-                     (q.correctAnswer !== undefined ? q.correctAnswer : q.correct);
-
-    if (typeof rawCorrect === 'number') {
-        return rawCorrect; 
-    } else if (typeof rawCorrect === 'string') {
-        let trimmed = rawCorrect.trim();
-        let parsedNum = parseInt(trimmed, 10);
-        if (!isNaN(parsedNum)) {
-            return parsedNum;
-        } else if (trimmed.length === 1) {
-            return trimmed.toUpperCase().charCodeAt(0) - 65;
-        } else {
-            return q.options.indexOf(trimmed);
-        }
-    }
-    return -1;
+    return q.answer !== undefined ? q.answer : q.correctAnswer;
 }
 
 function submitQuiz() {
@@ -244,57 +168,22 @@ function submitQuiz() {
     let score = 0;
     let attempted = 0;
 
-    // Build detailed question analysis for the email report
-    let questionDetails = questions.map((q, idx) => {
-        const userAns = userAnswers[idx];
-        const correctIdx = getCorrectIndex(q);
-        const isSkipped = (userAns === null || userAns === undefined);
-        const isCorrect = (!isSkipped && userAns === correctIdx);
-        
-        if (!isSkipped) {
+    questions.forEach((q, idx) => {
+        if (userAnswers[idx] !== null) {
             attempted++;
-            if (isCorrect) {
+            if (userAnswers[idx] === getCorrectIndex(q)) {
                 score++;
             }
         }
-
-        let status = isSkipped ? "Skipped" : (isCorrect ? "Correct" : "Incorrect");
-        let userOptText = isSkipped ? "None" : (q.options[userAns] || ("Option " + (userAns + 1)));
-        let correctOptText = q.options[correctIdx] || ("Option " + (correctIdx + 1));
-
-        return {
-            questionNum: idx + 1,
-            question: q.question,
-            status: status,
-            userAnswer: userOptText,
-            correctAnswer: correctOptText
-        };
     });
 
     let incorrect = attempted - score;
     let skipped = questions.length - attempted;
 
-    const payload = {
-        firstName: studentFirstName,
-        lastName: studentLastName,
-        quizId: currentQuizId,
-        score: score,
-        incorrect: incorrect,
-        skipped: skipped,
-        total: questions.length,
-        details: questionDetails
-    };
-
-    fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).catch(err => console.error('Error submitting answers:', err));
-
     document.getElementById('quiz-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
     document.getElementById('final-score').innerText = `Score: ${score} / ${questions.length}`;
-    document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
+    document.getElementById('final-breakdown').innerText = `Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function showReview() {
@@ -304,12 +193,12 @@ function showReview() {
     const container = document.getElementById('review-container');
     container.innerHTML = '';
 
-    const letters = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const letters = ['a', 'b', 'c', 'd'];
 
     questions.forEach((q, idx) => {
         const userAns = userAnswers[idx];
         const correctIdx = getCorrectIndex(q);
-        const isSkipped = (userAns === null || userAns === undefined);
+        const isSkipped = (userAns === null);
         const isCorrect = (!isSkipped && userAns === correctIdx);
 
         let statusText = isSkipped ? '<span style="color: #f59e0b; font-weight: bold;">Skipped</span>' :
