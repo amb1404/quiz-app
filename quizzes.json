@@ -18,8 +18,10 @@
   {
     "subject": "Biology",
     "chapters": [
-      { "id": "cell", "title": "Cell Biology", "duration": 300 },
-      { "id": "genetics", "title": "Principles of Inheritance", "duration": 400 }
+      { "id": "nervous", "title": "Nervous System", "duration": 300 },
+      { "id": "genetics", "title": "Genetics", "duration": 400 },
+      { "id": "excretory", "title": "Excretory System", "duration": 400 },
+      { "id": "circulation", "title": "Circulatory System", "duration": 400 }
     ]
   }
 ]
