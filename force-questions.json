@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "A mechanic uses a wrench of length 15 cm to loosen a tight nut. If he replaces it with a wrench of length 30 cm, the force required to produce the same turning effect will:",
+    "options": [
+      "Double",
+      "Halve",
+      "Remain the same",
+      "Quadruple"
+    ],
+    "answer": 1,
+    "explanation": "The moment of force (turning effect) is the product of force and perpendicular distance. If the distance is doubled, the required force must be halved to keep the moment constant."
+  },
+  {
+    "id": 2,
+    "question": "A body is acted upon by two unequal forces operating in opposite directions along different lines of action. This body will experience:",
+    "options": [
+      "Only translational motion",
+      "Only rotational motion",
+      "Both translational and rotational motion",
+      "No motion (equilibrium)"
+    ],
+    "answer": 2,
+    "explanation": "Because the forces are unequal and opposite, there is a net resultant force causing translational motion. Because their lines of action are different, they create a net torque causing rotational motion."
+  },
+  {
+    "id": 3,
+    "question": "The moment of a couple is mathematically calculated as the product of:",
+    "options": [
+      "Both forces and the perpendicular distance between them",
+      "Either force and the perpendicular distance between their lines of action",
+      "The sum of the forces and the distance from the pivot",
+      "Either force and the distance to the center of gravity"
+    ],
+    "answer": 1,
+    "explanation": "A couple consists of two equal, opposite, and parallel forces. Its moment is defined as the magnitude of one of the forces multiplied by the perpendicular distance between their lines of action (the couple arm)."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following is an example of a fictitious or pseudo force?",
+    "options": [
+      "Centripetal force",
+      "Gravitational force",
+      "Centrifugal force",
+      "Tension in a string"
+    ],
+    "answer": 2,
+    "explanation": "Centrifugal force is not a real force acting on a body; it is a fictitious force experienced by an observer in a rotating (non-inertial) frame of reference."
+  },
+  {
+    "id": 5,
+    "question": "A freely suspended body will come to rest in such a way that its center of gravity lies:",
+    "options": [
+      "Vertically above the point of suspension",
+      "Horizontally aligned with the point of suspension",
+      "Vertically below the point of suspension",
+      "Exactly at the geometric center regardless of suspension"
+    ],
+    "answer": 2,
+    "explanation": "For a suspended body to be in stable equilibrium, the line of action of its weight (acting downwards from the center of gravity) must pass through the point of suspension to ensure net torque is zero."
+  },
+  {
+    "id": 6,
+    "question": "If the line of action of an applied force passes exactly through the pivot point of a body, the moment of the force will be:",
+    "options": [
+      "Maximum",
+      "Minimum but non-zero",
+      "Zero",
+      "Dependent on the mass of the body"
+    ],
+    "answer": 2,
+    "explanation": "The moment of force is Force × perpendicular distance. If the force passes through the pivot, the perpendicular distance is zero, resulting in zero turning effect."
+  },
+  {
+    "id": 7,
+    "question": "A uniform meter rule balances horizontally on a knife edge placed at the 58 cm mark when a weight of 20 gf is suspended from one end. From which mark must this weight be suspended?",
+    "options": [
+      "0 cm mark",
+      "100 cm mark",
+      "50 cm mark",
+      "80 cm mark"
+    ],
+    "answer": 1,
+    "explanation": "The rule balances at 58 cm, meaning the rule's own weight (acting at the 50 cm mark) creates an anticlockwise moment. To balance this, the 20 gf weight must be placed on the right side (clockwise). Since the pivot is at 58 cm, the weight must be placed at a distance further right, which is the 100 cm mark."
+  },
+  {
+    "id": 8,
+    "question": "In a uniform circular motion, the work done by the centripetal force is zero because:",
+    "options": [
+      "The force is highly variable",
+      "The displacement is zero after one complete rotation",
+      "The force and instantaneous displacement are always mutually perpendicular",
+      "The speed of the body remains constant"
+    ],
+    "answer": 2,
+    "explanation": "Work done is Force × displacement × cos(θ). In circular motion, the centripetal force acts radially inwards while displacement is tangential. The angle between them is 90°, and cos(90°) = 0."
+  },
+  {
+    "id": 9,
+    "question": "The center of gravity of a hollow cone of height 'h' is located at a distance of:",
+    "options": [
+      "h/2 from the base",
+      "h/3 from the base",
+      "h/4 from the base",
+      "2h/3 from the base"
+    ],
+    "answer": 1,
+    "explanation": "By geometrical derivation, the mass of a hollow cone is distributed along its surface, placing its center of gravity at one-third of its height from the circular base."
+  },
+  {
+    "id": 10,
+    "question": "A boy sitting on a balanced see-saw suddenly leans backward. What will happen to the see-saw?",
+    "options": [
+      "It will remain balanced",
+      "The side the boy is sitting on will tilt downwards",
+      "The side the boy is sitting on will tilt upwards",
+      "The see-saw will begin to oscillate indefinitely"
+    ],
+    "answer": 1,
+    "explanation": "By leaning backward, the boy increases the perpendicular distance of his center of gravity from the fulcrum. This increases his turning moment, causing his side to tilt downwards."
+  },
+  {
+    "id": 11,
+    "question": "Why is the handle of a door placed as far away from the hinges as possible?",
+    "options": [
+      "To make the door look aesthetically pleasing",
+      "To decrease the force required to produce the maximum turning effect",
+      "To increase the friction at the hinges",
+      "To shift the center of gravity of the door"
+    ],
+    "answer": 1,
+    "explanation": "Torque = Force × perpendicular distance. Maximizing the distance from the hinges (the pivot) minimizes the force a person must exert to open the door."
+  },
+  {
+    "id": 12,
+    "question": "The gravitational unit of the moment of force in the SI system is:",
+    "options": [
+      "Newton meter (N m)",
+      "Kilogram-force meter (kgf m)",
+      "Gram-force centimeter (gf cm)",
+      "Dyne centimeter (dyne cm)"
+    ],
+    "answer": 1,
+    "explanation": "While Newton meter (N m) is the absolute SI unit, the gravitational SI unit is kilogram-force meter (kgf m). (1 kgf m = 9.8 N m)."
+  },
+  {
+    "id": 13,
+    "question": "A stone tied to a string is whirled in a circle. If the string suddenly snaps, the stone will:",
+    "options": [
+      "Fall straight down to the center",
+      "Move radially outward",
+      "Fly off tangentially to the circular path",
+      "Stop instantly"
+    ],
+    "answer": 2,
+    "explanation": "Once the string breaks, the centripetal force ceases to exist. By Newton's First Law of Inertia, the stone will continue its motion in a straight line along the tangent to the circle at the point where the string broke."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following best describes the difference between uniform linear motion and uniform circular motion?",
+    "options": [
+      "Both are unaccelerated motions",
+      "Linear motion is accelerated, but circular motion is unaccelerated",
+      "Linear motion is unaccelerated, while circular motion is continuously accelerated",
+      "Both have continuously changing speeds"
+    ],
+    "answer": 2,
+    "explanation": "In uniform linear motion, velocity is constant (no acceleration). In uniform circular motion, speed is constant but direction changes continuously, meaning velocity is changing, which requires acceleration."
+  },
+  {
+    "id": 15,
+    "question": "A uniform straight wire of length 'L' is bent to form a complete circular ring. How does the position of its center of gravity change?",
+    "options": [
+      "It remains on the wire at L/2",
+      "It shifts to a point outside the physical material of the wire",
+      "It moves to the highest point of the ring",
+      "It remains at the center of mass of the straight wire"
+    ],
+    "answer": 1,
+    "explanation": "The center of gravity of a straight wire is at its midpoint. When bent into a ring, the center of gravity shifts to the geometric center of the circle, which is empty space (outside the physical material)."
+  },
+  {
+    "id": 16,
+    "question": "To obtain maximum turning effect, a force must be applied:",
+    "options": [
+      "Parallel to the position vector",
+      "At a 45° angle to the body",
+      "At a 90° angle to the position vector",
+      "Directly at the pivot point"
+    ],
+    "answer": 2,
+    "explanation": "Moment of force is maximized when the force is applied perpendicular (90°) to the distance vector from the pivot, as sin(90°) = 1."
+  },
+  {
+    "id": 17,
+    "question": "Does the moment of a couple depend on the point about which it is calculated?",
+    "options": [
+      "Yes, it increases as we move further from the forces",
+      "Yes, it is zero at the midpoint between the forces",
+      "No, the moment of a couple is the same about any point in its plane",
+      "No, but only if the body is stationary"
+    ],
+    "answer": 2,
+    "explanation": "The sum of the moments of the two equal and opposite forces of a couple remains constant regardless of the pivot point chosen in that plane."
+  },
+  {
+    "id": 18,
+    "question": "A body is pivoted at a point. A force of 10 N is applied at a distance of 30 cm from the pivot. The torque produced in SI units is:",
+    "options": [
+      "300 N m",
+      "3 N m",
+      "0.3 N m",
+      "30 N m"
+    ],
+    "answer": 1,
+    "explanation": "First, convert distance to SI units: 30 cm = 0.3 m. Torque = Force × perpendicular distance = 10 N × 0.3 m = 3 N m."
+  },
+  {
+    "id": 19,
+    "question": "When a body is in stable equilibrium, a slight displacement will cause its center of gravity to:",
+    "options": [
+      "Remain at the same height",
+      "Move lower",
+      "Move higher",
+      "Shift horizontally only"
+    ],
+    "answer": 2,
+    "explanation": "In stable equilibrium, any slight tilt or displacement raises the center of gravity. The restoring moment of the body's weight then pulls it back down to its original position."
+  },
+  {
+    "id": 20,
+    "question": "A steering wheel requires a turning effect to rotate. Which of the following is the most efficient way to apply force?",
+    "options": [
+      "Apply a single force tangentially at the rim",
+      "Apply two equal and opposite forces tangentially at opposite ends of the diameter",
+      "Apply a single force radially inwards toward the center",
+      "Apply two unequal forces in the same direction"
+    ],
+    "answer": 1,
+    "explanation": "Applying two equal, opposite, and parallel forces at opposite sides of the wheel forms a couple, which produces maximum pure rotational motion (torque) without any sideways translational force on the steering column."
+  }
+]
