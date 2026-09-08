@@ -229,56 +229,7 @@ function submitQuiz() {
     document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
-function showReview() {
-    document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('review-screen').classList.remove('hidden');
-
-    const container = document.getElementById('review-container');
-    container.innerHTML = '';
-
-    const letters = ['a', 'b', 'c', 'd'];
-
-    questions.forEach((q, idx) => {
-        const userAns = userAnswers[idx];
-        const correctIdx = getCorrectIndex(q);
-        const isSkipped = (userAns === null);
-        const isCorrect = (!isSkipped && userAns === correctIdx);
-
-        let statusText = isSkipped ? '<span style="color: #f59e0b; font-weight: bold;">Skipped</span>' :
-                         isCorrect ? '<span style="color: #10b981; font-weight: bold;">Correct</span>' : 
-                         '<span style="color: #ef4444; font-weight: bold;">Incorrect</span>';
-
-        let card = document.createElement('div');
-        card.style.cssText = "background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;";
-
-        let html = `<p style="font-weight: bold; margin-bottom: 8px;">Q${idx + 1}: ${q.question} [${statusText}]</p>`;
-        html += `<ul style="list-style-type: none; padding-left: 0; margin-bottom: 8px;">`;
-        
-        q.options.forEach((opt, optIdx) => {
-            let prefix = letters[optIdx] ? `${letters[optIdx]}. ` : '';
-            let style = "padding: 4px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;";
-            
-            if (optIdx === correctIdx) {
-                style += " background: #d1fae5; color: #065f46; font-weight: 500;"; 
-            } else if (optIdx === userAns && !isCorrect) {
-                style += " background: #fee2e2; color: #991b1b; text-decoration: line-through;"; 
-            }
-
-            html += `<li style="${style}">${prefix}${opt}</li>`;
-        });
-        html += `</ul>`;
-
-        if (q.explanation) {
-            html += `<p style="font-size: 13px; color: #475569; background: #f1f5f9; padding: 8px; border-radius: 4px; margin-top: 6px;"><strong>Explanation:</strong> ${q.explanation}</p>`;
-        }
-
-        card.innerHTML = html;
-        container.appendChild(card);
-    });
-}
-
 function returnToMenu() {
     document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('review-screen').classList.add('hidden');
     document.getElementById('subject-menu').classList.remove('hidden');
 }
