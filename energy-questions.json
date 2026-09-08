@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "A satellite revolves around the Earth in a circular orbit. The work done by the force of gravity on the satellite is:",
+    "options": [
+      "Maximum positive work",
+      "Maximum negative work",
+      "Zero work",
+      "Equal to its kinetic energy"
+    ],
+    "answer": 2,
+    "explanation": "The force of gravity acts towards the center of the Earth, while the satellite's displacement is along the tangent. Since the angle between force and displacement is 90°, the work done is zero (W = Fd cos 90° = 0)."
+  },
+  {
+    "id": 2,
+    "question": "According to the work-energy theorem, the work done by a net force on a moving body is equal to the change in its:",
+    "options": [
+      "Potential energy",
+      "Kinetic energy",
+      "Linear momentum",
+      "Acceleration"
+    ],
+    "answer": 1,
+    "explanation": "The work-energy theorem states that the net work done on an object by all forces equals the change in its kinetic energy (W = Final KE - Initial KE)."
+  },
+  {
+    "id": 3,
+    "question": "If the linear momentum of a moving body is doubled, its kinetic energy will:",
+    "options": [
+      "Double",
+      "Halve",
+      "Quadruple",
+      "Remain the same"
+    ],
+    "answer": 2,
+    "explanation": "Kinetic energy (KE) and momentum (p) are related by the formula KE = p² / 2m. If momentum is doubled, the square of momentum becomes 4 times greater, so KE quadruples."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following is a unit of power, not energy?",
+    "options": [
+      "Joule",
+      "Kilowatt-hour (kWh)",
+      "Electron volt (eV)",
+      "Kilowatt (kW)"
+    ],
+    "answer": 3,
+    "explanation": "Joules, kilowatt-hours, and electron volts are all units of energy or work. The kilowatt (kW) measures the rate of doing work (Joules per second), making it a unit of power."
+  },
+  {
+    "id": 5,
+    "question": "When a body slides down a rough inclined plane, the work done by the frictional force is:",
+    "options": [
+      "Positive",
+      "Negative",
+      "Zero",
+      "Infinite"
+    ],
+    "answer": 1,
+    "explanation": "Frictional force acts in the direction opposite to the object's displacement. Since the angle between the force and displacement is 180°, cos(180°) = -1, making the work done negative."
+  },
+  {
+    "id": 6,
+    "question": "A ball is dropped from a height h. When it has fallen to a height of h/2, the body possesses:",
+    "options": [
+      "Only kinetic energy",
+      "Only potential energy",
+      "Half potential and half kinetic energy",
+      "More kinetic energy than potential energy"
+    ],
+    "answer": 2,
+    "explanation": "According to the law of conservation of energy, as it falls, potential energy converts to kinetic energy. At exactly half the height, exactly half of the initial potential energy has been converted into kinetic energy."
+  },
+  {
+    "id": 7,
+    "question": "A machine exerts a constant force F on a body, driving it at a constant velocity v. The power delivered by the machine is:",
+    "options": [
+      "F / v",
+      "F × v",
+      "1/2 Fv²",
+      "F × t"
+    ],
+    "answer": 1,
+    "explanation": "Power is defined as Work divided by time (W/t). Since Work = Force × displacement (F × d), Power = F × (d/t). Because d/t equals velocity (v), Power = F × v."
+  },
+  {
+    "id": 8,
+    "question": "The energy stored in the wound spring of a mechanical watch is:",
+    "options": [
+      "Kinetic energy",
+      "Gravitational potential energy",
+      "Elastic potential energy",
+      "Heat energy"
+    ],
+    "answer": 2,
+    "explanation": "Work is done to compress or wind the spring, changing its shape. This work is stored within the spring's deformed configuration as elastic potential energy."
+  },
+  {
+    "id": 9,
+    "question": "In a simple pendulum oscillating simple harmonically, at its extreme positions:",
+    "options": [
+      "Both kinetic and potential energies are maximum",
+      "Kinetic energy is maximum and potential energy is zero",
+      "Kinetic energy is zero and potential energy is maximum",
+      "Both energies are zero"
+    ],
+    "answer": 2,
+    "explanation": "At the extreme positions, the pendulum reaches its maximum height, giving it maximum potential energy. It also momentarily stops before reversing direction, so its velocity and kinetic energy are zero."
+  },
+  {
+    "id": 10,
+    "question": "A heavy body and a light body have the same linear momentum. Which one has greater kinetic energy?",
+    "options": [
+      "The heavy body",
+      "The light body",
+      "Both have the same kinetic energy",
+      "It depends on their initial velocities"
+    ],
+    "answer": 1,
+    "explanation": "Using the relation KE = p² / 2m, if momentum (p) is constant for both, kinetic energy is inversely proportional to mass (m). Therefore, the lighter body has greater kinetic energy."
+  },
+  {
+    "id": 11,
+    "question": "Two boys, A and B, of equal mass climb a staircase. Boy A takes 20 seconds, and boy B takes 30 seconds to reach the top. Which of the following statements is true?",
+    "options": [
+      "A does more work than B",
+      "B does more work than A",
+      "A develops more power than B",
+      "B develops more power than A"
+    ],
+    "answer": 2,
+    "explanation": "Both boys do the same amount of work against gravity (mgh) because their masses and the height are equal. Since Power = Work/time, Boy A develops more power by doing the same work in less time."
+  },
+  {
+    "id": 12,
+    "question": "The commercial unit of electrical energy, 1 kilowatt-hour (kWh), is mathematically equivalent to:",
+    "options": [
+      "3.6 × 10⁵ J",
+      "3.6 × 10⁶ J",
+      "3.6 × 10³ J",
+      "3.6 × 10⁷ J"
+    ],
+    "answer": 1,
+    "explanation": "1 kW = 1000 Joules/second, and 1 hour = 3600 seconds. Therefore, 1 kWh = 1000 J/s × 3600 s = 3,600,000 Joules, which is 3.6 × 10⁶ J."
+  },
+  {
+    "id": 13,
+    "question": "A person carries a load of mass m to a height h using a vertical ladder, while another person carries the same load to the same height using a slanting ramp. Ignoring friction, the work done against gravity is:",
+    "options": [
+      "Greater for the vertical ladder",
+      "Greater for the ramp",
+      "The same in both cases",
+      "Zero in both cases"
+    ],
+    "answer": 2,
+    "explanation": "Work done against gravity depends only on the initial and final vertical positions (change in height, mgh) and is entirely independent of the path taken."
+  },
+  {
+    "id": 14,
+    "question": "When a body is thrown vertically upwards, neglecting air resistance, which of the following physical quantities remains constant during its entire flight?",
+    "options": [
+      "Kinetic energy",
+      "Potential energy",
+      "Total mechanical energy",
+      "Velocity"
+    ],
+    "answer": 2,
+    "explanation": "Under the influence of a conservative force like gravity (ignoring air friction), the sum of kinetic and potential energy—known as total mechanical energy—remains strictly constant."
+  },
+  {
+    "id": 15,
+    "question": "A car and a truck are moving with the exact same velocity. If the truck has three times the mass of the car, the ratio of the kinetic energy of the truck to that of the car is:",
+    "options": [
+      "1:1",
+      "1:3",
+      "3:1",
+      "9:1"
+    ],
+    "answer": 2,
+    "explanation": "Kinetic energy is given by KE = 1/2 mv². Since their velocities are identical, their kinetic energies are directly proportional to their masses. Thus, the ratio is 3:1."
+  },
+  {
+    "id": 16,
+    "question": "The electron volt (eV) is a practical unit primarily used to measure the energy of:",
+    "options": [
+      "Large industrial machines",
+      "Heat engines",
+      "Subatomic particles",
+      "Gravitational systems"
+    ],
+    "answer": 2,
+    "explanation": "The electron volt is an extremely small unit of energy (1.6 × 10⁻¹⁹ Joules), making it ideal for measuring the tiny energy levels of atomic and subatomic particles like electrons."
+  },
+  {
+    "id": 17,
+    "question": "Conceptually, one Joule of work is said to be done when:",
+    "options": [
+      "A force of 1 N moves a body by 1 cm",
+      "A force of 1 N moves a body by 1 m in the direction of the force",
+      "A force of 1 dyne moves a body by 1 m",
+      "A mass of 1 kg is lifted by 1 m against gravity"
+    ],
+    "answer": 1,
+    "explanation": "Work equals Force multiplied by displacement. One Joule is strictly defined as the work done when a force of 1 Newton causes a displacement of exactly 1 meter in its own direction."
+  },
+  {
+    "id": 18,
+    "question": "A girl carrying a heavy school bag walks horizontally on a level road and then climbs up a vertical flight of stairs. In which scenario does she do work against gravity?",
+    "options": [
+      "Only while walking on the level road",
+      "Only while climbing the stairs",
+      "In both scenarios",
+      "In neither scenario"
+    ],
+    "answer": 1,
+    "explanation": "While walking horizontally, the angle between the displacement and gravitational force (downward) is 90°, so no work is done against gravity. Work against gravity is only done when moving vertically upward."
+  },
+  {
+    "id": 19,
+    "question": "A vehicle moving with velocity v is stopped by applying a constant retarding braking force F. If the initial velocity of the vehicle is doubled to 2v, the stopping distance (for the same retarding force) will be:",
+    "options": [
+      "Halved",
+      "Doubled",
+      "Tripled",
+      "Quadrupled"
+    ],
+    "answer": 3,
+    "explanation": "By the work-energy theorem, Force × distance = 1/2 mv². Stopping distance is directly proportional to the square of the velocity (v²). If velocity is doubled, the stopping distance increases by 2², or 4 times."
+  },
+  {
+    "id": 20,
+    "question": "When an arrow is released from a drawn bow, the energy conversion taking place is:",
+    "options": [
+      "Kinetic energy to elastic potential energy",
+      "Elastic potential energy to kinetic energy",
+      "Chemical energy to kinetic energy",
+      "Gravitational potential energy to kinetic energy"
+    ],
+    "answer": 1,
+    "explanation": "A drawn bow stores elastic potential energy due to its stretched configuration. Upon release, this stored energy is instantly transferred to the arrow as kinetic energy of motion."
+  }
+]
