@@ -475,7 +475,6 @@ async function submitQuiz() {
             breakdown: breakdownHtml
         };
 
-        // Send payload exclusively to your secure backend endpoint
         await fetch('/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
