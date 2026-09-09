@@ -1,11 +1,15 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { Resend } = require('resend'); // Uses HTTP API to bypass Render's SMTP block
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Initialize Resend with your Render Environment Variable
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.get('/api/quizzes', (req, res) => {
     const quizListPath = path.join(__dirname, 'quizzes.json');
@@ -38,6 +42,8 @@ app.get('/api/quiz/:id', (req, res) => {
 
 app.post('/api/submit', (req, res) => {
     const submission = req.body;
+    
+    // 1. Save local backup instantly
     try {
         const submissionsFile = path.join(__dirname, 'submissions.json');
         let allSubmissions = [];
@@ -49,11 +55,43 @@ app.post('/api/submit', (req, res) => {
             ...submission
         });
         fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-        res.json({ success: true, message: 'Local backup logged successfully.' });
     } catch (err) {
         console.error("Local backup failed:", err);
-        res.status(500).json({ success: false, error: err.message });
     }
+
+    // 2. Respond immediately to the frontend so the UI never freezes
+    res.json({ success: true, message: 'Response logged and email dispatch triggered.' });
+
+    // 3. Process the email securely in the background via HTTP API
+    const { firstName, lastName, email, chapterTitle, score, total, attempted, skipped, correct, incorrect, breakdown } = submission;
+    const targetEmail = process.env.TARGET_EMAIL || "anibanerjee5@gmail.com";
+    
+    const htmlMessage = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #1e293b;">
+            <div style="font-size: 24px;">
+                A student has completed a quiz on your portal.<br><br>
+                <b>Student Name:</b> ${firstName} ${lastName}<br>
+                <b>Email ID:</b> ${email}<br>
+                <b>Chapter/Topic:</b> ${chapterTitle}<br>
+                <b>Score Achieved:</b> ${score} / ${total}<br>
+                <b>Attempted:</b> ${attempted} | <b>Skipped:</b> ${skipped} | <b>Correct:</b> ${correct} | <b>Incorrect:</b> ${incorrect}<br>
+                <b>Submission Time:</b> ${new Date().toLocaleString()}<br><br>
+            </div>
+            <div style="font-size: 22px;">
+                <h3>=== QUESTION BREAKDOWN ===</h3><br>
+                ${breakdown}
+            </div>
+        </div>
+    `;
+
+    resend.emails.send({
+        from: 'Quiz Portal <onboarding@resend.dev>',
+        to: [targetEmail],
+        subject: `New Quiz Submission: ${chapterTitle} - ${firstName} ${lastName}`,
+        html: htmlMessage
+    })
+    .then(response => console.log("Email successfully sent via Resend API:", response))
+    .catch(error => console.error("Error sending email via Resend API:", error));
 });
 
 app.listen(PORT, () => {
