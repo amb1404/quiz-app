@@ -3,102 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Test</title>
+    <title>NEET Mock Test Portal</title>
+    <!-- THIS LINE CONNECTS YOUR HTML TO YOUR CSS CONTROL FILE -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="quiz-container">
-        <!-- Home Menus (Side-by-Side Boxes) -->
-        <div id="home-menus" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-            <!-- Regular Subjects Menu -->
-            <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 250px;">
-                <h2 style="margin-top: 0;">Select a Subject</h2>
-                <div id="subject-list"></div>
-            </div>
 
-            <!-- NEET Menu -->
-            <div style="flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 250px;">
-                <h2 style="margin-top: 0; color: #b91c1c;">NEET</h2>
-                <div id="neet-class-list"></div>
-            </div>
+    <!-- 1. HOME MENUS -->
+    <div id="home-menus" class="screen-container">
+        <h2>Select Category</h2>
+        <div id="subject-list"></div>
+        <div id="neet-class-list"></div>
+    </div>
+
+    <!-- 2. NEET UNIT MENU -->
+    <div id="neet-unit-menu" class="screen-container hidden">
+        <h2 id="selected-neet-class-title"></h2>
+        <button onclick="backToHomeMenus()" style="margin-bottom: 20px;">Back</button>
+        <div id="neet-unit-list"></div>
+    </div>
+
+    <!-- 3. NEET CHAPTER MENU -->
+    <div id="neet-chapter-menu" class="screen-container hidden">
+        <h2 id="selected-neet-unit-title"></h2>
+        <button onclick="backToNeetUnits()" style="margin-bottom: 20px;">Back</button>
+        <div id="neet-chapter-list"></div>
+    </div>
+
+    <!-- 4. NEET TOPIC MENU -->
+    <div id="neet-topic-menu" class="screen-container hidden">
+        <h2 id="selected-neet-chapter-title"></h2>
+        <button onclick="backToNeetChapters()" style="margin-bottom: 20px;">Back</button>
+        <div id="neet-topic-list"></div>
+    </div>
+
+    <!-- 5. SUBJECT CHAPTER MENU (For standard subjects) -->
+    <div id="chapter-menu" class="screen-container hidden">
+        <h2 id="selected-subject-title"></h2>
+        <button onclick="backToSubjects()" style="margin-bottom: 20px;">Back</button>
+        <div id="chapter-list"></div>
+    </div>
+
+    <!-- 6. STUDENT DETAILS SCREEN -->
+    <div id="name-screen" class="screen-container hidden">
+        <h2 id="selected-chapter-title"></h2>
+        <h3>Enter Details</h3>
+        <input type="text" id="first-name-input" placeholder="First Name">
+        <input type="text" id="last-name-input" placeholder="Last Name">
+        <input type="email" id="email-input" placeholder="Email Address">
+        <button onclick="backToChapters()">Back</button>
+        <button onclick="proceedToQuiz()" style="background-color: var(--primary-blue); color: white;">Start Quiz</button>
+    </div>
+
+    <!-- 7. ACTIVE QUIZ SCREEN -->
+    <div id="quiz-screen" class="screen-container hidden">
+        <h2 id="current-chapter-heading"></h2>
+        
+        <div class="quiz-header">
+            <span id="timer-display">Time Left: 00:00</span>
+            <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
+            <button id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
         </div>
 
-        <!-- NEET Unit Selection Menu -->
-        <div id="neet-unit-menu" class="hidden">
-            <button onclick="backToHomeMenus()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Menu</button>
-            <h2 id="selected-neet-class-title">Units</h2>
-            <div id="neet-unit-list"></div>
-        </div>
+        <div id="question-box"></div>
+        <div id="options-box"></div>
 
-        <!-- NEET Chapter Selection Menu -->
-        <div id="neet-chapter-menu" class="hidden">
-            <button onclick="backToNeetUnits()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Units</button>
-            <h2 id="selected-neet-unit-title">Chapters</h2>
-            <div id="neet-chapter-list"></div>
-        </div>
-
-        <!-- NEET Topic Selection Menu -->
-        <div id="neet-topic-menu" class="hidden">
-            <button onclick="backToNeetChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Chapters</button>
-            <h2 id="selected-neet-chapter-title">Topics</h2>
-            <div id="neet-topic-list"></div>
-        </div>
-
-        <!-- Chapter Selection Menu (Regular) -->
-        <div id="chapter-menu" class="hidden">
-            <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
-            <h2 id="selected-subject-title">Chapters</h2>
-            <div id="chapter-list"></div>
-        </div>
-
-        <!-- Student Details Screen (Name & Email Input) -->
-        <div id="name-screen" class="hidden" style="text-align: left;">
-            <button onclick="backToChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Topics</button>
-            <h2 id="selected-chapter-title" style="margin-bottom: 20px;">Enter Your Details</h2>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">First Name:</label>
-                <input type="text" id="first-name-input" oninput="this.value = this.value.toUpperCase()" placeholder="ENTER FIRST NAME" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 16px; text-transform: uppercase;">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">Last Name:</label>
-                <input type="text" id="last-name-input" oninput="this.value = this.value.toUpperCase()" placeholder="ENTER LAST NAME" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 16px; text-transform: uppercase;">
-            </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">Email ID:</label>
-                <input type="email" id="email-input" oninput="this.value = this.value.toLowerCase()" placeholder="enter your valid email id" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 16px; text-transform: lowercase;">
-            </div>
-            <button onclick="proceedToQuiz()" class="nav-btn" style="width: 100%; background: #3b82f6; padding: 12px; font-size: 16px;">Start Quiz</button>
-        </div>
-
-        <!-- Quiz Screen -->
-        <div id="quiz-screen" class="hidden" style="position: relative;">
-            <h3 id="current-chapter-heading" style="color: #1e293b; font-size: 16px; margin-bottom: 10px; font-weight: bold;"></h3>
-            <div id="stats-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-                <span id="timer-display">Time Left: 00:00</span>
-                <span id="counter-stats">Attempted: 0 | Skipped: 0</span>
-                <button id="early-submit-btn" onclick="submitQuiz()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">Submit Quiz</button>
-            </div>
-            <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;"></div>
-            <div id="options-box" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
-            <div class="nav-buttons" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button id="prev-btn" onclick="prevQuestion()" class="nav-btn">Previous</button>
-                    <button onclick="clearResponse()" class="nav-btn" style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1;">Clear Response</button>
-                </div>
-                <div>
-                    <button id="next-btn" onclick="nextQuestion()" class="nav-btn">Next</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Result Screen -->
-        <div id="result-screen" class="hidden" style="text-align: center;">
-            <h2>Quiz Completed!</h2>
-            <h3 id="final-score" style="font-size: 24px; color: #10b981; margin: 15px 0;"></h3>
-            <p id="final-breakdown" style="color: #475569; margin-bottom: 20px;"></p>
-            <button onclick="returnToMenu()" class="nav-btn" style="background: #3b82f6;">Return to Homepage</button>
+        <div class="nav-buttons">
+            <button id="prev-btn" onclick="prevQuestion()">Previous</button>
+            <button id="clear-btn" onclick="clearResponse()">Clear Response</button>
+            <button id="next-btn" onclick="nextQuestion()">Next</button>
         </div>
     </div>
+
+    <!-- 8. RESULT SCREEN -->
+    <div id="result-screen" class="screen-container hidden">
+        <h2>Quiz Submitted Successfully!</h2>
+        <h3 id="final-score"></h3>
+        <p id="final-breakdown"></p>
+        <button onclick="returnToMenu()" style="background-color: var(--primary-blue); color: white;">Return to Home</button>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
