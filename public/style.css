@@ -63,11 +63,28 @@ h3 {
     box-shadow: 0px 4px 10px rgba(0,0,0,0.1); /* Shadow effect */
 }
 
+/* --- SUB-CONTAINERS (For dividing Subjects and NEET on the home screen) --- */
+.category-box {
+    background-color: #f8fafc;        /* COLOR: Slightly different background to stand out */
+    border: 2px solid #e2e8f0;        /* BORDER: Creates the visible box outline */
+    border-radius: 8px;               /* SIZE: Rounded corners */
+    padding: 20px;                    /* SIZE: Space inside the box */
+    margin-bottom: 25px;              /* POSITION: Space between the two boxes */
+}
+
+.category-box h3 {
+    color: var(--primary-blue);       /* COLOR: Makes the subheadings pop */
+    margin-top: 0px;                  /* POSITION: Keeps the heading neat at the top of the box */
+    border-bottom: 2px solid #e2e8f0; /* BORDER: Underlines the heading */
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
 /* =========================================================
    5. MENU CARDS (Subject, Unit, Chapter Selection)
 ========================================================= */
 .card {
-    background-color: #f1f5f9; /* COLOR */
+    background-color: #ffffff; /* COLOR */
     color: #0f172a;            /* COLOR: Text */
     font-size: 18px;           /* SIZE */
     font-weight: bold;         /* BOLD/NORMAL */
@@ -77,12 +94,13 @@ h3 {
     padding: 20px;             /* SIZE: Inside space */
     margin-bottom: 15px;       /* POSITION: Space between cards */
     border-radius: 8px;        /* SIZE: Corners */
-    border: 2px solid transparent; /* COLOR/SIZE: Border */
+    border: 1px solid #cbd5e1; /* COLOR/SIZE: Border */
     cursor: pointer;
+    box-sizing: border-box;
 }
 .card:hover {
     background-color: #e2e8f0;       /* HOVER COLOR */
-    border: 2px solid var(--primary-blue); /* HOVER BORDER COLOR */
+    border: 1px solid var(--primary-blue); /* HOVER BORDER COLOR */
     color: var(--primary-blue);      /* HOVER TEXT COLOR */
 }
 
