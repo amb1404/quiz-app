@@ -19,6 +19,17 @@ let activeNeetUnit = null;
 let activeNeetChapter = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- FIX: CHECK IF REFRESH OR FRESH LOGIN ---
+    // Ask the browser how the user got to this page
+    const navType = performance.getEntriesByType("navigation")[0]?.type;
+    const isReload = navType === 'reload' || performance.navigation?.type === 1;
+
+    // If they did NOT hit the refresh button, wipe the memory clean
+    if (!isReload) {
+        sessionStorage.removeItem('quizAppSession');
+    }
+
     // Save keystrokes in real-time on the details screen
     document.getElementById('first-name-input').addEventListener('input', persistState);
     document.getElementById('last-name-input').addEventListener('input', persistState);
@@ -64,13 +75,16 @@ function getCurrentScreen() {
 
 function persistState() {
     // Only scrape the input boxes if the user is actually on the name screen
+    // FIX: Enforce uppercase for names, lowercase for emails in data
     if (getCurrentScreen() === 'name-screen') {
         const fNameInput = document.getElementById('first-name-input');
-        if(fNameInput) studentFirstName = fNameInput.value.trim();
+        if(fNameInput) studentFirstName = fNameInput.value.trim().toUpperCase();
+        
         const lNameInput = document.getElementById('last-name-input');
-        if(lNameInput) studentLastName = lNameInput.value.trim();
+        if(lNameInput) studentLastName = lNameInput.value.trim().toUpperCase();
+        
         const emailInput = document.getElementById('email-input');
-        if(emailInput) studentEmail = emailInput.value.trim();
+        if(emailInput) studentEmail = emailInput.value.trim().toLowerCase();
     }
 
     const state = {
@@ -307,9 +321,10 @@ function backToChapters() {
 }
 
 function proceedToQuiz() {
-    const firstName = document.getElementById('first-name-input').value.trim();
-    const lastName = document.getElementById('last-name-input').value.trim();
-    const email = document.getElementById('email-input').value.trim();
+    // FIX: Enforce uppercase for names, lowercase for emails before checking/saving
+    const firstName = document.getElementById('first-name-input').value.trim().toUpperCase();
+    const lastName = document.getElementById('last-name-input').value.trim().toUpperCase();
+    const email = document.getElementById('email-input').value.trim().toLowerCase();
 
     if (!firstName || !lastName || !email) {
         alert('Please enter your first name, last name, and a valid email ID.');
