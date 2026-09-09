@@ -6,9 +6,34 @@
         "name": "Human Physiology",
         "topics": [
           {
-            "id": "neet-bio-xi-digestion",
             "name": "Digestion and Absorption",
-            "duration": 300
+            "subtopics": [
+              {
+                "id": "neet-bio-xi-dig-anatomy",
+                "name": "Anatomy of Alimentary Canal",
+                "duration": 300
+              },
+              {
+                "id": "neet-bio-xi-dig-enzymes",
+                "name": "Digestive Enzymes and Process",
+                "duration": 300
+              }
+            ]
+          },
+          {
+            "name": "Breathing and Exchange of Gases",
+            "subtopics": [
+              {
+                "id": "neet-bio-xi-resp-organs",
+                "name": "Respiratory Organs",
+                "duration": 300
+              },
+              {
+                "id": "neet-bio-xi-resp-mechanism",
+                "name": "Mechanism of Breathing",
+                "duration": 300
+              }
+            ]
           }
         ]
       }
@@ -16,6 +41,27 @@
   },
   {
     "name": "Class XII",
-    "chapters": []
+    "chapters": [
+      {
+        "name": "Reproduction",
+        "topics": [
+          {
+            "name": "Human Reproduction",
+            "subtopics": [
+              {
+                "id": "neet-bio-xii-rep-male",
+                "name": "Male Reproductive System",
+                "duration": 300
+              },
+              {
+                "id": "neet-bio-xii-rep-female",
+                "name": "Female Reproductive System",
+                "duration": 300
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
