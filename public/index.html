@@ -23,25 +23,25 @@
             </div>
         </div>
 
+        <!-- NEET Unit Selection Menu -->
+        <div id="neet-unit-menu" class="hidden">
+            <button onclick="backToHomeMenus()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Menu</button>
+            <h2 id="selected-neet-class-title">Units</h2>
+            <div id="neet-unit-list"></div>
+        </div>
+
         <!-- NEET Chapter Selection Menu -->
         <div id="neet-chapter-menu" class="hidden">
-            <button onclick="backToHomeMenus()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Menu</button>
-            <h2 id="selected-neet-class-title">Chapters</h2>
+            <button onclick="backToNeetUnits()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Units</button>
+            <h2 id="selected-neet-unit-title">Chapters</h2>
             <div id="neet-chapter-list"></div>
         </div>
 
         <!-- NEET Topic Selection Menu -->
         <div id="neet-topic-menu" class="hidden">
-            <button onclick="backToNeetChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Units</button>
+            <button onclick="backToNeetChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Chapters</button>
             <h2 id="selected-neet-chapter-title">Topics</h2>
             <div id="neet-topic-list"></div>
-        </div>
-
-        <!-- NEET Subtopic Selection Menu -->
-        <div id="neet-subtopic-menu" class="hidden">
-            <button onclick="backToNeetTopics()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Chapters</button>
-            <h2 id="selected-neet-subtopic-title">Subtopics</h2>
-            <div id="neet-subtopic-list"></div>
         </div>
 
         <!-- Chapter Selection Menu (Regular) -->
