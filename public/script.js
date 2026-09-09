@@ -111,7 +111,27 @@ function showNeetTopics(chap) {
         card.className = 'card';
         const title = top.title || top.name;
         card.innerHTML = `<h4>${title}</h4>`;
-        card.onclick = () => prepareQuiz(top.id, top.duration, title);
+        // Navigate down to the Subtopics layer instead of starting the quiz
+        card.onclick = () => showNeetSubtopics(top);
+        list.appendChild(card);
+    });
+}
+
+function showNeetSubtopics(top) {
+    isNeetPath = true; 
+    document.getElementById('neet-topic-menu').classList.add('hidden');
+    document.getElementById('neet-subtopic-menu').classList.remove('hidden');
+    document.getElementById('selected-neet-subtopic-title').innerText = top.title || top.name;
+
+    const list = document.getElementById('neet-subtopic-list');
+    list.innerHTML = '';
+    top.subtopics.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const title = sub.title || sub.name;
+        card.innerHTML = `<h4>${title}</h4>`;
+        // The quiz starts from this final subtopic layer
+        card.onclick = () => prepareQuiz(sub.id, sub.duration, title);
         list.appendChild(card);
     });
 }
@@ -126,6 +146,11 @@ function backToNeetChapters() {
     document.getElementById('neet-chapter-menu').classList.remove('hidden');
 }
 
+function backToNeetTopics() {
+    document.getElementById('neet-subtopic-menu').classList.add('hidden');
+    document.getElementById('neet-topic-menu').classList.remove('hidden');
+}
+
 // --- SHARED QUIZ PREPARATION LOGIC ---
 function prepareQuiz(quizId, duration, chapterTitle) {
     currentQuizId = quizId;
@@ -134,6 +159,7 @@ function prepareQuiz(quizId, duration, chapterTitle) {
 
     document.getElementById('chapter-menu').classList.add('hidden');
     document.getElementById('neet-topic-menu').classList.add('hidden');
+    document.getElementById('neet-subtopic-menu').classList.add('hidden');
     document.getElementById('name-screen').classList.remove('hidden');
     document.getElementById('selected-chapter-title').innerText = `Title: ${chapterTitle}`;
     document.getElementById('first-name-input').value = '';
@@ -143,8 +169,9 @@ function prepareQuiz(quizId, duration, chapterTitle) {
 
 function backToChapters() {
     document.getElementById('name-screen').classList.add('hidden');
+    // Direct back to Subtopics if in NEET path, else regular Chapters
     if (isNeetPath) {
-        document.getElementById('neet-topic-menu').classList.remove('hidden');
+        document.getElementById('neet-subtopic-menu').classList.remove('hidden');
     } else {
         document.getElementById('chapter-menu').classList.remove('hidden');
     }
