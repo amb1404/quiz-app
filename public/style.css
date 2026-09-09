@@ -95,8 +95,45 @@ body {
     border-color: #4285f4 !important;
 }
 
-/* Vertical stacking for Name & Email inputs */
+/* =========================================================
+   5. NAME SCREEN LAYOUT & REORDERING (MOVES BACK BUTTON TO TOP)
+========================================================= */
+#name-screen {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Forces elements inside the name screen to stack in the correct order */
+#name-screen h2, 
+#name-screen h3, 
+#name-screen #std-category-heading {
+    order: 1;
+}
+
+#name-back-btn {
+    order: 2;
+    align-self: flex-start;
+    background-color: #64748b; 
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+#name-back-btn:hover { 
+    background-color: #475569; 
+}
+
+#name-screen p, 
+#name-screen label {
+    order: 3;
+}
+
 #name-screen input {
+    order: 4;
     display: block;
     width: 100%;
     padding: 14px 18px;
@@ -113,10 +150,7 @@ body {
     border-color: #4285f4;
 }
 
-/* =========================================================
-   5. BACK BUTTONS & START QUIZ BUTTON
-========================================================= */
-.back-btn, #name-back-btn {
+.back-btn {
     background-color: #64748b; 
     color: #ffffff;
     font-size: 16px;
@@ -128,11 +162,12 @@ body {
     display: inline-block;
     margin-bottom: 15px;
 }
-.back-btn:hover, #name-back-btn:hover { 
+.back-btn:hover { 
     background-color: #475569; 
 }
 
 #name-start-btn {
+    order: 5;
     display: block;
     width: 100%;
     max-width: 280px;
