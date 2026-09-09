@@ -24,7 +24,6 @@ if (fs.existsSync(quizListPath)) {
     });
 }
 
-// --- START OF UPDATED NEET CODE ---
 const neetListPath = path.join(__dirname, 'neet.json');
 
 if (fs.existsSync(neetListPath)) {
@@ -36,6 +35,8 @@ if (fs.existsSync(neetListPath)) {
                     unit.chapters.forEach(ch => {
                         if (ch.topics) {
                             ch.topics.forEach(topic => {
+                                // Skip empty placeholders
+                                if (!topic.id) return; 
                                 const filePath = path.join(__dirname, `${topic.id}-questions.json`);
                                 if (fs.existsSync(filePath)) {
                                     quizzesCache[topic.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -56,7 +57,6 @@ app.get('/api/neet', (req, res) => {
         res.status(404).json({ error: 'NEET configuration not found' });
     }
 });
-// --- END OF UPDATED NEET CODE ---
 
 app.get('/api/quizzes', (req, res) => {
     if (fs.existsSync(quizListPath)) {
@@ -89,6 +89,7 @@ app.post('/api/submit', async (req, res) => {
     let score = 0;
     let attempted = 0;
     let detailedBreakdown = "";
+    const letters = ['a', 'b', 'c', 'd'];
     
     questions.forEach((q, idx) => {
         const userAnsIdx = submission.answers[idx];
@@ -104,17 +105,17 @@ app.post('/api/submit', async (req, res) => {
         }
         
         const status = isSkipped ? "Skipped" : (isCorrect ? "Correct" : "Incorrect");
-        const userChoice = isSkipped ? "None" : q.options[userAnsIdx];
-        const correctChoice = q.options[correctIdx];
+        const userChoice = isSkipped ? "None" : `${letters[userAnsIdx]}. ${q.options[userAnsIdx]}`;
+        const correctChoice = `${letters[correctIdx]}. ${q.options[correctIdx]}`;
 
-        detailedBreakdown += `Q${idx + 1}: ${q.question}\n`;
-        detailedBreakdown += `Status: ${status}\n`;
-        detailedBreakdown += `Student's Answer: ${userChoice}\n`;
-        detailedBreakdown += `Correct Answer: ${correctChoice}\n`;
+        detailedBreakdown += `<b>Q${idx + 1}: ${q.question}</b><br><br>`;
+        detailedBreakdown += `<span style="background-color: lightyellow; padding: 4px; font-weight: bold;">Status: ${status}</span><br><br>`;
+        detailedBreakdown += `<b>Student's Answer:</b> ${userChoice}<br>`;
+        detailedBreakdown += `<b>Correct Answer:</b> ${correctChoice}<br>`;
         if (q.explanation) {
-            detailedBreakdown += `Explanation: ${q.explanation}\n`;
+            detailedBreakdown += `<br><b>Explanation:</b> ${q.explanation}<br>`;
         }
-        detailedBreakdown += `----------------------------------------\n`;
+        detailedBreakdown += `<br><hr><br>`;
     });
 
     let incorrect = attempted - score;
