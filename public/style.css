@@ -96,14 +96,30 @@ body {
 }
 
 /* =========================================================
-   5. NAME SCREEN LAYOUT & REORDERING (MOVES BACK BUTTON TO TOP)
+   5. BACK BUTTONS & START QUIZ BUTTON
 ========================================================= */
+.back-btn, #name-back-btn {
+    background-color: #64748b; 
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+    margin-bottom: 15px;
+}
+.back-btn:hover, #name-back-btn:hover { 
+    background-color: #475569; 
+}
+
+/* Name Screen Specific Layout Ordering */
 #name-screen {
     display: flex;
     flex-direction: column;
 }
 
-/* Forces elements inside the name screen to stack in the correct order */
 #name-screen h2, 
 #name-screen h3, 
 #name-screen #std-category-heading {
@@ -113,18 +129,6 @@ body {
 #name-back-btn {
     order: 2;
     align-self: flex-start;
-    background-color: #64748b; 
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px 20px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    margin-bottom: 20px;
-}
-#name-back-btn:hover { 
-    background-color: #475569; 
 }
 
 #name-screen p, 
@@ -148,22 +152,6 @@ body {
 #name-screen input:focus {
     outline: none;
     border-color: #4285f4;
-}
-
-.back-btn {
-    background-color: #64748b; 
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px 20px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    display: inline-block;
-    margin-bottom: 15px;
-}
-.back-btn:hover { 
-    background-color: #475569; 
 }
 
 #name-start-btn {
