@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "question": "Which of the following linkages holds the individual nucleotides together in a polynucleotide chain?",
+    "options": [
+      "Glycosidic linkage",
+      "Peptide linkage",
+      "Phosphodiester linkage",
+      "Hydrogen bond"
+    ],
+    "answer": 2,
+    "explanation": "In a polynucleotide chain, successive nucleotides are linked together by 3'-5' phosphodiester linkages between the 3'-OH group of one pentose sugar and the 5'-phosphate group of the next."
+  },
+  {
+    "id": 2,
+    "question": "In a DNA double helix, the pitch of the helix is 3.4 nm. What is the distance between two consecutive base pairs?",
+    "options": [
+      "0.34 nm",
+      "3.4 nm",
+      "34 nm",
+      "0.034 nm"
+    ],
+    "answer": 0,
+    "explanation": "The pitch of the DNA helix is 3.4 nm and there are roughly 10 base pairs in each turn. Therefore, the distance between two consecutive base pairs is 3.4 nm / 10 = 0.34 nm."
+  },
+  {
+    "id": 3,
+    "question": "According to Erwin Chargaff's rule for a double-stranded DNA, which of the following is correct?",
+    "options": [
+      "A + T = G + C",
+      "A / G = T / C",
+      "A + G = T + C",
+      "A = G and T = C"
+    ],
+    "answer": 2,
+    "explanation": "Chargaff's rule states that in double-stranded DNA, the ratio of purines to pyrimidines is equal to 1. That is, A + G (purines) = T + C (pyrimidines)."
+  },
+  {
+    "id": 4,
+    "question": "The core of a nucleosome is composed of an octamer of histone proteins. Which of the following histones is NOT a part of the core octamer?",
+    "options": [
+      "H1",
+      "H2A",
+      "H2B",
+      "H3"
+    ],
+    "answer": 0,
+    "explanation": "The nucleosome core is made of two molecules each of histones H2A, H2B, H3, and H4. Histone H1 acts as a linker protein, binding to the DNA where it enters and exits the nucleosome."
+  },
+  {
+    "id": 5,
+    "question": "Which specific chromosomal region in eukaryotes is transcriptionally active and stains lightly?",
+    "options": [
+      "Heterochromatin",
+      "Euchromatin",
+      "Centromere",
+      "Telomere"
+    ],
+    "answer": 1,
+    "explanation": "Euchromatin is loosely packed, stains lightly, and is transcriptionally active. Heterochromatin is densely packed, stains darkly, and is transcriptionally inactive."
+  },
+  {
+    "id": 6,
+    "question": "In Griffith's experiment, what caused the transformation of the rough (R) strain of Streptococcus pneumoniae into the smooth (S) strain?",
+    "options": [
+      "Transfer of RNA",
+      "Transfer of a protein capsule",
+      "Transfer of a transforming principle (later identified as DNA)",
+      "Mutation induced by heat"
+    ],
+    "answer": 2,
+    "explanation": "Griffith concluded that the R strain bacteria had somehow been transformed by a 'transforming principle' transferred from the heat-killed S strain, which enabled them to synthesize a smooth capsule and become virulent."
+  },
+  {
+    "id": 7,
+    "question": "Which enzymes did Avery, MacLeod, and McCarty use to prove that DNA is the genetic material?",
+    "options": [
+      "Proteases and RNases, which inhibited transformation",
+      "DNase, which inhibited transformation",
+      "Lipases, which enhanced transformation",
+      "Amylase and RNase, which had no effect"
+    ],
+    "answer": 1,
+    "explanation": "They discovered that protein-digesting enzymes (proteases) and RNA-digesting enzymes (RNases) did not affect transformation, but DNase did, proving that DNA was the transforming principle."
+  },
+  {
+    "id": 8,
+    "question": "In the Hershey-Chase experiment, what radioactive isotopes were used to label the DNA and protein of bacteriophages, respectively?",
+    "options": [
+      "32P for DNA and 35S for protein",
+      "35S for DNA and 32P for protein",
+      "14C for DNA and 15N for protein",
+      "15N for DNA and 32P for protein"
+    ],
+    "answer": 0,
+    "explanation": "Phosphorus is found in DNA but not in proteins, so 32P labeled the DNA. Sulfur is found in proteins (in amino acids like methionine and cysteine) but not in DNA, so 35S labeled the viral protein coat."
+  },
+  {
+    "id": 9,
+    "question": "Which experiment unambiguously proved that DNA replication is semi-conservative?",
+    "options": [
+      "Griffith's experiment",
+      "Hershey-Chase experiment",
+      "Meselson-Stahl experiment",
+      "Avery, MacLeod, and McCarty experiment"
+    ],
+    "answer": 2,
+    "explanation": "Matthew Meselson and Franklin Stahl demonstrated semi-conservative DNA replication by growing E. coli in a medium containing 15N and then transferring them to a 14N medium, using density gradient centrifugation."
+  },
+  {
+    "id": 10,
+    "question": "Taylor and colleagues proved semi-conservative replication in chromosomes using Vicia faba (faba beans). Which radioactive precursor did they use?",
+    "options": [
+      "Radioactive phosphorus",
+      "Radioactive sulfur",
+      "Tritiated thymidine",
+      "Heavy nitrogen (15N)"
+    ],
+    "answer": 2,
+    "explanation": "Taylor et al. (1958) used radioactive thymidine (tritiated thymidine) to detect the distribution of newly synthesized DNA in the chromosomes of Vicia faba."
+  },
+  {
+    "id": 11,
+    "question": "During DNA replication, the enzyme DNA-dependent DNA polymerase catalyzes polymerization only in one direction. What is this direction?",
+    "options": [
+      "3' -> 5'",
+      "5' -> 3'",
+      "Both 3' -> 5' and 5' -> 3'",
+      "N-terminus to C-terminus"
+    ],
+    "answer": 1,
+    "explanation": "DNA polymerases can only add nucleotides to the 3'-OH end of a growing strand, meaning polymerization strictly occurs in the 5' -> 3' direction."
+  },
+  {
+    "id": 12,
+    "question": "The discontinuously synthesized fragments of DNA on the lagging strand are known as Okazaki fragments. Which enzyme joins these fragments together?",
+    "options": [
+      "DNA helicase",
+      "DNA ligase",
+      "DNA polymerase I",
+      "Primase"
+    ],
+    "answer": 1,
+    "explanation": "DNA ligase is the enzyme responsible for sealing the nicks between adjacent Okazaki fragments on the lagging strand, forming a continuous DNA strand."
+  },
+  {
+    "id": 13,
+    "question": "A transcription unit in DNA is defined primarily by three regions. Which of the following is NOT one of them?",
+    "options": [
+      "A Promoter",
+      "The Structural gene",
+      "An Operator",
+      "A Terminator"
+    ],
+    "answer": 2,
+    "explanation": "A standard transcription unit consists of a Promoter, the Structural gene, and a Terminator. An operator is a regulatory sequence specifically associated with operons in prokaryotes, not a general component of all transcription units."
+  },
+  {
+    "id": 14,
+    "question": "In a transcription unit, the strand of DNA that has the polarity 3' -> 5' and acts as a template for RNA synthesis is called the:",
+    "options": [
+      "Coding strand",
+      "Template strand",
+      "Non-template strand",
+      "Sense strand"
+    ],
+    "answer": 1,
+    "explanation": "The DNA strand with 3' -> 5' polarity acts as the template because RNA polymerase polymerizes in the 5' -> 3' direction. It is referred to as the template (or non-coding) strand."
+  },
+  {
+    "id": 15,
+    "question": "The DNA sequence that provides the binding site for RNA polymerase and initiates transcription is called the:",
+    "options": [
+      "Terminator",
+      "Promoter",
+      "Enhancer",
+      "Structural gene"
+    ],
+    "answer": 1,
+    "explanation": "The promoter is a DNA sequence located towards the 5' end (upstream) of the structural gene (with reference to the coding strand) that provides the binding site for RNA polymerase."
+  },
+  {
+    "id": 16,
+    "question": "In eukaryotes, which RNA polymerase is responsible for the transcription of heterogeneous nuclear RNA (hnRNA)?",
+    "options": [
+      "RNA polymerase I",
+      "RNA polymerase II",
+      "RNA polymerase III",
+      "Reverse transcriptase"
+    ],
+    "answer": 1,
+    "explanation": "In eukaryotes, RNA polymerase II transcribes the precursor of mRNA, which is the heterogeneous nuclear RNA (hnRNA)."
+  },
+  {
+    "id": 17,
+    "question": "During the post-transcriptional modification of hnRNA in eukaryotes, a methyl guanosine triphosphate is added to the 5' end. This process is called:",
+    "options": [
+      "Splicing",
+      "Tailing",
+      "Capping",
+      "Polyadenylation"
+    ],
+    "answer": 2,
+    "explanation": "Capping involves the addition of an unusual nucleotide (methyl guanosine triphosphate) to the 5' end of the hnRNA transcript, which helps in ribosome binding and protects the RNA."
+  },
+  {
+    "id": 18,
+    "question": "The process of removing introns and joining exons in a defined order during eukaryotic mRNA processing is called:",
+    "options": [
+      "Capping",
+      "Tailing",
+      "Splicing",
+      "Translation"
+    ],
+    "answer": 2,
+    "explanation": "Splicing is the process where non-coding intervening sequences (introns) are removed, and the coding sequences (exons) are joined together to form mature mRNA."
+  },
+  {
+    "id": 19,
+    "question": "The genetic code is described as 'degenerate'. What does this mean?",
+    "options": [
+      "One codon can code for multiple amino acids",
+      "Some amino acids are coded by more than one codon",
+      "The code changes over generations",
+      "The code is read in an overlapping manner"
+    ],
+    "answer": 1,
+    "explanation": "Degeneracy of the genetic code means that a single amino acid can be specified by multiple different codons (e.g., Leucine is coded by 6 different codons)."
+  },
+  {
+    "id": 20,
+    "question": "Which of the following codons serves a dual function, acting as both an initiator codon and coding for the amino acid Methionine?",
+    "options": [
+      "UAA",
+      "AUG",
+      "UGA",
+      "UAG"
+    ],
+    "answer": 1,
+    "explanation": "AUG has dual functions. It codes for the amino acid Methionine (Met) and it also acts as the universal initiator codon for translation."
+  },
+  {
+    "id": 21,
+    "question": "Which of the following is a non-sense (stop) codon that terminates translation?",
+    "options": [
+      "AUG",
+      "UAA",
+      "UUU",
+      "CCC"
+    ],
+    "answer": 1,
+    "explanation": "There are three stop (terminator) codons that do not code for any amino acids: UAA (Ochre), UAG (Amber), and UGA (Opal). UAA is one of them."
+  },
+  {
+    "id": 22,
+    "question": "Sickle cell anemia is a classic example of a point mutation. Which specific base substitution occurs in the beta-globin gene to cause this disease?",
+    "options": [
+      "GAG to GUG",
+      "GUG to GAG",
+      "CUU to CUA",
+      "UAA to UAG"
+    ],
+    "answer": 0,
+    "explanation": "The mutation involves the substitution of a single base pair in the beta-globin gene, changing the codon from GAG (coding for Glutamate) to GUG (coding for Valine) at the sixth position."
+  },
+  {
+    "id": 23,
+    "question": "Which RNA molecule possesses an anticodon loop and an amino acid acceptor end, earning it the name 'adapter molecule'?",
+    "options": [
+      "mRNA",
+      "rRNA",
+      "tRNA",
+      "hnRNA"
+    ],
+    "answer": 2,
+    "explanation": "tRNA acts as an adapter molecule. It has an anticodon loop that reads the genetic code on mRNA and an amino acid acceptor end to which it binds the specific corresponding amino acid."
+  },
+  {
+    "id": 24,
+    "question": "In bacteria, a specific rRNA molecule acts as an enzyme (ribozyme) to catalyze the formation of peptide bonds during translation. Which rRNA is it?",
+    "options": [
+      "18S rRNA",
+      "23S rRNA",
+      "28S rRNA",
+      "5S rRNA"
+    ],
+    "answer": 1,
+    "explanation": "In bacteria, the 23S rRNA of the large ribosomal subunit acts as a ribozyme (peptidyl transferase) that catalyzes the formation of the peptide bond between amino acids."
+  },
+  {
+    "id": 25,
+    "question": "Regions of mRNA that are not translated into protein, but are required for efficient translation processes, are called UTRs. Where are they located?",
+    "options": [
+      "Only at the 5' end before the start codon",
+      "Only at the 3' end after the stop codon",
+      "At both the 5' end (before start codon) and 3' end (after stop codon)",
+      "Within the coding region between exons"
+    ],
+    "answer": 2,
+    "explanation": "Untranslated regions (UTRs) are present at both ends of the mRNA: at the 5' end (before the start codon) and at the 3' end (after the stop codon). They are essential for efficient translation."
+  },
+  {
+    "id": 26,
+    "question": "In the lac operon of E. coli, what does the 'i' gene code for?",
+    "options": [
+      "Beta-galactosidase",
+      "Permease",
+      "Transacetylase",
+      "Repressor protein"
+    ],
+    "answer": 3,
+    "explanation": "The 'i' gene (where 'i' stands for inhibitor, not inducer) codes for the repressor protein of the lac operon, which binds to the operator to turn off transcription in the absence of lactose."
+  },
+  {
+    "id": 27,
+    "question": "Which molecule acts as the inducer in the lac operon, binding to the repressor and inactivating it?",
+    "options": [
+      "Glucose",
+      "Galactose",
+      "Lactose (or allolactose)",
+      "ATP"
+    ],
+    "answer": 2,
+    "explanation": "Lactose (specifically its isomer, allolactose) acts as the inducer. It binds to the repressor protein, altering its shape so it cannot bind to the operator, thereby allowing RNA polymerase to transcribe the operon."
+  },
+  {
+    "id": 28,
+    "question": "The 'z' gene of the lac operon codes for an enzyme primarily responsible for the hydrolysis of lactose into galactose and glucose. Name the enzyme.",
+    "options": [
+      "Permease",
+      "Transacetylase",
+      "Beta-galactosidase",
+      "Ligase"
+    ],
+    "answer": 2,
+    "explanation": "The z gene codes for beta-galactosidase (β-gal), which hydrolyzes the disaccharide lactose into its monomeric units, galactose and glucose."
+  },
+  {
+    "id": 29,
+    "question": "Which of the following is NOT a goal of the Human Genome Project (HGP)?",
+    "options": [
+      "Identify all the approximately 20,000-25,000 genes in human DNA",
+      "Determine the sequences of the 3 billion chemical base pairs that make up human DNA",
+      "Store this information in databases and improve tools for data analysis",
+      "Eradicate all genetic diseases by genetically modifying human embryos"
+    ],
+    "answer": 3,
+    "explanation": "The HGP was a sequencing and mapping project aimed at identifying genes, determining sequences, storing data, and addressing ethical, legal, and social issues (ELSI). It did not involve modifying human embryos to eradicate diseases."
+  },
+  {
+    "id": 30,
+    "question": "During the sequencing phase of the Human Genome Project, two major methodologies were used. The approach of sequencing the whole set of genome (both coding and non-coding regions) and later assigning functions is called:",
+    "options": [
+      "Expressed Sequence Tags (ESTs)",
+      "Sequence Annotation",
+      "Microarray analysis",
+      "DNA fingerprinting"
+    ],
+    "answer": 1,
+    "explanation": "Sequence Annotation involves the blind sequencing of the entire genome (including coding and non-coding regions) and subsequently assigning functions to different regions. ESTs focused only on genes expressed as RNA."
+  },
+  {
+    "id": 31,
+    "question": "According to the findings of the Human Genome Project, which human chromosome has the maximum number of genes (2968)?",
+    "options": [
+      "Chromosome X",
+      "Chromosome 1",
+      "Chromosome 21",
+      "Chromosome Y"
+    ],
+    "answer": 1,
+    "explanation": "Chromosome 1 has the most genes (2968), and the Y chromosome has the fewest (231), as discovered during the HGP."
+  },
+  {
+    "id": 32,
+    "question": "Single nucleotide polymorphisms (SNPs), where a single base DNA difference occurs, are found at roughly how many locations in the human genome?",
+    "options": [
+      "1.4 thousand",
+      "140 thousand",
+      "1.4 million",
+      "1.4 billion"
+    ],
+    "answer": 2,
+    "explanation": "Scientists have identified about 1.4 million locations where single base DNA differences (SNPs or 'snips') occur in humans. These are highly useful for finding chromosomal locations for disease-associated sequences."
+  },
+  {
+    "id": 33,
+    "question": "In DNA fingerprinting, VNTRs are used as probes. What does VNTR stand for?",
+    "options": [
+      "Variable Nucleotide Tandem Repeats",
+      "Variable Number of Tandem Repeats",
+      "Various Nuclear Transcript Regions",
+      "Viral Nucleotide Transfer Regions"
+    ],
+    "answer": 1,
+    "explanation": "VNTR stands for Variable Number of Tandem Repeats. They belong to a class of satellite DNA referred to as minisatellite, and because the number of repeats varies highly among individuals, they form the basis of DNA fingerprinting."
+  },
+  {
+    "id": 34,
+    "question": "The technique of DNA fingerprinting was initially developed by:",
+    "options": [
+      "James Watson and Francis Crick",
+      "Frederick Sanger",
+      "Alec Jeffreys",
+      "Kary Mullis"
+    ],
+    "answer": 2,
+    "explanation": "Alec Jeffreys developed the technique of DNA fingerprinting in 1984. He used satellite DNA as a probe that showed a very high degree of polymorphism (VNTR)."
+  },
+  {
+    "id": 35,
+    "question": "What is the primary purpose of Southern blotting in the DNA fingerprinting process?",
+    "options": [
+      "To multiply DNA copies using PCR",
+      "To cut DNA into fragments using restriction endonucleases",
+      "To transfer separated DNA fragments from the agarose gel to a synthetic membrane like nitrocellulose",
+      "To hybridize the DNA with a radioactive probe"
+    ],
+    "answer": 2,
+    "explanation": "Southern blotting refers to the technique of transferring the separated DNA fragments from the fragile agarose gel onto a sturdy synthetic membrane, such as nitrocellulose or nylon, for further processing."
+  },
+  {
+    "id": 36,
+    "question": "Polymorphism in DNA sequence is conceptually the basis of:",
+    "options": [
+      "Genetic mapping only",
+      "DNA fingerprinting only",
+      "Both genetic mapping and DNA fingerprinting",
+      "Translation of proteins"
+    ],
+    "answer": 2,
+    "explanation": "Polymorphism (variation at the genetic level) is the basis of both genetic mapping of the human genome and DNA fingerprinting, as these variations are unique to individuals and can be tracked."
+  },
+  {
+    "id": 37,
+    "question": "The bulk of the human genome does not code for any proteins. These non-coding, highly repetitive sequences are primarily found in:",
+    "options": [
+      "Exons",
+      "Promoter regions",
+      "Satellite DNA",
+      "Ribosomal RNA"
+    ],
+    "answer": 2,
+    "explanation": "Repetitive DNA forms a large portion of the human genome. A major fraction of this is Satellite DNA (micro and minisatellites), which does not code for proteins but forms the basis of DNA polymorphism."
+  },
+  {
+    "id": 38,
+    "question": "Central Dogma of molecular biology, which states that genetic information flows from DNA to RNA to Protein, was proposed by:",
+    "options": [
+      "Watson and Crick",
+      "Francis Crick",
+      "Rosalind Franklin",
+      "Erwin Chargaff"
+    ],
+    "answer": 1,
+    "explanation": "Francis Crick proposed the Central Dogma in molecular biology, which describes the sequential flow of genetic information: DNA -> RNA -> Protein."
+  },
+  {
+    "id": 39,
+    "question": "The unequivocal proof that DNA is the genetic material came from the experiments of Hershey and Chase using:",
+    "options": [
+      "Streptococcus pneumoniae and mice",
+      "E. coli and T2 bacteriophage",
+      "Vicia faba and radioactive thymidine",
+      "Neurospora crassa"
+    ],
+    "answer": 1,
+    "explanation": "Alfred Hershey and Martha Chase (1952) provided unequivocal proof by working with viruses that infect bacteria (bacteriophages, specifically T2) and Escherichia coli."
+  },
+  {
+    "id": 40,
+    "question": "During translation, the enzyme aminoacyl-tRNA synthetase plays a crucial role in:",
+    "options": [
+      "Binding the mRNA to the small ribosomal subunit",
+      "Forming the peptide bond between amino acids",
+      "Charging the tRNA by attaching the correct amino acid to it",
+      "Terminating the translation process"
+    ],
+    "answer": 2,
+    "explanation": "Aminoacyl-tRNA synthetase is responsible for the activation of amino acids and their attachment to their specific cognate tRNAs, a process known as aminoacylation or 'charging' of tRNA."
+  }
+]
