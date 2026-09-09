@@ -3,36 +3,311 @@
     "name": "Class XI",
     "units": [
       {
-        "name": "Human Physiology",
+        "name": "Diversity in the Living World",
         "chapters": [
           {
-            "name": "Digestion and Absorption",
+            "name": "The Living World",
             "topics": [
-              {
-                "id": "neet-bio-xi-dig-anatomy",
-                "name": "Anatomy of Alimentary Canal",
-                "duration": 300
-              },
-              {
-                "id": "neet-bio-xi-dig-enzymes",
-                "name": "Digestive Enzymes and Process",
-                "duration": 300
-              }
+              { "id": "ch1-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch1-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch1-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch1-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch1-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch1-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch1-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch1-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch1-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch1-topic10", "name": "Topic 10", "duration": 300 }
             ]
           },
           {
+            "name": "Biological Classification",
+            "topics": [
+              { "id": "ch2-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch2-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch2-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch2-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch2-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch2-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch2-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch2-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch2-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch2-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Plant Kingdom",
+            "topics": [
+              { "id": "ch3-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch3-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch3-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch3-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch3-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch3-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch3-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch3-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch3-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch3-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Animal Kingdom",
+            "topics": [
+              { "id": "ch4-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch4-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch4-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch4-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch4-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch4-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch4-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch4-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch4-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch4-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Structural Organisation in Plants and Animals",
+        "chapters": [
+          {
+            "name": "Morphology of Flowering Plants",
+            "topics": [
+              { "id": "ch5-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch5-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch5-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch5-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch5-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch5-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch5-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch5-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch5-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch5-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Anatomy of Flowering Plants",
+            "topics": [
+              { "id": "ch6-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch6-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch6-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch6-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch6-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch6-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch6-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch6-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch6-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch6-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Structural Organisation in Animals",
+            "topics": [
+              { "id": "ch7-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch7-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch7-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch7-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch7-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch7-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch7-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch7-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch7-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch7-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Cell: Structure and Functions",
+        "chapters": [
+          {
+            "name": "Cell: The Unit of Life",
+            "topics": [
+              { "id": "ch8-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch8-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch8-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch8-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch8-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch8-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch8-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch8-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch8-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch8-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Biomolecules",
+            "topics": [
+              { "id": "ch9-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch9-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch9-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch9-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch9-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch9-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch9-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch9-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch9-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch9-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Cell Cycle and Cell Division",
+            "topics": [
+              { "id": "ch10-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch10-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch10-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch10-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch10-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch10-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch10-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch10-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch10-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch10-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Plant Physiology",
+        "chapters": [
+          {
+            "name": "Photosynthesis in Higher Plants",
+            "topics": [
+              { "id": "ch11-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch11-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch11-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch11-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch11-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch11-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch11-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch11-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch11-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch11-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Respiration in Plants",
+            "topics": [
+              { "id": "ch12-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch12-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch12-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch12-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch12-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch12-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch12-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch12-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch12-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch12-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Plant Growth and Development",
+            "topics": [
+              { "id": "ch13-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch13-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch13-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch13-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch13-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch13-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch13-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch13-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch13-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch13-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Human Physiology",
+        "chapters": [
+          {
             "name": "Breathing and Exchange of Gases",
             "topics": [
-              {
-                "id": "neet-bio-xi-resp-organs",
-                "name": "Respiratory Organs",
-                "duration": 300
-              },
-              {
-                "id": "neet-bio-xi-resp-mechanism",
-                "name": "Mechanism of Breathing",
-                "duration": 300
-              }
+              { "id": "ch14-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch14-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch14-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch14-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch14-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch14-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch14-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch14-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch14-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch14-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Body Fluids and Circulation",
+            "topics": [
+              { "id": "ch15-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch15-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch15-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch15-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch15-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch15-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch15-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch15-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch15-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch15-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Excretory Products and their Elimination",
+            "topics": [
+              { "id": "ch16-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch16-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch16-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch16-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch16-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch16-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch16-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch16-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch16-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch16-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Locomotion and Movement",
+            "topics": [
+              { "id": "ch17-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch17-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch17-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch17-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch17-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch17-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch17-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch17-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch17-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch17-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Neural Control and Coordination",
+            "topics": [
+              { "id": "ch18-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch18-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch18-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch18-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch18-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch18-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch18-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch18-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch18-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch18-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Chemical Coordination and Integration",
+            "topics": [
+              { "id": "ch19-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "ch19-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "ch19-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "ch19-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "ch19-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "ch19-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "ch19-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "ch19-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "ch19-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "ch19-topic10", "name": "Topic 10", "duration": 300 }
             ]
           }
         ]
@@ -43,21 +318,221 @@
     "name": "Class XII",
     "units": [
       {
-        "name": "Genetics",
+        "name": "Reproduction",
         "chapters": [
           {
-            "name": "Molecular basis of inheritance",
+            "name": "Sexual Reproduction in Flowering Plants",
             "topics": [
-              {
-                "id": "ctdgma",
-                "name": "Cental Dogma",
-                "duration": 300
-              },
-              {
-                "id": "expr",
-                "name": "Experimetns",
-                "duration": 300
-              }
+              { "id": "xii-ch1-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch1-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch1-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch1-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch1-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch1-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch1-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch1-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch1-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch1-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Human Reproduction",
+            "topics": [
+              { "id": "xii-ch2-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch2-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch2-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch2-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch2-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch2-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch2-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch2-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch2-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch2-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Reproductive Health",
+            "topics": [
+              { "id": "xii-ch3-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch3-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch3-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch3-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch3-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch3-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch3-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch3-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch3-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch3-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Genetics and Evolution",
+        "chapters": [
+          {
+            "name": "Principles of Inheritance and Variation",
+            "topics": [
+              { "id": "xii-ch4-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch4-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch4-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch4-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch4-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch4-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch4-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch4-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch4-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch4-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Molecular Basis of Inheritance",
+            "topics": [
+              { "id": "xii-ch5-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch5-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch5-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch5-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch5-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch5-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch5-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch5-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch5-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch5-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Evolution",
+            "topics": [
+              { "id": "xii-ch6-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch6-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch6-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch6-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch6-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch6-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch6-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch6-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch6-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch6-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Biology in Human Welfare",
+        "chapters": [
+          {
+            "name": "Human Health and Disease",
+            "topics": [
+              { "id": "xii-ch7-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch7-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch7-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch7-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch7-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch7-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch7-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch7-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch7-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch7-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Microbes in Human Welfare",
+            "topics": [
+              { "id": "xii-ch8-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch8-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch8-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch8-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch8-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch8-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch8-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch8-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch8-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch8-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Biotechnology",
+        "chapters": [
+          {
+            "name": "Biotechnology: Principles and Processes",
+            "topics": [
+              { "id": "xii-ch9-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch9-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch9-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch9-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch9-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch9-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch9-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch9-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch9-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch9-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Biotechnology and its Applications",
+            "topics": [
+              { "id": "xii-ch10-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch10-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch10-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch10-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch10-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch10-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch10-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch10-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch10-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch10-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Ecology",
+        "chapters": [
+          {
+            "name": "Organisms and Populations",
+            "topics": [
+              { "id": "xii-ch11-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch11-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch11-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch11-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch11-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch11-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch11-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch11-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch11-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch11-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Ecosystem",
+            "topics": [
+              { "id": "xii-ch12-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch12-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch12-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch12-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch12-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch12-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch12-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch12-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch12-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch12-topic10", "name": "Topic 10", "duration": 300 }
+            ]
+          },
+          {
+            "name": "Biodiversity and Conservation",
+            "topics": [
+              { "id": "xii-ch13-topic1", "name": "Topic 1", "duration": 300 },
+              { "id": "xii-ch13-topic2", "name": "Topic 2", "duration": 300 },
+              { "id": "xii-ch13-topic3", "name": "Topic 3", "duration": 300 },
+              { "id": "xii-ch13-topic4", "name": "Topic 4", "duration": 300 },
+              { "id": "xii-ch13-topic5", "name": "Topic 5", "duration": 300 },
+              { "id": "xii-ch13-topic6", "name": "Topic 6", "duration": 300 },
+              { "id": "xii-ch13-topic7", "name": "Topic 7", "duration": 300 },
+              { "id": "xii-ch13-topic8", "name": "Topic 8", "duration": 300 },
+              { "id": "xii-ch13-topic9", "name": "Topic 9", "duration": 300 },
+              { "id": "xii-ch13-topic10", "name": "Topic 10", "duration": 300 }
             ]
           }
         ]
