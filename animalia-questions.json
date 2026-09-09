@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "question": "Which of the following sets of characteristics best defines the organisms placed in Kingdom Animalia according to Whittaker's classification?",
+    "options": [
+      "Heterotrophic, prokaryotic, multicellular, lacking cell walls",
+      "Heterotrophic, eukaryotic, multicellular, possessing cell walls",
+      "Heterotrophic, eukaryotic, multicellular, lacking cell walls",
+      "Autotrophic, eukaryotic, multicellular, lacking cell walls"
+    ],
+    "answer": 2,
+    "explanation": "According to the NCERT text, Kingdom Animalia is characterised by heterotrophic eukaryotic organisms that are multicellular and their cells lack cell walls."
+  },
+  {
+    "id": 2,
+    "question": "In Whittaker's five-kingdom system, which is the ONLY kingdom where all members completely lack a cell wall?",
+    "options": [
+      "Monera",
+      "Protista",
+      "Fungi",
+      "Animalia"
+    ],
+    "answer": 3,
+    "explanation": "Members of Kingdom Animalia completely lack cell walls. Monera (peptidoglycan), Fungi (chitin), and Plantae (cellulose) have cell walls, and some Protists (like diatoms and dinoflagellates) also possess them."
+  },
+  {
+    "id": 3,
+    "question": "Regarding the mode of nutrition, members of Kingdom Animalia are strictly:",
+    "options": [
+      "Autotrophic and Chemosynthetic",
+      "Heterotrophic",
+      "Mixotrophic",
+      "Saprophytic only"
+    ],
+    "answer": 1,
+    "explanation": "Animals cannot synthesize their own food. They are strictly heterotrophic, depending directly or indirectly on plants for food."
+  },
+  {
+    "id": 4,
+    "question": "How do members of Kingdom Animalia primarily store their reserve food material?",
+    "options": [
+      "As starch or cellulose",
+      "As glycogen or fat",
+      "As paramylon or laminarin",
+      "As mannitol or floridean starch"
+    ],
+    "answer": 1,
+    "explanation": "According to NCERT, animals digest their food in an internal cavity and store food reserves as glycogen or fat."
+  },
+  {
+    "id": 5,
+    "question": "The mode of nutrition in animals is described as 'holozoic'. What does this term specifically imply?",
+    "options": [
+      "Absorbing dead organic matter from the surroundings",
+      "Synthesizing food from inorganic precursors",
+      "Nutrition by ingestion of food",
+      "Digesting food entirely outside the body"
+    ],
+    "answer": 2,
+    "explanation": "The NCERT specifically defines the holozoic mode of nutrition in Kingdom Animalia as 'by ingestion of food'."
+  },
+  {
+    "id": 6,
+    "question": "Unlike fungi, which typically digest food extracellularly (outside the body), how do animals process their food?",
+    "options": [
+      "By absorbing simple sugars through their skin",
+      "By digesting food in an internal cavity",
+      "By symbiotic association with autotrophs",
+      "By secreting enzymes onto the food source before ingestion"
+    ],
+    "answer": 1,
+    "explanation": "Kingdom Animalia is characterized by digesting food in an internal cavity, distinguishing their ingestive (holozoic) nutrition from the absorptive (saprophytic) nutrition of fungi."
+  },
+  {
+    "id": 7,
+    "question": "Which of the following statements about the growth pattern in Kingdom Animalia is correct according to NCERT?",
+    "options": [
+      "They exhibit indeterminate and continuous growth throughout their lifespan.",
+      "They follow a definite growth pattern and grow into adults that have a definite shape and size.",
+      "Their growth is completely dependent on environmental temperature without genetic limitation.",
+      "They lack any definite shape and size in the adult stage."
+    ],
+    "answer": 1,
+    "explanation": "Unlike plants which often show indeterminate growth, animals follow a definite growth pattern and grow into adults that have a definite shape and size."
+  },
+  {
+    "id": 8,
+    "question": "Which characteristic is specifically highlighted in NCERT for the 'higher forms' of Kingdom Animalia?",
+    "options": [
+      "Presence of a rigid cell wall",
+      "Autotrophic mode of nutrition",
+      "Elaborate sensory and neuromotor mechanism",
+      "Asexual reproduction via spores"
+    ],
+    "answer": 2,
+    "explanation": "The NCERT states that within Kingdom Animalia, 'Higher forms show elaborate sensory and neuromotor mechanism'."
+  },
+  {
+    "id": 9,
+    "question": "Read the following statement carefully: 'All members of Kingdom Animalia are capable of locomotion.' Is this statement correct according to the NCERT text?",
+    "options": [
+      "Yes, locomotion is a defining and absolute feature of all animals.",
+      "No, the text explicitly states that 'Most of them are capable of locomotion', implying exceptions exist.",
+      "Yes, because they lack cell walls, they must move.",
+      "No, because animals are primarily sessile organisms."
+    ],
+    "answer": 1,
+    "explanation": "The NCERT uses precise language: 'Most of them are capable of locomotion'. There are sessile animals (like adult sponges), making the absolute statement 'All' incorrect."
+  },
+  {
+    "id": 10,
+    "question": "What is the specific sequence of events mentioned in NCERT for sexual reproduction in animals?",
+    "options": [
+      "Spore formation followed by germination",
+      "Plasmogamy followed by karyogamy and meiosis",
+      "Copulation of male and female followed by embryological development",
+      "Fragmentation followed by regeneration"
+    ],
+    "answer": 2,
+    "explanation": "According to the text on Kingdom Animalia: 'The sexual reproduction is by copulation of male and female followed by embryological development.'"
+  },
+  {
+    "id": 11,
+    "question": "Statement I: Animals depend on plants for food only directly.\nStatement II: Carnivores represent the indirect dependence of animals on plants.\nChoose the correct option.",
+    "options": [
+      "Both Statement I and Statement II are correct.",
+      "Both Statement I and Statement II are incorrect.",
+      "Statement I is correct but Statement II is incorrect.",
+      "Statement I is incorrect but Statement II is correct."
+    ],
+    "answer": 3,
+    "explanation": "Statement I is incorrect because NCERT states they 'directly or indirectly depend on plants for food'. Statement II is correct; eating herbivores (which eat plants) is an example of indirect dependence."
+  },
+  {
+    "id": 12,
+    "question": "Which of the following kingdoms includes organisms that have a tissue/organ/organ system level of body organization and holozoic nutrition?",
+    "options": [
+      "Protista",
+      "Fungi",
+      "Plantae",
+      "Animalia"
+    ],
+    "answer": 3,
+    "explanation": "According to Whittaker's table in Chapter 2, Kingdom Animalia is characterized by Tissue/organ/organ system body organization and heterotrophic (holozoic/saprophytic etc.) nutrition."
+  },
+  {
+    "id": 13,
+    "question": "Assertion (A): Kingdom Animalia includes strictly multicellular organisms.\nReason (R): Unicellular eukaryotic heterotrophs are placed in Kingdom Protista.",
+    "options": [
+      "Both A and R are true and R is the correct explanation of A.",
+      "Both A and R are true but R is NOT the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "explanation": "In Whittaker's system, multicellularity is a defining criterion for Animalia. Unicellular eukaryotes (like Amoeba or Paramoecium), which were historically called protozoans/animals, were moved to Kingdom Protista."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following organisms, despite being heterotrophic and lacking a cell wall in some life stages, is NOT placed in Kingdom Animalia?",
+    "options": [
+      "Sponges",
+      "Insects",
+      "Slime moulds",
+      "Fishes"
+    ],
+    "answer": 2,
+    "explanation": "Slime moulds are heterotrophic (saprophytic) and lack cell walls in their vegetative plasmodium stage, but they are unicellular/multinucleate eukaryotes and are placed in Kingdom Protista."
+  },
+  {
+    "id": 15,
+    "question": "The reserve food 'glycogen' found in Kingdom Animalia is also a common reserve food in which other kingdom?",
+    "options": [
+      "Monera",
+      "Plantae",
+      "Fungi",
+      "Protista"
+    ],
+    "answer": 2,
+    "explanation": "Fungi also store their food as glycogen (and oil), similar to animals, unlike plants which store starch."
+  },
+  {
+    "id": 16,
+    "question": "In Kingdom Animalia, digestion occurs in an 'internal cavity'. This contrasts directly with the typical mode of digestion in:",
+    "options": [
+      "Kingdom Fungi",
+      "Kingdom Plantae",
+      "Cyanobacteria",
+      "Diatoms"
+    ],
+    "answer": 0,
+    "explanation": "Fungi exhibit extracellular digestion (secreting enzymes outside the body and absorbing nutrients), while animals ingest food and digest it within an internal cavity."
+  },
+  {
+    "id": 17,
+    "question": "Which of the following pairs is correctly matched regarding Kingdom Animalia?",
+    "options": [
+      "Cell type - Prokaryotic",
+      "Cell wall - Present (cellulosic)",
+      "Nutrition mode - Holozoic",
+      "Growth - Indeterminate"
+    ],
+    "answer": 2,
+    "explanation": "Animals are eukaryotic, lack a cell wall, have a definite (determinate) growth pattern, and exhibit a holozoic mode of nutrition."
+  },
+  {
+    "id": 18,
+    "question": "If an organism is discovered that is multicellular, heterotrophic, stores food as glycogen, but absorbs nutrients from decaying matter externally through a chitinous cell wall, it belongs to:",
+    "options": [
+      "Protista",
+      "Fungi",
+      "Plantae",
+      "Animalia"
+    ],
+    "answer": 1,
+    "explanation": "The presence of a chitinous cell wall and absorptive heterotrophy clearly places it in Kingdom Fungi, not Animalia (which lacks a cell wall and has ingestive/holozoic nutrition)."
+  },
+  {
+    "id": 19,
+    "question": "Match the following based on Whittaker's five-kingdom classification:\n(P) Monera\n(Q) Protista\n(R) Plantae\n(S) Animalia\n(1) Autotrophic (photosynthetic)\n(2) Prokaryotic\n(3) Unicellular Eukaryotic\n(4) Multicellular, Holozoic",
+    "options": [
+      "P-2, Q-3, R-1, S-4",
+      "P-3, Q-2, R-1, S-4",
+      "P-2, Q-3, R-4, S-1",
+      "P-4, Q-3, R-1, S-2"
+    ],
+    "answer": 0,
+    "explanation": "Monera is prokaryotic (2), Protista is unicellular eukaryotic (3), Plantae is autotrophic (1), and Animalia is multicellular and holozoic (4)."
+  },
+  {
+    "id": 20,
+    "question": "According to the short description in NCERT Chapter 2, embryological development in animals is preceded directly by:",
+    "options": [
+      "Internal digestion",
+      "Copulation of male and female",
+      "Sensory neuromotor action",
+      "Glycogen storage"
+    ],
+    "answer": 1,
+    "explanation": "The text states: 'The sexual reproduction is by copulation of male and female followed by embryological development.'"
+  },
+  {
+    "id": 21,
+    "question": "Identify the incorrect statement regarding Kingdom Animalia.",
+    "options": [
+      "Their cells are eukaryotic and lack cell walls.",
+      "They store reserve food exclusively as starch.",
+      "They exhibit a definite growth pattern.",
+      "Higher forms have an elaborate neuromotor mechanism."
+    ],
+    "answer": 1,
+    "explanation": "Animals store food reserves as glycogen or fat, not starch. Starch is the reserve food of plants."
+  },
+  {
+    "id": 22,
+    "question": "A biologist discovers a new organism. It is eukaryotic, multicellular, and lacks a cell wall. To definitively classify it as an animal rather than a slime mould at a certain life stage, the most diagnostic feature from Chapter 2 would be:",
+    "options": [
+      "Presence of a nuclear membrane",
+      "Holozoic nutrition by ingestion into an internal cavity",
+      "Heterotrophic nature",
+      "Absence of chloroplasts"
+    ],
+    "answer": 1,
+    "explanation": "Both animals and slime moulds are heterotrophic eukaryotes lacking cell walls (slime moulds lack them in the vegetative phase). However, animals have holozoic nutrition (ingestion into an internal cavity), whereas slime moulds are saprophytic (absorptive)."
+  },
+  {
+    "id": 23,
+    "question": "Assertion (A): Not all animals possess an elaborate sensory and neuromotor mechanism.\nReason (R): NCERT specifies that only 'Higher forms' show this elaborate mechanism.",
+    "options": [
+      "Both A and R are true and R is the correct explanation of A.",
+      "Both A and R are true but R is NOT the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "explanation": "The text explicitly states 'Higher forms show elaborate sensory and neuromotor mechanism', implying lower/primitive forms (like sponges) do not possess such elaborate systems."
+  },
+  {
+    "id": 24,
+    "question": "In Whittaker's classification, how many of the five kingdoms contain organisms that are multicellular and eukaryotic?",
+    "options": [
+      "One",
+      "Two",
+      "Three",
+      "Four"
+    ],
+    "answer": 2,
+    "explanation": "Three kingdoms contain multicellular eukaryotes: Fungi, Plantae, and Animalia. Monera is prokaryotic, and Protista is strictly unicellular."
+  },
+  {
+    "id": 25,
+    "question": "The phrase 'definite shape and size' in the context of Animalia refers to:",
+    "options": [
+      "The rigid structure of animal cells provided by the plasma membrane.",
+      "The result of a definite growth pattern as they grow into adults.",
+      "The shape of their internal digestive cavity.",
+      "Their inability to exhibit any morphological variation."
+    ],
+    "answer": 1,
+    "explanation": "The text connects these concepts: 'They follow a definite growth pattern and grow into adults that have a definite shape and size.'"
+  },
+  {
+    "id": 26,
+    "question": "What serves as the equivalent in Kingdom Plantae to the 'glycogen' stored by Kingdom Animalia?",
+    "options": [
+      "Cellulose",
+      "Chitin",
+      "Starch",
+      "Laminarin"
+    ],
+    "answer": 2,
+    "explanation": "Animals store reserve food as glycogen, whereas plants (Kingdom Plantae) generally store their reserve food as starch."
+  },
+  {
+    "id": 27,
+    "question": "Which of the following is a direct consequence of the lack of a cell wall in animal cells?",
+    "options": [
+      "Inability to perform photosynthesis",
+      "Increased flexibility allowing for elaborate locomotion",
+      "Requirement for a holozoic mode of nutrition",
+      "Inability to store fat"
+    ],
+    "answer": 1,
+    "explanation": "While NCERT Chapter 2 doesn't explicitly spell out this cause-and-effect, conceptually (and in general biology), the absence of a rigid cell wall allows animal cells to be flexible, which is a prerequisite for the development of muscle tissue and elaborate locomotion."
+  },
+  {
+    "id": 28,
+    "question": "Statement I: All members of Kingdom Animalia reproduce sexually by copulation.\nStatement II: Embryological development is a feature of Kingdom Animalia.",
+    "options": [
+      "Both Statement I and Statement II are correct.",
+      "Both Statement I and Statement II are incorrect.",
+      "Statement I is correct but Statement II is incorrect.",
+      "Statement I is incorrect but Statement II is correct."
+    ],
+    "answer": 3,
+    "explanation": "Statement I is incorrect because lower animals (like sponges, hydra) can also reproduce asexually. The text states 'The sexual reproduction is by copulation...', it does not say *all* reproduction is strictly sexual. Statement II is correct."
+  },
+  {
+    "id": 29,
+    "question": "Select the option that correctly groups the nutritional modes of Fungi, Plantae, and Animalia respectively.",
+    "options": [
+      "Holozoic, Autotrophic, Saprophytic",
+      "Saprophytic, Autotrophic, Holozoic",
+      "Parasitic, Heterotrophic, Autotrophic",
+      "Autotrophic, Saprophytic, Holozoic"
+    ],
+    "answer": 1,
+    "explanation": "Fungi are primarily saprophytic (absorptive), Plantae are autotrophic (photosynthetic), and Animalia are holozoic (ingestive)."
+  },
+  {
+    "id": 30,
+    "question": "Which specific term from the text implies taking whole, solid food into the body?",
+    "options": [
+      "Heterotrophic",
+      "Saprophytic",
+      "Holozoic",
+      "Embryological"
+    ],
+    "answer": 2,
+    "explanation": "Holozoic nutrition means taking in solid or liquid food into the body through ingestion."
+  },
+  {
+    "id": 31,
+    "question": "If an organism is described as having an 'internal cavity' for digestion, it belongs to:",
+    "options": [
+      "Kingdom Fungi",
+      "Kingdom Monera",
+      "Kingdom Animalia",
+      "Kingdom Plantae"
+    ],
+    "answer": 2,
+    "explanation": "NCERT explicitly mentions for Kingdom Animalia: 'They digest their food in an internal cavity...'"
+  },
+  {
+    "id": 32,
+    "question": "Which of the following kingdoms is characterized by the absolute absence of a nuclear membrane in its members?",
+    "options": [
+      "Monera",
+      "Protista",
+      "Fungi",
+      "Animalia"
+    ],
+    "answer": 0,
+    "explanation": "Monera is the only prokaryotic kingdom, thus lacking a nuclear membrane. Animalia, being eukaryotic, has a well-defined nuclear membrane."
+  },
+  {
+    "id": 33,
+    "question": "According to Whittaker's summary table, the body organization of Kingdom Animalia is:",
+    "options": [
+      "Cellular only",
+      "Multicellular / loose tissue",
+      "Tissue / organ",
+      "Tissue / organ / organ system"
+    ],
+    "answer": 3,
+    "explanation": "In Table 2.1 of NCERT, the body organization of Animalia is listed as 'Tissue/organ/organ system'."
+  },
+  {
+    "id": 34,
+    "question": "Which of the following is NOT an exception or variation within Kingdom Animalia based on the Chapter 2 text?",
+    "options": [
+      "Some animals might not be capable of locomotion.",
+      "Some animals might not show elaborate sensory mechanisms.",
+      "Some animals might possess a cell wall.",
+      "Some animals might not be 'higher forms'."
+    ],
+    "answer": 2,
+    "explanation": "The lack of a cell wall is an absolute defining characteristic of animal cells. The text allows exceptions for locomotion ('Most of them...') and sensory mechanisms ('Higher forms show...')."
+  },
+  {
+    "id": 35,
+    "question": "Assertion (A): Animals are considered consumers in an ecosystem.\nReason (R): They depend directly or indirectly on plants for food.",
+    "options": [
+      "Both A and R are true and R is the correct explanation of A.",
+      "Both A and R are true but R is NOT the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "explanation": "Because animals cannot synthesize their own food and must depend on producers (plants) either directly (herbivores) or indirectly (carnivores), they act as consumers."
+  },
+  {
+    "id": 36,
+    "question": "Which defining feature separates Kingdom Animalia from Kingdom Plantae at the cellular level?",
+    "options": [
+      "Presence of mitochondria in Plantae only",
+      "Presence of 80S ribosomes in Animalia only",
+      "Presence of cell wall and chloroplasts in Plantae",
+      "Presence of a nuclear envelope in Animalia only"
+    ],
+    "answer": 2,
+    "explanation": "Both are eukaryotic (have mitochondria, 80S ribosomes, nuclear envelope). Plantae cells have cell walls (cellulose) and chloroplasts, which Animalia cells lack."
+  },
+  {
+    "id": 37,
+    "question": "Identify the correct sequence representing the sexual reproductive phase of animals.",
+    "options": [
+      "Embryological development -> Copulation",
+      "Copulation -> Embryological development",
+      "Meiosis -> Plasmogamy -> Karyogamy",
+      "Ingestion -> Digestion -> Assimilation"
+    ],
+    "answer": 1,
+    "explanation": "NCERT explicitly gives the sequence: 'sexual reproduction is by copulation of male and female followed by embryological development.'"
+  },
+  {
+    "id": 38,
+    "question": "The dependence of a tiger on grass is an example of:",
+    "options": [
+      "Direct dependence on plants for food",
+      "Indirect dependence on plants for food",
+      "Autotrophic nutrition",
+      "Saprophytic nutrition"
+    ],
+    "answer": 1,
+    "explanation": "A tiger eats a deer, which in turn ate grass. This perfectly illustrates the NCERT statement that animals 'indirectly depend on plants for food'."
+  },
+  {
+    "id": 39,
+    "question": "Among the five kingdoms, which one is exclusively composed of multicellular, heterotrophic eukaryotes without cell walls?",
+    "options": [
+      "Protista",
+      "Fungi",
+      "Plantae",
+      "Animalia"
+    ],
+    "answer": 3,
+    "explanation": "Animalia is the only kingdom fitting all these criteria simultaneously. Fungi have cell walls; Plantae are autotrophic; Protista are unicellular."
+  },
+  {
+    "id": 40,
+    "question": "Which of the following statements concisely summarizes the nutritional strategy of Kingdom Animalia?",
+    "options": [
+      "Extracellular digestion and absorption of nutrients.",
+      "Intracellular photosynthesis and starch storage.",
+      "Ingestion of food, internal digestion, and storage as glycogen or fat.",
+      "Chemosynthesis using inorganic substrates."
+    ],
+    "answer": 2,
+    "explanation": "This directly encapsulates the NCERT description: holozoic nutrition (ingestion), digestion in an internal cavity, and storage as glycogen or fat."
+  }
+]
