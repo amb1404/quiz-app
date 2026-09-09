@@ -8,6 +8,7 @@ let skippedQuestions = new Set();
 let timerInterval;
 let timeRemaining = 900;
 let currentChapterTitle = "General Quiz";
+let activeQuizTitle = "Quiz Active";
 let isRestoring = false;
 let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null };
 
@@ -17,7 +18,7 @@ function saveState() {
                                .find(screen => !screen.classList.contains('hidden'))?.id || 'class-select-screen';
     
     const state = {
-        activeScreenId, screenHistory, navState, currentChapterTitle, timeRemaining,
+        activeScreenId, screenHistory, navState, currentChapterTitle, activeQuizTitle, timeRemaining,
         currentQuestions, currentQuestionIndex, userAnswers,
         skippedQuestions: Array.from(skippedQuestions),
         firstName: document.getElementById('first-name') ? document.getElementById('first-name').value : "",
@@ -36,6 +37,7 @@ function restoreState() {
     screenHistory = state.screenHistory || [];
     navState = state.navState || {};
     currentChapterTitle = state.currentChapterTitle || "General Quiz";
+    activeQuizTitle = state.activeQuizTitle || "Quiz Active";
     timeRemaining = state.timeRemaining;
     currentQuestions = state.currentQuestions || [];
     currentQuestionIndex = state.currentQuestionIndex || 0;
@@ -191,6 +193,7 @@ function selectSubject(subjectName) {
         card.innerText = ch.title;
         card.onclick = async () => {
             currentChapterTitle = ch.title;
+            activeQuizTitle = ch.title; // Sets screen heading to chapter name for IX/X
             timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(ch.id);
             showScreen('name-screen');
@@ -253,6 +256,7 @@ function loadNeetTopics(chapter) {
         card.innerText = topic.name;
         card.onclick = async () => {
             currentChapterTitle = `${chapter.name} - ${topic.name}`;
+            activeQuizTitle = topic.name; // Sets screen heading to topic name for XI/XII
             timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(topic.id);
             showScreen('name-screen');
@@ -319,6 +323,12 @@ function renderQuestion() {
         document.getElementById('question-box').innerText = "No questions available.";
         document.getElementById('options-container').innerHTML = '';
         return;
+    }
+
+    // Dynamically updates heading to chapter or topic name
+    const headingEl = document.getElementById('quiz-screen-heading');
+    if (headingEl) {
+        headingEl.innerText = activeQuizTitle;
     }
 
     const q = currentQuestions[currentQuestionIndex];
