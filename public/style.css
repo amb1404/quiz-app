@@ -12,7 +12,15 @@ body {
     min-height: 100vh;
 }
 
-#home-menus, #neet-unit-menu, #neet-chapter-menu, #neet-topic-menu, #chapter-menu, #name-screen, #quiz-screen, #result-screen {
+#class-select-screen, 
+#subject-select-screen, 
+#ix-x-chapter-screen, 
+#xi-xii-unit-screen, 
+#xi-xii-chapter-screen, 
+#xi-xii-topic-screen, 
+#name-screen, 
+#quiz-screen, 
+#result-screen {
     background-color: #fffbeb;
     width: 600px;
     max-width: 90%;
@@ -25,7 +33,7 @@ body {
 /* =========================================================
    2. HEADINGS & TITLES
 ========================================================= */
-#std-category-heading {
+.screen-heading {
     color: #4285f4;       
     font-size: 22px;      
     font-weight: bold;    
@@ -37,7 +45,7 @@ body {
 }
 
 /* =========================================================
-   3. HOME SCREEN INDIVIDUAL CONTROLS (CARDS)
+   3. CARDS & MENU BUTTONS
 ========================================================= */
 .card {
     background-color: #e8f5e9; 
@@ -67,7 +75,26 @@ body {
 }
 
 /* =========================================================
-   4. OPTIONS & FORM CONTROLS
+   4. BACK BUTTONS
+========================================================= */
+.back-btn {
+    background-color: #64748b; 
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+    margin-bottom: 15px;
+}
+.back-btn:hover { 
+    background-color: #475569; 
+}
+
+/* =========================================================
+   5. OPTIONS & FORM CONTROLS
 ========================================================= */
 .option-btn {
     display: block;
@@ -88,56 +115,13 @@ body {
     border-color: #94a3b8;
 }
 
-/* Selected Option Style: Blue background with white text */
 .option-btn.selected {
     background-color: #4285f4 !important;
     color: #ffffff !important;
     border-color: #4285f4 !important;
 }
 
-/* =========================================================
-   5. BACK BUTTONS & START QUIZ BUTTON
-========================================================= */
-.back-btn, #name-back-btn {
-    background-color: #64748b; 
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px 20px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    display: inline-block;
-    margin-bottom: 15px;
-}
-.back-btn:hover, #name-back-btn:hover { 
-    background-color: #475569; 
-}
-
-/* Name Screen Specific Layout Ordering */
-#name-screen {
-    display: flex;
-    flex-direction: column;
-}
-
-#name-screen h2, 
-#name-screen h3, 
-#name-screen #std-category-heading {
-    order: 1;
-}
-
-#name-back-btn {
-    order: 2;
-    align-self: flex-start;
-}
-
-#name-screen p, 
-#name-screen label {
-    order: 3;
-}
-
 #name-screen input {
-    order: 4;
     display: block;
     width: 100%;
     padding: 14px 18px;
@@ -155,7 +139,6 @@ body {
 }
 
 #name-start-btn {
-    order: 5;
     display: block;
     width: 100%;
     max-width: 280px;
@@ -197,7 +180,7 @@ body {
 #submit-btn:hover { background-color: #dc2626; }
 
 /* =========================================================
-   7. QUIZ SCREEN & NAVIGATION BUTTONS
+   7. QUIZ SCREEN & NAVIGATION BUTTONS (3-Column Grid)
 ========================================================= */
 .nav-buttons {
     display: grid;
@@ -257,7 +240,15 @@ body {
    9. MOBILE RESPONSIVENESS
 ========================================================= */
 @media (max-width: 600px) {
-    #home-menus, #neet-unit-menu, #neet-chapter-menu, #neet-topic-menu, #chapter-menu, #name-screen, #quiz-screen, #result-screen { 
+    #class-select-screen, 
+    #subject-select-screen, 
+    #ix-x-chapter-screen, 
+    #xi-xii-unit-screen, 
+    #xi-xii-chapter-screen, 
+    #xi-xii-topic-screen, 
+    #name-screen, 
+    #quiz-screen, 
+    #result-screen { 
         width: 95%; 
         margin: 15px auto; 
         padding: 15px; 
@@ -286,7 +277,7 @@ body {
         gap: 8px;
     }
     
-    #prev-btn, #clear-btn, #next-btn, #name-back-btn, #name-start-btn { 
+    #prev-btn, #clear-btn, #next-btn { 
         font-size: 12px; 
         padding: 10px 10px; 
         width: auto; 
