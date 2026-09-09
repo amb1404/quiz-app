@@ -14,68 +14,67 @@
    2. GLOBAL PAGE SETTINGS (The entire screen)
 ========================================================= */
 body {
-    background-color: var(--bg-color); /* COLOR */
-    color: var(--text-color);          /* COLOR: Text */
-    font-family: Arial, sans-serif;    /* FONT STYLE */
-    font-size: 16px;                   /* SIZE: Base text size */
-    font-weight: normal;               /* BOLD/NORMAL */
-    font-style: normal;                /* ITALICS/NORMAL */
-    margin: 0;                         /* POSITION: Outer spacing */
-    padding: 20px;                     /* POSITION: Inner spacing */
+    background-color: var(--bg-color); 
+    color: var(--text-color);          
+    font-family: Arial, sans-serif;    
+    font-size: 16px;                   
+    font-weight: normal;               
+    font-style: normal;                
+    margin: 0;                         
+    padding: 20px;                     
 }
 
-/* Hides screens that are not currently active */
 .hidden { display: none !important; }
 
 /* =========================================================
    3. HEADINGS & TEXT (Titles on every screen)
 ========================================================= */
 h2 {
-    color: #1e293b;            /* COLOR */
-    font-size: 28px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: center;        /* POSITION: left, right, or center */
-    margin-top: 0px;           /* POSITION: Space above */
-    margin-bottom: 20px;       /* POSITION: Space below */
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    font-style: normal;        
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;       
 }
 
 h3 {
-    color: #334155;            /* COLOR */
-    font-size: 22px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: center;        /* POSITION */
-    margin-bottom: 15px;       /* POSITION */
+    color: #334155;            
+    font-size: 22px;           
+    font-weight: bold;         
+    font-style: normal;        
+    text-align: center;        
+    margin-bottom: 15px;       
 }
 
 /* =========================================================
    4. CONTAINERS (The main white boxes)
 ========================================================= */
 .screen-container {
-    background-color: var(--box-color); /* COLOR */
-    width: 80%;                         /* SIZE: Width of the box */
-    max-width: 900px;                   /* SIZE: Max width */
-    margin: 40px auto;                  /* POSITION: centers the box */
-    padding: 30px;                      /* SIZE: Space inside the box */
-    border-radius: 10px;                /* SIZE: Corner roundness */
-    border: none;                       /* COLOR/SIZE: Box border */
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.1); /* Shadow effect */
+    background-color: var(--box-color); 
+    width: 80%;                         
+    max-width: 900px;                   
+    margin: 40px auto;                  
+    padding: 30px;                      
+    border-radius: 10px;                
+    border: none;                       
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.1); 
 }
 
 /* --- SUB-CONTAINERS (For dividing Subjects and NEET on the home screen) --- */
 .category-box {
-    background-color: #f8fafc;        /* COLOR: Slightly different background to stand out */
-    border: 2px solid #e2e8f0;        /* BORDER: Creates the visible box outline */
-    border-radius: 8px;               /* SIZE: Rounded corners */
-    padding: 20px;                    /* SIZE: Space inside the box */
-    margin-bottom: 25px;              /* POSITION: Space between the two boxes */
+    background-color: #f8fafc;        
+    border: 2px solid #e2e8f0;        
+    border-radius: 8px;               
+    padding: 20px;                    
+    margin-bottom: 25px;              
 }
 
 .category-box h3 {
-    color: var(--primary-blue);       /* COLOR: Makes the subheadings pop */
-    margin-top: 0px;                  /* POSITION: Keeps the heading neat at the top of the box */
-    border-bottom: 2px solid #e2e8f0; /* BORDER: Underlines the heading */
+    color: var(--primary-blue);       
+    margin-top: 0px;                  
+    border-bottom: 2px solid #e2e8f0; 
     padding-bottom: 10px;
     margin-bottom: 20px;
 }
@@ -84,44 +83,44 @@ h3 {
    5. MENU CARDS (Subject, Unit, Chapter Selection)
 ========================================================= */
 .card {
-    background-color: #ffffff; /* COLOR */
-    color: #0f172a;            /* COLOR: Text */
-    font-size: 18px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: center;        /* POSITION */
-    width: 100%;               /* SIZE */
-    padding: 20px;             /* SIZE: Inside space */
-    margin-bottom: 15px;       /* POSITION: Space between cards */
-    border-radius: 8px;        /* SIZE: Corners */
-    border: 1px solid #cbd5e1; /* COLOR/SIZE: Border */
+    background-color: #ffffff; 
+    color: #0f172a;            
+    font-size: 18px;           
+    font-weight: bold;         
+    font-style: normal;        
+    text-align: center;        
+    width: 100%;               
+    padding: 20px;             
+    margin-bottom: 15px;       
+    border-radius: 8px;        
+    border: 1px solid #cbd5e1; 
     cursor: pointer;
     box-sizing: border-box;
 }
 .card:hover {
-    background-color: #e2e8f0;       /* HOVER COLOR */
-    border: 1px solid var(--primary-blue); /* HOVER BORDER COLOR */
-    color: var(--primary-blue);      /* HOVER TEXT COLOR */
+    background-color: #e2e8f0;       
+    border: 1px solid var(--primary-blue); 
+    color: var(--primary-blue);      
 }
 
 /* =========================================================
    6. INPUT BOXES (Name & Email)
 ========================================================= */
 input[type="text"], input[type="email"] {
-    background-color: #ffffff; /* COLOR */
-    color: #000000;            /* COLOR: Text */
-    font-size: 16px;           /* SIZE */
-    font-weight: normal;       /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    width: 100%;               /* SIZE */
-    padding: 12px;             /* SIZE: Inside space */
-    margin-bottom: 20px;       /* POSITION: Space below */
-    border: 1px solid #ccc;    /* COLOR/SIZE: Border */
-    border-radius: 5px;        /* SIZE: Corners */
+    background-color: #ffffff; 
+    color: #000000;            
+    font-size: 16px;           
+    font-weight: normal;       
+    font-style: normal;        
+    width: 100%;               
+    padding: 12px;             
+    margin-bottom: 20px;       
+    border: 1px solid #ccc;    
+    border-radius: 5px;        
     box-sizing: border-box;
 }
 input[type="text"]:focus, input[type="email"]:focus {
-    border: 2px solid var(--primary-blue); /* HOVER/FOCUS BORDER */
+    border: 2px solid var(--primary-blue); 
     outline: none;
 }
 
@@ -130,61 +129,61 @@ input[type="text"]:focus, input[type="email"]:focus {
 ========================================================= */
 .quiz-header {
     display: flex;
-    justify-content: space-between; /* POSITION: spread out */
+    justify-content: space-between; 
     align-items: center;
-    margin-bottom: 30px;            /* POSITION: space below */
+    margin-bottom: 30px;            
 }
 
 #timer-display {
-    color: #000000;            /* COLOR */
-    font-size: 16px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
+    color: #000000;            
+    font-size: 16px;           
+    font-weight: bold;         
+    font-style: normal;        
 }
 
 #counter-stats {
-    color: #475569;            /* COLOR */
-    font-size: 16px;           /* SIZE */
-    font-weight: normal;       /* BOLD/NORMAL */
-    font-style: italic;        /* ITALICS/NORMAL */
+    color: #475569;            
+    font-size: 16px;           
+    font-weight: normal;       
+    font-style: italic;        
 }
 
 /* =========================================================
    8. QUESTION & OPTIONS
 ========================================================= */
 #question-box {
-    color: #000000;            /* COLOR */
-    font-size: 22px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: left;          /* POSITION */
-    margin-bottom: 25px;       /* POSITION: space below */
+    color: #000000;            
+    font-size: 22px;           
+    font-weight: bold;         
+    font-style: normal;        
+    text-align: left;          
+    margin-bottom: 25px;       
 }
 
 .option-btn {
-    background-color: #ffffff; /* COLOR */
-    color: #1e293b;            /* COLOR: Text */
-    font-size: 18px;           /* SIZE */
-    font-weight: normal;       /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: left;          /* POSITION */
-    width: 100%;               /* SIZE */
-    padding: 15px;             /* SIZE: Inside space */
-    margin-bottom: 12px;       /* POSITION: Space between options */
-    border: 1px solid #ccc;    /* COLOR/SIZE: Border */
-    border-radius: 6px;        /* SIZE: Corners */
+    background-color: #ffffff; 
+    color: #1e293b;            
+    font-size: 18px;           
+    font-weight: normal;       
+    font-style: normal;        
+    text-align: left;          
+    width: 100%;               
+    padding: 15px;             
+    margin-bottom: 12px;       
+    border: 1px solid #ccc;    
+    border-radius: 6px;        
     cursor: pointer;
     display: block;            
 }
 .option-btn:hover {
-    background-color: #f8fafc; /* HOVER COLOR */
-    border: 1px solid #94a3b8; /* HOVER BORDER */
+    background-color: #f8fafc; 
+    border: 1px solid #94a3b8; 
 }
 .option-btn.selected {
-    background-color: #dbeafe; /* COLOR: When clicked */
-    color: #1e40af;            /* COLOR: Text when clicked */
-    font-weight: bold;         /* BOLD/NORMAL: When clicked */
-    border: 2px solid var(--primary-blue); /* COLOR/SIZE: Border when clicked */
+    background-color: #dbeafe; 
+    color: #1e40af;            
+    font-weight: bold;         
+    border: 2px solid var(--primary-blue); 
 }
 
 /* =========================================================
@@ -192,87 +191,76 @@ input[type="text"]:focus, input[type="email"]:focus {
 ========================================================= */
 .nav-buttons {
     display: flex;
-    justify-content: space-between; /* POSITION: spread left to right */
-    margin-top: 30px;               /* POSITION: space above */
+    justify-content: space-between; 
+    margin-top: 30px;               
 }
 
 /* Shared styling for ALL buttons */
 button {
     font-family: Arial, sans-serif;
-    font-size: 16px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    padding: 12px 24px;        /* SIZE: Inside space */
-    border-radius: 6px;        /* SIZE: Corners */
-    border: none;              /* COLOR/SIZE: Border */
+    font-size: 16px;           
+    font-weight: bold;         
+    font-style: normal;        
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
     cursor: pointer;
 }
 
 /* =========================================================
    10. INDIVIDUAL BUTTON CONTROLS
 ========================================================= */
-
-/* --- PREVIOUS BUTTON --- */
 #prev-btn {
-    background-color: var(--primary-blue); /* COLOR */
-    color: #ffffff;                        /* COLOR: Text */
-    margin-right: 0px;                     /* POSITION */
+    background-color: var(--primary-blue); 
+    color: #ffffff;                        
+    margin-right: 0px;                     
 }
-#prev-btn:hover {
-    background-color: #2563eb;             /* HOVER COLOR */
-}
+#prev-btn:hover { background-color: #2563eb; }
 
-/* --- NEXT BUTTON --- */
 #next-btn {
-    background-color: var(--primary-blue); /* COLOR */
-    color: #ffffff;                        /* COLOR: Text */
-    margin-left: 0px;                      /* POSITION */
+    background-color: var(--primary-blue); 
+    color: #ffffff;                        
+    margin-left: 0px;                      
 }
-#next-btn:hover {
-    background-color: #2563eb;             /* HOVER COLOR */
-}
+#next-btn:hover { background-color: #2563eb; }
 
-/* --- CLEAR RESPONSE BUTTON --- */
 #clear-btn {
-    background-color: var(--clear-grey);   /* COLOR */
-    color: #333333;                        /* COLOR: Text */
-    margin-right: auto;                    /* POSITION: Pushes button to left */
-    margin-left: 20px;                     /* POSITION: Space from Prev button */
+    background-color: var(--clear-grey);   
+    color: #333333;                        
+    margin-right: auto;                    
+    margin-left: 20px;                     
 }
 #clear-btn:hover {
-    background-color: #cbd5e1;             /* HOVER COLOR */
-    color: #000000;                        /* HOVER TEXT COLOR */
+    background-color: #cbd5e1;             
+    color: #000000;                        
 }
 
-/* --- SUBMIT QUIZ BUTTON --- */
 #submit-btn {
-    background-color: var(--danger-red);   /* COLOR */
-    color: #ffffff;                        /* COLOR: Text */
-    padding: 8px 16px;                     /* SIZE: slightly smaller for header */
+    background-color: var(--danger-red);   
+    color: #ffffff;                        
+    padding: 8px 16px;                     
 }
-#submit-btn:hover {
-    background-color: #dc2626;             /* HOVER COLOR */
-}
+#submit-btn:hover { background-color: #dc2626; }
 
 /* =========================================================
    11. RESULT SCREEN SPECIFICS
 ========================================================= */
 #final-score {
-    color: var(--primary-blue);/* COLOR */
-    font-size: 26px;           /* SIZE */
-    font-weight: bold;         /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: center;        /* POSITION */
+    color: var(--primary-blue);
+    font-size: 26px;           
+    font-weight: bold;         
+    font-style: normal;        
+    text-align: center;        
 }
 
 #final-breakdown {
-    color: #475569;            /* COLOR */
-    font-size: 16px;           /* SIZE */
-    font-weight: normal;       /* BOLD/NORMAL */
-    font-style: normal;        /* ITALICS/NORMAL */
-    text-align: center;        /* POSITION */
-    line-height: 1.5;          /* SIZE: Space between lines of text */
-    margin-bottom: 30px;       /* POSITION */
+    color: #475569;            
+    font-size: 16px;           
+    font-weight: normal;       
+    font-style: normal;        
+    text-align: center;        
+    line-height: 1.5;          
+    margin-bottom: 30px;       
 }
 
 /* =========================================================
@@ -287,4 +275,15 @@ button {
     .nav-buttons { flex-wrap: wrap; gap: 10px; }
     button { font-size: 14px; padding: 10px 16px; }
     #clear-btn { margin-left: 0; }
+}
+
+/* =========================================================
+   13. INPUT TEXT FORMATTING
+========================================================= */
+#first-name-input, #last-name-input {
+    text-transform: uppercase; 
+}
+
+#email-input {
+    text-transform: lowercase; 
 }
