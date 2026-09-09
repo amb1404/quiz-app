@@ -1,6 +1,3 @@
-// Paste your deployed Google Apps Script Web App URL here
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgDEIOelMhonY07Gnha9ZA6inVSSnUXXEiXRv1egipUlkKad29jcrtETJ8sTorzZDQ6A/exec';
-
 let screenHistory = [];
 let neetData = [];
 let quizData = [];
@@ -478,24 +475,15 @@ async function submitQuiz() {
             breakdown: breakdownHtml
         };
 
-        // 1. Send data to Google Apps Script Web App for email delivery
-        if (GOOGLE_SCRIPT_URL && !GOOGLE_SCRIPT_URL.includes('PASTE_YOUR')) {
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            }).catch(err => console.error("Apps Script fetch error:", err));
-        }
-
-        // 2. Save local backup to server
-        fetch('/api/submit', {
+        // Send payload exclusively to your secure backend endpoint
+        await fetch('/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-        }).catch(err => console.error("Local backup error:", err));
+        });
 
     } catch (error) {
-        console.error("Critical parsing error during submit:", error);
+        console.error("Critical submission error:", error);
     } finally {
         if (submitBtn) {
             submitBtn.innerText = "Submit Quiz";
@@ -510,7 +498,7 @@ async function submitQuiz() {
                 <div style="text-align: center; margin-top: 20px;">
                     <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
                     <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${correctCount} / ${currentQuestions.length}</h1>
-                    <p style="font-size: 16px; color: #64748b;">Response recorded and sent successfully.</p>
+                    <p style="font-size: 16px; color: #64748b;">Response recorded successfully.</p>
                 </div>
             `;
             showScreen('result-screen');
