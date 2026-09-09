@@ -109,7 +109,7 @@ app.post('/api/submit', async (req, res) => {
         const correctChoice = `${letters[correctIdx]}. ${q.options[correctIdx]}`;
 
         detailedBreakdown += `<b>Q${idx + 1}: ${q.question}</b><br><br>`;
-        detailedBreakdown += `<span style="background-color: lightyellow; padding: 4px; font-weight: bold;">Status: ${status}</span><br><br>`;
+        detailedBreakdown += `<span style="background-color: yellow; padding: 4px; font-weight: bold;">Status: ${status}</span><br><br>`;
         detailedBreakdown += `<b>Student's Answer:</b> ${userChoice}<br>`;
         detailedBreakdown += `<b>Correct Answer:</b> ${correctChoice}<br>`;
         if (q.explanation) {
