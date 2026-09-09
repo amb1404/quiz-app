@@ -1,22 +1,140 @@
 let screenHistory = [];
-let neetData = {};
-let quizData = {};
-let currentQuestions = [];
-let currentQuestionIndex = 0;
-let userAnswers = {};
 
-// Fetch JSON data files on page initialization
+// Fallback data structure so everything renders instantly even without external JSON files
+let neetData = {
+    "XI": {
+        "units": [
+            {
+                "name": "Diversity in the Living World",
+                "chapters": [
+                    {
+                        "name": "Biological Classification",
+                        "topics": ["Protista", "Plantae", "Animalia", "Fungi", "Combined"]
+                    }
+                ]
+            },
+            {
+                "name": "Structural Organisation in Plants and Animals",
+                "chapters": [
+                    {
+                        "name": "Morphology of Flowering Plants",
+                        "topics": ["Root", "Stem", "Leaf", "Inflorescence"]
+                    }
+                ]
+            },
+            {
+                "name": "Cell: Structure and Function",
+                "chapters": [
+                    {
+                        "name": "Cell The Unit of Life",
+                        "topics": ["Prokaryotic", "Eukaryotic", "Organelles"]
+                    }
+                ]
+            },
+            {
+                "name": "Plant Physiology",
+                "chapters": [
+                    {
+                        "name": "Photosynthesis",
+                        "topics": ["Light Reaction", "Dark Reaction", "C4 Pathway"]
+                    }
+                ]
+            },
+            {
+                "name": "Human Physiology",
+                "chapters": [
+                    {
+                        "name": "Digestion and Absorption",
+                        "topics": ["Alimentary Canal", "Digestive Glands", "Disorders"]
+                    }
+                ]
+            }
+        ]
+    },
+    "XII": {
+        "units": [
+            {
+                "name": "Reproduction",
+                "chapters": [
+                    {
+                        "name": "Sexual Reproduction in Flowering Plants",
+                        "topics": ["Pre-fertilization", "Fertilization", "Post-fertilization"]
+                    }
+                ]
+            },
+            {
+                "name": "Genetics and Evolution",
+                "chapters": [
+                    {
+                        "name": "Principles of Inheritance and Variation",
+                        "topics": ["Mendel's Laws", "Linkage", "Disorders"]
+                    }
+                ]
+            },
+            {
+                "name": "Biology in Human Welfare",
+                "chapters": [
+                    {
+                        "name": "Human Health and Disease",
+                        "topics": ["Pathogens", "Immunity", "AIDS and Cancer"]
+                    }
+                ]
+            },
+            {
+                "name": "Biotechnology",
+                "chapters": [
+                    {
+                        "name": "Biotechnology Principles and Processes",
+                        "topics": ["Recombinant DNA", "Processes of rDNA"]
+                    }
+                ]
+            },
+            {
+                "name": "Ecology",
+                "chapters": [
+                    {
+                        "name": "Organisms and Populations",
+                        "topics": ["Population Attributes", "Interactions"]
+                    }
+                ]
+            }
+        ]
+    }
+};
+
+let quizData = {
+    "Protista": [
+        { question: "Which of the following organisms are known as chief producers in the oceans?", options: ["Dinoflagellates", "Diatoms", "Euglenoids", "Slime moulds"], answer: 1 },
+        { question: "Chrysophytes include:", options: ["Diatoms and golden algae", "Desmids and diatoms", "Both 1 and 2", "Slime moulds and protozoans"], answer: 2 }
+    ],
+    "Plantae": [
+        { question: "The algal components of lichen is known as:", options: ["Phycobiont", "Mycobiont", "Bacteriobiont", "Symbiont"], answer: 0 }
+    ],
+    "Physics": [
+        { name: "Chapter-1", questions: [{ question: "What is the SI unit of force?", options: ["Joule", "Newton", "Pascal", "Watt"], answer: 1 }] },
+        { name: "Chapter-2", questions: [{ question: "Work done is equal to:", options: ["F x s", "m x g x h", "1/2 mv^2", "None of these"], answer: 0 }] }
+    ]
+};
+
+// Attempt to load external files if hosted via a server, otherwise fallback data takes over
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const neetResponse = await fetch('neet.json');
-        neetData = await neetResponse.json();
-
+        if (neetResponse.ok) {
+            neetData = await neetResponse.json();
+        }
         const quizResponse = await fetch('quizzes.json');
-        quizData = await quizResponse.json();
+        if (quizResponse.ok) {
+            quizData = await quizResponse.json();
+        }
     } catch (error) {
-        console.error('Error loading JSON configuration files:', error);
+        console.log("Using built-in fallback configurations (Running locally).");
     }
 });
+
+let currentQuestions = [];
+let currentQuestionIndex = 0;
+let userAnswers = {};
 
 function showScreen(screenId) {
     const screens = document.querySelectorAll('body > div');
@@ -107,7 +225,9 @@ function loadNeetTopics(chapter) {
         card.className = 'card';
         card.innerText = topic;
         card.onclick = () => {
-            currentQuestions = quizData[topic] || [];
+            currentQuestions = quizData[topic] || [
+                { question: `Sample question for ${topic}`, options: ["Option A", "Option B", "Option C", "Option D"], answer: 0 }
+            ];
             showScreen('name-screen');
         };
         container.appendChild(card);
@@ -123,11 +243,11 @@ function selectSubject(subjectName) {
     container.innerHTML = '';
 
     const chapters = quizData[subjectName] || [
-        { name: "Chapter-1", questions: [] },
-        { name: "Chapter-2", questions: [] },
-        { name: "Chapter-3", questions: [] },
-        { name: "Chapter-4", questions: [] },
-        { name: "Chapter-5", questions: [] }
+        { name: "Chapter-1", questions: [{ question: "Sample IX/X Question 1", options: ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], answer: 0 }] },
+        { name: "Chapter-2", questions: [{ question: "Sample IX/X Question 2", options: ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], answer: 0 }] },
+        { name: "Chapter-3", questions: [{ question: "Sample IX/X Question 3", options: ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], answer: 0 }] },
+        { name: "Chapter-4", questions: [{ question: "Sample IX/X Question 4", options: ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], answer: 0 }] },
+        { name: "Chapter-5", questions: [{ question: "Sample IX/X Question 5", options: ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], answer: 0 }] }
     ];
 
     chapters.forEach(ch => {
