@@ -136,7 +136,7 @@ body {
 }
 
 #std-category-heading {
-    color: deepred;       
+    color: red;       
     font-size: 22px;
     font-weight: bold;
     text-align: center;
@@ -155,7 +155,7 @@ body {
 }
 
 #neet-category-heading {
-    color: deepred;       
+    color: red;       
     font-size: 22px;
     font-weight: bold;
     text-align: center;
