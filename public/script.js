@@ -63,12 +63,15 @@ function getCurrentScreen() {
 }
 
 function persistState() {
-    const fNameInput = document.getElementById('first-name-input');
-    if(fNameInput) studentFirstName = fNameInput.value.trim();
-    const lNameInput = document.getElementById('last-name-input');
-    if(lNameInput) studentLastName = lNameInput.value.trim();
-    const emailInput = document.getElementById('email-input');
-    if(emailInput) studentEmail = emailInput.value.trim();
+    // Only scrape the input boxes if the user is actually on the name screen
+    if (getCurrentScreen() === 'name-screen') {
+        const fNameInput = document.getElementById('first-name-input');
+        if(fNameInput) studentFirstName = fNameInput.value.trim();
+        const lNameInput = document.getElementById('last-name-input');
+        if(lNameInput) studentLastName = lNameInput.value.trim();
+        const emailInput = document.getElementById('email-input');
+        if(emailInput) studentEmail = emailInput.value.trim();
+    }
 
     const state = {
         activeScreen: getCurrentScreen(),
@@ -123,12 +126,14 @@ function restoreState() {
         hideAllScreens(); // Hide everything again to ensure only the active screen shows
         document.getElementById(active).classList.remove('hidden');
         
+        // Always restore the input boxes so they are never blank after a refresh
+        document.getElementById('first-name-input').value = studentFirstName || '';
+        document.getElementById('last-name-input').value = studentLastName || '';
+        document.getElementById('email-input').value = studentEmail || '';
+
         // Restore specific screen UI values
         if (active === 'name-screen') {
             document.getElementById('selected-chapter-title').innerText = `Title: ${currentChapterTitleText}`;
-            document.getElementById('first-name-input').value = studentFirstName;
-            document.getElementById('last-name-input').value = studentLastName;
-            document.getElementById('email-input').value = studentEmail;
         } else if (active === 'quiz-screen') {
             document.getElementById('current-chapter-heading').innerText = currentChapterTitleText;
             startQuiz(); 
