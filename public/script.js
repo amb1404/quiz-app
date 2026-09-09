@@ -7,16 +7,16 @@ let userAnswers = {};
 let timerInterval;
 let timeRemaining = 900; // Default 15 minutes (900 seconds)
 
-// Fetch configuration files using the backend API and static folder
+// Fetch configuration files using the backend API
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Fetched directly from the 'public' static folder
-        const neetResponse = await fetch('/neet.json');
+        // Fetched from your updated server.js API for NEET data
+        const neetResponse = await fetch('/api/neet');
         if (neetResponse.ok) {
             neetData = await neetResponse.json();
         }
 
-        // Fetched from your server.js API[cite: 2]
+        // Fetched from your updated server.js API for Quizzes data
         const quizResponse = await fetch('/api/quizzes');
         if (quizResponse.ok) {
             quizData = await quizResponse.json();
@@ -71,6 +71,7 @@ function selectClass(className) {
     }
 }
 
+// Loads chapters for IX & X from quizzes.json
 function selectSubject(subjectName) {
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
@@ -100,6 +101,7 @@ function selectSubject(subjectName) {
     showScreen('ix-x-chapter-screen');
 }
 
+// Loads Units for XI & XII from neet.json
 function loadNeetUnits(className) {
     const container = document.getElementById('xi-xii-unit-container');
     if (!container) return;
@@ -117,6 +119,7 @@ function loadNeetUnits(className) {
     });
 }
 
+// Loads Chapters inside a selected Unit for XI & XII
 function loadNeetChapters(classObj, unitName) {
     const unit = classObj.units.find(u => u.name === unitName);
     const container = document.getElementById('xi-xii-chapter-container');
@@ -134,6 +137,7 @@ function loadNeetChapters(classObj, unitName) {
     showScreen('xi-xii-chapter-screen');
 }
 
+// Loads Topics inside a selected Chapter for XI & XII
 function loadNeetTopics(chapter) {
     const container = document.getElementById('xi-xii-topic-container');
     if (!container) return;
@@ -160,7 +164,7 @@ function loadNeetTopics(chapter) {
     showScreen('xi-xii-topic-screen');
 }
 
-// Calls your backend server.js memory cache via API[cite: 2]
+// Calls your backend server.js via API to fetch the specific questions file dynamically
 async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
@@ -168,7 +172,7 @@ async function fetchQuestionsFile(fileId) {
         if (response.ok) {
             return await response.json();
         } else {
-            console.error(`Could not find quiz for ID: ${fileId} in backend cache.`);
+            console.error(`Could not find quiz for ID: ${fileId} in backend.`);
             return [];
         }
     } catch (error) {
@@ -177,6 +181,7 @@ async function fetchQuestionsFile(fileId) {
     }
 }
 
+// Timer Logic
 function startTimer() {
     clearInterval(timerInterval);
     const timeDisplay = document.getElementById('time-left');
@@ -184,7 +189,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if (timeRemaining <= 0) {
             clearInterval(timerInterval);
-            submitQuiz(); // Auto submit when time runs out
+            submitQuiz(); // Auto-submit when time runs out
             return;
         }
         timeRemaining--;
@@ -272,7 +277,7 @@ function updateQuizStats() {
     }
 }
 
-// Submits the result payload to the backend server.js[cite: 2]
+// Submits the result payload to the backend server.js
 async function submitQuiz() {
     clearInterval(timerInterval);
     
