@@ -9,7 +9,7 @@
 <body>
 
     <!-- 1. HOME MENUS -->
-    <div id="home-menus" class="screen-container">
+    <div id="home-menus" class="hidden">
         <h2 id="home-main-heading">Select Category</h2>
         
         <!-- Box 1: Regular Subjects -->
@@ -26,35 +26,35 @@
     </div>
 
     <!-- 2. NEET UNIT MENU -->
-    <div id="neet-unit-menu" class="screen-container hidden">
+    <div id="neet-unit-menu" class="hidden">
         <h2 id="selected-neet-class-title"></h2>
         <button id="neet-unit-back-btn" onclick="backToHomeMenus()">Back</button>
         <div id="neet-unit-list"></div>
     </div>
 
     <!-- 3. NEET CHAPTER MENU -->
-    <div id="neet-chapter-menu" class="screen-container hidden">
+    <div id="neet-chapter-menu" class="hidden">
         <h2 id="selected-neet-unit-title"></h2>
         <button id="neet-chapter-back-btn" onclick="backToNeetUnits()">Back</button>
         <div id="neet-chapter-list"></div>
     </div>
 
     <!-- 4. NEET TOPIC MENU -->
-    <div id="neet-topic-menu" class="screen-container hidden">
+    <div id="neet-topic-menu" class="hidden">
         <h2 id="selected-neet-chapter-title"></h2>
         <button id="neet-topic-back-btn" onclick="backToNeetChapters()">Back</button>
         <div id="neet-topic-list"></div>
     </div>
 
     <!-- 5. SUBJECT CHAPTER MENU -->
-    <div id="chapter-menu" class="screen-container hidden">
+    <div id="chapter-menu" class="hidden">
         <h2 id="selected-subject-title"></h2>
         <button id="chapter-back-btn" onclick="backToSubjects()">Back</button>
         <div id="chapter-list"></div>
     </div>
 
     <!-- 6. STUDENT DETAILS SCREEN -->
-    <div id="name-screen" class="screen-container hidden">
+    <div id="name-screen" class="hidden">
         <h2 id="selected-chapter-title"></h2>
         <h3 id="name-screen-instructions">Enter Details</h3>
         <input type="text" id="first-name-input" placeholder="First Name">
@@ -65,7 +65,7 @@
     </div>
 
     <!-- 7. ACTIVE QUIZ SCREEN -->
-    <div id="quiz-screen" class="screen-container hidden">
+    <div id="quiz-screen" class="hidden">
         <h2 id="current-chapter-heading"></h2>
         
         <div class="quiz-header">
@@ -85,7 +85,7 @@
     </div>
 
     <!-- 8. RESULT SCREEN -->
-    <div id="result-screen" class="screen-container hidden">
+    <div id="result-screen" class="hidden">
         <h2 id="result-success-heading">Quiz Submitted Successfully!</h2>
         <h3 id="final-score"></h3>
         <p id="final-breakdown"></p>
