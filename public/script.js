@@ -1,56 +1,127 @@
 let screenHistory = [];
-let neetData = {};
-let quizData = {};
+let neetData = [];
+let quizData = [];
 let currentQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
 
-// Fallback data structures in case JSON files are loading locally via file:// protocol
-let fallbackNeetData = {
-    "XI": {
+// Fallback data matching your exact array-based structures for both neet.json and quizzes.json
+let fallbackNeetData = [
+    {
+        "name": "Class XI",
         "units": [
             {
                 "name": "Diversity in the Living World",
                 "chapters": [
                     {
                         "name": "Biological Classification",
-                        "topics": ["Protista", "Plantae", "Animalia"]
+                        "topics": [
+                            { "id": "cb2", "name": "COMBINED", "duration": 3000 },
+                            { "id": "prt", "name": "PROTISTA", "duration": 3000 },
+                            { "id": "plant", "name": "PLANTAE", "duration": 3000 }
+                        ]
                     }
                 ]
             }
         ]
     },
-    "XII": {
+    {
+        "name": "Class XII",
         "units": [
             {
-                "name": "Reproduction",
+                "name": "Genetics and Evolution",
                 "chapters": [
                     {
-                        "name": "Sexual Reproduction in Flowering Plants",
-                        "topics": ["Pre-fertilization", "Fertilization"]
+                        "name": "Molecular Basis of Inheritance",
+                        "topics": [
+                            { "id": "combined", "name": "COMBINED", "duration": 3000 }
+                        ]
                     }
                 ]
             }
         ]
     }
-};
+];
 
-let fallbackQuizData = {
-    "Physics": [
-        { name: "Chapter-1: Motion", questions: [{ question: "What is acceleration?", options: ["Rate of change of velocity", "Distance/Time", "Speed x Time", "Force x Mass"], answer: 0 }] }
-    ],
-    "Chemistry": [
-        { name: "Chapter-1: Atomic Structure", questions: [{ question: "Who discovered the electron?", options: ["J.J. Thomson", "Rutherford", "Bohr", "Chadwick"], answer: 0 }] }
-    ],
-    "Biology": [
-        { name: "Chapter-1: Cell", questions: [{ question: "Who coined the term cell?", options: ["Robert Hooke", "Leeuwenhoek", "Schwann", "Virchow"], answer: 0 }] }
-    ],
-    "Protista": [
-        { question: "Which organisms are primary producers in oceans?", options: ["Diatoms", "Fungi", "Viruses", "Bacteria"], answer: 0 }
-    ]
-};
+let fallbackQuizData = [
+    {
+        "subject": "Physics",
+        "chapters": [
+            { 
+                "id": "machine", 
+                "title": "Machines", 
+                "duration": 900, 
+                "questions": [{ question: "What is mechanical advantage?", options: ["Load/Effort", "Effort/Load", "Work/Time", "None"], answer: 0 }] 
+            },
+            { 
+                "id": "energy", 
+                "title": "Work Energy Power", 
+                "duration": 950, 
+                "questions": [{ question: "Work done is equal to:", options: ["F x s", "mgh", "1/2 mv^2", "All of these"], answer: 3 }] 
+            },
+            { 
+                "id": "force", 
+                "title": "Force", 
+                "duration": 900, 
+                "questions": [{ question: "Moment of force depends on:", options: ["Magnitude of force", "Perpendicular distance", "Both", "None"], answer: 2 }] 
+            }
+        ]
+    },
+    {
+        "subject": "Chemistry",
+        "chapters": [
+            { 
+                "id": "bonding", 
+                "title": "Chemical Bonding", 
+                "duration": 900, 
+                "questions": [{ question: "Electrovalent bond is formed by:", options: ["Sharing of electrons", "Transfer of electrons", "Delocalized electrons", "None"], answer: 1 }] 
+            },
+            { 
+                "id": "HCl", 
+                "title": "HCl", 
+                "duration": 900, 
+                "questions": [{ question: "Hydrogen chloride gas is prepared in the lab by reacting sodium chloride with:", options: ["Conc. H2SO4", "Dil. HCl", "Conc. HNO3", "Water"], answer: 0 }] 
+            },
+            { 
+                "id": "analytical", 
+                "title": "Analytical", 
+                "duration": 900, 
+                "questions": [{ question: "Action of ammonium hydroxide on calcium salt gives:", options: ["White ppt", "No ppt", "Blue ppt", "Green ppt"], answer: 1 }] 
+            }
+        ]
+    },
+    {
+        "subject": "Biology",
+        "chapters": [
+            { 
+                "id": "nervous", 
+                "title": "Nervous System", 
+                "duration": 900, 
+                "questions": [{ question: "The functional unit of the nervous system is:", options: ["Nephron", "Neuron", "Axon", "Dendrite"], answer: 1 }] 
+            },
+            { 
+                "id": "genetics", 
+                "title": "Genetics", 
+                "duration": 900, 
+                "questions": [{ question: "Who is known as the father of genetics?", options: ["Darwin", "Mendel", "Lamarck", "Watson"], answer: 1 }] 
+            },
+            { 
+                "id": "excretory", 
+                "title": "Excretory System", 
+                "duration": 900, 
+                "questions": [{ question: "The structural and functional unit of the kidney is:", options: ["Neuron", "Nephron", "Alveoli", "Ureter"], answer: 1 }] 
+            },
+            { 
+                "id": "circulation", 
+                "title": "Circulatory System", 
+                "duration": 900, 
+                "questions": [{ question: "Which blood vessel carries oxygenated blood?", options: ["Pulmonary artery", "Pulmonary vein", "Vena cava", "Right ventricle"], answer: 1 }] 
+            }
+        ]
+    }
+];
 
-// Fetch configuration files on initialization
+// Fetch configuration files automatically on initialization
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const neetResponse = await fetch('neet.json');
@@ -109,7 +180,6 @@ function goHome() {
     document.getElementById('class-select-screen').classList.remove('hidden');
 }
 
-// Class selection handler[cite: 1]
 function selectClass(className) {
     if (className === 'IX' || className === 'X') {
         showScreen('subject-select-screen');
@@ -119,24 +189,30 @@ function selectClass(className) {
     }
 }
 
-// Controlled entirely by quizzes.json for Class IX & X chapters
+// Automatically pulls chapters for Class IX and X from the array-based quizzes.json structure
 function selectSubject(subjectName) {
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
     container.innerHTML = '';
 
-    const chapters = quizData[subjectName] || [];
+    const sourceQuizData = Array.isArray(quizData) && quizData.length > 0 ? quizData : fallbackQuizData;
+    const subjectObj = sourceQuizData.find(s => s.subject.toLowerCase() === subjectName.toLowerCase());
+    const chapters = subjectObj ? subjectObj.chapters : [];
 
     if (chapters.length === 0) {
         container.innerHTML = `<p style="text-align:center; color:#64748b;">No chapters found in quizzes.json for ${subjectName}</p>`;
+        showScreen('ix-x-chapter-screen');
+        return;
     }
 
     chapters.forEach(ch => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerText = ch.name;
+        card.innerText = ch.title;
         card.onclick = () => {
-            currentQuestions = ch.questions || [];
+            currentQuestions = ch.questions || [
+                { question: `Sample question for ${ch.title}`, options: ["Option A", "Option B", "Option C", "Option D"], answer: 0 }
+            ];
             showScreen('name-screen');
         };
         container.appendChild(card);
@@ -145,27 +221,27 @@ function selectSubject(subjectName) {
     showScreen('ix-x-chapter-screen');
 }
 
-// Controlled entirely by neet.json for Class XI & XII units
+// Automatically pulls units for Class XI and XII from neet.json
 function loadNeetUnits(className) {
     const container = document.getElementById('xi-xii-unit-container');
-    const sourceData = neetData[className] || fallbackNeetData[className];
-    if (!container || !sourceData) return;
+    const sourceNeetData = Array.isArray(neetData) && neetData.length > 0 ? neetData : fallbackNeetData;
+    if (!container) return;
     container.innerHTML = '';
     
-    sourceData.units.forEach(unit => {
+    const targetClassObj = sourceNeetData.find(c => c.name.toLowerCase().includes(className.toLowerCase()));
+    if (!targetClassObj || !targetClassObj.units) return;
+
+    targetClassObj.units.forEach(unit => {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerText = unit.name;
-        card.onclick = () => loadNeetChapters(className, unit.name);
+        card.onclick = () => loadNeetChapters(targetClassObj, unit.name);
         container.appendChild(card);
     });
 }
 
-// Controlled entirely by neet.json for Class XI & XII chapters
-function loadNeetChapters(className, unitName) {
-    const sourceData = neetData[className] || fallbackNeetData[className];
-    if (!sourceData) return;
-    const unit = sourceData.units.find(u => u.name === unitName);
+function loadNeetChapters(classObj, unitName) {
+    const unit = classObj.units.find(u => u.name === unitName);
     const container = document.getElementById('xi-xii-chapter-container');
     if (!container || !unit) return;
     container.innerHTML = '';
@@ -181,20 +257,25 @@ function loadNeetChapters(className, unitName) {
     showScreen('xi-xii-chapter-screen');
 }
 
-// Controlled entirely by neet.json for Class XI & XII topics
 function loadNeetTopics(chapter) {
     const container = document.getElementById('xi-xii-topic-container');
     if (!container) return;
     container.innerHTML = '';
 
-    chapter.topics.forEach(topic => {
+    const validTopics = chapter.topics.filter(t => t.name && t.name.trim() !== "");
+
+    if (validTopics.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#64748b;">No topics available for this chapter.</p>`;
+    }
+
+    validTopics.forEach(topic => {
         const card = document.createElement('div');
         card.className = 'card';
-        card.innerText = topic;
+        card.innerText = topic.name;
         card.onclick = () => {
-            // Questions mapped from quizzes.json based on the topic name
-            currentQuestions = quizData[topic] || [
-                { question: `Sample question for topic: ${topic}`, options: ["Option A", "Option B", "Option C", "Option D"], answer: 0 }
+            // Check if questions are stored in quizData dictionary or fallback
+            currentQuestions = (quizData && quizData[topic.name]) || (quizData && quizData[topic.id]) || [
+                { question: `Sample question for topic: ${topic.name}`, options: ["Option A", "Option B", "Option C", "Option D"], answer: 0 }
             ];
             showScreen('name-screen');
         };
