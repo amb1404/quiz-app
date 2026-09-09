@@ -182,11 +182,6 @@ body {
     border: 1px solid #4285f4; 
     color: #4285f4;      
 }
-.card:hover {
-    background-color: #e2e8f0;       
-    border: 1px solid #4285f4; 
-    color: #4285f4;      
-}
 
 /* --- PASTE YOUR NEW .card p BLOCK RIGHT HERE --- */
 .card p {
