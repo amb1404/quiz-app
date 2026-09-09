@@ -26,7 +26,7 @@
               { "id": "cb2", "name": "COMBINED", "duration": 3000 },
               { "id": "prt", "name": "PROTISTA", "duration": 3000 },
               { "id": "plant", "name": "PLANTAE", "duration": 3000 },
-              { "id": "", "name": "", "duration": 300 },
+              { "id": "animalia", "name": "ANIMALIA", "duration": 3000 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
