@@ -43,19 +43,19 @@
     "name": "Class XII",
     "chapters": [
       {
-        "name": "Reproduction",
+        "name": "Genetics",
         "topics": [
           {
-            "name": "Human Reproduction",
+            "name": "Molecular basis of inheritance",
             "subtopics": [
               {
-                "id": "neet-bio-xii-rep-male",
-                "name": "Male Reproductive System",
+                "id": "ctdgma",
+                "name": "Cental Dogma",
                 "duration": 300
               },
               {
-                "id": "neet-bio-xii-rep-female",
-                "name": "Female Reproductive System",
+                "id": "expr",
+                "name": "Experimetns",
                 "duration": 300
               }
             ]
