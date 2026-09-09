@@ -1,5 +1,5 @@
 // Paste your Google Apps Script Web App Deployment URL below
-const GOOGLE_SCRIPT_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgDEIOelMhonY07Gnha9ZA6inVSSnUXXEiXRv1egipUlkKad29jcrtETJ8sTorzZDQ6A/exec';
 
 let screenHistory = [];
 let neetData = [];
