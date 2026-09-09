@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "question": "Which of the following organisms are included in the kingdom Protista?",
+    "options": [
+      "All unicellular prokaryotes",
+      "All multicellular eukaryotes",
+      "All single-celled eukaryotes",
+      "Only unicellular fungi and algae"
+    ],
+    "answer": 2,
+    "explanation": "According to Whittaker's Five Kingdom Classification, all single-celled eukaryotes are placed under the kingdom Protista."
+  },
+  {
+    "id": 2,
+    "question": "The boundaries of which of the following kingdoms are not well-defined, leading to the statement 'What may be a photosynthetic organism to one biologist may be a plant to another'?",
+    "options": [
+      "Monera",
+      "Fungi",
+      "Protista",
+      "Plantae"
+    ],
+    "answer": 2,
+    "explanation": "The boundaries of the kingdom Protista are not well-defined because it includes diverse organisms that form a link with plants, animals, and fungi. Thus, a photosynthetic protist might be considered a plant by some biologists."
+  },
+  {
+    "id": 3,
+    "question": "Members of the kingdom Protista are primarily:",
+    "options": [
+      "Terrestrial",
+      "Aquatic",
+      "Arboreal",
+      "Aerial"
+    ],
+    "answer": 1,
+    "explanation": "Members of Protista are primarily aquatic, living in fresh water, marine environments, or moist soil."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following groups are included under the kingdom Protista in the NCERT classification?",
+    "options": [
+      "Chrysophytes, Dinoflagellates, Euglenoids, Slime moulds, and Protozoans",
+      "Cyanobacteria, Diatoms, Desmids, and Archaebacteria",
+      "Amoeba, Paramoecium, Yeast, and Chlamydomonas",
+      "Ascomycetes, Basidiomycetes, and Phycomycetes"
+    ],
+    "answer": 0,
+    "explanation": "Kingdom Protista includes Chrysophytes, Dinoflagellates, Euglenoids, Slime moulds, and Protozoans."
+  },
+  {
+    "id": 5,
+    "question": "The group Chrysophytes includes which of the following organisms?",
+    "options": [
+      "Dinoflagellates and Euglenoids",
+      "Diatoms and golden algae (desmids)",
+      "Slime moulds and protozoans",
+      "Cyanobacteria and mycoplasma"
+    ],
+    "answer": 1,
+    "explanation": "The group Chrysophytes includes diatoms and golden algae, which are also known as desmids."
+  },
+  {
+    "id": 6,
+    "question": "Which of the following characteristics accurately describes the movement of Chrysophytes in water?",
+    "options": [
+      "They swim actively using multiple flagella",
+      "They move using pseudopodia",
+      "They float passively in water currents (plankton)",
+      "They remain firmly attached to the substratum"
+    ],
+    "answer": 2,
+    "explanation": "Chrysophytes are microscopic and float passively in water currents, making them a major component of plankton."
+  },
+  {
+    "id": 7,
+    "question": "In diatoms, the cell walls form two thin overlapping shells that fit together as in a:",
+    "options": [
+      "Puzzle box",
+      "Soap box",
+      "Jewelry box",
+      "Shoe box"
+    ],
+    "answer": 1,
+    "explanation": "In diatoms, the cell walls form two thin overlapping shells, which fit together as in a soap box (epitheca over hypotheca)."
+  },
+  {
+    "id": 8,
+    "question": "The cell walls of diatoms are indestructible because they are embedded with:",
+    "options": [
+      "Calcium carbonate",
+      "Chitin",
+      "Silica",
+      "Cellulose and pectin"
+    ],
+    "answer": 2,
+    "explanation": "The walls of diatoms are embedded with silica, making them virtually indestructible."
+  },
+  {
+    "id": 9,
+    "question": "What is 'diatomaceous earth' primarily composed of?",
+    "options": [
+      "Accumulation of the spores of slime moulds",
+      "Fossilized remains of dinoflagellates",
+      "Accumulated cell wall deposits of diatoms over billions of years",
+      "Calcium carbonate deposits from marine protozoans"
+    ],
+    "answer": 2,
+    "explanation": "Diatoms leave behind large amounts of cell wall deposits in their habitat. This accumulation over billions of years is referred to as 'diatomaceous earth'."
+  },
+  {
+    "id": 10,
+    "question": "Because of its gritty nature, diatomaceous earth is used commercially in:",
+    "options": [
+      "Polishing, and filtration of oils and syrups",
+      "Making antibiotics and vaccines",
+      "Manufacturing synthetic fibers",
+      "Production of biogas"
+    ],
+    "answer": 0,
+    "explanation": "Being gritty, the soil of diatomaceous earth is highly useful in polishing, and in the filtration of oils and syrups."
+  },
+  {
+    "id": 11,
+    "question": "Which organisms are recognized as the 'chief producers' in the oceans?",
+    "options": [
+      "Dinoflagellates",
+      "Diatoms",
+      "Cyanobacteria",
+      "Red algae"
+    ],
+    "answer": 1,
+    "explanation": "Diatoms are the primary photosynthetic organisms in marine environments, earning them the title of 'chief producers in the oceans'."
+  },
+  {
+    "id": 12,
+    "question": "Most dinoflagellates are characterized by which of the following features?",
+    "options": [
+      "They are mostly freshwater and saprophytic",
+      "They are mostly marine and photosynthetic",
+      "They are entirely parasitic and lack a cell wall",
+      "They are terrestrial and chemosynthetic"
+    ],
+    "answer": 1,
+    "explanation": "Dinoflagellates are mostly marine and photosynthetic organisms. Their color varies depending on the main pigments present in their cells."
+  },
+  {
+    "id": 13,
+    "question": "The cell wall of dinoflagellates has stiff plates on the outer surface made of:",
+    "options": [
+      "Silica",
+      "Peptidoglycan",
+      "Chitin",
+      "Cellulose"
+    ],
+    "answer": 3,
+    "explanation": "The cell wall of dinoflagellates has stiff cellulose plates on its outer surface."
+  },
+  {
+    "id": 14,
+    "question": "How are the flagella arranged in most dinoflagellates?",
+    "options": [
+      "A single flagellum at the anterior end",
+      "Thousands of cilia covering the entire body",
+      "Two flagella; both lie longitudinally on the surface",
+      "Two flagella; one lies longitudinally and the other transversely in a furrow between the wall plates"
+    ],
+    "answer": 3,
+    "explanation": "Most dinoflagellates have two flagella: one lies longitudinally and the other transversely in a furrow between the cellulose wall plates."
+  },
+  {
+    "id": 15,
+    "question": "The phenomenon of 'red tides' in the sea, which can kill marine life, is caused by the rapid multiplication of:",
+    "options": [
+      "Diatoms",
+      "Red algae like Gelidium",
+      "Red dinoflagellates like Gonyaulax",
+      "Euglenoids"
+    ],
+    "answer": 2,
+    "explanation": "Red dinoflagellates, such as Gonyaulax, undergo rapid multiplication and make the sea appear red (red tides). Toxins released by them can kill marine animals like fishes."
+  },
+  {
+    "id": 16,
+    "question": "Euglenoids are mostly found in:",
+    "options": [
+      "Fast-flowing freshwater streams",
+      "Marine environments",
+      "Stagnant fresh water",
+      "Moist terrestrial soil"
+    ],
+    "answer": 2,
+    "explanation": "Euglenoids are a majority of fresh water organisms found specifically in stagnant water rather than flowing water."
+  },
+  {
+    "id": 17,
+    "question": "Instead of a cell wall, Euglenoids have a protein-rich layer that makes their body flexible. This layer is called:",
+    "options": [
+      "Capsule",
+      "Pellicle",
+      "Slime layer",
+      "Plasmalemma"
+    ],
+    "answer": 1,
+    "explanation": "Euglenoids lack a cell wall. Instead, they have a protein-rich layer called a pellicle which provides flexibility to their body."
+  },
+  {
+    "id": 18,
+    "question": "Which of the following describes the flagella of Euglenoids?",
+    "options": [
+      "They have one long and one short flagellum.",
+      "They have two identical longitudinal flagella.",
+      "They possess a single flagellum at the posterior end.",
+      "They lack flagella completely."
+    ],
+    "answer": 0,
+    "explanation": "Euglenoids have two flagella: a short one and a long one."
+  },
+  {
+    "id": 19,
+    "question": "Which group of protists displays a 'mixotrophic' mode of nutrition, being photosynthetic in the presence of sunlight and heterotrophic when deprived of it?",
+    "options": [
+      "Chrysophytes",
+      "Dinoflagellates",
+      "Euglenoids",
+      "Slime moulds"
+    ],
+    "answer": 2,
+    "explanation": "Euglenoids are photosynthetic in the presence of sunlight, but when deprived of sunlight, they behave like heterotrophs by predating on other smaller organisms."
+  },
+  {
+    "id": 20,
+    "question": "An interesting characteristic of Euglenoids is that their photosynthetic pigments are identical to those found in:",
+    "options": [
+      "Cyanobacteria",
+      "Brown algae",
+      "Higher plants",
+      "Diatoms"
+    ],
+    "answer": 2,
+    "explanation": "The pigments of Euglenoids are remarkably identical to those present in higher plants, primarily Chlorophyll a and b."
+  },
+  {
+    "id": 21,
+    "question": "Slime moulds are primarily characterized by which mode of nutrition?",
+    "options": [
+      "Photosynthetic autotrophs",
+      "Chemosynthetic autotrophs",
+      "Saprophytic",
+      "Parasitic"
+    ],
+    "answer": 2,
+    "explanation": "Slime moulds are saprophytic protists. The body moves along decaying twigs and leaves engulfing organic material."
+  },
+  {
+    "id": 22,
+    "question": "Under suitable conditions, slime moulds form a multinucleate aggregation that may grow and spread over several feet. This structure is called:",
+    "options": [
+      "Mycelium",
+      "Plasmodium",
+      "Fruiting body",
+      "Prothallus"
+    ],
+    "answer": 1,
+    "explanation": "Under suitable conditions, slime moulds form an aggregation called plasmodium, which may grow and spread over several feet."
+  },
+  {
+    "id": 23,
+    "question": "During unfavorable conditions, the plasmodium of a slime mould differentiates and forms:",
+    "options": [
+      "A protective cyst around the entire aggregation",
+      "Fruiting bodies bearing spores at their tips",
+      "Motile zoospores",
+      "A hard, silica-rich shell"
+    ],
+    "answer": 1,
+    "explanation": "During unfavorable conditions, the plasmodium differentiates and forms fruiting bodies bearing spores at their tips."
+  },
+  {
+    "id": 24,
+    "question": "Which of the following statements about the spores of slime moulds is correct?",
+    "options": [
+      "They lack true walls and are easily destroyed.",
+      "They possess true walls, are extremely resistant, and survive for many years.",
+      "They are dispersed primarily by water currents.",
+      "They are diploid and germinate to form gametes directly."
+    ],
+    "answer": 1,
+    "explanation": "The spores of slime moulds possess true walls. They are extremely resistant and survive for many years, even under adverse conditions. They are dispersed by air currents."
+  },
+  {
+    "id": 25,
+    "question": "How are the highly resistant spores of slime moulds primarily dispersed in nature?",
+    "options": [
+      "By water currents",
+      "By air currents",
+      "By insect vectors",
+      "Through active flagellar swimming"
+    ],
+    "answer": 1,
+    "explanation": "NCERT explicitly states that the spores of slime moulds are dispersed by air currents."
+  },
+  {
+    "id": 26,
+    "question": "All protozoans share which of the following nutritional strategies?",
+    "options": [
+      "They are all heterotrophs living as predators or parasites.",
+      "They are all saprophytic decomposers.",
+      "They are all mixotrophic.",
+      "They are all autotrophic."
+    ],
+    "answer": 0,
+    "explanation": "All protozoans are heterotrophs and live as predators or parasites. They are believed to be primitive relatives of animals."
+  },
+  {
+    "id": 27,
+    "question": "Protozoans are broadly classified into four major groups based primarily on:",
+    "options": [
+      "Their mode of reproduction",
+      "The type of locomotory organelles they possess",
+      "Their cellular pigments",
+      "The composition of their cell walls"
+    ],
+    "answer": 1,
+    "explanation": "Protozoans are classified into four major groups (Amoeboid, Flagellated, Ciliated, Sporozoans) based on their organs of locomotion (pseudopodia, flagella, cilia, or none)."
+  },
+  {
+    "id": 28,
+    "question": "Amoeboid protozoans move and capture their prey by putting out:",
+    "options": [
+      "Cilia",
+      "Flagella",
+      "Pseudopodia",
+      "Tentacles"
+    ],
+    "answer": 2,
+    "explanation": "Amoeboid protozoans move and capture their prey by putting out pseudopodia (false feet), as seen in Amoeba."
+  },
+  {
+    "id": 29,
+    "question": "Some marine forms of amoeboid protozoans are unique because they have:",
+    "options": [
+      "Silica shells on their surface",
+      "Cellulose plates on their surface",
+      "A highly flexible pellicle",
+      "Multiple flagella for rapid swimming"
+    ],
+    "answer": 0,
+    "explanation": "Marine forms of amoeboid protozoans have silica shells on their surface."
+  },
+  {
+    "id": 30,
+    "question": "Which of the following is a parasitic amoeboid protozoan known to cause disease in humans?",
+    "options": [
+      "Trypanosoma",
+      "Plasmodium",
+      "Entamoeba",
+      "Paramoecium"
+    ],
+    "answer": 2,
+    "explanation": "Entamoeba is a parasitic amoeboid protozoan that causes amoebic dysentery in humans. Trypanosoma is flagellated, Plasmodium is a sporozoan, and Paramoecium is ciliated."
+  },
+  {
+    "id": 31,
+    "question": "Members of which protozoan group are either free-living or parasitic and possess flagella?",
+    "options": [
+      "Amoeboid protozoans",
+      "Flagellated protozoans",
+      "Ciliated protozoans",
+      "Sporozoans"
+    ],
+    "answer": 1,
+    "explanation": "Flagellated protozoans are either free-living or parasitic. They possess flagella for locomotion."
+  },
+  {
+    "id": 32,
+    "question": "The severe disease 'sleeping sickness' is caused by which parasitic flagellated protozoan?",
+    "options": [
+      "Leishmania",
+      "Plasmodium",
+      "Trypanosoma",
+      "Entamoeba"
+    ],
+    "answer": 2,
+    "explanation": "The parasitic forms of flagellated protozoans cause diseases such as sleeping sickness. The specific example given in NCERT is Trypanosoma."
+  },
+  {
+    "id": 33,
+    "question": "Which group of protozoans is characterized by being aquatic and actively moving organisms due to the presence of thousands of small hair-like structures?",
+    "options": [
+      "Amoeboid protozoans",
+      "Flagellated protozoans",
+      "Ciliated protozoans",
+      "Sporozoans"
+    ],
+    "answer": 2,
+    "explanation": "Ciliated protozoans are aquatic, actively moving organisms because of the presence of thousands of cilia."
+  },
+  {
+    "id": 34,
+    "question": "Ciliated protozoans possess a cavity that opens to the outside of the cell surface, allowing food to be steered inside. This cavity is called a:",
+    "options": [
+      "Contractile vacuole",
+      "Food vacuole",
+      "Gullet",
+      "Cytostome"
+    ],
+    "answer": 2,
+    "explanation": "They have a cavity (gullet) that opens to the outside of the cell surface. The coordinated movement of rows of cilia causes the water laden with food to be steered into the gullet."
+  },
+  {
+    "id": 35,
+    "question": "Which of the following is the classic example of a ciliated protozoan as per NCERT?",
+    "options": [
+      "Trypanosoma",
+      "Euglena",
+      "Amoeba",
+      "Paramoecium"
+    ],
+    "answer": 3,
+    "explanation": "Paramoecium is the standard example of a ciliated protozoan in the NCERT textbook."
+  },
+  {
+    "id": 36,
+    "question": "Sporozoans represent a diverse group of organisms. What is their most defining characteristic?",
+    "options": [
+      "They have an infectious spore-like stage in their life cycle.",
+      "They move using multiple flagella during their reproductive phase.",
+      "They are the only autotrophic protozoans.",
+      "They produce spores strictly in a fruiting body."
+    ],
+    "answer": 0,
+    "explanation": "Sporozoans include diverse organisms that have an infectious spore-like stage in their life cycle. They lack locomotory structures like cilia or flagella in their mature stages."
+  },
+  {
+    "id": 37,
+    "question": "Which is the most notorious sporozoan, known for causing a disease that has a staggering effect on the human population?",
+    "options": [
+      "Entamoeba",
+      "Gonyaulax",
+      "Plasmodium",
+      "Trypanosoma"
+    ],
+    "answer": 2,
+    "explanation": "The most notorious is Plasmodium (malarial parasite) which causes malaria, a disease that has a staggering effect on the human population."
+  },
+  {
+    "id": 38,
+    "question": "In biological terminology, a student must be careful not to confuse 'plasmodium' of slime moulds with 'Plasmodium' the protozoan. Which statement correctly distinguishes them?",
+    "options": [
+      "Plasmodium the protozoan is an aggregation of slime mould cells; plasmodium the slime mould causes malaria.",
+      "Plasmodium the slime mould is a vegetative aggregation; Plasmodium the protozoan is a parasitic sporozoan causing malaria.",
+      "Both represent the exact same organism at different stages of its life cycle.",
+      "Plasmodium the slime mould is a plant; Plasmodium the protozoan is an animal."
+    ],
+    "answer": 1,
+    "explanation": "In slime moulds, 'plasmodium' refers to the multinucleate mass of protoplasm (vegetative stage). In protozoans, 'Plasmodium' is a genus of parasitic sporozoans that causes malaria."
+  },
+  {
+    "id": 39,
+    "question": "Which of the following groups within Protista are strictly heterotrophic?",
+    "options": [
+      "Chrysophytes and Dinoflagellates",
+      "Euglenoids and Chrysophytes",
+      "Slime moulds and Protozoans",
+      "Dinoflagellates and Slime moulds"
+    ],
+    "answer": 2,
+    "explanation": "Slime moulds are saprophytic (heterotrophic), and all protozoans are heterotrophs (predators or parasites). Chrysophytes and dinoflagellates are photosynthetic, and euglenoids are mixotrophic."
+  },
+  {
+    "id": 40,
+    "question": "Which of the following protists is properly matched with its characteristic feature?",
+    "options": [
+      "Dinoflagellates - Two flagella of identical length",
+      "Diatoms - Cell wall with stiff cellulose plates",
+      "Euglenoids - Pellicle replacing the cell wall",
+      "Slime moulds - Mixotrophic nutrition"
+    ],
+    "answer": 2,
+    "explanation": "Euglenoids have a protein-rich pellicle instead of a cell wall. Dinoflagellates have flagella of different orientations and cellulose wall plates. Diatoms have silica walls, and slime moulds are saprophytic."
+  }
+]
