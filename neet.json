@@ -27,7 +27,7 @@
               { "id": "prt", "name": "PROTISTA", "duration": 3000 },
               { "id": "plant", "name": "PLANTAE", "duration": 3000 },
               { "id": "animalia", "name": "ANIMALIA", "duration": 3000 },
-              { "id": "", "name": "", "duration": 300 },
+              { "id": "fungi", "name": "FUNGI", "duration": 3000 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
