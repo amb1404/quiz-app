@@ -8,7 +8,6 @@
 </head>
 <body>
     <div class="quiz-container">
-        <!-- Subject Selection Menu -->
         <!-- Home Menus (Side-by-Side Boxes) -->
         <div id="home-menus" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
             <!-- Regular Subjects Menu -->
@@ -38,7 +37,14 @@
             <div id="neet-topic-list"></div>
         </div>
 
-        <!-- Chapter Selection Menu -->
+        <!-- NEET Subtopic Selection Menu -->
+        <div id="neet-subtopic-menu" class="hidden">
+            <button onclick="backToNeetTopics()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Topics</button>
+            <h2 id="selected-neet-subtopic-title">Subtopics</h2>
+            <div id="neet-subtopic-list"></div>
+        </div>
+
+        <!-- Chapter Selection Menu (Regular) -->
         <div id="chapter-menu" class="hidden">
             <button onclick="backToSubjects()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Subjects</button>
             <h2 id="selected-subject-title">Chapters</h2>
@@ -47,7 +53,7 @@
 
         <!-- Student Details Screen (Name & Email Input) -->
         <div id="name-screen" class="hidden" style="text-align: left;">
-            <button onclick="backToChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back to Chapters</button>
+            <button onclick="backToChapters()" class="nav-btn" style="background: #64748b; margin-bottom: 15px;">← Back</button>
             <h2 id="selected-chapter-title" style="margin-bottom: 20px;">Enter Your Details</h2>
             <div style="margin-bottom: 15px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #1e293b;">First Name:</label>
@@ -74,10 +80,14 @@
             </div>
             <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 15px;"></div>
             <div id="options-box" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;"></div>
-            <div class="nav-buttons" style="display: flex; justify-content: space-between; align-items: center;">
-                <button id="prev-btn" onclick="prevQuestion()" class="nav-btn">Previous</button>
-                <button onclick="clearResponse()" class="nav-btn" style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1;">Clear Response</button>
-                <button id="next-btn" onclick="nextQuestion()" class="nav-btn">Next</button>
+            <div class="nav-buttons" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="prev-btn" onclick="prevQuestion()" class="nav-btn">Previous</button>
+                    <button onclick="clearResponse()" class="nav-btn" style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1;">Clear Response</button>
+                </div>
+                <div>
+                    <button id="next-btn" onclick="nextQuestion()" class="nav-btn">Next</button>
+                </div>
             </div>
         </div>
 
