@@ -20,17 +20,16 @@ let activeNeetChapter = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     
-    // --- FIX: CHECK IF REFRESH OR FRESH LOGIN ---
-    // Ask the browser how the user got to this page
+    // Check if user reloaded the page or navigated here fresh
     const navType = performance.getEntriesByType("navigation")[0]?.type;
     const isReload = navType === 'reload' || performance.navigation?.type === 1;
 
-    // If they did NOT hit the refresh button, wipe the memory clean
+    // If fresh login, clear the session storage
     if (!isReload) {
         sessionStorage.removeItem('quizAppSession');
     }
 
-    // Save keystrokes in real-time on the details screen
+    // Save keystrokes in real-time
     document.getElementById('first-name-input').addEventListener('input', persistState);
     document.getElementById('last-name-input').addEventListener('input', persistState);
     document.getElementById('email-input').addEventListener('input', persistState);
@@ -43,13 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const subjectsList = Array.isArray(subjData) ? subjData : (subjData.subjects || []);
         renderSubjects(subjectsList);
         renderNeetClasses(neetData);
-
-        // Rebuild the exact state the user was in before refreshing
         restoreState(); 
     });
 });
 
-// --- STATE MANAGEMENT ENGINE ---
 function hideAllScreens() {
     const screens = [
         'home-menus', 'neet-unit-menu', 'neet-chapter-menu', 'neet-topic-menu',
@@ -74,8 +70,6 @@ function getCurrentScreen() {
 }
 
 function persistState() {
-    // Only scrape the input boxes if the user is actually on the name screen
-    // FIX: Enforce uppercase for names, lowercase for emails in data
     if (getCurrentScreen() === 'name-screen') {
         const fNameInput = document.getElementById('first-name-input');
         if(fNameInput) studentFirstName = fNameInput.value.trim().toUpperCase();
@@ -130,22 +124,19 @@ function restoreState() {
 
         hideAllScreens();
         
-        // Reconstruct the exact menu chain dynamically
         if (activeSubject) showChapters(activeSubject);
         if (activeNeetClass) showNeetUnits(activeNeetClass);
         if (activeNeetUnit) showNeetChapters(activeNeetUnit);
         if (activeNeetChapter) showNeetTopics(activeNeetChapter);
         
         const active = state.activeScreen;
-        hideAllScreens(); // Hide everything again to ensure only the active screen shows
+        hideAllScreens(); 
         document.getElementById(active).classList.remove('hidden');
         
-        // Always restore the input boxes so they are never blank after a refresh
         document.getElementById('first-name-input').value = studentFirstName || '';
         document.getElementById('last-name-input').value = studentLastName || '';
         document.getElementById('email-input').value = studentEmail || '';
 
-        // Restore specific screen UI values
         if (active === 'name-screen') {
             document.getElementById('selected-chapter-title').innerText = `Title: ${currentChapterTitleText}`;
         } else if (active === 'quiz-screen') {
@@ -162,11 +153,9 @@ function restoreState() {
     }
 }
 
-// --- REGULAR SUBJECTS LOGIC ---
 function renderSubjects(subjects) {
     const list = document.getElementById('subject-list');
     list.innerHTML = '';
-
     subjects.forEach(sub => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -203,7 +192,6 @@ function backToSubjects() {
     persistState();
 }
 
-// --- NEET LOGIC ---
 function renderNeetClasses(classes) {
     const list = document.getElementById('neet-class-list');
     list.innerHTML = '';
@@ -263,7 +251,7 @@ function showNeetTopics(chap) {
     const list = document.getElementById('neet-topic-list');
     list.innerHTML = '';
     chap.topics.forEach(top => {
-        if (!top.id) return; // Ignores any empty placeholders automatically
+        if (!top.id) return; 
         const card = document.createElement('div');
         card.className = 'card';
         const title = top.title || top.name;
@@ -295,7 +283,6 @@ function backToNeetChapters() {
     persistState();
 }
 
-// --- SHARED QUIZ PREPARATION LOGIC ---
 function prepareQuiz(quizId, duration, chapterTitle) {
     currentQuizId = quizId;
     currentChapterDuration = duration || 300;
@@ -321,7 +308,6 @@ function backToChapters() {
 }
 
 function proceedToQuiz() {
-    // FIX: Enforce uppercase for names, lowercase for emails before checking/saving
     const firstName = document.getElementById('first-name-input').value.trim().toUpperCase();
     const lastName = document.getElementById('last-name-input').value.trim().toUpperCase();
     const email = document.getElementById('email-input').value.trim().toLowerCase();
@@ -356,7 +342,6 @@ function proceedToQuiz() {
         .catch(err => console.error('Error loading questions:', err));
 }
 
-// --- ACTIVE QUIZ LOGIC ---
 function startQuiz() {
     clearInterval(timerInterval);
     updateTimerDisplay();
@@ -364,7 +349,7 @@ function startQuiz() {
     timerInterval = setInterval(() => {
         timeLeft--;
         updateTimerDisplay();
-        persistState(); // Saves the timer continuously!
+        persistState(); 
 
         if (timeLeft <= 0) {
             submitQuiz();
@@ -455,7 +440,6 @@ function getCorrectIndex(q) {
     return q.answer !== undefined ? q.answer : q.correctAnswer;
 }
 
-// --- QUIZ SUBMISSION LOGIC ---
 function submitQuiz() {
     clearInterval(timerInterval);
 
@@ -516,7 +500,6 @@ function rebuildResultScreen() {
 }
 
 function returnToMenu() {
-    // Completely wipe the slate clean for the next quiz attempt
     sessionStorage.removeItem('quizAppSession');
     location.reload(); 
 }
