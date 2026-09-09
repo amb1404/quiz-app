@@ -1,13 +1,13 @@
 [
   {
     "name": "Class XI",
-    "chapters": [
+    "units": [
       {
         "name": "Human Physiology",
-        "topics": [
+        "chapters": [
           {
             "name": "Digestion and Absorption",
-            "subtopics": [
+            "topics": [
               {
                 "id": "neet-bio-xi-dig-anatomy",
                 "name": "Anatomy of Alimentary Canal",
@@ -22,7 +22,7 @@
           },
           {
             "name": "Breathing and Exchange of Gases",
-            "subtopics": [
+            "topics": [
               {
                 "id": "neet-bio-xi-resp-organs",
                 "name": "Respiratory Organs",
@@ -41,13 +41,13 @@
   },
   {
     "name": "Class XII",
-    "chapters": [
+    "units": [
       {
         "name": "Genetics",
-        "topics": [
+        "chapters": [
           {
             "name": "Molecular basis of inheritance",
-            "subtopics": [
+            "topics": [
               {
                 "id": "ctdgma",
                 "name": "Cental Dogma",
