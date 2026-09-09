@@ -59,8 +59,11 @@
         <button class="back-btn" id="name-back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="name-screen-title">Enter Details</h2>
         <p id="name-screen-subtitle"><strong>Candidate Information</strong></p>
-        <input type="text" id="first-name" placeholder="First Name" oninput="saveState()">
-        <input type="text" id="last-name" placeholder="Last Name" oninput="saveState()">
+        
+        <!-- Modified to auto-uppercase text visually and in the saved data -->
+        <input type="text" id="first-name" placeholder="First Name" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); saveState()">
+        <input type="text" id="last-name" placeholder="Last Name" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); saveState()">
+        
         <input type="email" id="email-address" placeholder="Email Address" oninput="saveState()">
         <button id="name-start-btn" onclick="startQuiz()">Start Quiz</button>
     </div>
