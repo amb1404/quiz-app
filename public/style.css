@@ -15,8 +15,8 @@ body {
 
 /* 1. Home Menu Box */
 #home-menus {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -27,8 +27,8 @@ body {
 
 /* 2. NEET Unit Menu Box */
 #neet-unit-menu {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -39,8 +39,8 @@ body {
 
 /* 3. NEET Chapter Menu Box */
 #neet-chapter-menu {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -51,8 +51,8 @@ body {
 
 /* 4. NEET Topic Menu Box */
 #neet-topic-menu {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -63,8 +63,8 @@ body {
 
 /* 5. Standard Subject Chapter Menu Box */
 #chapter-menu {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -75,8 +75,8 @@ body {
 
 /* 6. Student Details Screen Box */
 #name-screen {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -87,8 +87,8 @@ body {
 
 /* 7. Active Quiz Screen Box */
 #quiz-screen {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
@@ -99,8 +99,8 @@ body {
 
 /* 8. Result Screen Box */
 #result-screen {
-    background-color: #ffffff; 
-    width: 80%;                         
+    background-color: lightyellow; 
+    width: 70%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
     padding: 30px;                      
