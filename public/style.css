@@ -5,7 +5,13 @@ body {
     background-color: #cbebfb; 
     font-family: Arial, sans-serif;    
     margin: 0;                         
-    padding: 20px;                     
+    padding: 20px;
+    
+    /* ADD THESE LINES TO FORCE PERFECT CENTERING */
+    display: flex;
+    justify-content: center; /* Centers the box left-to-right horizontally */
+    align-items: center;     /* Centers the box top-to-bottom vertically */
+    min-height: 100vh;       /* Forces the body to take up the full screen height */
 }
 .hidden { display: none !important; }
 
@@ -18,7 +24,7 @@ body {
     background-color: lightyellow; 
     width: 70%;                         
     max-width: 900px;                   
-    margin: 40px auto;                  
+    margin: 0;                  
     padding: 30px;                      
     border-radius: 10px;                
     border: none;                       
