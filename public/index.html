@@ -4,24 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEET Mock Test Portal</title>
-    <!-- THIS LINE CONNECTS YOUR HTML TO YOUR CSS CONTROL FILE -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- 1. HOME MENUS (Split into two separate boxes) -->
+    <!-- 1. HOME MENUS -->
     <div id="home-menus" class="screen-container">
-        <h2>Select Category</h2>
+        <h2 id="home-main-heading">Select Category</h2>
         
         <!-- Box 1: Regular Subjects -->
-        <div class="category-box">
-            <h3>Standard Subjects</h3>
+        <div id="std-category-box" class="category-box">
+            <h3 id="std-category-heading">Standard Subjects</h3>
             <div id="subject-list"></div>
         </div>
 
         <!-- Box 2: NEET Options -->
-        <div class="category-box">
-            <h3>NEET Preparation</h3>
+        <div id="neet-category-box" class="category-box">
+            <h3 id="neet-category-heading">NEET Preparation</h3>
             <div id="neet-class-list"></div>
         </div>
     </div>
@@ -29,40 +28,40 @@
     <!-- 2. NEET UNIT MENU -->
     <div id="neet-unit-menu" class="screen-container hidden">
         <h2 id="selected-neet-class-title"></h2>
-        <button onclick="backToHomeMenus()" style="margin-bottom: 20px;">Back</button>
+        <button id="neet-unit-back-btn" onclick="backToHomeMenus()">Back</button>
         <div id="neet-unit-list"></div>
     </div>
 
     <!-- 3. NEET CHAPTER MENU -->
     <div id="neet-chapter-menu" class="screen-container hidden">
         <h2 id="selected-neet-unit-title"></h2>
-        <button onclick="backToNeetChapters()" style="margin-bottom: 20px;">Back</button>
+        <button id="neet-chapter-back-btn" onclick="backToNeetUnits()">Back</button>
         <div id="neet-chapter-list"></div>
     </div>
 
     <!-- 4. NEET TOPIC MENU -->
     <div id="neet-topic-menu" class="screen-container hidden">
         <h2 id="selected-neet-chapter-title"></h2>
-        <button onclick="backToNeetChapters()" style="margin-bottom: 20px;">Back</button>
+        <button id="neet-topic-back-btn" onclick="backToNeetChapters()">Back</button>
         <div id="neet-topic-list"></div>
     </div>
 
-    <!-- 5. SUBJECT CHAPTER MENU (For standard subjects) -->
+    <!-- 5. SUBJECT CHAPTER MENU -->
     <div id="chapter-menu" class="screen-container hidden">
         <h2 id="selected-subject-title"></h2>
-        <button onclick="backToSubjects()" style="margin-bottom: 20px;">Back</button>
+        <button id="chapter-back-btn" onclick="backToSubjects()">Back</button>
         <div id="chapter-list"></div>
     </div>
 
     <!-- 6. STUDENT DETAILS SCREEN -->
     <div id="name-screen" class="screen-container hidden">
         <h2 id="selected-chapter-title"></h2>
-        <h3>Enter Details</h3>
+        <h3 id="name-screen-instructions">Enter Details</h3>
         <input type="text" id="first-name-input" placeholder="First Name">
         <input type="text" id="last-name-input" placeholder="Last Name">
         <input type="email" id="email-input" placeholder="Email Address">
-        <button onclick="backToChapters()">Back</button>
-        <button onclick="proceedToQuiz()" style="background-color: var(--primary-blue); color: white;">Start Quiz</button>
+        <button id="name-back-btn" onclick="backToChapters()">Back</button>
+        <button id="name-start-btn" onclick="proceedToQuiz()">Start Quiz</button>
     </div>
 
     <!-- 7. ACTIVE QUIZ SCREEN -->
@@ -87,10 +86,10 @@
 
     <!-- 8. RESULT SCREEN -->
     <div id="result-screen" class="screen-container hidden">
-        <h2>Quiz Submitted Successfully!</h2>
+        <h2 id="result-success-heading">Quiz Submitted Successfully!</h2>
         <h3 id="final-score"></h3>
         <p id="final-breakdown"></p>
-        <button onclick="returnToMenu()" style="background-color: var(--primary-blue); color: white;">Return to Home</button>
+        <button id="result-home-btn" onclick="returnToMenu()">Return to Home</button>
     </div>
 
     <script src="script.js"></script>
