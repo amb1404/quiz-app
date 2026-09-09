@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "question": "Which of the following criteria was NOT used by R.H. Whittaker for his Five Kingdom Classification?",
+    "options": [
+      "Cell structure",
+      "Body organization",
+      "Mode of nutrition",
+      "Response to external stimuli"
+    ],
+    "answer": 3,
+    "explanation": "R.H. Whittaker (1969) proposed the Five Kingdom Classification. The main criteria for classification used by him include cell structure, body organization, mode of nutrition, reproduction, and phylogenetic relationships. Response to external stimuli was not a primary criterion."
+  },
+  {
+    "id": 2,
+    "question": "Aristotle classified animals into two groups based on the:",
+    "options": [
+      "Presence or absence of a cell wall",
+      "Presence or absence of red blood",
+      "Mode of reproduction",
+      "Type of body symmetry"
+    ],
+    "answer": 1,
+    "explanation": "Aristotle was the earliest to attempt a more scientific basis for classification. He divided animals into two groups: those which had red blood (Enaima) and those that did not (Anaima)."
+  },
+  {
+    "id": 3,
+    "question": "In the Five Kingdom Classification, Chlamydomonas and Chlorella have been included in the kingdom:",
+    "options": [
+      "Plantae",
+      "Protista",
+      "Monera",
+      "Algae"
+    ],
+    "answer": 1,
+    "explanation": "In earlier systems, Chlamydomonas and Chlorella were placed in Algae within Plants. However, the Five Kingdom system groups all unicellular eukaryotes together, moving them to Kingdom Protista."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following statements is INCORRECT regarding Archaebacteria?",
+    "options": [
+      "They live in some of the most harsh habitats.",
+      "Their cell wall structure is the same as that of eubacteria.",
+      "Methanogens are present in the gut of several ruminant animals.",
+      "Thermoacidophiles live in hot springs."
+    ],
+    "answer": 1,
+    "explanation": "Archaebacteria differ from other bacteria (eubacteria) in having a different cell wall structure. This unique feature is responsible for their survival in extreme conditions."
+  },
+  {
+    "id": 5,
+    "question": "Specialized cells called 'heterocysts' are found in some cyanobacteria. What is their primary function?",
+    "options": [
+      "Photosynthesis",
+      "Nitrogen fixation",
+      "Reproduction",
+      "Protection against predators"
+    ],
+    "answer": 1,
+    "explanation": "Some cyanobacteria (e.g., Nostoc and Anabaena) can fix atmospheric nitrogen in specialized cells called heterocysts."
+  },
+  {
+    "id": 6,
+    "question": "Which group of organisms are the smallest living cells known, completely lack a cell wall, and can survive without oxygen?",
+    "options": [
+      "Slime moulds",
+      "Mycoplasma",
+      "Archaebacteria",
+      "Diatoms"
+    ],
+    "answer": 1,
+    "explanation": "Mycoplasma are organisms that completely lack a cell wall. They are the smallest living cells known and can survive without oxygen. Many are pathogenic in animals and plants."
+  },
+  {
+    "id": 7,
+    "question": "The boundaries of which kingdom are considered not well-defined, as 'what may be a photosynthetic organism to one biologist may be a plant to another'?",
+    "options": [
+      "Monera",
+      "Protista",
+      "Fungi",
+      "Plantae"
+    ],
+    "answer": 1,
+    "explanation": "Kingdom Protista includes all single-celled eukaryotes. Because it forms a link with plants, animals, and fungi, its boundaries are not well-defined."
+  },
+  {
+    "id": 8,
+    "question": "Diatomaceous earth is formed due to the accumulation of the cell walls of diatoms over billions of years. These cell walls are indestructible because they are embedded with:",
+    "options": [
+      "Calcium carbonate",
+      "Chitin",
+      "Silica",
+      "Peptidoglycan"
+    ],
+    "answer": 2,
+    "explanation": "In diatoms, the cell walls form two thin overlapping shells, which fit together as in a soap box. The walls are embedded with silica, making them indestructible."
+  },
+  {
+    "id": 9,
+    "question": "Which group of protists is primarily responsible for causing 'red tides' that can kill marine life due to the toxins they release?",
+    "options": [
+      "Chrysophytes",
+      "Dinoflagellates",
+      "Euglenoids",
+      "Slime moulds"
+    ],
+    "answer": 1,
+    "explanation": "Red dinoflagellates (e.g., Gonyaulax) undergo rapid multiplication, making the sea appear red (red tides). Toxins released by such large numbers can kill other marine animals like fishes."
+  },
+  {
+    "id": 10,
+    "question": "Instead of a cell wall, Euglenoids have a protein-rich layer that makes their body flexible. What is this layer called?",
+    "options": [
+      "Capsid",
+      "Pellicle",
+      "Slime layer",
+      "Plasmalemma"
+    ],
+    "answer": 1,
+    "explanation": "Euglenoids are a group of mostly freshwater protists found in stagnant water. Instead of a cell wall, they have a protein-rich layer called a pellicle, which makes their body flexible."
+  },
+  {
+    "id": 11,
+    "question": "Under suitable conditions, slime moulds form an aggregation that may grow and spread over several feet. This structure is called a:",
+    "options": [
+      "Fruiting body",
+      "Plasmodium",
+      "Mycelium",
+      "Pseudopodium"
+    ],
+    "answer": 1,
+    "explanation": "Slime moulds are saprophytic protists. Under suitable conditions, they form an aggregation called plasmodium, which may grow and spread over several feet. During unfavorable conditions, the plasmodium differentiates into fruiting bodies."
+  },
+  {
+    "id": 12,
+    "question": "Which of the following protozoans possesses a gullet (cavity) that opens to the outside of the cell surface and moves food into it using cilia?",
+    "options": [
+      "Amoeba",
+      "Trypanosoma",
+      "Paramoecium",
+      "Plasmodium"
+    ],
+    "answer": 2,
+    "explanation": "Paramoecium is a ciliated protozoan. It has thousands of cilia that coordinate to steer water laden with food into the gullet, which opens to the outside of the cell surface."
+  },
+  {
+    "id": 13,
+    "question": "The notorious organism Trypanosoma, which causes sleeping sickness, belongs to which group of protozoans?",
+    "options": [
+      "Amoeboid protozoans",
+      "Flagellated protozoans",
+      "Ciliated protozoans",
+      "Sporozoans"
+    ],
+    "answer": 1,
+    "explanation": "Trypanosoma is a flagellated protozoan. Members of this group are either free-living or parasitic, possessing flagella. Parasitic forms cause diseases such as sleeping sickness."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following describes the unique cellular structure of the fungal body (except yeast)?",
+    "options": [
+      "They consist of long, thread-like structures called hyphae, forming a network called mycelium.",
+      "They are purely unicellular and lack a cell wall.",
+      "They have a rigid body organization composed entirely of cellulose.",
+      "They exist solely as multinucleate plasmodia."
+    ],
+    "answer": 0,
+    "explanation": "With the exception of yeasts which are unicellular, fungi are filamentous. Their bodies consist of long, slender thread-like structures called hyphae. The network of hyphae is known as mycelium."
+  },
+  {
+    "id": 15,
+    "question": "In the sexual cycle of fungi, the fusion of protoplasms between two motile or non-motile gametes is called:",
+    "options": [
+      "Karyogamy",
+      "Plasmogamy",
+      "Meiosis",
+      "Mitosis"
+    ],
+    "answer": 1,
+    "explanation": "The sexual cycle involves three steps: 1) Plasmogamy (fusion of protoplasms). 2) Karyogamy (fusion of two nuclei). 3) Meiosis in the zygote resulting in haploid spores."
+  },
+  {
+    "id": 16,
+    "question": "In some fungi (Ascomycetes and Basidiomycetes), an intervening dikaryotic stage occurs after plasmogamy. What characterizes this stage?",
+    "options": [
+      "The zygote undergoes immediate meiosis.",
+      "The cell contains two haploid nuclei per cell (n + n) before they fuse.",
+      "The cell forms a diploid nucleus (2n) immediately.",
+      "The protoplasms fail to fuse."
+    ],
+    "answer": 1,
+    "explanation": "In Ascomycetes and Basidiomycetes, an intervening dikaryotic stage (n + n, i.e., two nuclei per cell) occurs. Such a condition is called a dikaryon and the phase is called the dikaryophase of the fungus."
+  },
+  {
+    "id": 17,
+    "question": "Which class of fungi is characterized by having an aseptate and coenocytic mycelium?",
+    "options": [
+      "Phycomycetes",
+      "Ascomycetes",
+      "Basidiomycetes",
+      "Deuteromycetes"
+    ],
+    "answer": 0,
+    "explanation": "In Phycomycetes, the mycelium is aseptate and coenocytic (continuous tubes filled with multinucleated cytoplasm). Examples include Mucor, Rhizopus, and Albugo. All other classes generally have septate and branched mycelia."
+  },
+  {
+    "id": 18,
+    "question": "Which of the following fungi is extensively used in biochemical and genetic work, making it the 'Drosophila of the plant kingdom'?",
+    "options": [
+      "Claviceps",
+      "Neurospora",
+      "Aspergillus",
+      "Penicillium"
+    ],
+    "answer": 1,
+    "explanation": "Neurospora (an Ascomycete) is used extensively in biochemical and genetic work, similar to how the fruit fly Drosophila is used in animal genetics."
+  },
+  {
+    "id": 19,
+    "question": "Morels and truffles are highly prized edible delicacies. To which class of fungi do they belong?",
+    "options": [
+      "Phycomycetes",
+      "Ascomycetes",
+      "Basidiomycetes",
+      "Deuteromycetes"
+    ],
+    "answer": 1,
+    "explanation": "Morels and truffles belong to the class Ascomycetes (sac fungi) and are considered edible delicacies."
+  },
+  {
+    "id": 20,
+    "question": "In Basidiomycetes, the sexual spores (basidiospores) are produced:",
+    "options": [
+      "Endogenously in asci",
+      "Exogenously on the basidium",
+      "Endogenously in sporangia",
+      "Exogenously on conidiophores"
+    ],
+    "answer": 1,
+    "explanation": "In Basidiomycetes, karyogamy and meiosis take place in the basidium producing four basidiospores. The basidiospores are exogenously produced on the basidium."
+  },
+  {
+    "id": 21,
+    "question": "Which class of fungi is commonly known as 'imperfect fungi' because only their asexual or vegetative phases are known?",
+    "options": [
+      "Phycomycetes",
+      "Ascomycetes",
+      "Basidiomycetes",
+      "Deuteromycetes"
+    ],
+    "answer": 3,
+    "explanation": "The Deuteromycetes are commonly known as imperfect fungi because only the asexual or vegetative phases of these fungi are known. When sexual stages are discovered, they are often moved to Ascomycetes or Basidiomycetes."
+  },
+  {
+    "id": 22,
+    "question": "Which of the following organisms are NOT included in the Five Kingdom Classification of Whittaker?",
+    "options": [
+      "Fungi and Monera",
+      "Viruses, Viroids, and Lichens",
+      "Protista and Plantae",
+      "Cyanobacteria and Mycoplasma"
+    ],
+    "answer": 1,
+    "explanation": "Whittaker's Five Kingdom Classification does not include any acellular organisms like viruses, viroids, and prions, nor does it include the symbiotic associations known as lichens."
+  },
+  {
+    "id": 23,
+    "question": "The name 'virus', meaning venom or poisonous fluid, was given by:",
+    "options": [
+      "D.J. Ivanowsky",
+      "M.W. Beijerinck",
+      "W.M. Stanley",
+      "Louis Pasteur"
+    ],
+    "answer": 3,
+    "explanation": "The name virus, meaning venom or poisonous fluid, was given by Pasteur. (Note: NCERT explicitly states Pasteur gave the name virus, while Ivanowsky recognized certain microbes causing tobacco mosaic disease)."
+  },
+  {
+    "id": 24,
+    "question": "Who demonstrated that the extract of infected tobacco plants could cause infection in healthy plants and called the fluid 'Contagium vivum fluidum'?",
+    "options": [
+      "D.J. Ivanowsky",
+      "M.W. Beijerinck",
+      "W.M. Stanley",
+      "T.O. Diener"
+    ],
+    "answer": 1,
+    "explanation": "M.W. Beijerinck (1898) demonstrated that the extract of infected plants of tobacco could cause infection in healthy plants and called the fluid 'Contagium vivum fluidum' (infectious living fluid)."
+  },
+  {
+    "id": 25,
+    "question": "W.M. Stanley showed that viruses could be crystallized. These crystals consist largely of:",
+    "options": [
+      "Lipids",
+      "Proteins",
+      "Carbohydrates",
+      "Nucleic acids"
+    ],
+    "answer": 1,
+    "explanation": "W.M. Stanley (1935) showed that viruses could be crystallized and that these crystals consist largely of proteins. They are inert outside their specific host cell."
+  },
+  {
+    "id": 26,
+    "question": "Regarding the genetic material of a virus, which of the following statements is ALWAYS true?",
+    "options": [
+      "No virus contains both RNA and DNA.",
+      "All viruses infecting plants have double-stranded DNA.",
+      "All viruses infecting animals have single-stranded RNA.",
+      "Bacteriophages usually contain single-stranded RNA."
+    ],
+    "answer": 0,
+    "explanation": "In addition to proteins, viruses contain genetic material, which could be either RNA or DNA. No virus contains both RNA and DNA. A virus is a nucleoprotein and its genetic material is infectious."
+  },
+  {
+    "id": 27,
+    "question": "Viruses that infect bacteria (bacteriophages) are usually:",
+    "options": [
+      "Single-stranded RNA viruses",
+      "Double-stranded RNA viruses",
+      "Single-stranded DNA viruses",
+      "Double-stranded DNA viruses"
+    ],
+    "answer": 3,
+    "explanation": "Bacteriophages (viruses that infect bacteria) are usually double-stranded DNA viruses. Plant viruses generally have ssRNA, while animal viruses have ss/dsRNA or dsDNA."
+  },
+  {
+    "id": 28,
+    "question": "The protein coat of a virus is called a capsid. It is made of small subunits called:",
+    "options": [
+      "Nucleotides",
+      "Prions",
+      "Capsomeres",
+      "Peplomers"
+    ],
+    "answer": 2,
+    "explanation": "The protein coat of a virus is called a capsid, which is made of small subunits called capsomeres. These capsomeres protect the enclosed nucleic acid and are arranged in helical or polyhedral geometric forms."
+  },
+  {
+    "id": 29,
+    "question": "Viroids were discovered in 1971 by T.O. Diener. Which of the following describes a viroid?",
+    "options": [
+      "An infectious protein particle lacking any nucleic acid.",
+      "A free infectious RNA molecule lacking a protein coat.",
+      "A virus containing both RNA and DNA.",
+      "A symbiotic association between an alga and a fungus."
+    ],
+    "answer": 1,
+    "explanation": "T.O. Diener discovered viroids, which are smaller than viruses. They cause potato spindle tuber disease and consist of free, infectious, low molecular weight RNA lacking the protein coat found in viruses."
+  },
+  {
+    "id": 30,
+    "question": "Bovine Spongiform Encephalopathy (BSE), commonly called mad cow disease, is caused by:",
+    "options": [
+      "Viruses",
+      "Viroids",
+      "Prions",
+      "Bacteria"
+    ],
+    "answer": 2,
+    "explanation": "Prions are infectious agents consisting of abnormally folded proteins. They cause certain neurological diseases, the most notable being BSE in cattle and its analogous variant, Creutzfeldt-Jakob Disease (CJD) in humans."
+  },
+  {
+    "id": 31,
+    "question": "In a lichen, the algal component is called the phycobiont and the fungal component is called the mycobiont. What is their respective nutritional nature?",
+    "options": [
+      "Phycobiont is autotrophic, mycobiont is heterotrophic.",
+      "Phycobiont is heterotrophic, mycobiont is autotrophic.",
+      "Both are autotrophic.",
+      "Both are heterotrophic."
+    ],
+    "answer": 0,
+    "explanation": "In lichens, the algal component (phycobiont) is autotrophic and prepares food for the fungi. The fungal component (mycobiont) is heterotrophic and provides shelter and absorbs mineral nutrients and water for its partner."
+  },
+  {
+    "id": 32,
+    "question": "Lichens are excellent biological indicators for which type of environmental change?",
+    "options": [
+      "Soil salinity",
+      "Water pH",
+      "Air pollution, specifically SO2",
+      "Global warming"
+    ],
+    "answer": 2,
+    "explanation": "Lichens are very good pollution indicators because they do not grow in polluted areas, particularly those with high levels of sulfur dioxide (SO2) in the air."
+  },
+  {
+    "id": 33,
+    "question": "Which group of fungi is commonly known as 'sac fungi'?",
+    "options": [
+      "Phycomycetes",
+      "Ascomycetes",
+      "Basidiomycetes",
+      "Deuteromycetes"
+    ],
+    "answer": 1,
+    "explanation": "The Ascomycetes are commonly known as sac fungi. They include unicellular forms like yeast (Saccharomyces) as well as multicellular forms like Penicillium. They produce sexual spores called ascospores endogenously in sac-like asci."
+  },
+  {
+    "id": 34,
+    "question": "Which of the following diseases is caused by a member of the class Basidiomycetes?",
+    "options": [
+      "Potato spindle tuber disease",
+      "Early blight of potato",
+      "Wheat rust",
+      "Sleeping sickness"
+    ],
+    "answer": 2,
+    "explanation": "Wheat rust is caused by Puccinia, which is a member of the class Basidiomycetes (club fungi). Other notable members include Agaricus (mushroom) and Ustilago (smut)."
+  },
+  {
+    "id": 35,
+    "question": "Asexual reproduction in fungi commonly occurs via spores. Which of the following spores are associated strictly with asexual reproduction?",
+    "options": [
+      "Oospores, ascospores, basidiospores",
+      "Conidia, sporangiospores, zoospores",
+      "Ascospores and conidia",
+      "Zygospores and zoospores"
+    ],
+    "answer": 1,
+    "explanation": "Asexual reproduction in fungi takes place by spores called conidia, sporangiospores, or zoospores. Sexual reproduction is by oospores, ascospores, and basidiospores."
+  },
+  {
+    "id": 36,
+    "question": "Which of the following is an example of an organism from Kingdom Monera that plays a great role in recycling nutrients like nitrogen, phosphorous, iron, and sulphur?",
+    "options": [
+      "Cyanobacteria",
+      "Chemosynthetic autotrophic bacteria",
+      "Heterotrophic bacteria",
+      "Mycoplasma"
+    ],
+    "answer": 1,
+    "explanation": "Chemosynthetic autotrophic bacteria oxidize various inorganic substances such as nitrates, nitrites, and ammonia and use the released energy for their ATP production. They play a crucial role in recycling nutrients."
+  },
+  {
+    "id": 37,
+    "question": "Most of the heterotrophic bacteria are important decomposers. Which of the following is NOT an activity typically associated with heterotrophic bacteria?",
+    "options": [
+      "Making curd from milk",
+      "Production of antibiotics",
+      "Fixing nitrogen in legume roots",
+      "Producing biogas in ruminant gut"
+    ],
+    "answer": 3,
+    "explanation": "Producing biogas from the dung of ruminant animals is the function of methanogens, which belong to Archaebacteria. Heterotrophic eubacteria are involved in making curd, producing antibiotics, and fixing nitrogen."
+  },
+  {
+    "id": 38,
+    "question": "In the kingdom Plantae, the phenomenon where the diploid sporophytic phase and the haploid gametophytic phase alternate with each other is called:",
+    "options": [
+      "Alternation of generation",
+      "Metamorphosis",
+      "Parthenogenesis",
+      "Dikaryophase"
+    ],
+    "answer": 0,
+    "explanation": "The life cycle of plants has two distinct phases - the diploid sporophytic and the haploid gametophytic - that alternate with each other. This phenomenon is called alternation of generation."
+  },
+  {
+    "id": 39,
+    "question": "Which class of fungi reproduces asexually exclusively through conidia produced exogenously on conidiophores, and sexually through ascospores?",
+    "options": [
+      "Phycomycetes",
+      "Ascomycetes",
+      "Basidiomycetes",
+      "Deuteromycetes"
+    ],
+    "answer": 1,
+    "explanation": "In Ascomycetes, asexual spores are conidia produced exogenously on special mycelia called conidiophores. Sexual spores are ascospores which are produced endogenously in sac-like asci."
+  },
+  {
+    "id": 40,
+    "question": "Colletotrichum, Alternaria, and Trichoderma are examples of which class of fungi?",
+    "options": [
+      "Deuteromycetes",
+      "Basidiomycetes",
+      "Ascomycetes",
+      "Phycomycetes"
+    ],
+    "answer": 0,
+    "explanation": "Colletotrichum, Alternaria, and Trichoderma belong to Deuteromycetes. They are imperfect fungi because their sexual stages are unknown. They mostly reproduce by asexual spores known as conidia."
+  }
+]
