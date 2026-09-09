@@ -88,8 +88,71 @@ body {
     border-color: #94a3b8;
 }
 
+/* Selected Option Style: Blue background with white text */
+.option-btn.selected {
+    background-color: #4285f4 !important;
+    color: #ffffff !important;
+    border-color: #4285f4 !important;
+}
+
+/* Vertical stacking for Name & Email inputs */
+#name-screen input {
+    display: block;
+    width: 100%;
+    padding: 14px 18px;
+    margin-bottom: 15px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: #0f172a;
+}
+#name-screen input:focus {
+    outline: none;
+    border-color: #4285f4;
+}
+
 /* =========================================================
-   5. QUIZ HEADER & SUBMIT
+   5. BACK BUTTONS & START QUIZ BUTTON
+========================================================= */
+.back-btn, #name-back-btn {
+    background-color: #64748b; 
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+.back-btn:hover, #name-back-btn:hover { 
+    background-color: #475569; 
+}
+
+#name-start-btn {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    margin: 25px auto 0 auto;
+    background-color: #22c55e;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 14px 24px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+}
+#name-start-btn:hover { 
+    background-color: #16a34a; 
+}
+
+/* =========================================================
+   6. QUIZ HEADER & SUBMIT
 ========================================================= */
 .quiz-header {
     display: flex;
@@ -111,7 +174,7 @@ body {
 #submit-btn:hover { background-color: #dc2626; }
 
 /* =========================================================
-   6. QUIZ SCREEN & NAVIGATION BUTTONS
+   7. QUIZ SCREEN & NAVIGATION BUTTONS
 ========================================================= */
 .nav-buttons {
     display: grid;
@@ -161,14 +224,14 @@ body {
 #next-btn:hover { background-color: #2563eb; }
 
 /* =========================================================
-   7. UTILITY / HIDDEN STATES
+   8. UTILITY / HIDDEN STATES
 ========================================================= */
 .hidden {
     display: none !important;
 }
 
 /* =========================================================
-   8. MOBILE RESPONSIVENESS
+   9. MOBILE RESPONSIVENESS
 ========================================================= */
 @media (max-width: 600px) {
     #home-menus, #neet-unit-menu, #neet-chapter-menu, #neet-topic-menu, #chapter-menu, #name-screen, #quiz-screen, #result-screen { 
@@ -204,5 +267,8 @@ body {
         font-size: 12px; 
         padding: 10px 10px; 
         width: auto; 
+    }
+    #name-start-btn {
+        width: 100%;
     }
 }
