@@ -1,5 +1,4 @@
-// Paste your Google Apps Script Web App Deployment URL below
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzgDEIOelMhonY07Gnha9ZA6inVSSnUXXEiXRv1egipUlkKad29jcrtETJ8sTorzZDQ6A/exec';
+const GOOGLE_SCRIPT_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
 
 let screenHistory = [];
 let neetData = [];
@@ -12,7 +11,6 @@ let timerInterval;
 let timeRemaining = 900;
 let currentChapterTitle = "General Quiz";
 
-// Variables for session persistence
 let isRestoring = false;
 let navState = {
     classSelection: null,
@@ -21,7 +19,6 @@ let navState = {
     chapterSelection: null
 };
 
-// SAVES THE ENTIRE STATE TO BROWSER CACHE
 function saveState() {
     if (isRestoring) return;
     
@@ -45,7 +42,6 @@ function saveState() {
     sessionStorage.setItem('quizAppSession', JSON.stringify(state));
 }
 
-// RESTORES THE ENTIRE STATE FROM BROWSER CACHE ON LOAD
 function restoreState() {
     const saved = sessionStorage.getItem('quizAppSession');
     if (!saved) return;
@@ -66,7 +62,6 @@ function restoreState() {
     if (state.lastName) document.getElementById('last-name').value = state.lastName;
     if (state.email) document.getElementById('email-address').value = state.email;
 
-    // Destructure navState to safely rebuild dynamic elements
     const { classSelection, subjectSelection, unitSelection, chapterSelection } = navState;
 
     if (classSelection) {
@@ -90,24 +85,20 @@ function restoreState() {
         }
     }
     
-    // Ensure accurate navState post-rebuild
     navState = { classSelection, subjectSelection, unitSelection, chapterSelection };
 
     const activeScreenId = state.activeScreenId || 'class-select-screen';
     
-    // If refreshed on result screen, just kick to home to prevent anomalies
     if (activeScreenId === 'result-screen') {
         goHome();
         isRestoring = false;
         return;
     }
     
-    // Display the correct screen
     document.querySelectorAll('body > div').forEach(s => s.classList.add('hidden'));
     const targetScreen = document.getElementById(activeScreenId);
     if (targetScreen) targetScreen.classList.remove('hidden');
 
-    // Resume logic if refreshed inside the quiz
     if (activeScreenId === 'quiz-screen') {
         renderQuestion();
         startTimer();
@@ -134,7 +125,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         const quizResponse = await fetch('/api/quizzes');
         if (quizResponse.ok) quizData = await quizResponse.json();
         
-        // Restore State After Configuration is Fetched
         restoreState();
     } catch (error) {
         console.error("Error fetching configurations:", error);
@@ -145,7 +135,6 @@ function showScreen(screenId) {
     const screens = document.querySelectorAll('body > div');
     const activeScreen = Array.from(screens).find(screen => !screen.classList.contains('hidden'));
     
-    // Only push to history if we are NOT restoring from a refresh
     if (!isRestoring && activeScreen && activeScreen.id !== screenId) {
         screenHistory.push(activeScreen.id);
     }
@@ -187,7 +176,7 @@ function goHome() {
     screens.forEach(screen => screen.classList.add('hidden'));
     document.getElementById('class-select-screen').classList.remove('hidden');
     
-    sessionStorage.removeItem('quizAppSession'); // Reset completely
+    sessionStorage.removeItem('quizAppSession');
 }
 
 function selectClass(className) {
@@ -225,7 +214,8 @@ function selectSubject(subjectName) {
         card.innerText = ch.title;
         card.onclick = async () => {
             currentChapterTitle = ch.title;
-            timeRemaining = getDefaultTimeFromHTML(); 
+            // FIX: Prioritizes JSON duration, then falls back to HTML timer
+            timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(ch.id);
             showScreen('name-screen');
         };
@@ -289,7 +279,8 @@ function loadNeetTopics(chapter) {
         card.innerText = topic.name;
         card.onclick = async () => {
             currentChapterTitle = `${chapter.name} - ${topic.name}`;
-            timeRemaining = getDefaultTimeFromHTML(); 
+            // FIX: Prioritizes JSON duration, then falls back to HTML timer
+            timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(topic.id);
             showScreen('name-screen');
         };
@@ -332,7 +323,7 @@ function startTimer() {
         }
         timeRemaining--;
         updateDisplay();
-        saveState(); // Continually save timer state
+        saveState();
     }, 1000);
 }
 
@@ -343,7 +334,6 @@ function startQuiz() {
         return;
     }
     
-    // Check if we are resuming an active quiz or starting a fresh one
     if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
         skippedQuestions = new Set();
     }
@@ -389,7 +379,7 @@ function selectOption(button, optionIndex) {
     skippedQuestions.delete(currentQuestionIndex);
     
     updateQuizStats();
-    saveState(); // Save answer
+    saveState();
 }
 
 function clearResponse() {
@@ -499,18 +489,6 @@ async function submitQuiz() {
     };
 
     try {
-        if (GOOGLE_SCRIPT_URL && !GOOGLE_SCRIPT_URL.includes('PASTE_YOUR')) {
-            await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-        }
-    } catch (error) {
-        console.error("Failed sending to Google Apps Script:", error);
-    }
-
-    try {
         await fetch('/api/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -535,7 +513,5 @@ async function submitQuiz() {
     `;
     
     showScreen('result-screen');
-    
-    // Erase the session storage so refreshing on the result screen doesn't break the flow
     sessionStorage.removeItem('quizAppSession');
 }
