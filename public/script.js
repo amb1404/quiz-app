@@ -1,22 +1,24 @@
+// Add your deployed Google Apps Script Web App URL here
+const GOOGLE_SCRIPT_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+
 let screenHistory = [];
 let neetData = [];
 let quizData = [];
 let currentQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
+let skippedQuestions = new Set(); // New tracker for explicitly skipped questions
 let timerInterval;
-let timeRemaining = 900; // Default 15 minutes (900 seconds)
+let timeRemaining = 900; 
 
 // Fetch configuration files using the backend API
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Fetched from your updated server.js API for NEET data
         const neetResponse = await fetch('/api/neet');
         if (neetResponse.ok) {
             neetData = await neetResponse.json();
         }
 
-        // Fetched from your updated server.js API for Quizzes data
         const quizResponse = await fetch('/api/quizzes');
         if (quizResponse.ok) {
             quizData = await quizResponse.json();
@@ -71,7 +73,6 @@ function selectClass(className) {
     }
 }
 
-// Loads chapters for IX & X from quizzes.json
 function selectSubject(subjectName) {
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
@@ -101,7 +102,6 @@ function selectSubject(subjectName) {
     showScreen('ix-x-chapter-screen');
 }
 
-// Loads Units for XI & XII from neet.json
 function loadNeetUnits(className) {
     const container = document.getElementById('xi-xii-unit-container');
     if (!container) return;
@@ -119,7 +119,6 @@ function loadNeetUnits(className) {
     });
 }
 
-// Loads Chapters inside a selected Unit for XI & XII
 function loadNeetChapters(classObj, unitName) {
     const unit = classObj.units.find(u => u.name === unitName);
     const container = document.getElementById('xi-xii-chapter-container');
@@ -137,7 +136,6 @@ function loadNeetChapters(classObj, unitName) {
     showScreen('xi-xii-chapter-screen');
 }
 
-// Loads Topics inside a selected Chapter for XI & XII
 function loadNeetTopics(chapter) {
     const container = document.getElementById('xi-xii-topic-container');
     if (!container) return;
@@ -164,7 +162,6 @@ function loadNeetTopics(chapter) {
     showScreen('xi-xii-topic-screen');
 }
 
-// Calls your backend server.js via API to fetch the specific questions file dynamically
 async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
@@ -181,7 +178,6 @@ async function fetchQuestionsFile(fileId) {
     }
 }
 
-// Timer Logic
 function startTimer() {
     clearInterval(timerInterval);
     const timeDisplay = document.getElementById('time-left');
@@ -207,6 +203,7 @@ function startQuiz() {
     }
     currentQuestionIndex = 0;
     userAnswers = {};
+    skippedQuestions = new Set(); // Reset skipped questions
     showScreen('quiz-screen');
     startTimer();
     renderQuestion();
@@ -243,7 +240,12 @@ function selectOption(button, optionIndex) {
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
     button.classList.add('selected');
+    
     userAnswers[currentQuestionIndex] = optionIndex;
+    
+    // If they answered a previously skipped question, remove it from the skipped set
+    skippedQuestions.delete(currentQuestionIndex); 
+    
     updateQuizStats();
 }
 
@@ -255,6 +257,11 @@ function clearResponse() {
 }
 
 function nextQuestion() {
+    // If navigating away without answering, mark as skipped
+    if (userAnswers[currentQuestionIndex] === undefined) {
+        skippedQuestions.add(currentQuestionIndex);
+    }
+
     if (currentQuestionIndex < currentQuestions.length - 1) {
         currentQuestionIndex++;
         renderQuestion();
@@ -262,6 +269,11 @@ function nextQuestion() {
 }
 
 function prevQuestion() {
+    // If navigating backwards without answering, mark as skipped
+    if (userAnswers[currentQuestionIndex] === undefined) {
+        skippedQuestions.add(currentQuestionIndex);
+    }
+
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
         renderQuestion();
@@ -270,27 +282,43 @@ function prevQuestion() {
 
 function updateQuizStats() {
     const attemptedCount = Object.keys(userAnswers).length;
-    const skippedCount = currentQuestions.length - attemptedCount;
+    const skippedCount = skippedQuestions.size;
+    
     const statsEl = document.getElementById('quiz-stats');
     if (statsEl) {
         statsEl.innerText = `Attempted: ${attemptedCount} / ${currentQuestions.length} | Skipped: ${skippedCount}`;
     }
 }
 
-// Submits the result payload to the backend server.js
+// Submits the payload containing the exact string text of the options to Google Apps Script
 async function submitQuiz() {
     clearInterval(timerInterval);
     
+    // UI Loading state switch
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.innerText = "Submitting...";
+    submitBtn.disabled = true;
+
     const firstName = document.getElementById('first-name').value.trim();
     const lastName = document.getElementById('last-name').value.trim();
     const email = document.getElementById('email-address').value.trim();
     
-    // Calculate Score
     let correctCount = 0;
-    currentQuestions.forEach((q, index) => {
-        if (userAnswers[index] === q.answer) {
-            correctCount++;
-        }
+    
+    // Map through questions to pull exact string text for the email report
+    const detailedResults = currentQuestions.map((q, index) => {
+        const studentSelectionIndex = userAnswers[index];
+        const isAttempted = studentSelectionIndex !== undefined;
+        const isCorrect = isAttempted && studentSelectionIndex === q.answer;
+        
+        if (isCorrect) correctCount++;
+
+        return {
+            question: q.question,
+            studentSelection: isAttempted ? q.options[studentSelectionIndex] : "Skipped",
+            correctOption: q.options[q.answer],
+            status: isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped")
+        };
     });
 
     const payload = {
@@ -299,20 +327,27 @@ async function submitQuiz() {
         email,
         score: correctCount,
         totalQuestions: currentQuestions.length,
-        answers: userAnswers
+        detailedResults: detailedResults
     };
 
     try {
-        const response = await fetch('/api/submit', {
+        // Send directly to Google Apps Script. 
+        // Using 'text/plain' bypasses tricky CORS preflight errors in the browser.
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(payload)
         });
+        
         const result = await response.json();
-        console.log(result.message);
+        console.log("Google Apps Script Response:", result.message);
     } catch (error) {
-        console.error("Failed to submit results:", error);
+        console.error("Failed to submit results to Google Apps Script:", error);
     }
+
+    // Restore button in case they go back and take another
+    submitBtn.innerText = "Submit Quiz";
+    submitBtn.disabled = false;
 
     // Display Result Screen
     const resultContainer = document.getElementById('result-screen');
