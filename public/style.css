@@ -1,58 +1,20 @@
 /* =========================================================
-   1. MASTER COLOR VARIABLES (Change these to update globally)
-========================================================= */
-:root {
-    --bg-color: #cbebfb;      /* Main website background */
-    --box-color: #ffffff;     /* Background of the white boxes */
-    --text-color: #000000;    /* Main text color */
-    --primary-blue: #4285f4;  /* Next/Prev buttons & Highlights */
-    --danger-red: #ef4444;    /* Submit button */
-    --clear-grey: #e2e8f0;    /* Clear response button */
-}
-
-/* =========================================================
-   2. GLOBAL PAGE SETTINGS (The entire screen)
+   1. GLOBAL PAGE SETTINGS (The background behind everything)
 ========================================================= */
 body {
-    background-color: var(--bg-color); 
-    color: var(--text-color);          
+    background-color: #cbebfb; 
     font-family: Arial, sans-serif;    
-    font-size: 16px;                   
-    font-weight: normal;               
-    font-style: normal;                
     margin: 0;                         
     padding: 20px;                     
 }
-
 .hidden { display: none !important; }
 
 /* =========================================================
-   3. HEADINGS & TEXT (Titles on every screen)
+   2. MAIN CONTAINERS (The white screens)
 ========================================================= */
-h2 {
-    color: #1e293b;            
-    font-size: 28px;           
-    font-weight: bold;         
-    font-style: normal;        
-    text-align: center;        
-    margin-top: 0px;           
-    margin-bottom: 20px;       
-}
-
-h3 {
-    color: #334155;            
-    font-size: 22px;           
-    font-weight: bold;         
-    font-style: normal;        
-    text-align: center;        
-    margin-bottom: 15px;       
-}
-
-/* =========================================================
-   4. CONTAINERS (The main white boxes)
-========================================================= */
+/* Controls ALL main white screens together */
 .screen-container {
-    background-color: var(--box-color); 
+    background-color: #ffffff; 
     width: 80%;                         
     max-width: 900px;                   
     margin: 40px auto;                  
@@ -62,8 +24,21 @@ h3 {
     box-shadow: 0px 4px 10px rgba(0,0,0,0.1); 
 }
 
-/* --- SUB-CONTAINERS (For dividing Subjects and NEET on the home screen) --- */
-.category-box {
+/* =========================================================
+   3. HOME SCREEN INDIVIDUAL CONTROLS
+========================================================= */
+/* The main "Select Category" text */
+#home-main-heading {
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;       
+}
+
+/* The Box containing "Standard Subjects" */
+#std-category-box {
     background-color: #f8fafc;        
     border: 2px solid #e2e8f0;        
     border-radius: 8px;               
@@ -71,47 +46,127 @@ h3 {
     margin-bottom: 25px;              
 }
 
-.category-box h3 {
-    color: var(--primary-blue);       
+/* The "Standard Subjects" text */
+#std-category-heading {
+    color: #4285f4;       
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
     margin-top: 0px;                  
     border-bottom: 2px solid #e2e8f0; 
     padding-bottom: 10px;
     margin-bottom: 20px;
 }
 
-/* =========================================================
-   5. MENU CARDS (Subject, Unit, Chapter Selection)
-========================================================= */
+/* The Box containing "NEET Preparation" */
+#neet-category-box {
+    background-color: #f8fafc;        
+    border: 2px solid #e2e8f0;        
+    border-radius: 8px;               
+    padding: 20px;                    
+    margin-bottom: 25px;              
+}
+
+/* The "NEET Preparation" text */
+#neet-category-heading {
+    color: #4285f4;       
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0px;                  
+    border-bottom: 2px solid #e2e8f0; 
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+/* Controls the clickable Menu Cards (Physics, Class 11, etc.) */
 .card {
     background-color: #ffffff; 
     color: #0f172a;            
     font-size: 18px;           
     font-weight: bold;         
-    font-style: normal;        
     text-align: center;        
-    width: 100%;               
     padding: 20px;             
     margin-bottom: 15px;       
     border-radius: 8px;        
     border: 1px solid #cbd5e1; 
     cursor: pointer;
-    box-sizing: border-box;
 }
 .card:hover {
     background-color: #e2e8f0;       
-    border: 1px solid var(--primary-blue); 
-    color: var(--primary-blue);      
+    border: 1px solid #4285f4; 
+    color: #4285f4;      
 }
 
 /* =========================================================
-   6. INPUT BOXES (Name & Email)
+   4. NAVIGATION MENU HEADINGS & BACK BUTTONS
 ========================================================= */
+/* The dynamic titles that show what folder you are in */
+#selected-neet-class-title, 
+#selected-neet-unit-title, 
+#selected-neet-chapter-title, 
+#selected-subject-title {
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;
+}
+
+/* The various Back Buttons on the menu screens */
+#neet-unit-back-btn, 
+#neet-chapter-back-btn, 
+#neet-topic-back-btn, 
+#chapter-back-btn,
+#name-back-btn {
+    background-color: #e2e8f0;
+    color: #333333;
+    font-size: 16px;           
+    font-weight: bold;         
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+#neet-unit-back-btn:hover, #neet-chapter-back-btn:hover, #neet-topic-back-btn:hover, #chapter-back-btn:hover, #name-back-btn:hover {
+    background-color: #cbd5e1;
+}
+
+/* =========================================================
+   5. STUDENT DETAILS SCREEN
+========================================================= */
+/* The title showing the chosen chapter */
+#selected-chapter-title {
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;
+}
+
+/* The "Enter Details" text */
+#name-screen-instructions {
+    color: #334155;            
+    font-size: 22px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-bottom: 15px; 
+}
+
+/* The Input Boxes */
+#first-name-input, #last-name-input {
+    text-transform: uppercase; 
+}
+#email-input {
+    text-transform: lowercase; 
+}
 input[type="text"], input[type="email"] {
     background-color: #ffffff; 
     color: #000000;            
     font-size: 16px;           
-    font-weight: normal;       
-    font-style: normal;        
     width: 100%;               
     padding: 12px;             
     margin-bottom: 20px;       
@@ -120,13 +175,36 @@ input[type="text"], input[type="email"] {
     box-sizing: border-box;
 }
 input[type="text"]:focus, input[type="email"]:focus {
-    border: 2px solid var(--primary-blue); 
+    border: 2px solid #4285f4; 
     outline: none;
 }
 
+/* The Start Quiz Button */
+#name-start-btn {
+    background-color: #4285f4;
+    color: #ffffff;
+    font-size: 16px;           
+    font-weight: bold;         
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;
+}
+#name-start-btn:hover { background-color: #2563eb; }
+
 /* =========================================================
-   7. QUIZ HEADER (Timer & Stats)
+   6. QUIZ SCREEN (Questions, Timer, Stats, Nav)
 ========================================================= */
+/* The main quiz title text */
+#current-chapter-heading {
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;
+}
+
 .quiz-header {
     display: flex;
     justify-content: space-between; 
@@ -134,38 +212,47 @@ input[type="text"]:focus, input[type="email"]:focus {
     margin-bottom: 30px;            
 }
 
+/* The Timer text */
 #timer-display {
     color: #000000;            
     font-size: 16px;           
     font-weight: bold;         
-    font-style: normal;        
 }
 
+/* The Attempted/Skipped Counter text */
 #counter-stats {
     color: #475569;            
     font-size: 16px;           
-    font-weight: normal;       
     font-style: italic;        
 }
 
-/* =========================================================
-   8. QUESTION & OPTIONS
-========================================================= */
+/* The Submit Button (Top Right) */
+#submit-btn {
+    background-color: #ef4444;   
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;                        
+    padding: 8px 16px; 
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;                    
+}
+#submit-btn:hover { background-color: #dc2626; }
+
+/* The Question Text */
 #question-box {
     color: #000000;            
     font-size: 22px;           
     font-weight: bold;         
-    font-style: normal;        
     text-align: left;          
     margin-bottom: 25px;       
 }
 
+/* The Option Boxes */
 .option-btn {
     background-color: #ffffff; 
     color: #1e293b;            
     font-size: 18px;           
-    font-weight: normal;       
-    font-style: normal;        
     text-align: left;          
     width: 100%;               
     padding: 15px;             
@@ -175,96 +262,110 @@ input[type="text"]:focus, input[type="email"]:focus {
     cursor: pointer;
     display: block;            
 }
-.option-btn:hover {
-    background-color: #f8fafc; 
-    border: 1px solid #94a3b8; 
-}
+.option-btn:hover { background-color: #f8fafc; border: 1px solid #94a3b8; }
 .option-btn.selected {
     background-color: #dbeafe; 
     color: #1e40af;            
     font-weight: bold;         
-    border: 2px solid var(--primary-blue); 
+    border: 2px solid #4285f4; 
 }
 
-/* =========================================================
-   9. NAVIGATION BUTTONS CONTAINER
-========================================================= */
+/* The Bottom Navigation Buttons Container */
 .nav-buttons {
     display: flex;
     justify-content: space-between; 
     margin-top: 30px;               
 }
 
-/* Shared styling for ALL buttons */
-button {
-    font-family: Arial, sans-serif;
-    font-size: 16px;           
-    font-weight: bold;         
-    font-style: normal;        
+/* The Previous Button */
+#prev-btn {
+    background-color: #4285f4; 
+    color: #ffffff;    
+    font-size: 16px;
+    font-weight: bold;                        
     padding: 12px 24px;        
     border-radius: 6px;        
     border: none;              
     cursor: pointer;
-}
-
-/* =========================================================
-   10. INDIVIDUAL BUTTON CONTROLS
-========================================================= */
-#prev-btn {
-    background-color: var(--primary-blue); 
-    color: #ffffff;                        
     margin-right: 0px;                     
 }
 #prev-btn:hover { background-color: #2563eb; }
 
+/* The Clear Response Button */
+#clear-btn {
+    background-color: #e2e8f0;   
+    color: #333333;   
+    font-size: 16px;
+    font-weight: bold;                        
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;                     
+    margin-right: auto;                    
+    margin-left: 20px;                     
+}
+#clear-btn:hover { background-color: #cbd5e1; color: #000000; }
+
+/* The Next Button */
 #next-btn {
-    background-color: var(--primary-blue); 
-    color: #ffffff;                        
+    background-color: #4285f4; 
+    color: #ffffff;   
+    font-size: 16px;
+    font-weight: bold;                        
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;                     
     margin-left: 0px;                      
 }
 #next-btn:hover { background-color: #2563eb; }
 
-#clear-btn {
-    background-color: var(--clear-grey);   
-    color: #333333;                        
-    margin-right: auto;                    
-    margin-left: 20px;                     
-}
-#clear-btn:hover {
-    background-color: #cbd5e1;             
-    color: #000000;                        
-}
-
-#submit-btn {
-    background-color: var(--danger-red);   
-    color: #ffffff;                        
-    padding: 8px 16px;                     
-}
-#submit-btn:hover { background-color: #dc2626; }
-
 /* =========================================================
-   11. RESULT SCREEN SPECIFICS
+   7. RESULT SCREEN
 ========================================================= */
+/* "Quiz Submitted Successfully!" text */
+#result-success-heading {
+    color: #1e293b;            
+    font-size: 28px;           
+    font-weight: bold;         
+    text-align: center;        
+    margin-top: 0px;           
+    margin-bottom: 20px;
+}
+
+/* "Score: 10/10" text */
 #final-score {
-    color: var(--primary-blue);
+    color: #4285f4;
     font-size: 26px;           
     font-weight: bold;         
-    font-style: normal;        
     text-align: center;        
+    margin-bottom: 15px; 
 }
 
+/* The text below the score (Student Details & Attempted/Skipped) */
 #final-breakdown {
     color: #475569;            
     font-size: 16px;           
-    font-weight: normal;       
-    font-style: normal;        
     text-align: center;        
     line-height: 1.5;          
     margin-bottom: 30px;       
 }
 
+/* Return to Home Button */
+#result-home-btn {
+    background-color: #4285f4; 
+    color: #ffffff;   
+    font-size: 16px;
+    font-weight: bold;                        
+    padding: 12px 24px;        
+    border-radius: 6px;        
+    border: none;              
+    cursor: pointer;   
+}
+#result-home-btn:hover { background-color: #2563eb; }
+
 /* =========================================================
-   12. MOBILE RESPONSIVENESS (Auto-adjusts for phones)
+   8. MOBILE RESPONSIVENESS (Auto-adjusts for phones)
 ========================================================= */
 @media (max-width: 600px) {
     .screen-container { width: 95%; margin: 15px auto; padding: 15px; }
@@ -273,17 +374,6 @@ button {
     #question-box { font-size: 18px; }
     .option-btn { font-size: 16px; padding: 12px; }
     .nav-buttons { flex-wrap: wrap; gap: 10px; }
-    button { font-size: 14px; padding: 10px 16px; }
+    #prev-btn, #next-btn, #clear-btn, #name-back-btn, #name-start-btn { font-size: 14px; padding: 10px 16px; }
     #clear-btn { margin-left: 0; }
-}
-
-/* =========================================================
-   13. INPUT TEXT FORMATTING
-========================================================= */
-#first-name-input, #last-name-input {
-    text-transform: uppercase; 
-}
-
-#email-input {
-    text-transform: lowercase; 
 }
