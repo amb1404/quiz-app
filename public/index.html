@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Application</title>
+    <title>Dynamic Quiz Application</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- 1. CLASS SELECTION SCREEN (Root Screen)[cite: 1] -->
+    <!-- 1. CLASS SELECTION SCREEN -->
     <div id="class-select-screen">
         <h2 class="screen-heading" id="class-select-title">Select Class</h2>
         <div class="card" id="class-ix-btn" onclick="selectClass('IX')">IX</div>
@@ -17,7 +17,7 @@
         <div class="card" id="class-xii-btn" onclick="selectClass('XII')">XII</div>
     </div>
 
-    <!-- 2. SUBJECT SELECTION SCREEN (For Class IX & X)[cite: 1] -->
+    <!-- 2. SUBJECT SELECTION SCREEN (For Class IX & X) -->
     <div id="subject-select-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="subject-select-title">Select Subject</h2>
@@ -26,28 +26,28 @@
         <div class="card" id="biology-sub-btn" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <!-- 3. CHAPTER SELECTION SCREEN (For Class IX & X Subjects)[cite: 1] -->
+    <!-- 3. CHAPTER SELECTION SCREEN (For Class IX & X Subjects) -->
     <div id="ix-x-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="ix-x-chapter-title">Select Chapter</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <!-- 4. UNIT SELECTION SCREEN (For Class XI & XII)[cite: 1] -->
+    <!-- 4. UNIT SELECTION SCREEN (For Class XI & XII) -->
     <div id="xi-xii-unit-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-unit-title">Select Unit</h2>
         <div id="xi-xii-unit-container"></div>
     </div>
 
-    <!-- 5. CHAPTER SELECTION SCREEN (Inside Units for XI & XII)[cite: 1] -->
+    <!-- 5. CHAPTER SELECTION SCREEN (Inside Units for XI & XII) -->
     <div id="xi-xii-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-chapter-title">Select Chapter</h2>
         <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <!-- 6. TOPIC SELECTION SCREEN (Inside Chapters for XI & XII)[cite: 1] -->
+    <!-- 6. TOPIC SELECTION SCREEN (Inside Chapters for XI & XII) -->
     <div id="xi-xii-topic-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-topic-title">Select Topic</h2>
@@ -65,28 +65,25 @@
         <button id="name-start-btn" onclick="startQuiz()">Start Quiz</button>
     </div>
 
-    <!-- 8. QUIZ SCREEN[cite: 1] -->
+    <!-- 8. QUIZ SCREEN -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
             <div id="timer-container">
-                <span>Time Left: <span id="time-left">15:00</span></span>
+                <span style="font-weight: bold; color: #dc2626;">Time Left: <span id="time-left">15:00</span></span>
             </div>
             <div id="stats-container">
-                <span id="quiz-stats">Attempted: 0 | Skipped: 0</span>
+                <span id="quiz-stats" style="font-size: 14px; font-weight: bold;">Attempted: 0 | Skipped: 0</span>
             </div>
             <button id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
         </div>
 
         <h2 class="screen-heading" id="quiz-screen-heading">Quiz Active</h2>
         <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">
-            Q.1: Sample Question Text Here
+            Q.1: Question loading...
         </div>
 
         <div id="options-container">
-            <button class="option-btn" id="option-1" onclick="selectOption(this, 0)">Option-1</button>
-            <button class="option-btn" id="option-2" onclick="selectOption(this, 1)">Option-2</button>
-            <button class="option-btn" id="option-3" onclick="selectOption(this, 2)">Option-3</button>
-            <button class="option-btn" id="option-4" onclick="selectOption(this, 3)">Option-4</button>
+            <!-- Options dynamically loaded here -->
         </div>
 
         <div class="nav-buttons">
@@ -100,6 +97,7 @@
     <div id="result-screen" class="hidden">
         <button class="back-btn" onclick="goHome()">Back to Home</button>
         <h2 class="screen-heading" id="result-screen-heading">Quiz Results</h2>
+        <!-- Results dynamically loaded here -->
     </div>
 
     <script src="script.js"></script>
