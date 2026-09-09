@@ -1,105 +1,272 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* =========================================================
+   1. MASTER COLOR VARIABLES (Change these to update globally)
+========================================================= */
+:root {
+    --bg-color: #cbebfb;      /* Main website background */
+    --box-color: #ffffff;     /* Background of the white boxes */
+    --text-color: #000000;    /* Main text color */
+    --primary-blue: #4285f4;  /* Next/Prev buttons & Highlights */
+    --danger-red: #ef4444;    /* Submit button */
+    --clear-grey: #e2e8f0;    /* Clear response button */
 }
 
+/* =========================================================
+   2. GLOBAL PAGE SETTINGS (The entire screen)
+========================================================= */
 body {
-    background-color: #bae6fd; /* Light blue background */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='160' viewBox='0 0 280 160'%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' transform='rotate(-35 140 80)' fill='rgba(15, 23, 42, 0.08)' font-size='16' font-weight='800' font-family='Segoe UI, sans-serif'%3EANIRUDDHA BANERJEE%3C/text%3E%3C/svg%3E");
-    background-repeat: repeat;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    padding: 20px;
+    background-color: var(--bg-color); /* COLOR */
+    color: var(--text-color);          /* COLOR: Text */
+    font-family: Arial, sans-serif;    /* FONT STYLE */
+    font-size: 16px;                   /* SIZE: Base text size */
+    font-weight: normal;               /* BOLD/NORMAL */
+    font-style: normal;                /* ITALICS/NORMAL */
+    margin: 0;                         /* POSITION: Outer spacing */
+    padding: 20px;                     /* POSITION: Inner spacing */
 }
 
-.quiz-container {
-    background: #ffffff;
-    width: 100%;
-    max-width: 800px;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    position: relative;
-    z-index: 1;
-}
+/* Hides screens that are not currently active */
+.hidden { display: none !important; }
 
+/* =========================================================
+   3. HEADINGS & TEXT (Titles on every screen)
+========================================================= */
 h2 {
-    color: #1e293b;
-    margin-bottom: 20px;
+    color: #1e293b;            /* COLOR */
+    font-size: 28px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: center;        /* POSITION: left, right, or center */
+    margin-top: 0px;           /* POSITION: Space above */
+    margin-bottom: 20px;       /* POSITION: Space below */
 }
 
-.hidden {
-    display: none !important;
+h3 {
+    color: #334155;            /* COLOR */
+    font-size: 22px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: center;        /* POSITION */
+    margin-bottom: 15px;       /* POSITION */
 }
 
-/* Solid blue box for subjects/chapters */
+/* =========================================================
+   4. CONTAINERS (The main white boxes)
+========================================================= */
+.screen-container {
+    background-color: var(--box-color); /* COLOR */
+    width: 80%;                         /* SIZE: Width of the box */
+    max-width: 900px;                   /* SIZE: Max width */
+    margin: 40px auto;                  /* POSITION: centers the box */
+    padding: 30px;                      /* SIZE: Space inside the box */
+    border-radius: 10px;                /* SIZE: Corner roundness */
+    border: none;                       /* COLOR/SIZE: Box border */
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.1); /* Shadow effect */
+}
+
+/* =========================================================
+   5. MENU CARDS (Subject, Unit, Chapter Selection)
+========================================================= */
 .card {
-    background: lightgrey; 
-    border: 2px solid #2563eb;
-    border-radius: 8px;
-    padding: 15px 20px;
-    margin-bottom: 15px;
+    background-color: #f1f5f9; /* COLOR */
+    color: #0f172a;            /* COLOR: Text */
+    font-size: 18px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: center;        /* POSITION */
+    width: 100%;               /* SIZE */
+    padding: 20px;             /* SIZE: Inside space */
+    margin-bottom: 15px;       /* POSITION: Space between cards */
+    border-radius: 8px;        /* SIZE: Corners */
+    border: 2px solid transparent; /* COLOR/SIZE: Border */
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
 }
-
-/* Black text in bold for subjects */
-.card h3, .card h4 {
-    color: #000000;
-    font-weight: bold;
-    margin-bottom: 5px;
-    font-size: 18px;
-}
-
-.card p {
-    color: black;
-    font-size: 14px;
-}
-
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    background-color: #e2e8f0;       /* HOVER COLOR */
+    border: 2px solid var(--primary-blue); /* HOVER BORDER COLOR */
+    color: var(--primary-blue);      /* HOVER TEXT COLOR */
+}
+
+/* =========================================================
+   6. INPUT BOXES (Name & Email)
+========================================================= */
+input[type="text"], input[type="email"] {
+    background-color: #ffffff; /* COLOR */
+    color: #000000;            /* COLOR: Text */
+    font-size: 16px;           /* SIZE */
+    font-weight: normal;       /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    width: 100%;               /* SIZE */
+    padding: 12px;             /* SIZE: Inside space */
+    margin-bottom: 20px;       /* POSITION: Space below */
+    border: 1px solid #ccc;    /* COLOR/SIZE: Border */
+    border-radius: 5px;        /* SIZE: Corners */
+    box-sizing: border-box;
+}
+input[type="text"]:focus, input[type="email"]:focus {
+    border: 2px solid var(--primary-blue); /* HOVER/FOCUS BORDER */
+    outline: none;
+}
+
+/* =========================================================
+   7. QUIZ HEADER (Timer & Stats)
+========================================================= */
+.quiz-header {
+    display: flex;
+    justify-content: space-between; /* POSITION: spread out */
+    align-items: center;
+    margin-bottom: 30px;            /* POSITION: space below */
+}
+
+#timer-display {
+    color: #000000;            /* COLOR */
+    font-size: 16px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+}
+
+#counter-stats {
+    color: #475569;            /* COLOR */
+    font-size: 16px;           /* SIZE */
+    font-weight: normal;       /* BOLD/NORMAL */
+    font-style: italic;        /* ITALICS/NORMAL */
+}
+
+/* =========================================================
+   8. QUESTION & OPTIONS
+========================================================= */
+#question-box {
+    color: #000000;            /* COLOR */
+    font-size: 22px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: left;          /* POSITION */
+    margin-bottom: 25px;       /* POSITION: space below */
 }
 
 .option-btn {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    padding: 12px 15px;
-    border-radius: 6px;
-    text-align: left;
-    font-size: 16px;
+    background-color: #ffffff; /* COLOR */
+    color: #1e293b;            /* COLOR: Text */
+    font-size: 18px;           /* SIZE */
+    font-weight: normal;       /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: left;          /* POSITION */
+    width: 100%;               /* SIZE */
+    padding: 15px;             /* SIZE: Inside space */
+    margin-bottom: 12px;       /* POSITION: Space between options */
+    border: 1px solid #ccc;    /* COLOR/SIZE: Border */
+    border-radius: 6px;        /* SIZE: Corners */
     cursor: pointer;
-    transition: all 0.2s;
+    display: block;            
 }
-
 .option-btn:hover {
-    background: #e0f2fe;
-    border-color: #bae6fd;
+    background-color: #f8fafc; /* HOVER COLOR */
+    border: 1px solid #94a3b8; /* HOVER BORDER */
 }
-
 .option-btn.selected {
-    background: lightyellow;
-    color: black;
-    border-color: #2563eb;
+    background-color: #dbeafe; /* COLOR: When clicked */
+    color: #1e40af;            /* COLOR: Text when clicked */
+    font-weight: bold;         /* BOLD/NORMAL: When clicked */
+    border: 2px solid var(--primary-blue); /* COLOR/SIZE: Border when clicked */
 }
 
-.nav-btn {
-    background: #3b82f6;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
+/* =========================================================
+   9. NAVIGATION BUTTONS CONTAINER
+========================================================= */
+.nav-buttons {
+    display: flex;
+    justify-content: space-between; /* POSITION: spread left to right */
+    margin-top: 30px;               /* POSITION: space above */
+}
+
+/* Shared styling for ALL buttons */
+button {
+    font-family: Arial, sans-serif;
+    font-size: 16px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    padding: 12px 24px;        /* SIZE: Inside space */
+    border-radius: 6px;        /* SIZE: Corners */
+    border: none;              /* COLOR/SIZE: Border */
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    transition: background 0.2s;
 }
 
-.nav-btn:hover {
-    opacity: 0.9;
+/* =========================================================
+   10. INDIVIDUAL BUTTON CONTROLS
+========================================================= */
+
+/* --- PREVIOUS BUTTON --- */
+#prev-btn {
+    background-color: var(--primary-blue); /* COLOR */
+    color: #ffffff;                        /* COLOR: Text */
+    margin-right: 0px;                     /* POSITION */
+}
+#prev-btn:hover {
+    background-color: #2563eb;             /* HOVER COLOR */
+}
+
+/* --- NEXT BUTTON --- */
+#next-btn {
+    background-color: var(--primary-blue); /* COLOR */
+    color: #ffffff;                        /* COLOR: Text */
+    margin-left: 0px;                      /* POSITION */
+}
+#next-btn:hover {
+    background-color: #2563eb;             /* HOVER COLOR */
+}
+
+/* --- CLEAR RESPONSE BUTTON --- */
+#clear-btn {
+    background-color: var(--clear-grey);   /* COLOR */
+    color: #333333;                        /* COLOR: Text */
+    margin-right: auto;                    /* POSITION: Pushes button to left */
+    margin-left: 20px;                     /* POSITION: Space from Prev button */
+}
+#clear-btn:hover {
+    background-color: #cbd5e1;             /* HOVER COLOR */
+    color: #000000;                        /* HOVER TEXT COLOR */
+}
+
+/* --- SUBMIT QUIZ BUTTON --- */
+#submit-btn {
+    background-color: var(--danger-red);   /* COLOR */
+    color: #ffffff;                        /* COLOR: Text */
+    padding: 8px 16px;                     /* SIZE: slightly smaller for header */
+}
+#submit-btn:hover {
+    background-color: #dc2626;             /* HOVER COLOR */
+}
+
+/* =========================================================
+   11. RESULT SCREEN SPECIFICS
+========================================================= */
+#final-score {
+    color: var(--primary-blue);/* COLOR */
+    font-size: 26px;           /* SIZE */
+    font-weight: bold;         /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: center;        /* POSITION */
+}
+
+#final-breakdown {
+    color: #475569;            /* COLOR */
+    font-size: 16px;           /* SIZE */
+    font-weight: normal;       /* BOLD/NORMAL */
+    font-style: normal;        /* ITALICS/NORMAL */
+    text-align: center;        /* POSITION */
+    line-height: 1.5;          /* SIZE: Space between lines of text */
+    margin-bottom: 30px;       /* POSITION */
+}
+
+/* =========================================================
+   12. MOBILE RESPONSIVENESS (Auto-adjusts for phones)
+========================================================= */
+@media (max-width: 600px) {
+    .screen-container { width: 95%; margin: 15px auto; padding: 15px; }
+    .quiz-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+    #submit-btn { width: 100%; margin-top: 5px; }
+    #question-box { font-size: 18px; }
+    .option-btn { font-size: 16px; padding: 12px; }
+    .nav-buttons { flex-wrap: wrap; gap: 10px; }
+    button { font-size: 14px; padding: 10px 16px; }
+    #clear-btn { margin-left: 0; }
 }
