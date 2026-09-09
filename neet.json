@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Class XI",
+    "chapters": [
+      {
+        "name": "Human Physiology",
+        "topics": [
+          {
+            "id": "neet-bio-xi-digestion",
+            "name": "Digestion and Absorption",
+            "duration": 300
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Class XII",
+    "chapters": []
+  }
+]
