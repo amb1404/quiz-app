@@ -24,7 +24,7 @@
             "name": "Biological Classification",
             "topics": [
               { "id": "cb2", "name": "COMBINED", "duration": 3000 },
-              { "id": "", "name": "", "duration": 300 },
+              { "id": "prt", "name": "PROTISTA", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
               { "id": "", "name": "", "duration": 300 },
