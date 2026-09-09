@@ -13,13 +13,13 @@
         <h2 id="std-category-heading">Select Category</h2>
         <div class="card" onclick="showScreen('chapter-menu')">Physics</div>
         <div class="card" onclick="showScreen('chapter-menu')">Chemistry</div>
-        <div class="card" onclick="showScreen('chapter-menu')">Biology</div>
+        <div class="card" onclick="showScreen('neet-unit-menu')">Biology (NEET)</div>
     </div>
 
-    <!-- Chapter / Subject Menu Screen -->
+    <!-- Chapter / Subject Menu Screen (Physics / Chemistry) -->
     <div id="chapter-menu" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Physics</h2>
+        <h2 id="std-category-heading">Subject Chapters</h2>
         <div class="card" onclick="showScreen('name-screen')">
             Work Energy Power
             <p>3 Chapters</p>
@@ -29,26 +29,36 @@
     <!-- NEET Unit Menu -->
     <div id="neet-unit-menu" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Units</h2>
+        <h2 id="std-category-heading">NEET Units</h2>
+        <div class="card" onclick="showScreen('neet-chapter-menu')">
+            Diversity in the Living World
+            <p>4 Chapters</p>
+        </div>
     </div>
 
     <!-- NEET Chapter Menu -->
     <div id="neet-chapter-menu" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Chapters</h2>
+        <h2 id="std-category-heading">Biological Classification</h2>
+        <div class="card" onclick="showScreen('neet-topic-menu')">
+            Combined / Topics
+        </div>
     </div>
 
     <!-- NEET Topic Menu -->
     <div id="neet-topic-menu" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Topics</h2>
+        <h2 id="std-category-heading">Select Topic</h2>
+        <div class="card" onclick="showScreen('name-screen')">Protista</div>
+        <div class="card" onclick="showScreen('name-screen')">Plantae</div>
+        <div class="card" onclick="showScreen('name-screen')">Animalia</div>
     </div>
 
     <!-- Name & Details Screen -->
     <div id="name-screen" class="hidden">
         <button class="back-btn" id="name-back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Title: Work Energy Power</h2>
-        <p><strong>Enter Details</strong></p>
+        <h2 id="std-category-heading">Enter Details</h2>
+        <p><strong>Candidate Information</strong></p>
         <input type="text" id="first-name" placeholder="First Name">
         <input type="text" id="last-name" placeholder="Last Name">
         <input type="email" id="email-address" placeholder="Email Address">
@@ -67,7 +77,7 @@
             <button id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
         </div>
 
-        <h2 id="std-category-heading">Work Energy Power</h2>
+        <h2 id="std-category-heading">Quiz Active</h2>
         <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">
             Q1: Sample Question Text Here
         </div>
@@ -88,7 +98,7 @@
 
     <!-- Result Screen -->
     <div id="result-screen" class="hidden">
-        <button class="back-btn" onclick="goHome()">Back</button>
+        <button class="back-btn" onclick="goHome()">Back to Home</button>
         <h2 id="std-category-heading">Quiz Results</h2>
     </div>
 
