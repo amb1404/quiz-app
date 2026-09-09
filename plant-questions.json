@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "question": "According to the Five Kingdom Classification, Kingdom Plantae includes all organisms that are:",
+    "options": [
+      "Prokaryotic and chlorophyll-containing",
+      "Eukaryotic and chlorophyll-containing",
+      "Eukaryotic and lacking cell walls",
+      "Multicellular and strictly heterotrophic"
+    ],
+    "answer": 1,
+    "explanation": "Kingdom Plantae includes all eukaryotic chlorophyll-containing organisms commonly called plants."
+  },
+  {
+    "id": 2,
+    "question": "Which of the following statements is true regarding the mode of nutrition in Kingdom Plantae?",
+    "options": [
+      "All members are exclusively autotrophic.",
+      "All members are heterotrophic.",
+      "Most members are autotrophic, but a few are partially heterotrophic.",
+      "Most members are parasitic."
+    ],
+    "answer": 2,
+    "explanation": "While most plants are autotrophic, a few members are partially heterotrophic, such as the insectivorous plants or parasites."
+  },
+  {
+    "id": 3,
+    "question": "Which of the following is a classic example of an insectivorous plant mentioned in NCERT?",
+    "options": [
+      "Cuscuta",
+      "Bladderwort",
+      "Mycorrhiza",
+      "Rhizobium"
+    ],
+    "answer": 1,
+    "explanation": "Bladderwort and Venus fly trap are examples of insectivorous plants given in the NCERT biological classification chapter."
+  },
+  {
+    "id": 4,
+    "question": "Cuscuta is categorized under Kingdom Plantae. What is its specific mode of nutrition?",
+    "options": [
+      "Photoautotrophic",
+      "Chemoautotrophic",
+      "Insectivorous",
+      "Parasitic"
+    ],
+    "answer": 3,
+    "explanation": "Cuscuta is a plant, but it lacks chlorophyll and derives its nutrition by acting as a parasite on other living plants."
+  },
+  {
+    "id": 5,
+    "question": "Insectivorous plants like the Venus fly trap are considered 'partially heterotrophic' because:",
+    "options": [
+      "They cannot perform photosynthesis at all.",
+      "They perform photosynthesis but rely on insects to fulfill their nitrogen requirements.",
+      "They act as parasites on other plants.",
+      "They absorb dead organic matter from the soil."
+    ],
+    "answer": 1,
+    "explanation": "Insectivorous plants are chlorophyll-containing and can photosynthesize, but they trap insects to supplement their nutritional requirements (specifically nitrogen) in nutrient-poor soils, making them partially heterotrophic."
+  },
+  {
+    "id": 6,
+    "question": "The cell wall of organisms in Kingdom Plantae is primarily composed of:",
+    "options": [
+      "Chitin",
+      "Peptidoglycan",
+      "Cellulose",
+      "Silica"
+    ],
+    "answer": 2,
+    "explanation": "Plant cells have a eukaryotic structure with prominent chloroplasts and a cell wall mainly made of cellulose."
+  },
+  {
+    "id": 7,
+    "question": "Which prominent organelle is a defining characteristic of the cells of organisms in Kingdom Plantae?",
+    "options": [
+      "Centriole",
+      "Chloroplast",
+      "Mesosome",
+      "Contractile vacuole"
+    ],
+    "answer": 1,
+    "explanation": "The plant cells have a eukaryotic structure with prominent chloroplasts, which contain the chlorophyll pigment necessary for photosynthesis."
+  },
+  {
+    "id": 8,
+    "question": "Which of the following groups is NOT included in Kingdom Plantae?",
+    "options": [
+      "Algae",
+      "Bryophytes",
+      "Cyanobacteria",
+      "Gymnosperms"
+    ],
+    "answer": 2,
+    "explanation": "Plantae includes algae, bryophytes, pteridophytes, gymnosperms, and angiosperms. Cyanobacteria (blue-green algae) are prokaryotic and belong to Kingdom Monera."
+  },
+  {
+    "id": 9,
+    "question": "The life cycle of plants exhibits a phenomenon where two distinct phases alternate with each other. This phenomenon is called:",
+    "options": [
+      "Alternation of generation",
+      "Metamorphosis",
+      "Parthenogenesis",
+      "Double fertilization"
+    ],
+    "answer": 0,
+    "explanation": "The life cycle of plants has two distinct phases (diploid sporophytic and haploid gametophytic) that alternate with each other, a phenomenon known as alternation of generation."
+  },
+  {
+    "id": 10,
+    "question": "In the plant life cycle, what is the ploidy level of the sporophytic phase?",
+    "options": [
+      "Haploid (n)",
+      "Diploid (2n)",
+      "Triploid (3n)",
+      "Polyploid"
+    ],
+    "answer": 1,
+    "explanation": "The life cycle of plants has two distinct phases: the diploid (2n) sporophytic phase and the haploid (n) gametophytic phase."
+  },
+  {
+    "id": 11,
+    "question": "In the plant life cycle, the gametophytic phase is characterized by being:",
+    "options": [
+      "Diploid",
+      "Haploid",
+      "Acellular",
+      "Prokaryotic"
+    ],
+    "answer": 1,
+    "explanation": "The gametophytic phase in the life cycle of plants is the haploid (n) phase, which produces gametes."
+  },
+  {
+    "id": 12,
+    "question": "Regarding alternation of generation in plants, which of the following features varies among different plant groups (like algae, bryophytes, angiosperms)?",
+    "options": [
+      "The presence of a cell wall",
+      "The eukaryotic nature of the cells",
+      "The lengths of the haploid and diploid phases and their free-living or dependent nature",
+      "The ability to perform respiration"
+    ],
+    "answer": 2,
+    "explanation": "The lengths of the haploid and diploid phases, and whether these phases are free-living or dependent on others, vary among different groups in plants."
+  },
+  {
+    "id": 13,
+    "question": "Identify the correct match between the plant and its mode of nutrition.",
+    "options": [
+      "Bladderwort - Parasitic",
+      "Venus fly trap - Partially heterotrophic",
+      "Cuscuta - Autotrophic",
+      "Spirogyra - Insectivorous"
+    ],
+    "answer": 1,
+    "explanation": "Venus fly trap and Bladderwort are insectivorous plants (partially heterotrophic). Cuscuta is parasitic. Spirogyra is a fully autotrophic green alga."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following statements about Kingdom Plantae is INCORRECT?",
+    "options": [
+      "They are eukaryotic organisms.",
+      "Their cell walls are made of chitin.",
+      "They exhibit alternation of generation.",
+      "They include angiosperms and gymnosperms."
+    ],
+    "answer": 1,
+    "explanation": "The cell wall of organisms in Kingdom Plantae is mainly made of cellulose, not chitin. Chitinous cell walls are a characteristic of Kingdom Fungi."
+  },
+  {
+    "id": 15,
+    "question": "Which of the following pairs represents organisms that are exceptions to the strictly autotrophic nature of plants?",
+    "options": [
+      "Chlamydomonas and Volvox",
+      "Bladderwort and Cuscuta",
+      "Mango and Wheat",
+      "Ferns and Mosses"
+    ],
+    "answer": 1,
+    "explanation": "Bladderwort (an insectivorous plant) and Cuscuta (a parasitic plant) are partially heterotrophic, making them exceptions to the generally autotrophic nature of plants."
+  },
+  {
+    "id": 16,
+    "question": "The phase in the plant life cycle that produces spores through meiosis is the:",
+    "options": [
+      "Haploid gametophyte",
+      "Diploid sporophyte",
+      "Haploid sporophyte",
+      "Diploid gametophyte"
+    ],
+    "answer": 1,
+    "explanation": "The diploid sporophytic phase undergoes meiosis to produce haploid spores, which then germinate to form the haploid gametophyte. (Conceptual extension of alternation of generation)."
+  },
+  {
+    "id": 17,
+    "question": "The phase in the plant life cycle that produces gametes through mitosis is the:",
+    "options": [
+      "Diploid sporophyte",
+      "Haploid gametophyte",
+      "Diploid gametophyte",
+      "Haploid sporophyte"
+    ],
+    "answer": 1,
+    "explanation": "The haploid gametophytic phase produces haploid gametes via mitosis. The fusion of these gametes restores the diploid sporophytic phase."
+  },
+  {
+    "id": 18,
+    "question": "Assertion (A): Cuscuta is placed in Kingdom Plantae despite lacking chlorophyll.\nReason (R): Cuscuta has a eukaryotic cell structure with a cellulosic cell wall.",
+    "options": [
+      "Both A and R are true and R is the correct explanation of A.",
+      "Both A and R are true but R is NOT the correct explanation of A.",
+      "A is true but R is false.",
+      "Both A and R are false."
+    ],
+    "answer": 0,
+    "explanation": "Cuscuta is a parasitic plant. It lost its chlorophyll through evolution but retains the fundamental plant characteristics: eukaryotic cell structure and a cellulosic cell wall, which justifies its placement in Plantae."
+  },
+  {
+    "id": 19,
+    "question": "Read the following statements:\nI. All plants possess prominent chloroplasts.\nII. Some plants can be parasitic.\nIII. The diploid phase is always free-living in all plants.\nWhich of the above statements are correct?",
+    "options": [
+      "I and II only",
+      "II and III only",
+      "I and III only",
+      "I, II, and III"
+    ],
+    "answer": 0,
+    "explanation": "Statement I and II are correct based on NCERT. Statement III is incorrect because whether the diploid phase is free-living or dependent varies among different plant groups."
+  },
+  {
+    "id": 20,
+    "question": "Which kingdom's members form the evolutionary link between Kingdom Protista and the higher autotrophic multicellular organisms?",
+    "options": [
+      "Kingdom Monera",
+      "Kingdom Fungi",
+      "Kingdom Plantae",
+      "Kingdom Animalia"
+    ],
+    "answer": 2,
+    "explanation": "Kingdom Plantae consists of autotrophic, multicellular organisms that evolved from photosynthetic protists (like certain green algae)."
+  },
+  {
+    "id": 21,
+    "question": "A student observes a multicellular organism with a cellulosic cell wall and prominent chloroplasts. However, it traps insects. To which kingdom does this organism belong?",
+    "options": [
+      "Fungi",
+      "Protista",
+      "Animalia",
+      "Plantae"
+    ],
+    "answer": 3,
+    "explanation": "The presence of a cellulosic cell wall and chloroplasts are defining features of Kingdom Plantae. Insectivorous plants like the Venus fly trap are partially heterotrophic members of this kingdom."
+  },
+  {
+    "id": 22,
+    "question": "In the classification of Kingdom Plantae, which group represents the most primitive members that were earlier often confused with Protists?",
+    "options": [
+      "Bryophytes",
+      "Algae",
+      "Gymnosperms",
+      "Angiosperms"
+    ],
+    "answer": 1,
+    "explanation": "Algae are included in Kingdom Plantae. Some unicellular algae like Chlamydomonas are placed in Protista in the 5-kingdom system, but multicellular algae remain the most primitive group in Plantae."
+  },
+  {
+    "id": 23,
+    "question": "Which of the following differentiates Kingdom Plantae from Kingdom Fungi?",
+    "options": [
+      "Plantae has a eukaryotic cell structure, Fungi is prokaryotic.",
+      "Plantae has a cellulosic cell wall, Fungi has a chitinous cell wall.",
+      "Plantae is multicellular, Fungi is entirely unicellular.",
+      "Plantae exhibits sexual reproduction, Fungi only reproduces asexually."
+    ],
+    "answer": 1,
+    "explanation": "Both are eukaryotic and mostly multicellular. The primary distinction is the cell wall composition (cellulose in plants, chitin in fungi) and the mode of nutrition (autotrophic in plants, heterotrophic in fungi)."
+  },
+  {
+    "id": 24,
+    "question": "The term 'partially heterotrophic' is used in NCERT to describe which of the following?",
+    "options": [
+      "Saprophytic fungi",
+      "Symbiotic cyanobacteria",
+      "Insectivorous plants",
+      "Chemosynthetic bacteria"
+    ],
+    "answer": 2,
+    "explanation": "NCERT explicitly refers to insectivorous plants (like Bladderwort and Venus fly trap) and parasites (like Cuscuta) as 'partially heterotrophic' members of Kingdom Plantae."
+  },
+  {
+    "id": 25,
+    "question": "What is the consequence of the alternating haploid and diploid phases in a plant's life cycle?",
+    "options": [
+      "It ensures that plants only reproduce vegetatively.",
+      "It allows the plant to switch between autotrophic and heterotrophic nutrition.",
+      "It facilitates sexual reproduction and the generation of genetic variation through meiosis and fertilization.",
+      "It eliminates the need for a cell wall in the gametophytic stage."
+    ],
+    "answer": 2,
+    "explanation": "Alternation of generation involves meiosis (reducing ploidy, introducing variation) to form spores, and fertilization (restoring ploidy) by gametes, thus facilitating the sexual life cycle of the plant."
+  },
+  {
+    "id": 26,
+    "question": "Assertion (A): The length of the haploid and diploid phases is constant across all members of Kingdom Plantae.\nReason (R): All plants exhibit alternation of generation.",
+    "options": [
+      "Both A and R are true and R is the correct explanation of A.",
+      "Both A and R are true but R is NOT the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 3,
+    "explanation": "Reason (R) is true; all plants exhibit alternation of generation. However, Assertion (A) is false because NCERT states that the lengths of the haploid and diploid phases vary among different groups in plants."
+  },
+  {
+    "id": 27,
+    "question": "Which of the following lists correctly represents the sequential evolutionary groups included within Kingdom Plantae as mentioned in NCERT?",
+    "options": [
+      "Algae, Fungi, Bryophytes, Pteridophytes, Angiosperms",
+      "Algae, Bryophytes, Pteridophytes, Gymnosperms, Angiosperms",
+      "Cyanobacteria, Algae, Bryophytes, Gymnosperms, Angiosperms",
+      "Bryophytes, Pteridophytes, Gymnosperms, Angiosperms, Monocots"
+    ],
+    "answer": 1,
+    "explanation": "According to the text, Plantae includes algae, bryophytes, pteridophytes, gymnosperms, and angiosperms."
+  },
+  {
+    "id": 28,
+    "question": "In a generalized plant life cycle, the transition from the diploid sporophyte to the haploid gametophyte is mediated directly by:",
+    "options": [
+      "Mitosis",
+      "Meiosis",
+      "Fertilization",
+      "Plasmogamy"
+    ],
+    "answer": 1,
+    "explanation": "The diploid sporophyte undergoes meiosis to produce haploid spores, which then divide by mitosis to develop into the haploid gametophyte."
+  },
+  {
+    "id": 29,
+    "question": "In a generalized plant life cycle, the transition from the haploid gametophyte to the diploid sporophyte is mediated directly by:",
+    "options": [
+      "Mitosis",
+      "Meiosis",
+      "Fertilization (Syngamy)",
+      "Karyokinesis"
+    ],
+    "answer": 2,
+    "explanation": "The haploid gametophyte produces haploid gametes. The fusion of these gametes (fertilization/syngamy) results in a diploid zygote, which develops into the diploid sporophyte."
+  },
+  {
+    "id": 30,
+    "question": "Which of the following is NOT an autotrophic member of Kingdom Plantae?",
+    "options": [
+      "Mango tree",
+      "Spirogyra",
+      "Cuscuta",
+      "Fern"
+    ],
+    "answer": 2,
+    "explanation": "Cuscuta (dodder) is a parasitic plant that lacks chlorophyll and relies entirely on its host for nutrition, making it heterotrophic rather than autotrophic."
+  },
+  {
+    "id": 31,
+    "question": "Statement I: Bladderwort is an insectivorous plant.\nStatement II: Insectivorous plants are completely devoid of chlorophyll and cannot perform photosynthesis.",
+    "options": [
+      "Both Statement I and Statement II are correct.",
+      "Both Statement I and Statement II are incorrect.",
+      "Statement I is correct but Statement II is incorrect.",
+      "Statement I is incorrect but Statement II is correct."
+    ],
+    "answer": 2,
+    "explanation": "Statement I is correct (Bladderwort is insectivorous). Statement II is incorrect because insectivorous plants are 'partially heterotrophic'; they possess chlorophyll and perform photosynthesis but trap insects for additional nutrients (like nitrogen)."
+  },
+  {
+    "id": 32,
+    "question": "What primary structural feature of the cell wall places an organism in Kingdom Plantae rather than Kingdom Monera?",
+    "options": [
+      "Presence of Peptidoglycan",
+      "Presence of Cellulose",
+      "Presence of Chitin",
+      "Absence of a cell membrane"
+    ],
+    "answer": 1,
+    "explanation": "Plant cell walls are mainly made of cellulose. Monerans (bacteria) have cell walls made of peptidoglycan (non-cellulosic, made of polysaccharides and amino acids)."
+  },
+  {
+    "id": 33,
+    "question": "Which of the following organisms represents a parasitic mode of life within the Kingdom Plantae?",
+    "options": [
+      "Venus fly trap",
+      "Bladderwort",
+      "Cuscuta",
+      "Rhizobium"
+    ],
+    "answer": 2,
+    "explanation": "Cuscuta is specifically cited in NCERT as a parasite belonging to the Kingdom Plantae."
+  },
+  {
+    "id": 34,
+    "question": "The variation in whether the sporophytic and gametophytic phases are free-living or dependent is a key characteristic of:",
+    "options": [
+      "All kingdoms in Whittaker's classification",
+      "Only Kingdom Fungi",
+      "Kingdom Plantae",
+      "Kingdom Animalia"
+    ],
+    "answer": 2,
+    "explanation": "In Kingdom Plantae, the phenomenon of alternation of generation involves a variation in the free-living or dependent nature of the haploid and diploid phases among different plant groups."
+  },
+  {
+    "id": 35,
+    "question": "Which of the following is true regarding the chloroplasts in Kingdom Plantae?",
+    "options": [
+      "They are found in the nucleoplasm.",
+      "They are prominent and contain chlorophyll.",
+      "They are responsible for protein synthesis.",
+      "They are present in all heterotrophic members exactly as in autotrophic ones."
+    ],
+    "answer": 1,
+    "explanation": "Plant cells have a eukaryotic structure with prominent chloroplasts that contain chlorophyll, enabling them to carry out photosynthesis."
+  },
+  {
+    "id": 36,
+    "question": "Which of these terms best describes the overarching life cycle pattern of organisms in Kingdom Plantae?",
+    "options": [
+      "Haplontic only",
+      "Diplontic only",
+      "Alternation of generation (Haplodiplontic variations)",
+      "Ametabolous"
+    ],
+    "answer": 2,
+    "explanation": "Plants exhibit alternation of generation, shifting between diploid sporophytic and haploid gametophytic phases. The exact pattern (haplontic, diplontic, haplodiplontic) varies among algal and plant groups."
+  },
+  {
+    "id": 37,
+    "question": "In the context of Kingdom Plantae, what does the term 'diploid sporophyte' strictly refer to?",
+    "options": [
+      "The phase of the life cycle that contains 'n' number of chromosomes.",
+      "The phase of the life cycle that contains '2n' number of chromosomes.",
+      "The phase that exclusively relies on insects for food.",
+      "The unicellular stage of algae."
+    ],
+    "answer": 1,
+    "explanation": "The term 'diploid' strictly refers to having two sets of chromosomes (2n). The sporophyte is the diploid phase in the plant's alternation of generation."
+  },
+  {
+    "id": 38,
+    "question": "Which of the following kingdoms is strictly eukaryotic, primarily autotrophic, and features a cellulosic cell wall?",
+    "options": [
+      "Monera",
+      "Protista",
+      "Fungi",
+      "Plantae"
+    ],
+    "answer": 3,
+    "explanation": "Kingdom Plantae is defined by being eukaryotic, primarily autotrophic (chlorophyll-containing), and having cellulosic cell walls."
+  },
+  {
+    "id": 39,
+    "question": "Identify the incorrect statement regarding the Venus fly trap.",
+    "options": [
+      "It is a eukaryotic organism.",
+      "It belongs to Kingdom Plantae.",
+      "It is a fully heterotrophic organism.",
+      "It is an insectivorous plant."
+    ],
+    "answer": 2,
+    "explanation": "The Venus fly trap is 'partially heterotrophic'. It has chlorophyll and performs photosynthesis but captures insects to supplement its nutritional needs."
+  },
+  {
+    "id": 40,
+    "question": "To study the detailed structure of the eukaryotic plant cell mentioned in the Biological Classification chapter, NCERT refers students to which structural component mainly?",
+    "options": [
+      "The cell wall made of cellulose and prominent chloroplasts.",
+      "The presence of 70S ribosomes exclusively.",
+      "The absence of a nuclear membrane.",
+      "The chitinous cell wall."
+    ],
+    "answer": 0,
+    "explanation": "NCERT highlights that plant cells have an eukaryotic structure with prominent chloroplasts and a cell wall mainly made of cellulose."
+  }
+]
