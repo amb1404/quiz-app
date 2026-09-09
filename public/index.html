@@ -8,85 +8,85 @@
 </head>
 <body>
 
-    <!-- Home Menu Screen -->
-    <div id="home-menus">
-        <h2 id="std-category-heading">Select Category</h2>
-        <div class="card" onclick="showScreen('chapter-menu')">Physics</div>
-        <div class="card" onclick="showScreen('chapter-menu')">Chemistry</div>
-        <div class="card" onclick="showScreen('neet-unit-menu')">Biology (NEET)</div>
+    <!-- 1. CLASS SELECTION SCREEN (Root Screen)[cite: 1] -->
+    <div id="class-select-screen">
+        <h2 class="screen-heading" id="class-select-title">Select Class</h2>
+        <div class="card" id="class-ix-btn" onclick="selectClass('IX')">IX</div>
+        <div class="card" id="class-x-btn" onclick="selectClass('X')">X</div>
+        <div class="card" id="class-xi-btn" onclick="selectClass('XI')">XI</div>
+        <div class="card" id="class-xii-btn" onclick="selectClass('XII')">XII</div>
     </div>
 
-    <!-- Chapter / Subject Menu Screen (Physics / Chemistry) -->
-    <div id="chapter-menu" class="hidden">
+    <!-- 2. SUBJECT SELECTION SCREEN (For Class IX & X)[cite: 1] -->
+    <div id="subject-select-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Subject Chapters</h2>
-        <div class="card" onclick="showScreen('name-screen')">
-            Work Energy Power
-            <p>3 Chapters</p>
-        </div>
+        <h2 class="screen-heading" id="subject-select-title">Select Subject</h2>
+        <div class="card" id="physics-sub-btn" onclick="selectSubject('Physics')">Physics</div>
+        <div class="card" id="chemistry-sub-btn" onclick="selectSubject('Chemistry')">Chemistry</div>
+        <div class="card" id="biology-sub-btn" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <!-- NEET Unit Menu -->
-    <div id="neet-unit-menu" class="hidden">
+    <!-- 3. CHAPTER SELECTION SCREEN (For Class IX & X Subjects)[cite: 1] -->
+    <div id="ix-x-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">NEET Units</h2>
-        <div class="card" onclick="showScreen('neet-chapter-menu')">
-            Diversity in the Living World
-            <p>4 Chapters</p>
-        </div>
+        <h2 class="screen-heading" id="ix-x-chapter-title">Select Chapter</h2>
+        <div id="ix-x-chapter-container"></div>
     </div>
 
-    <!-- NEET Chapter Menu -->
-    <div id="neet-chapter-menu" class="hidden">
+    <!-- 4. UNIT SELECTION SCREEN (For Class XI & XII)[cite: 1] -->
+    <div id="xi-xii-unit-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Biological Classification</h2>
-        <div class="card" onclick="showScreen('neet-topic-menu')">
-            Combined / Topics
-        </div>
+        <h2 class="screen-heading" id="xi-xii-unit-title">Select Unit</h2>
+        <div id="xi-xii-unit-container"></div>
     </div>
 
-    <!-- NEET Topic Menu -->
-    <div id="neet-topic-menu" class="hidden">
+    <!-- 5. CHAPTER SELECTION SCREEN (Inside Units for XI & XII)[cite: 1] -->
+    <div id="xi-xii-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Select Topic</h2>
-        <div class="card" onclick="showScreen('name-screen')">Protista</div>
-        <div class="card" onclick="showScreen('name-screen')">Plantae</div>
-        <div class="card" onclick="showScreen('name-screen')">Animalia</div>
+        <h2 class="screen-heading" id="xi-xii-chapter-title">Select Chapter</h2>
+        <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <!-- Name & Details Screen -->
+    <!-- 6. TOPIC SELECTION SCREEN (Inside Chapters for XI & XII)[cite: 1] -->
+    <div id="xi-xii-topic-screen" class="hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 class="screen-heading" id="xi-xii-topic-title">Select Topic</h2>
+        <div id="xi-xii-topic-container"></div>
+    </div>
+
+    <!-- 7. NAME & DETAILS SCREEN -->
     <div id="name-screen" class="hidden">
         <button class="back-btn" id="name-back-btn" onclick="goBack()">Back</button>
-        <h2 id="std-category-heading">Enter Details</h2>
-        <p><strong>Candidate Information</strong></p>
+        <h2 class="screen-heading" id="name-screen-title">Enter Details</h2>
+        <p id="name-screen-subtitle"><strong>Candidate Information</strong></p>
         <input type="text" id="first-name" placeholder="First Name">
         <input type="text" id="last-name" placeholder="Last Name">
         <input type="email" id="email-address" placeholder="Email Address">
         <button id="name-start-btn" onclick="startQuiz()">Start Quiz</button>
     </div>
 
-    <!-- Quiz Screen -->
+    <!-- 8. QUIZ SCREEN[cite: 1] -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
-            <div>
+            <div id="timer-container">
                 <span>Time Left: <span id="time-left">15:00</span></span>
             </div>
-            <div>
+            <div id="stats-container">
                 <span id="quiz-stats">Attempted: 0 | Skipped: 0</span>
             </div>
             <button id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
         </div>
 
-        <h2 id="std-category-heading">Quiz Active</h2>
+        <h2 class="screen-heading" id="quiz-screen-heading">Quiz Active</h2>
         <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">
-            Q1: Sample Question Text Here
+            Q.1: Sample Question Text Here
         </div>
 
         <div id="options-container">
-            <button class="option-btn" onclick="selectOption(this)">a. Option One</button>
-            <button class="option-btn" onclick="selectOption(this)">b. Option Two</button>
-            <button class="option-btn" onclick="selectOption(this)">c. Option Three</button>
-            <button class="option-btn" onclick="selectOption(this)">d. Option Four</button>
+            <button class="option-btn" id="option-1" onclick="selectOption(this, 0)">Option-1</button>
+            <button class="option-btn" id="option-2" onclick="selectOption(this, 1)">Option-2</button>
+            <button class="option-btn" id="option-3" onclick="selectOption(this, 2)">Option-3</button>
+            <button class="option-btn" id="option-4" onclick="selectOption(this, 3)">Option-4</button>
         </div>
 
         <div class="nav-buttons">
@@ -96,10 +96,10 @@
         </div>
     </div>
 
-    <!-- Result Screen -->
+    <!-- 9. RESULT SCREEN -->
     <div id="result-screen" class="hidden">
         <button class="back-btn" onclick="goHome()">Back to Home</button>
-        <h2 id="std-category-heading">Quiz Results</h2>
+        <h2 class="screen-heading" id="result-screen-heading">Quiz Results</h2>
     </div>
 
     <script src="script.js"></script>
