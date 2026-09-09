@@ -458,3 +458,11 @@ input[type="text"]:focus, input[type="email"]:focus {
     .nav-buttons { display: flex; flex-direction: column; gap: 10px; }
     #prev-btn, #next-btn, #clear-btn, #name-back-btn, #name-start-btn { font-size: 14px; padding: 10px 16px; width: 100%; justify-self: auto; }
 }
+
+/* Force Previous button to reserve its grid space on Q1 instead of collapsing */
+.nav-buttons #prev-btn.hidden {
+    display: block !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
