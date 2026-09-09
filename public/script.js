@@ -4,21 +4,25 @@ let quizData = [];
 let currentQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
+let timerInterval;
+let timeRemaining = 900; // Default 15 minutes (900 seconds)
 
-// Fetch navigation configuration files on initialization
+// Fetch configuration files using the backend API and static folder
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        const neetResponse = await fetch('neet.json');
+        // Fetched directly from the 'public' static folder
+        const neetResponse = await fetch('/neet.json');
         if (neetResponse.ok) {
             neetData = await neetResponse.json();
         }
 
-        const quizResponse = await fetch('quizzes.json');
+        // Fetched from your server.js API[cite: 2]
+        const quizResponse = await fetch('/api/quizzes');
         if (quizResponse.ok) {
             quizData = await quizResponse.json();
         }
     } catch (error) {
-        console.error("Error fetching main configuration files. Make sure you are running via a local server.", error);
+        console.error("Error fetching configurations from server:", error);
     }
 });
 
@@ -67,7 +71,6 @@ function selectClass(className) {
     }
 }
 
-// Handles Class IX & X chapter selection and dynamically loads questions from [id]-questions.json
 function selectSubject(subjectName) {
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
@@ -87,7 +90,7 @@ function selectSubject(subjectName) {
         card.className = 'card';
         card.innerText = ch.title;
         card.onclick = async () => {
-            // Dynamically fetches individual question file based on chapter ID (e.g., machine-questions.json)
+            timeRemaining = ch.duration || 900;
             currentQuestions = await fetchQuestionsFile(ch.id);
             showScreen('name-screen');
         };
@@ -131,7 +134,6 @@ function loadNeetChapters(classObj, unitName) {
     showScreen('xi-xii-chapter-screen');
 }
 
-// Handles Class XI & XII topic selection and dynamically loads questions from [id]-questions.json
 function loadNeetTopics(chapter) {
     const container = document.getElementById('xi-xii-topic-container');
     if (!container) return;
@@ -148,7 +150,7 @@ function loadNeetTopics(chapter) {
         card.className = 'card';
         card.innerText = topic.name;
         card.onclick = async () => {
-            // Dynamically fetches individual question file using the ID with '-questions.json' suffix (e.g., cb2-questions.json)
+            timeRemaining = topic.duration || 900;
             currentQuestions = await fetchQuestionsFile(topic.id);
             showScreen('name-screen');
         };
@@ -158,24 +160,38 @@ function loadNeetTopics(chapter) {
     showScreen('xi-xii-topic-screen');
 }
 
-// Helper function to fetch an individual question JSON file asynchronously using the -questions.json pattern
+// Calls your backend server.js memory cache via API[cite: 2]
 async function fetchQuestionsFile(fileId) {
-    if (!fileId) {
-        console.warn("No ID provided for this item.");
-        return [];
-    }
+    if (!fileId) return [];
     try {
-        const response = await fetch(`${fileId}-questions.json`);
+        const response = await fetch(`/api/quiz/${fileId}`);
         if (response.ok) {
             return await response.json();
         } else {
-            console.error(`Could not find file: ${fileId}-questions.json`);
+            console.error(`Could not find quiz for ID: ${fileId} in backend cache.`);
             return [];
         }
     } catch (error) {
-        console.error(`Error loading ${fileId}-questions.json:`, error);
+        console.error(`Error loading API for ${fileId}:`, error);
         return [];
     }
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    const timeDisplay = document.getElementById('time-left');
+    
+    timerInterval = setInterval(() => {
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            submitQuiz(); // Auto submit when time runs out
+            return;
+        }
+        timeRemaining--;
+        const minutes = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+        const seconds = (timeRemaining % 60).toString().padStart(2, '0');
+        timeDisplay.innerText = `${minutes}:${seconds}`;
+    }, 1000);
 }
 
 function startQuiz() {
@@ -187,6 +203,7 @@ function startQuiz() {
     currentQuestionIndex = 0;
     userAnswers = {};
     showScreen('quiz-screen');
+    startTimer();
     renderQuestion();
 }
 
@@ -209,7 +226,7 @@ function renderQuestion() {
         if (userAnswers[currentQuestionIndex] === idx) {
             btn.classList.add('selected');
         }
-        btn.innerText = `Option-${idx + 1}: ${opt}`;
+        btn.innerText = opt;
         btn.onclick = () => selectOption(btn, idx);
         optionsContainer.appendChild(btn);
     });
@@ -255,6 +272,54 @@ function updateQuizStats() {
     }
 }
 
-function submitQuiz() {
+// Submits the result payload to the backend server.js[cite: 2]
+async function submitQuiz() {
+    clearInterval(timerInterval);
+    
+    const firstName = document.getElementById('first-name').value.trim();
+    const lastName = document.getElementById('last-name').value.trim();
+    const email = document.getElementById('email-address').value.trim();
+    
+    // Calculate Score
+    let correctCount = 0;
+    currentQuestions.forEach((q, index) => {
+        if (userAnswers[index] === q.answer) {
+            correctCount++;
+        }
+    });
+
+    const payload = {
+        firstName,
+        lastName,
+        email,
+        score: correctCount,
+        totalQuestions: currentQuestions.length,
+        answers: userAnswers
+    };
+
+    try {
+        const response = await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        console.log(result.message);
+    } catch (error) {
+        console.error("Failed to submit results:", error);
+    }
+
+    // Display Result Screen
+    const resultContainer = document.getElementById('result-screen');
+    resultContainer.innerHTML = `
+        <button class="back-btn" onclick="goHome()">Back to Home</button>
+        <h2 class="screen-heading">Quiz Results</h2>
+        <div style="text-align: center; margin-top: 20px;">
+            <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
+            <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${correctCount} / ${currentQuestions.length}</h1>
+            <p style="font-size: 16px; color: #64748b;">Response successfully recorded on server.</p>
+        </div>
+    `;
+    
     showScreen('result-screen');
 }
