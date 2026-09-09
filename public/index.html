@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Quiz Application</title>
+    <title>Quiz Application</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,7 +17,7 @@
         <div class="card" id="class-xii-btn" onclick="selectClass('XII')">XII</div>
     </div>
 
-    <!-- 2. SUBJECT SELECTION SCREEN (For Class IX & X) -->
+    <!-- 2. SUBJECT SELECTION SCREEN -->
     <div id="subject-select-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="subject-select-title">Select Subject</h2>
@@ -26,28 +26,28 @@
         <div class="card" id="biology-sub-btn" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <!-- 3. CHAPTER SELECTION SCREEN (For Class IX & X Subjects) -->
+    <!-- 3. CHAPTER SELECTION SCREEN (IX & X) -->
     <div id="ix-x-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="ix-x-chapter-title">Select Chapter</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <!-- 4. UNIT SELECTION SCREEN (For Class XI & XII) -->
+    <!-- 4. UNIT SELECTION SCREEN (XI & XII) -->
     <div id="xi-xii-unit-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-unit-title">Select Unit</h2>
         <div id="xi-xii-unit-container"></div>
     </div>
 
-    <!-- 5. CHAPTER SELECTION SCREEN (Inside Units for XI & XII) -->
+    <!-- 5. CHAPTER SELECTION SCREEN (XI & XII) -->
     <div id="xi-xii-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-chapter-title">Select Chapter</h2>
         <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <!-- 6. TOPIC SELECTION SCREEN (Inside Chapters for XI & XII) -->
+    <!-- 6. TOPIC SELECTION SCREEN (XI & XII) -->
     <div id="xi-xii-topic-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="xi-xii-topic-title">Select Topic</h2>
@@ -59,9 +59,9 @@
         <button class="back-btn" id="name-back-btn" onclick="goBack()">Back</button>
         <h2 class="screen-heading" id="name-screen-title">Enter Details</h2>
         <p id="name-screen-subtitle"><strong>Candidate Information</strong></p>
-        <input type="text" id="first-name" placeholder="First Name">
-        <input type="text" id="last-name" placeholder="Last Name">
-        <input type="email" id="email-address" placeholder="Email Address">
+        <input type="text" id="first-name" placeholder="First Name" oninput="saveState()">
+        <input type="text" id="last-name" placeholder="Last Name" oninput="saveState()">
+        <input type="email" id="email-address" placeholder="Email Address" oninput="saveState()">
         <button id="name-start-btn" onclick="startQuiz()">Start Quiz</button>
     </div>
 
@@ -69,7 +69,8 @@
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
             <div id="timer-container">
-                <span style="font-weight: bold; color: #dc2626;">Time Left: <span id="time-left"> </span></span>
+                <!-- Set the default starting timer here -->
+                <span style="font-weight: bold; color: #dc2626;">Time Left: <span id="time-left">15:00</span></span>
             </div>
             <div id="stats-container">
                 <span id="quiz-stats" style="font-size: 14px; font-weight: bold;">Attempted: 0 | Skipped: 0</span>
@@ -78,13 +79,8 @@
         </div>
 
         <h2 class="screen-heading" id="quiz-screen-heading">Quiz Active</h2>
-        <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">
-            Q.1: Question loading...
-        </div>
-
-        <div id="options-container">
-            <!-- Options dynamically loaded here -->
-        </div>
+        <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></div>
+        <div id="options-container"></div>
 
         <div class="nav-buttons">
             <button id="prev-btn" onclick="prevQuestion()">Previous</button>
@@ -94,11 +90,7 @@
     </div>
 
     <!-- 9. RESULT SCREEN -->
-    <div id="result-screen" class="hidden">
-        <button class="back-btn" onclick="goHome()">Back to Home</button>
-        <h2 class="screen-heading" id="result-screen-heading">Quiz Results</h2>
-        <!-- Results dynamically loaded here -->
-    </div>
+    <div id="result-screen" class="hidden"></div>
 
     <script src="script.js"></script>
 </body>
