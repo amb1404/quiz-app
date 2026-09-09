@@ -24,22 +24,21 @@ if (fs.existsSync(quizListPath)) {
     });
 }
 
-// --- START OF NEW NEET CODE ---
+// --- START OF UPDATED NEET CODE ---
 const neetListPath = path.join(__dirname, 'neet.json');
 
 if (fs.existsSync(neetListPath)) {
     const classes = JSON.parse(fs.readFileSync(neetListPath, 'utf8'));
     classes.forEach(cls => {
-        if (cls.chapters) {
-            cls.chapters.forEach(ch => {
-                if (ch.topics) {
-                    ch.topics.forEach(topic => {
-                        // Iterating into the new deeper 'subtopics' layer
-                        if (topic.subtopics) {
-                            topic.subtopics.forEach(sub => {
-                                const filePath = path.join(__dirname, `${sub.id}-questions.json`);
+        if (cls.units) {
+            cls.units.forEach(unit => {
+                if (unit.chapters) {
+                    unit.chapters.forEach(ch => {
+                        if (ch.topics) {
+                            ch.topics.forEach(topic => {
+                                const filePath = path.join(__dirname, `${topic.id}-questions.json`);
                                 if (fs.existsSync(filePath)) {
-                                    quizzesCache[sub.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                                    quizzesCache[topic.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                                 }
                             });
                         }
@@ -57,7 +56,7 @@ app.get('/api/neet', (req, res) => {
         res.status(404).json({ error: 'NEET configuration not found' });
     }
 });
-// --- END OF NEW NEET CODE ---
+// --- END OF UPDATED NEET CODE ---
 
 app.get('/api/quizzes', (req, res) => {
     if (fs.existsSync(quizListPath)) {
