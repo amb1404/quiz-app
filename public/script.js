@@ -11,24 +11,137 @@ let studentLastName = '';
 let studentEmail = '';
 let skippedIndices = new Set();
 let isNeetPath = false; 
-let currentNeetClass = null;
+
+// Context tracking variables for seamless refreshing
+let activeSubject = null;
+let activeNeetClass = null;
+let activeNeetUnit = null;
+let activeNeetChapter = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Fetch Regular Subjects
-    fetch('/api/quizzes')
-        .then(res => res.json())
-        .then(data => {
-            const subjectsList = Array.isArray(data) ? data : data.subjects;
-            renderSubjects(subjectsList);
-        })
-        .catch(err => console.error('Error fetching quiz list:', err));
+    // Save keystrokes in real-time on the details screen
+    document.getElementById('first-name-input').addEventListener('input', persistState);
+    document.getElementById('last-name-input').addEventListener('input', persistState);
+    document.getElementById('email-input').addEventListener('input', persistState);
 
-    // Fetch NEET Content
-    fetch('/api/neet')
-        .then(res => res.json())
-        .then(data => renderNeetClasses(data))
-        .catch(err => console.error('Error fetching NEET list:', err));
+    // Fetch both datasets simultaneously
+    Promise.all([
+        fetch('/api/quizzes').then(res => res.json().catch(() => [])),
+        fetch('/api/neet').then(res => res.json().catch(() => []))
+    ]).then(([subjData, neetData]) => {
+        const subjectsList = Array.isArray(subjData) ? subjData : (subjData.subjects || []);
+        renderSubjects(subjectsList);
+        renderNeetClasses(neetData);
+
+        // Rebuild the exact state the user was in before refreshing
+        restoreState(); 
+    });
 });
+
+// --- STATE MANAGEMENT ENGINE ---
+function hideAllScreens() {
+    const screens = [
+        'home-menus', 'neet-unit-menu', 'neet-chapter-menu', 'neet-topic-menu',
+        'chapter-menu', 'name-screen', 'quiz-screen', 'result-screen'
+    ];
+    screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+function getCurrentScreen() {
+    const screens = [
+        'home-menus', 'neet-unit-menu', 'neet-chapter-menu', 'neet-topic-menu',
+        'chapter-menu', 'name-screen', 'quiz-screen', 'result-screen'
+    ];
+    for (let id of screens) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden')) return id;
+    }
+    return 'home-menus';
+}
+
+function persistState() {
+    const fNameInput = document.getElementById('first-name-input');
+    if(fNameInput) studentFirstName = fNameInput.value.trim();
+    const lNameInput = document.getElementById('last-name-input');
+    if(lNameInput) studentLastName = lNameInput.value.trim();
+    const emailInput = document.getElementById('email-input');
+    if(emailInput) studentEmail = emailInput.value.trim();
+
+    const state = {
+        activeScreen: getCurrentScreen(),
+        isNeetPath, activeSubject, activeNeetClass, activeNeetUnit, activeNeetChapter,
+        quizData: {
+            currentQuizId, currentChapterDuration, currentChapterTitleText,
+            studentFirstName, studentLastName, studentEmail,
+            questions, currentIndex, userAnswers, timeLeft,
+            skippedIndices: Array.from(skippedIndices)
+        }
+    };
+    sessionStorage.setItem('quizAppSession', JSON.stringify(state));
+}
+
+function restoreState() {
+    const saved = sessionStorage.getItem('quizAppSession');
+    if (!saved) return false;
+    
+    try {
+        const state = JSON.parse(saved);
+        
+        isNeetPath = state.isNeetPath;
+        activeSubject = state.activeSubject;
+        activeNeetClass = state.activeNeetClass;
+        activeNeetUnit = state.activeNeetUnit;
+        activeNeetChapter = state.activeNeetChapter;
+        
+        const qd = state.quizData;
+        if (qd) {
+            currentQuizId = qd.currentQuizId;
+            currentChapterDuration = qd.currentChapterDuration;
+            currentChapterTitleText = qd.currentChapterTitleText;
+            studentFirstName = qd.studentFirstName;
+            studentLastName = qd.studentLastName;
+            studentEmail = qd.studentEmail;
+            questions = qd.questions || [];
+            currentIndex = qd.currentIndex || 0;
+            userAnswers = qd.userAnswers || [];
+            timeLeft = qd.timeLeft || 0;
+            skippedIndices = new Set(qd.skippedIndices || []);
+        }
+
+        hideAllScreens();
+        
+        // Reconstruct the exact menu chain dynamically
+        if (activeSubject) showChapters(activeSubject);
+        if (activeNeetClass) showNeetUnits(activeNeetClass);
+        if (activeNeetUnit) showNeetChapters(activeNeetUnit);
+        if (activeNeetChapter) showNeetTopics(activeNeetChapter);
+        
+        const active = state.activeScreen;
+        hideAllScreens(); // Hide everything again to ensure only the active screen shows
+        document.getElementById(active).classList.remove('hidden');
+        
+        // Restore specific screen UI values
+        if (active === 'name-screen') {
+            document.getElementById('selected-chapter-title').innerText = `Title: ${currentChapterTitleText}`;
+            document.getElementById('first-name-input').value = studentFirstName;
+            document.getElementById('last-name-input').value = studentLastName;
+            document.getElementById('email-input').value = studentEmail;
+        } else if (active === 'quiz-screen') {
+            document.getElementById('current-chapter-heading').innerText = currentChapterTitleText;
+            startQuiz(); 
+        } else if (active === 'result-screen') {
+            rebuildResultScreen();
+        }
+        
+        return true;
+    } catch(e) {
+        sessionStorage.removeItem('quizAppSession');
+        return false;
+    }
+}
 
 // --- REGULAR SUBJECTS LOGIC ---
 function renderSubjects(subjects) {
@@ -45,14 +158,14 @@ function renderSubjects(subjects) {
 }
 
 function showChapters(subject) {
+    activeSubject = subject;
     isNeetPath = false; 
-    document.getElementById('home-menus').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('chapter-menu').classList.remove('hidden');
     document.getElementById('selected-subject-title').innerText = subject.subject || subject.name;
 
     const list = document.getElementById('chapter-list');
     list.innerHTML = '';
-
     subject.chapters.forEach(chap => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -61,11 +174,14 @@ function showChapters(subject) {
         card.onclick = () => prepareQuiz(chap.id, chap.duration, chapTitle);
         list.appendChild(card);
     });
+    persistState();
 }
 
 function backToSubjects() {
-    document.getElementById('chapter-menu').classList.add('hidden');
+    activeSubject = null;
+    hideAllScreens();
     document.getElementById('home-menus').classList.remove('hidden');
+    persistState();
 }
 
 // --- NEET LOGIC ---
@@ -82,8 +198,8 @@ function renderNeetClasses(classes) {
 }
 
 function showNeetUnits(cls) {
-    currentNeetClass = cls;
-    document.getElementById('home-menus').classList.add('hidden');
+    activeNeetClass = cls;
+    hideAllScreens();
     document.getElementById('neet-unit-menu').classList.remove('hidden');
     document.getElementById('selected-neet-class-title').innerText = cls.name;
 
@@ -96,11 +212,13 @@ function showNeetUnits(cls) {
         card.onclick = () => showNeetChapters(unit);
         list.appendChild(card);
     });
+    persistState();
 }
 
 function showNeetChapters(unit) {
     isNeetPath = true; 
-    document.getElementById('neet-unit-menu').classList.add('hidden');
+    activeNeetUnit = unit;
+    hideAllScreens();
     document.getElementById('neet-chapter-menu').classList.remove('hidden');
     document.getElementById('selected-neet-unit-title').innerText = unit.name;
 
@@ -113,40 +231,49 @@ function showNeetChapters(unit) {
         card.onclick = () => showNeetTopics(chap);
         list.appendChild(card);
     });
+    persistState();
 }
 
 function showNeetTopics(chap) {
     isNeetPath = true; 
-    document.getElementById('neet-chapter-menu').classList.add('hidden');
+    activeNeetChapter = chap;
+    hideAllScreens();
     document.getElementById('neet-topic-menu').classList.remove('hidden');
     document.getElementById('selected-neet-chapter-title').innerText = chap.name;
 
     const list = document.getElementById('neet-topic-list');
     list.innerHTML = '';
     chap.topics.forEach(top => {
+        if (!top.id) return; // Ignores any empty placeholders automatically
         const card = document.createElement('div');
         card.className = 'card';
         const title = top.title || top.name;
         card.innerHTML = `<h4>${title}</h4>`;
-        // The quiz starts from this final Topic layer
         card.onclick = () => prepareQuiz(top.id, top.duration, title);
         list.appendChild(card);
     });
+    persistState();
 }
 
 function backToHomeMenus() {
-    document.getElementById('neet-unit-menu').classList.add('hidden');
+    activeNeetClass = null;
+    hideAllScreens();
     document.getElementById('home-menus').classList.remove('hidden');
+    persistState();
 }
 
 function backToNeetUnits() {
-    document.getElementById('neet-chapter-menu').classList.add('hidden');
+    activeNeetUnit = null;
+    hideAllScreens();
     document.getElementById('neet-unit-menu').classList.remove('hidden');
+    persistState();
 }
 
 function backToNeetChapters() {
-    document.getElementById('neet-topic-menu').classList.add('hidden');
+    activeNeetChapter = null;
+    hideAllScreens();
     document.getElementById('neet-chapter-menu').classList.remove('hidden');
+    persistState();
 }
 
 // --- SHARED QUIZ PREPARATION LOGIC ---
@@ -155,33 +282,23 @@ function prepareQuiz(quizId, duration, chapterTitle) {
     currentChapterDuration = duration || 300;
     currentChapterTitleText = chapterTitle;
 
-    document.getElementById('chapter-menu').classList.add('hidden');
-    
-    // Safely hide all NEET menus if they exist
-    const neetUnit = document.getElementById('neet-unit-menu');
-    if (neetUnit) neetUnit.classList.add('hidden');
-    
-    const neetChapter = document.getElementById('neet-chapter-menu');
-    if (neetChapter) neetChapter.classList.add('hidden');
-    
-    const neetTopic = document.getElementById('neet-topic-menu');
-    if (neetTopic) neetTopic.classList.add('hidden');
-    
+    hideAllScreens();
     document.getElementById('name-screen').classList.remove('hidden');
     document.getElementById('selected-chapter-title').innerText = `Title: ${chapterTitle}`;
-    document.getElementById('first-name-input').value = '';
-    document.getElementById('last-name-input').value = '';
-    document.getElementById('email-input').value = '';
+    document.getElementById('first-name-input').value = studentFirstName || '';
+    document.getElementById('last-name-input').value = studentLastName || '';
+    document.getElementById('email-input').value = studentEmail || '';
+    persistState();
 }
 
 function backToChapters() {
-    document.getElementById('name-screen').classList.add('hidden');
-    // Direct back to Topics if in NEET path, else regular Chapters
+    hideAllScreens();
     if (isNeetPath) {
         document.getElementById('neet-topic-menu').classList.remove('hidden');
     } else {
         document.getElementById('chapter-menu').classList.remove('hidden');
     }
+    persistState();
 }
 
 function proceedToQuiz() {
@@ -201,6 +318,7 @@ function proceedToQuiz() {
     skippedIndices.clear();
     document.getElementById('counter-stats').innerText = 'Attempted: 0 | Skipped: 0';
     document.getElementById('current-chapter-heading').innerText = currentChapterTitleText;
+    persistState();
 
     fetch(`/api/quiz/${currentQuizId}`)
         .then(res => res.json())
@@ -209,8 +327,10 @@ function proceedToQuiz() {
             userAnswers = new Array(questions.length).fill(null);
             currentIndex = 0;
 
-            document.getElementById('name-screen').classList.add('hidden');
+            hideAllScreens();
             document.getElementById('quiz-screen').classList.remove('hidden');
+            
+            persistState();
             startQuiz();
         })
         .catch(err => console.error('Error loading questions:', err));
@@ -224,6 +344,7 @@ function startQuiz() {
     timerInterval = setInterval(() => {
         timeLeft--;
         updateTimerDisplay();
+        persistState(); // Saves the timer continuously!
 
         if (timeLeft <= 0) {
             submitQuiz();
@@ -278,6 +399,7 @@ function selectOption(idx) {
     skippedIndices.delete(currentIndex);
     renderQuestionUI();
     refreshCounters();
+    persistState();
 }
 
 function clearResponse() {
@@ -285,6 +407,7 @@ function clearResponse() {
     skippedIndices.add(currentIndex);
     renderQuestionUI();
     refreshCounters();
+    persistState();
 }
 
 function prevQuestion() {
@@ -292,6 +415,7 @@ function prevQuestion() {
         currentIndex--;
         renderQuestionUI();
         refreshCounters();
+        persistState();
     }
 }
 
@@ -304,6 +428,7 @@ function nextQuestion() {
         renderQuestionUI();
     }
     refreshCounters();
+    persistState();
 }
 
 function getCorrectIndex(q) {
@@ -346,13 +471,32 @@ function submitQuiz() {
         body: JSON.stringify(payload)
     }).catch(err => console.error('Error submitting answers:', err));
 
-    document.getElementById('quiz-screen').classList.add('hidden');
+    hideAllScreens();
     document.getElementById('result-screen').classList.remove('hidden');
+    rebuildResultScreen();
+    persistState();
+}
+
+function rebuildResultScreen() {
+    let score = 0;
+    let attempted = 0;
+
+    questions.forEach((q, idx) => {
+        if (userAnswers[idx] !== null) {
+            attempted++;
+            if (userAnswers[idx] === getCorrectIndex(q)) score++;
+        }
+    });
+
+    let incorrect = attempted - score;
+    let skipped = questions.length - attempted;
+    
     document.getElementById('final-score').innerText = `Score: ${score} / ${questions.length}`;
     document.getElementById('final-breakdown').innerText = `Student: ${studentFirstName} ${studentLastName} (${studentEmail}) | Attempted: ${attempted} | Skipped: ${skipped} | Correct: ${score} | Incorrect: ${incorrect}`;
 }
 
 function returnToMenu() {
-    document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('home-menus').classList.remove('hidden');
+    // Completely wipe the slate clean for the next quiz attempt
+    sessionStorage.removeItem('quizAppSession');
+    location.reload(); 
 }
