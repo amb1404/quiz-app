@@ -66,14 +66,6 @@ body {
     color: #4285f4;      
 }
 
-.card p {
-    color: #64748b;            
-    font-size: 14px;           
-    font-weight: normal;       
-    margin-top: 5px;           
-    margin-bottom: 0px;
-}
-
 /* =========================================================
    4. BACK BUTTONS
 ========================================================= */
@@ -89,9 +81,7 @@ body {
     display: inline-block;
     margin-bottom: 15px;
 }
-.back-btn:hover { 
-    background-color: #475569; 
-}
+.back-btn:hover { background-color: #475569; }
 
 /* =========================================================
    5. OPTIONS & FORM CONTROLS
@@ -153,9 +143,7 @@ body {
     cursor: pointer;
     text-align: center;
 }
-#name-start-btn:hover { 
-    background-color: #16a34a; 
-}
+#name-start-btn:hover { background-color: #16a34a; }
 
 /* =========================================================
    6. QUIZ HEADER & SUBMIT
@@ -229,15 +217,10 @@ body {
 }
 #next-btn:hover { background-color: #2563eb; }
 
-/* =========================================================
-   8. UTILITY / HIDDEN STATES
-========================================================= */
-.hidden {
-    display: none !important;
-}
+.hidden { display: none !important; }
 
 /* =========================================================
-   9. MOBILE RESPONSIVENESS
+   8. MOBILE RESPONSIVENESS
 ========================================================= */
 @media (max-width: 600px) {
     #class-select-screen, 
@@ -259,30 +242,11 @@ body {
         gap: 10px; 
         margin-bottom: 20px; 
     }
-    #submit-btn { 
-        width: 100%; 
-        margin-top: 5px; 
-    }
-    #question-box { 
-        font-size: 18px; 
-    }
-    .option-btn { 
-        font-size: 16px; 
-        padding: 12px; 
-    }
-    
+    #submit-btn { width: 100%; margin-top: 5px; }
     .nav-buttons {
         display: grid;
         grid-template-columns: minmax(75px, 1fr) auto minmax(75px, 1fr);
         gap: 8px;
     }
-    
-    #prev-btn, #clear-btn, #next-btn { 
-        font-size: 12px; 
-        padding: 10px 10px; 
-        width: auto; 
-    }
-    #name-start-btn {
-        width: 100%;
-    }
+    #prev-btn, #clear-btn, #next-btn { font-size: 12px; padding: 10px 10px; width: auto; }
 }
