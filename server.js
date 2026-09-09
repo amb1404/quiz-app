@@ -24,6 +24,34 @@ if (fs.existsSync(quizListPath)) {
     });
 }
 
+const neetListPath = path.join(__dirname, 'neet.json');
+
+if (fs.existsSync(neetListPath)) {
+    const classes = JSON.parse(fs.readFileSync(neetListPath, 'utf8'));
+    classes.forEach(cls => {
+        if (cls.chapters) {
+            cls.chapters.forEach(ch => {
+                if (ch.topics) {
+                    ch.topics.forEach(topic => {
+                        const filePath = path.join(__dirname, `${topic.id}-questions.json`);
+                        if (fs.existsSync(filePath)) {
+                            quizzesCache[topic.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
+app.get('/api/neet', (req, res) => {
+    if (fs.existsSync(neetListPath)) {
+        res.json(JSON.parse(fs.readFileSync(neetListPath, 'utf8')));
+    } else {
+        res.status(404).json({ error: 'NEET configuration not found' });
+    }
+});
+
 app.get('/api/quizzes', (req, res) => {
     if (fs.existsSync(quizListPath)) {
         res.json(JSON.parse(fs.readFileSync(quizListPath, 'utf8')));
