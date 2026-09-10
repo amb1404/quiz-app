@@ -229,7 +229,7 @@ body {
         grid-template-columns: minmax(75px, 1fr) auto minmax(75px, 1fr);
         gap: 8px;
     }
-    #clear-btn { font-size: 12px; padding: 10px 10px; }
-    #prev-btn { font-size: 10px; padding: 10px 20px; } /* Independent mobile size */
-    #next-btn { font-size: 10px; padding: 10px 20px; } /* Independent mobile size */
+    #clear-btn { font-size: 10px; padding: 10px 10px; }
+    #prev-btn { font-size: 10px; padding: 10px 10px; } /* Independent mobile size */
+    #next-btn { font-size: 10px; padding: 10px 10px; } /* Independent mobile size */
 }
