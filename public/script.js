@@ -194,7 +194,7 @@ function selectSubject(subjectName) {
         card.innerText = ch.title;
         card.onclick = async () => {
             currentChapterTitle = ch.title;
-            activeQuizTitle = ch.title; // Sets screen heading to chapter name for IX/X
+            activeQuizTitle = ch.title; 
             timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(ch.id);
             showScreen('name-screen');
@@ -257,7 +257,7 @@ function loadNeetTopics(chapter) {
         card.innerText = topic.name;
         card.onclick = async () => {
             currentChapterTitle = `${chapter.name} - ${topic.name}`;
-            activeQuizTitle = topic.name; // Sets screen heading to topic name for XI/XII
+            activeQuizTitle = topic.name; 
             timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
             currentQuestions = await fetchQuestionsFile(topic.id);
             showScreen('name-screen');
@@ -270,7 +270,7 @@ function loadNeetTopics(chapter) {
 async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
-        currentQuizId = fileId; // Saves the ID to send to the server later
+        currentQuizId = fileId; 
         const response = await fetch(`/api/quiz/${fileId}`);
         if (response.ok) return await response.json();
         return [];
@@ -327,7 +327,6 @@ function renderQuestion() {
         return;
     }
 
-    // Dynamically updates heading to chapter or topic name
     const headingEl = document.getElementById('quiz-screen-heading');
     if (headingEl) {
         headingEl.innerText = activeQuizTitle;
@@ -351,40 +350,6 @@ function renderQuestion() {
         optionsContainer.appendChild(btn);
     });
 
-    updateQuizStats();
-}
-
-function renderQuestion() {
-    if (currentQuestions.length === 0) {
-        document.getElementById('question-box').innerText = "No questions available.";
-        document.getElementById('options-container').innerHTML = '';
-        return;
-    }
-
-    const headingEl = document.getElementById('quiz-screen-heading');
-    if (headingEl) {
-        headingEl.innerText = activeQuizTitle;
-    }
-
-    const q = currentQuestions[currentQuestionIndex];
-    document.getElementById('question-box').innerText = `Q.${currentQuestionIndex + 1}: ${q.question}`;
-    
-    const optionsContainer = document.getElementById('options-container');
-    optionsContainer.innerHTML = '';
-    
-    const opts = q.options || [];
-    opts.forEach((opt, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        if (userAnswers[currentQuestionIndex] === idx) {
-            btn.classList.add('selected');
-        }
-        btn.innerText = opt;
-        btn.onclick = () => selectOption(btn, idx);
-        optionsContainer.appendChild(btn);
-    });
-
-    // Log that the student has officially "seen" this question
     skippedQuestions.add(currentQuestionIndex);
     updateQuizStats();
 }
@@ -429,7 +394,6 @@ function updateQuizStats() {
     const attemptedCount = Object.keys(userAnswers).length;
     
     let skippedCount = 0;
-    // Calculate skipped dynamically: Seen, unanswered, and not currently on screen
     skippedQuestions.forEach(qIndex => {
         if (userAnswers[qIndex] === undefined && qIndex !== currentQuestionIndex) {
             skippedCount++;
@@ -494,119 +458,6 @@ async function submitQuiz() {
             submitBtn.innerText = "Submit Quiz";
             submitBtn.disabled = false;
         }
-        sessionStorage.removeItem('quizAppSession');
-    }
-}
-
-    let firstName = "Unknown";
-    let lastName = "Name";
-    let email = "No Email";
-    let correctCount = 0;
-    let incorrectCount = 0;
-
-    try {
-        const fNameEl = document.getElementById('first-name');
-        const lNameEl = document.getElementById('last-name');
-        const emailEl = document.getElementById('email-address');
-
-        if (fNameEl) firstName = fNameEl.value.trim() || firstName;
-        if (lNameEl) lastName = lNameEl.value.trim() || lastName;
-        if (emailEl) email = emailEl.value.trim() || email;
-
-        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
-            `<tr style="background-color: #f1f5f9; text-align: left;">` +
-            `<th style="width: 5%;">#</th>` +
-            `<th style="width: 40%;">Question</th>` +
-            `<th style="width: 25%;">Student's Selection</th>` +
-            `<th style="width: 20%;">Correct Option</th>` +
-            `<th style="width: 10%; text-align: center;">Status</th>` +
-            `</tr>`;
-
-        currentQuestions.forEach((q, index) => {
-            const studentSelectionIndex = userAnswers[index];
-            const isAttempted = studentSelectionIndex !== undefined;
-            const isCorrect = isAttempted && studentSelectionIndex === q.answer;
-            
-            if (isCorrect) correctCount++;
-            else if (isAttempted) incorrectCount++;
-
-            const safeOptions = q.options || [];
-            const studentSelectionText = isAttempted ? (safeOptions[studentSelectionIndex] || "Unknown") : "Skipped";
-            const correctOptionText = safeOptions[q.answer] !== undefined ? safeOptions[q.answer] : "N/A";
-            const statusText = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
-
-            // Pull the explanation from the JSON data, or set a fallback if it's missing
-            const explanationHtml = q.explanation 
-                ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` 
-                : "";
-
-            breakdownHtml += `<tr>` +
-                `<td>${index + 1}</td>` +
-                `<td>${q.question || "N/A"}${explanationHtml}</td>` +
-                `<td>${studentSelectionText}</td>` +
-                `<td>${correctOptionText}</td>` +
-                `<td style="text-align: center;">` +
-                `<span style="background-color: lightyellow; padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #eab308; color: #854d0e; display: inline-block;">` +
-                `${statusText}` +
-                `</span>` +
-                `</td>` +
-                `</tr>`;
-        });
-
-        breakdownHtml += `</table>`;
-
-        // If they click submit while viewing a question they haven't answered, mark it as skipped
-        if (userAnswers[currentQuestionIndex] === undefined) {
-            skippedQuestions.add(currentQuestionIndex);
-        }
-
-        const attemptedCount = Object.keys(userAnswers).length;
-        const totalCount = currentQuestions.length;
-        // This ensures the final email accurately reports all unanswered questions
-        const finalSkippedCount = totalCount - attemptedCount;
-        
-        const payload = {
-            firstName,
-            lastName,
-            email,
-            chapterTitle: currentChapterTitle,
-            score: correctCount,
-            total: totalCount,
-            attempted: attemptedCount,
-            skipped: finalSkippedCount,
-            correct: correctCount,
-            incorrect: incorrectCount,
-            breakdown: breakdownHtml
-        };
-
-        await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-    } catch (error) {
-        console.error("Critical submission error:", error);
-    } finally {
-        if (submitBtn) {
-            submitBtn.innerText = "Submit Quiz";
-            submitBtn.disabled = false;
-        }
-
-        const resultContainer = document.getElementById('result-screen');
-        if (resultContainer) {
-            resultContainer.innerHTML = `
-                <button class="back-btn" onclick="goHome()">Back to Home</button>
-                <h2 class="screen-heading">Quiz Results</h2>
-                <div style="text-align: center; margin-top: 20px;">
-                    <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
-                    <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${correctCount} / ${currentQuestions.length}</h1>
-                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the test administrator successfully.</p>
-                </div>
-            `;
-            showScreen('result-screen');
-        }
-        
         sessionStorage.removeItem('quizAppSession');
     }
 }
