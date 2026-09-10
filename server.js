@@ -1,24 +1,11 @@
-require('dns').setDefaultResultOrder('ipv4first'); // Forces Node to use IPv4 to avoid Render's routing issue
-
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', // Explicitly setting the host
-    port: 465,              // Explicitly setting the secure port
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
 
 app.get('/api/quizzes', (req, res) => {
     const quizListPath = path.join(__dirname, 'quizzes.json');
@@ -49,9 +36,10 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
-app.post('/api/submit', (req, res) => {
+app.post('/api/submit', async (req, res) => {
     const submission = req.body;
     
+    // Keep your local backup working
     try {
         const submissionsFile = path.join(__dirname, 'submissions.json');
         let allSubmissions = [];
@@ -67,40 +55,32 @@ app.post('/api/submit', (req, res) => {
         console.error("Local backup failed:", err);
     }
 
-    res.json({ success: true, message: 'Response logged and email dispatch triggered.' });
+    // Immediately tell the frontend the submission was successful so the student sees the result screen
+    res.json({ success: true, message: 'Response logged and forwarded to Apps Script.' });
 
-    const { firstName, lastName, email, chapterTitle, score, total, attempted, skipped, correct, incorrect, breakdown } = submission;
-    const targetEmail = process.env.TARGET_EMAIL || process.env.EMAIL_USER;
+    // Now, silently forward the payload (including the target email) to Google Apps Script
+    const scriptURL = process.env.APP_SCRIPT_URL;
     
-    if (targetEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        const htmlMessage = `
-            <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #1e293b;">
-                <div style="font-size: 24px;">
-                    A student has completed a quiz on your portal.<br><br>
-                    <b>Student Name:</b> ${firstName} ${lastName}<br>
-                    <b>Email ID:</b> ${email}<br>
-                    <b>Chapter/Topic:</b> ${chapterTitle}<br>
-                    <b>Score Achieved:</b> ${score} / ${total}<br>
-                    <b>Attempted:</b> ${attempted} | <b>Skipped:</b> ${skipped} | <b>Correct:</b> ${correct} | <b>Incorrect:</b> ${incorrect}<br>
-                    <b>Submission Time:</b> ${new Date().toLocaleString()}<br><br>
-                </div>
-                <div style="font-size: 22px;">
-                    <h3>=== QUESTION BREAKDOWN ===</h3><br>
-                    ${breakdown}
-                </div>
-            </div>
-        `;
-
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: targetEmail,
-            subject: `New Quiz Submission: ${chapterTitle} - ${firstName} ${lastName}`,
-            html: htmlMessage
+    if (scriptURL) {
+        // We inject the TARGET_EMAIL from Render's environment into the payload going to Google
+        const payloadToForward = {
+            ...submission,
+            targetEmail: process.env.TARGET_EMAIL
         };
 
-        transporter.sendMail(mailOptions)
-            .then(() => console.log(`Email successfully sent to ${targetEmail}`))
-            .catch(error => console.error("Error sending email via Nodemailer:", error));
+        try {
+            const response = await fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payloadToForward)
+            });
+            const result = await response.text();
+            console.log("Successfully forwarded to Google Apps Script:", result);
+        } catch (error) {
+            console.error("Failed to forward to Google Apps Script:", error);
+        }
+    } else {
+        console.error("CRITICAL: APP_SCRIPT_URL environment variable is missing in Render.");
     }
 });
 
