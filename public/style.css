@@ -203,6 +203,10 @@ body {
 
 #clear-btn:hover { background-color: #cbd5e1; color: #000000; }
 .hidden { display: none !important; }
+/* Force the email input text to always be lowercase */
+#email-address {
+    text-transform: lowercase;
+}
 
 @media (max-width: 600px) {
     #class-select-screen, 
