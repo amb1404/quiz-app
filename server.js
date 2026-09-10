@@ -53,7 +53,28 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
-app.post('/api/submit', async (req, res) => {
+// Basic Rate Limiter to prevent spamming
+const submissionTimestamps = new Map();
+
+const rateLimiter = (req, res, next) => {
+    // Identify the user by their IP address
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+    const lastSubmission = submissionTimestamps.get(ip);
+
+    // Limit to 1 submission per 60 seconds (60000 milliseconds)
+    if (lastSubmission && (now - lastSubmission < 60000)) {
+        return res.status(429).json({ 
+            success: false, 
+            error: "Too many submissions. Please wait a minute." 
+        });
+    }
+    
+    submissionTimestamps.set(ip, now);
+    next();
+};
+
+app.post('/api/submit', rateLimiter, async (req, res) => {
     const { firstName, lastName, email, chapterTitle, quizId, userAnswers } = req.body;
 
     try {
