@@ -452,9 +452,14 @@ async function submitQuiz() {
             const correctOptionText = safeOptions[q.answer] !== undefined ? safeOptions[q.answer] : "N/A";
             const statusText = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
 
+            // Pull the explanation from the JSON data, or set a fallback if it's missing
+            const explanationHtml = q.explanation 
+                ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` 
+                : "";
+
             breakdownHtml += `<tr>` +
                 `<td>${index + 1}</td>` +
-                `<td>${q.question || "N/A"}</td>` +
+                `<td>${q.question || "N/A"}${explanationHtml}</td>` +
                 `<td>${studentSelectionText}</td>` +
                 `<td>${correctOptionText}</td>` +
                 `<td style="text-align: center;">` +
@@ -507,7 +512,7 @@ async function submitQuiz() {
                 <div style="text-align: center; margin-top: 20px;">
                     <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
                     <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${correctCount} / ${currentQuestions.length}</h1>
-                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the test administrator successfully.</p>
+                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully.</p>
                 </div>
             `;
             showScreen('result-screen');
