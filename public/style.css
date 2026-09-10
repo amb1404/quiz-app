@@ -162,19 +162,31 @@ body {
     margin-top: 30px;               
 }
 
+/* Shared colors and borders for both buttons */
 #prev-btn, #next-btn {
     background-color: #4285f4; 
     color: #ffffff;    
-    font-size: 16px;
     font-weight: bold;                        
-    padding: 12px 20px;        
     border-radius: 6px;        
     border: none;              
     cursor: pointer;
 }
 
-#prev-btn { justify-self: start; }
-#next-btn { justify-self: end; }
+/* Change the size of the PREVIOUS button here */
+#prev-btn { 
+    justify-self: start; 
+    font-size: 18px;           /* Change text size */
+    padding: 12px 20px;        /* Change height and width (top/bottom left/right) */
+    width: 140px;              /* Optional: force a specific width */
+}
+
+/* Change the size of the NEXT button here */
+#next-btn { 
+    justify-self: end; 
+    font-size: 18px;           /* Example: Made text larger */
+    padding: 12px 20px;        /* Example: Made button thicker and wider */
+    width: 140px;              /* Optional: force a specific width */
+}
 #prev-btn:hover, #next-btn:hover { background-color: #2563eb; }
 
 #clear-btn {
@@ -217,5 +229,7 @@ body {
         grid-template-columns: minmax(75px, 1fr) auto minmax(75px, 1fr);
         gap: 8px;
     }
-    #prev-btn, #clear-btn, #next-btn { font-size: 12px; padding: 10px 10px; }
+    #clear-btn { font-size: 12px; padding: 10px 10px; }
+    #prev-btn { font-size: 10px; padding: 10px 20px; } /* Independent mobile size */
+    #next-btn { font-size: 10px; padding: 10px 20px; } /* Independent mobile size */
 }
