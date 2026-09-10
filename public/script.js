@@ -479,7 +479,8 @@ async function submitQuiz() {
 
         const attemptedCount = Object.keys(userAnswers).length;
         const totalCount = currentQuestions.length;
-        const finalSkippedCount = skippedQuestions.size;
+        // This ensures the final email accurately reports all unanswered questions
+        const finalSkippedCount = totalCount - attemptedCount;
         
         const payload = {
             firstName,
