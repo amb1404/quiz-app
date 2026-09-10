@@ -27,10 +27,18 @@ app.get('/api/neet', (req, res) => {
 
 app.get('/api/quiz/:id', (req, res) => {
     try {
-        const rawData = fs.readFileSync(`./${req.params.id}.json`, 'utf-8');
+        const id = req.params.id;
+        let filePath = path.join(__dirname, `${id}.json`);
+
+        // If the exact file doesn't exist, fall back to the -questions.json suffix
+        if (!fs.existsSync(filePath)) {
+            filePath = path.join(__dirname, `${id}-questions.json`);
+        }
+
+        const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
-        // CREATE A "SAFE" VERSION FOR THE STUDENT
+        // CREATE A "SAFE" VERSION FOR THE STUDENT (Stripping answers)
         const safeQuestions = realQuestions.map(q => {
             return {
                 question: q.question,
