@@ -399,7 +399,7 @@ function prevQuestion() {
 
 function updateQuizStats() {
     const attemptedCount = Object.keys(userAnswers).length;
-    const skippedCount = currentQuestions.length - attemptedCount;
+    const skippedCount = skippedQuestions.size;
     const statsEl = document.getElementById('quiz-stats');
     if (statsEl) {
         statsEl.innerText = `Attempted: ${attemptedCount} / ${currentQuestions.length} | Skipped: ${skippedCount}`;
@@ -472,10 +472,15 @@ async function submitQuiz() {
 
         breakdownHtml += `</table>`;
 
+        // If they click submit while viewing a question they haven't answered, mark it as skipped
+        if (userAnswers[currentQuestionIndex] === undefined) {
+            skippedQuestions.add(currentQuestionIndex);
+        }
+
         const attemptedCount = Object.keys(userAnswers).length;
         const totalCount = currentQuestions.length;
-        const finalSkippedCount = totalCount - attemptedCount;
-
+        const finalSkippedCount = skippedQuestions.size;
+        
         const payload = {
             firstName,
             lastName,
