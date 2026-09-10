@@ -81,7 +81,6 @@ app.post('/api/submit', async (req, res) => {
         const safeUserAnswers = userAnswers || {};
         let realQuestions;
 
-        // Securely find the correct master answer key
         if (quizzesCache[quizId]) {
             realQuestions = quizzesCache[quizId];
         } else if (fs.existsSync(path.join(__dirname, `${quizId}.json`))) {
@@ -112,7 +111,10 @@ app.post('/api/submit', async (req, res) => {
 
             const studentSelectionText = isAttempted ? (q.options[studentSelectionIndex] || "Unknown") : "Skipped";
             const correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
-            const statusText = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
+            
+            // FIX: Added the yellow background highlight styling back to the status text
+            const rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
+            const statusText = `<span style="background-color: yellow; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
             
             const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
 
@@ -125,7 +127,10 @@ app.post('/api/submit', async (req, res) => {
             score: correctCount, total: totalCount,
             attempted: attemptedCount, skipped: skippedCount,
             correct: correctCount, incorrect: incorrectCount,
-            breakdown: breakdownHtml
+            breakdown: breakdownHtml,
+            
+            // FIX: Pulling the correct email from Render's Environment Variables
+            targetEmail: process.env.TARGET_EMAIL 
         };
 
         await fetch(process.env.APP_SCRIPT_URL, {
