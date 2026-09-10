@@ -1,3 +1,5 @@
+require('dns').setDefaultResultOrder('ipv4first'); // Forces Node to use IPv4 to avoid Render's routing issue
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -9,7 +11,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com', // Explicitly setting the host
+    port: 465,              // Explicitly setting the secure port
+    secure: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
