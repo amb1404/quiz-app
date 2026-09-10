@@ -58,7 +58,11 @@ app.post('/api/submit', async (req, res) => {
 
     try {
         const safeUserAnswers = userAnswers || {};
-        const rawData = fs.readFileSync(`./${quizId}.json`, 'utf-8');
+        let filePath = path.join(__dirname, `${quizId}.json`);
+if (!fs.existsSync(filePath)) {
+    filePath = path.join(__dirname, `${quizId}-questions.json`);
+}
+const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
         let correctCount = 0;
