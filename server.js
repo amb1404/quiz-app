@@ -46,14 +46,21 @@ function getQuestionsArray(fileData) {
 
 app.get('/api/quiz/:id', (req, res) => {
     try {
-        const id = req.params.id;
+        let id = req.params.id;
+
+        // Map any frontend request aliases for Class XI/XII directly to 'neet' (neet.json)
+        const xiXiiAliases = ['class11', 'class12', 'xi', 'xii', 'class-xi', 'class-xii', 'class11-12'];
+        if (xiXiiAliases.includes(id.toLowerCase())) {
+            id = 'neet';
+        }
+
         let fileData;
 
         // 1. Look in the Class IX/X memory cache first
         if (quizzesCache[id]) {
             fileData = quizzesCache[id];
         } 
-        // 2. Look for exact filename (Class XI/XII structures like neet.json or direct files)
+        // 2. Look for exact filename (e.g., neet.json for Class XI/XII structures)
         else if (fs.existsSync(path.join(__dirname, `${id}.json`))) {
             fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}.json`), 'utf-8'));
         } 
@@ -65,7 +72,7 @@ app.get('/api/quiz/:id', (req, res) => {
             return res.status(404).json({ error: "File not found" });
         }
 
-        // Check if this file contains a question bank (supports both arrays and wrapped objects)
+        // Check if this file contains a question bank
         const rawQuestions = getQuestionsArray(fileData);
         const isQuestionBank = rawQuestions !== null && rawQuestions.length > 0 && rawQuestions[0].answer !== undefined;
 
@@ -76,14 +83,13 @@ app.get('/api/quiz/:id', (req, res) => {
                 options: q.options
             }));
 
-            // If the original was wrapped in an object (e.g. { title, questions }), preserve structure safely without answers
             if (!Array.isArray(fileData)) {
                 return res.json({ ...fileData, questions: safeQuestions });
             }
             return res.json(safeQuestions);
         }
 
-        // If it is a structural file (Units, Chapters, Topics for XI-XII like neet.json), send it through untouched
+        // If it is a structural file (Units, Chapters, Topics for XI-XII from neet.json), send it through untouched
         res.json(fileData);
 
     } catch (error) {
@@ -97,15 +103,23 @@ app.post('/api/submit', async (req, res) => {
 
     try {
         const safeUserAnswers = userAnswers || {};
+        let id = quizId;
+
+        // Map aliases for grading lookups as well
+        const xiXiiAliases = ['class11', 'class12', 'xi', 'xii', 'class-xi', 'class-xii', 'class11-12'];
+        if (xiXiiAliases.includes((id || '').toLowerCase())) {
+            id = 'neet';
+        }
+
         let fileData;
 
         // Securely locate the master file on the server
-        if (quizzesCache[quizId]) {
-            fileData = quizzesCache[quizId];
-        } else if (fs.existsSync(path.join(__dirname, `${quizId}.json`))) {
-            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}.json`), 'utf-8'));
-        } else if (fs.existsSync(path.join(__dirname, `${quizId}-questions.json`))) {
-            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}-questions.json`), 'utf-8'));
+        if (quizzesCache[id]) {
+            fileData = quizzesCache[id];
+        } else if (fs.existsSync(path.join(__dirname, `${id}.json`))) {
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}.json`), 'utf-8'));
+        } else if (fs.existsSync(path.join(__dirname, `${id}-questions.json`))) {
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}-questions.json`), 'utf-8'));
         } else {
             return res.status(404).json({ success: false, error: "Quiz not found for grading" });
         }
