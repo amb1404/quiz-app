@@ -12,17 +12,21 @@ const quizzesCache = {};
 const quizListPath = path.join(__dirname, 'quizzes.json');
 
 if (fs.existsSync(quizListPath)) {
-    const subjects = JSON.parse(fs.readFileSync(quizListPath, 'utf8'));
-    subjects.forEach(subj => {
-        if (subj.chapters) {
-            subj.chapters.forEach(ch => {
-                const filePath = path.join(__dirname, `${ch.id}-questions.json`);
-                if (fs.existsSync(filePath)) {
-                    quizzesCache[ch.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                }
-            });
-        }
-    });
+    try {
+        const subjects = JSON.parse(fs.readFileSync(quizListPath, 'utf8'));
+        subjects.forEach(subj => {
+            if (subj.chapters) {
+                subj.chapters.forEach(ch => {
+                    const filePath = path.join(__dirname, `${ch.id}-questions.json`);
+                    if (fs.existsSync(filePath)) {
+                        quizzesCache[ch.id] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    }
+                });
+            }
+        });
+    } catch (e) {
+        console.error("Error loading quizzes.json cache:", e);
+    }
 }
 
 app.get('/api/quizzes', (req, res) => {
@@ -33,6 +37,13 @@ app.get('/api/quizzes', (req, res) => {
     }
 });
 
+// Helper function to safely extract questions whether stored as a direct array or wrapped in an object
+function getQuestionsArray(fileData) {
+    if (Array.isArray(fileData)) return fileData;
+    if (fileData && Array.isArray(fileData.questions)) return fileData.questions;
+    return null;
+}
+
 app.get('/api/quiz/:id', (req, res) => {
     try {
         const id = req.params.id;
@@ -42,7 +53,7 @@ app.get('/api/quiz/:id', (req, res) => {
         if (quizzesCache[id]) {
             fileData = quizzesCache[id];
         } 
-        // 2. Look for exact filename (Class XI/XII structures and questions)
+        // 2. Look for exact filename (Class XI/XII structures like neet.json or direct files)
         else if (fs.existsSync(path.join(__dirname, `${id}.json`))) {
             fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}.json`), 'utf-8'));
         } 
@@ -54,21 +65,25 @@ app.get('/api/quiz/:id', (req, res) => {
             return res.status(404).json({ error: "File not found" });
         }
 
-        // STRICT SMART CHECK: Only secure it if it has an item with a "answer" property (meaning it's a real answer key).
-        // This ensures structural config files like neet.json (which have "units") bypass this entirely.
-        const isQuestionBank = Array.isArray(fileData) && fileData.length > 0 && fileData[0].answer !== undefined;
+        // Check if this file contains a question bank (supports both arrays and wrapped objects)
+        const rawQuestions = getQuestionsArray(fileData);
+        const isQuestionBank = rawQuestions !== null && rawQuestions.length > 0 && rawQuestions[0].answer !== undefined;
 
         if (isQuestionBank) {
-            const safeQuestions = fileData.map(q => {
-                return {
-                    question: q.question,
-                    options: q.options
-                };
-            });
+            // SECURITY: Strip answers and explanations before sending to the client browser
+            const safeQuestions = rawQuestions.map(q => ({
+                question: q.question,
+                options: q.options
+            }));
+
+            // If the original was wrapped in an object (e.g. { title, questions }), preserve structure safely without answers
+            if (!Array.isArray(fileData)) {
+                return res.json({ ...fileData, questions: safeQuestions });
+            }
             return res.json(safeQuestions);
         }
 
-        // If it's a structural file (Units/Chapters), send it through safely without changes
+        // If it is a structural file (Units, Chapters, Topics for XI-XII like neet.json), send it through untouched
         res.json(fileData);
 
     } catch (error) {
@@ -82,16 +97,22 @@ app.post('/api/submit', async (req, res) => {
 
     try {
         const safeUserAnswers = userAnswers || {};
-        let realQuestions;
+        let fileData;
 
+        // Securely locate the master file on the server
         if (quizzesCache[quizId]) {
-            realQuestions = quizzesCache[quizId];
+            fileData = quizzesCache[quizId];
         } else if (fs.existsSync(path.join(__dirname, `${quizId}.json`))) {
-            realQuestions = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}.json`), 'utf-8'));
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}.json`), 'utf-8'));
         } else if (fs.existsSync(path.join(__dirname, `${quizId}-questions.json`))) {
-            realQuestions = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}-questions.json`), 'utf-8'));
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}-questions.json`), 'utf-8'));
         } else {
             return res.status(404).json({ success: false, error: "Quiz not found for grading" });
+        }
+
+        const realQuestions = getQuestionsArray(fileData);
+        if (!realQuestions || realQuestions.length === 0) {
+            return res.status(400).json({ success: false, error: "Invalid quiz format for grading" });
         }
 
         let correctCount = 0;
@@ -115,7 +136,6 @@ app.post('/api/submit', async (req, res) => {
             const studentSelectionText = isAttempted ? (q.options[studentSelectionIndex] || "Unknown") : "Skipped";
             const correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
             
-            // FIX: Added the yellow background highlight styling back to the status text
             const rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
             const statusText = `<span style="background-color: yellow; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
             
@@ -131,16 +151,16 @@ app.post('/api/submit', async (req, res) => {
             attempted: attemptedCount, skipped: skippedCount,
             correct: correctCount, incorrect: incorrectCount,
             breakdown: breakdownHtml,
-            
-            // FIX: Pulling the correct email from Render's Environment Variables
             targetEmail: process.env.TARGET_EMAIL 
         };
 
-        await fetch(process.env.APP_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(securePayload)
-        });
+        if (process.env.APP_SCRIPT_URL) {
+            await fetch(process.env.APP_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(securePayload)
+            });
+        }
 
         res.json({ success: true, score: correctCount, total: totalCount });
 
