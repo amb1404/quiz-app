@@ -352,13 +352,47 @@ function renderQuestion() {
     updateQuizStats();
 }
 
+function renderQuestion() {
+    if (currentQuestions.length === 0) {
+        document.getElementById('question-box').innerText = "No questions available.";
+        document.getElementById('options-container').innerHTML = '';
+        return;
+    }
+
+    const headingEl = document.getElementById('quiz-screen-heading');
+    if (headingEl) {
+        headingEl.innerText = activeQuizTitle;
+    }
+
+    const q = currentQuestions[currentQuestionIndex];
+    document.getElementById('question-box').innerText = `Q.${currentQuestionIndex + 1}: ${q.question}`;
+    
+    const optionsContainer = document.getElementById('options-container');
+    optionsContainer.innerHTML = '';
+    
+    const opts = q.options || [];
+    opts.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        if (userAnswers[currentQuestionIndex] === idx) {
+            btn.classList.add('selected');
+        }
+        btn.innerText = opt;
+        btn.onclick = () => selectOption(btn, idx);
+        optionsContainer.appendChild(btn);
+    });
+
+    // Log that the student has officially "seen" this question
+    skippedQuestions.add(currentQuestionIndex);
+    updateQuizStats();
+}
+
 function selectOption(button, optionIndex) {
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
     button.classList.add('selected');
     
     userAnswers[currentQuestionIndex] = optionIndex;
-    skippedQuestions.delete(currentQuestionIndex);
     
     updateQuizStats();
     saveState();
@@ -374,10 +408,6 @@ function clearResponse() {
 }
 
 function nextQuestion() {
-    if (userAnswers[currentQuestionIndex] === undefined) {
-        skippedQuestions.add(currentQuestionIndex);
-    }
-
     if (currentQuestionIndex < currentQuestions.length - 1) {
         currentQuestionIndex++;
         renderQuestion();
@@ -386,10 +416,6 @@ function nextQuestion() {
 }
 
 function prevQuestion() {
-    if (userAnswers[currentQuestionIndex] === undefined) {
-        skippedQuestions.add(currentQuestionIndex);
-    }
-
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
         renderQuestion();
@@ -399,7 +425,15 @@ function prevQuestion() {
 
 function updateQuizStats() {
     const attemptedCount = Object.keys(userAnswers).length;
-    const skippedCount = skippedQuestions.size;
+    
+    let skippedCount = 0;
+    // Calculate skipped dynamically: Seen, unanswered, and not currently on screen
+    skippedQuestions.forEach(qIndex => {
+        if (userAnswers[qIndex] === undefined && qIndex !== currentQuestionIndex) {
+            skippedCount++;
+        }
+    });
+
     const statsEl = document.getElementById('quiz-stats');
     if (statsEl) {
         statsEl.innerText = `Attempted: ${attemptedCount} / ${currentQuestions.length} | Skipped: ${skippedCount}`;
