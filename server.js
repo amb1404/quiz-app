@@ -2,12 +2,12 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Pre-load chapter question files into memory based on the nested structure
+// Pre-load chapter question files into memory based on the nested structure (For IX and X)
 const quizzesCache = {};
 const quizListPath = path.join(__dirname, 'quizzes.json');
 
@@ -35,52 +35,62 @@ app.get('/api/quizzes', (req, res) => {
 
 app.get('/api/quiz/:id', (req, res) => {
     try {
-        const rawData = fs.readFileSync(`./${req.params.id}.json`, 'utf-8');
-        const realQuestions = JSON.parse(rawData);
+        const id = req.params.id;
+        let fileData;
 
-        // CREATE A "SAFE" VERSION FOR THE STUDENT
-        const safeQuestions = realQuestions.map(q => {
-            return {
-                question: q.question,
-                options: q.options
-            };
-        });
+        // 1. Look in the Class IX/X memory cache first
+        if (quizzesCache[id]) {
+            fileData = quizzesCache[id];
+        } 
+        // 2. Look for exact filename (Class XI/XII structures and questions)
+        else if (fs.existsSync(path.join(__dirname, `${id}.json`))) {
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}.json`), 'utf-8'));
+        } 
+        // 3. Fallback for files with -questions suffix
+        else if (fs.existsSync(path.join(__dirname, `${id}-questions.json`))) {
+            fileData = JSON.parse(fs.readFileSync(path.join(__dirname, `${id}-questions.json`), 'utf-8'));
+        } 
+        else {
+            return res.status(404).json({ error: "File not found" });
+        }
 
-        res.json(safeQuestions);
+        // SMART CHECK: Strip answers if it's a question bank
+        if (Array.isArray(fileData) && fileData.length > 0 && fileData[0].question !== undefined) {
+            const safeQuestions = fileData.map(q => {
+                return {
+                    question: q.question,
+                    options: q.options
+                };
+            });
+            return res.json(safeQuestions);
+        }
+
+        // Send structural files (like neet.json for Class XI-XII) exactly as they are
+        res.json(fileData);
+
     } catch (error) {
-        console.error("Error fetching quiz:", error);
-        res.status(500).json({ error: "Failed to load quiz" });
+        console.error("Error fetching file:", error);
+        res.status(500).json({ error: "Failed to load file" });
     }
 });
 
-// Basic Rate Limiter to prevent spamming
-const submissionTimestamps = new Map();
-
-const rateLimiter = (req, res, next) => {
-    // Identify the user by their IP address
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const now = Date.now();
-    const lastSubmission = submissionTimestamps.get(ip);
-
-    // Limit to 1 submission per 60 seconds (60000 milliseconds)
-    if (lastSubmission && (now - lastSubmission < 60000)) {
-        return res.status(429).json({ 
-            success: false, 
-            error: "Too many submissions. Please wait a minute." 
-        });
-    }
-    
-    submissionTimestamps.set(ip, now);
-    next();
-};
-
-app.post('/api/submit', rateLimiter, async (req, res) => {
+app.post('/api/submit', async (req, res) => {
     const { firstName, lastName, email, chapterTitle, quizId, userAnswers } = req.body;
 
     try {
         const safeUserAnswers = userAnswers || {};
-        const rawData = fs.readFileSync(`./${quizId}.json`, 'utf-8');
-        const realQuestions = JSON.parse(rawData);
+        let realQuestions;
+
+        // Securely find the correct master answer key
+        if (quizzesCache[quizId]) {
+            realQuestions = quizzesCache[quizId];
+        } else if (fs.existsSync(path.join(__dirname, `${quizId}.json`))) {
+            realQuestions = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}.json`), 'utf-8'));
+        } else if (fs.existsSync(path.join(__dirname, `${quizId}-questions.json`))) {
+            realQuestions = JSON.parse(fs.readFileSync(path.join(__dirname, `${quizId}-questions.json`), 'utf-8'));
+        } else {
+            return res.status(404).json({ success: false, error: "Quiz not found for grading" });
+        }
 
         let correctCount = 0;
         let incorrectCount = 0;
