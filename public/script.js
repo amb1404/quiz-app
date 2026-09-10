@@ -1,4 +1,5 @@
 let screenHistory = [];
+let currentQuizId = "";
 let neetData = [];
 let quizData = [];
 let currentQuestions = [];
@@ -269,6 +270,7 @@ function loadNeetTopics(chapter) {
 async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
+        currentQuizId = fileId; // Saves the ID to send to the server later
         const response = await fetch(`/api/quiz/${fileId}`);
         if (response.ok) return await response.json();
         return [];
@@ -448,6 +450,53 @@ async function submitQuiz() {
         submitBtn.innerText = "Submitting...";
         submitBtn.disabled = true;
     }
+
+    const firstName = document.getElementById('first-name')?.value.trim() || "Unknown";
+    const lastName = document.getElementById('last-name')?.value.trim() || "Name";
+    const email = document.getElementById('email-address')?.value.trim() || "No Email";
+
+    try {
+        const payload = {
+            firstName,
+            lastName,
+            email,
+            chapterTitle: currentChapterTitle,
+            quizId: currentQuizId,
+            userAnswers: userAnswers 
+        };
+
+        const response = await fetch('/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const resultData = await response.json();
+
+        const resultContainer = document.getElementById('result-screen');
+        if (resultContainer && resultData.success) {
+            resultContainer.innerHTML = `
+                <button class="back-btn" onclick="goHome()">Back to Home</button>
+                <h2 class="screen-heading">Quiz Results</h2>
+                <div style="text-align: center; margin-top: 20px;">
+                    <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
+                    <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${resultData.score} / ${resultData.total}</h1>
+                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully.</p>
+                </div>
+            `;
+            showScreen('result-screen');
+        }
+
+    } catch (error) {
+        console.error("Critical submission error:", error);
+    } finally {
+        if (submitBtn) {
+            submitBtn.innerText = "Submit Quiz";
+            submitBtn.disabled = false;
+        }
+        sessionStorage.removeItem('quizAppSession');
+    }
+}
 
     let firstName = "Unknown";
     let lastName = "Name";
