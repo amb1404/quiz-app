@@ -54,8 +54,11 @@ app.get('/api/quiz/:id', (req, res) => {
             return res.status(404).json({ error: "File not found" });
         }
 
-        // SMART CHECK: Strip answers if it's a question bank
-        if (Array.isArray(fileData) && fileData.length > 0 && fileData[0].question !== undefined) {
+        // STRICT SMART CHECK: Only secure it if it has an item with a "answer" property (meaning it's a real answer key).
+        // This ensures structural config files like neet.json (which have "units") bypass this entirely.
+        const isQuestionBank = Array.isArray(fileData) && fileData.length > 0 && fileData[0].answer !== undefined;
+
+        if (isQuestionBank) {
             const safeQuestions = fileData.map(q => {
                 return {
                     question: q.question,
@@ -65,7 +68,7 @@ app.get('/api/quiz/:id', (req, res) => {
             return res.json(safeQuestions);
         }
 
-        // Send structural files (like neet.json for Class XI-XII) exactly as they are
+        // If it's a structural file (Units/Chapters), send it through safely without changes
         res.json(fileData);
 
     } catch (error) {
