@@ -35,7 +35,6 @@ app.get('/api/quizzes', (req, res) => {
 
 app.get('/api/quiz/:id', (req, res) => {
     try {
-        const fs = require('fs');
         const rawData = fs.readFileSync(`./${req.params.id}.json`, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
@@ -58,14 +57,14 @@ app.post('/api/submit', async (req, res) => {
     const { firstName, lastName, email, chapterTitle, quizId, userAnswers } = req.body;
 
     try {
-        const fs = require('fs');
+        const safeUserAnswers = userAnswers || {};
         const rawData = fs.readFileSync(`./${quizId}.json`, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
         let correctCount = 0;
         let incorrectCount = 0;
         const totalCount = realQuestions.length;
-        const attemptedCount = Object.keys(userAnswers).length;
+        const attemptedCount = Object.keys(safeUserAnswers).length;
         const skippedCount = totalCount - attemptedCount;
 
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
@@ -73,7 +72,7 @@ app.post('/api/submit', async (req, res) => {
             `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
 
         realQuestions.forEach((q, index) => {
-            const studentSelectionIndex = userAnswers[index.toString()]; 
+            const studentSelectionIndex = safeUserAnswers[index.toString()]; 
             const isAttempted = studentSelectionIndex !== undefined;
             const isCorrect = isAttempted && parseInt(studentSelectionIndex) === q.answer;
 
@@ -110,10 +109,6 @@ app.post('/api/submit', async (req, res) => {
         console.error("Submission error:", error);
         res.status(500).json({ success: false, error: "Grading failed" });
     }
-});
-    
-    fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-    res.json({ success: true, message: 'Response saved successfully!' });
 });
 
 app.listen(PORT, () => {
