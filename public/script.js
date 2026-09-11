@@ -345,16 +345,26 @@ function startTimer() {
 }
 
 function startQuiz() {
-    const firstName = document.getElementById('first-name').value.trim();
-    if (!firstName) {
-        alert('Please enter your first name.');
+    const firstName = document.getElementById('first-name')?.value.trim();
+    const lastName = document.getElementById('last-name')?.value.trim();
+    const email = document.getElementById('email-address')?.value.trim();
+
+    if (!firstName || !lastName || !email) {
+        alert('Please fill in all fields (First Name, Last Name, and Email Address) to start the quiz.');
         return;
     }
-    
+
+    // Basic email format check (ensures an @ and domain exist)
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+
     if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
         skippedQuestions = new Set();
     }
-    
+
     showScreen('quiz-screen');
     startTimer();
     renderQuestion();
