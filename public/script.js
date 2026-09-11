@@ -361,15 +361,16 @@ function startQuiz() {
 }
 
 function renderQuestion() {
+    // Update the heading immediately at the top
+    const headingEl = document.getElementById('quiz-screen-heading');
+    if (headingEl) {
+        headingEl.innerText = activeQuizTitle;
+    }
+
     if (currentQuestions.length === 0) {
         document.getElementById('question-box').innerText = "No questions available.";
         document.getElementById('options-container').innerHTML = '';
         return;
-    }
-
-    const headingEl = document.getElementById('quiz-screen-heading');
-    if (headingEl) {
-        headingEl.innerText = activeQuizTitle;
     }
 
     const q = currentQuestions[currentQuestionIndex];
