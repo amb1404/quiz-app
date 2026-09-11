@@ -211,6 +211,9 @@ body {
 }
 
 @media (max-width: 600px) {
+    body {
+        background-size: 180px;
+        }
     #class-select-screen, 
     #subject-select-screen, 
     #ix-x-chapter-screen, 
