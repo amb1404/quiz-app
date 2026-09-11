@@ -3,6 +3,9 @@ body {
     background-color: #e0f2fe;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='350'%3E%3Ctext x='50%25' y='50%25' transform='rotate(-35 175 175)' font-family='Algerian, sans-serif' font-size='22' fill='rgba(0,0,0,0.06)' text-anchor='middle' dominant-baseline='middle'%3EANIRUDDHA BANERJEE%3C/text%3E%3C/svg%3E");
     background-repeat: repeat;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
     margin: 0;
     padding: 0;
     display: flex;
