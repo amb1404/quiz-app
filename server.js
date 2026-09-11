@@ -25,6 +25,15 @@ app.get('/api/neet', (req, res) => {
     }
 });
 
+app.get('/api/wb', (req, res) => {
+    const wbListPath = path.join(__dirname, 'wb.json');
+    if (fs.existsSync(wbListPath)) {
+        res.json(JSON.parse(fs.readFileSync(wbListPath, 'utf8')));
+    } else {
+        res.status(404).json({ error: 'wb.json configuration file not found' });
+    }
+});
+
 app.get('/api/quiz/:id', (req, res) => {
     try {
         const id = req.params.id;
