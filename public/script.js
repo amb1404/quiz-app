@@ -2,6 +2,7 @@ let screenHistory = [];
 let currentQuizId = "";
 let neetData = [];
 let quizData = [];
+let wbData = [];
 let currentQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
@@ -54,6 +55,8 @@ function restoreState() {
     if (classSelection) {
         if (['IX', 'X'].includes(classSelection)) {
             if (subjectSelection) selectSubject(subjectSelection);
+        } else if (['WB XI', 'WB XII'].includes(classSelection)) {
+            loadWbChapters(classSelection);
         } else {
             loadNeetUnits(classSelection);
             if (unitSelection) {
@@ -106,8 +109,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         const neetResponse = await fetch('/api/neet');
         if (neetResponse.ok) neetData = await neetResponse.json();
+        
         const quizResponse = await fetch('/api/quizzes');
         if (quizResponse.ok) quizData = await quizResponse.json();
+
+        const wbResponse = await fetch('/api/wb');
+        if (wbResponse.ok) wbData = await wbResponse.json();
+
         restoreState();
     } catch (error) {
         console.error("Error fetching configurations:", error);
@@ -170,7 +178,39 @@ function selectClass(className) {
     } else if (className === 'XI' || className === 'XII') {
         loadNeetUnits(className);
         showScreen('xi-xii-unit-screen');
+    } else if (className === 'WB XI' || className === 'WB XII') {
+        loadWbChapters(className);
     }
+}
+
+function loadWbChapters(className) {
+    const container = document.getElementById('ix-x-chapter-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const classObj = wbData.find(c => c.className === className);
+    const chapters = classObj ? classObj.chapters : [];
+
+    if (chapters.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#64748b;">No chapters found.</p>`;
+        showScreen('ix-x-chapter-screen');
+        return;
+    }
+
+    chapters.forEach(ch => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerText = ch.title;
+        card.onclick = async () => {
+            currentChapterTitle = `${className} - ${ch.title}`;
+            activeQuizTitle = ch.title; 
+            timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
+            currentQuestions = await fetchQuestionsFile(ch.id);
+            showScreen('name-screen');
+        };
+        container.appendChild(card);
+    });
+    showScreen('ix-x-chapter-screen');
 }
 
 function selectSubject(subjectName) {
