@@ -2,15 +2,15 @@
   {
     "className": "WB XI",
     "chapters": [
-      { "id": "wb-11-ch1", "title": "Chapter 1: Living World", "duration": 900 },
-      { "id": "wb-11-ch2", "title": "Chapter 2: Biological Classification", "duration": 900 }
+      { "id": "semi1", "title": "Semester I Model 1", "duration": 4500 },
+      { "id": "semi2", "title": "Semester I Model 2", "duration": 4500 }
     ]
   },
   {
     "className": "WB XII",
     "chapters": [
-      { "id": "wb-12-ch1", "title": "Chapter 1: Reproduction in Organisms", "duration": 900 },
-      { "id": "wb-12-ch2", "title": "Chapter 2: Sexual Reproduction in Flowering Plants", "duration": 900 }
+      { "id": "semiii1", "title": "Semester III Model 1", "duration": 4500 },
+      { "id": "semiii2", "title": "Semester III Model 2", "duration": 4500 }
     ]
   }
 ]
