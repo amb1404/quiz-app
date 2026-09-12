@@ -335,7 +335,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         if (timeRemaining <= 0) {
             clearInterval(timerInterval);
-            submitQuiz();
+            submitQuiz(true);
             return;
         }
         timeRemaining--;
@@ -457,7 +457,17 @@ function updateQuizStats() {
     }
 }
 
-async function submitQuiz() {
+async function submitQuiz(isAutoSubmit = false) { 
+    
+    // <--- NEW VALIDATION BLOCK --->
+    const answeredCount = Object.keys(userAnswers).length;
+    const totalQuestions = currentQuestions.length;
+
+    if (!isAutoSubmit && answeredCount < totalQuestions) {
+        alert(`Please answer all questions before submitting. You have answered ${answeredCount} out of ${totalQuestions}.`);
+        return; 
+    }
+    
     clearInterval(timerInterval);
     
     const submitBtn = document.getElementById('submit-btn');
