@@ -11,7 +11,8 @@
     "className": "WB XII",
     "chapters": [
       { "id": "semiii1", "title": "Semester III Model 1", "duration": 4500 },
-      { "id": "semiii2", "title": "Semester III Model 2", "duration": 4500 }
+      { "id": "semiii2", "title": "Semester III Model 2", "duration": 4500 },
+      { "id": "semiii3", "title": "Semester III Model 3", "duration": 4500 }
     ]
   }
 ]
