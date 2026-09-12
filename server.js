@@ -63,7 +63,7 @@ app.get('/api/quiz/:id', (req, res) => {
 });
 
 app.post('/api/submit', async (req, res) => {
-    const { firstName, lastName, email, chapterTitle, quizId, userAnswers } = req.body;
+   const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers } = req.body;
 
     try {
         const safeUserAnswers = userAnswers || {};
@@ -104,14 +104,24 @@ const rawData = fs.readFileSync(filePath, 'utf-8');
         });
         breakdownHtml += `</table>`;
 
-        const securePayload = {
-            firstName, lastName, email, chapterTitle,
-            score: correctCount, total: totalCount,
-            attempted: attemptedCount, skipped: skippedCount,
-            correct: correctCount, incorrect: incorrectCount,
-            breakdown: breakdownHtml,
-            targetEmail: process.env.TARGET_EMAIL
-        };
+        // Avoid duplicate prefix if chapterTitle already contains className
+const fullTitle = (className && !chapterTitle.startsWith(className))
+    ? `${className} - ${chapterTitle}`
+    : chapterTitle;
+
+const studentName = `${firstName} ${lastName}`.trim().toUpperCase();
+
+const securePayload = {
+    firstName, lastName, email,
+    className: className || "",
+    chapterTitle: fullTitle,
+    subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
+    score: correctCount, total: totalCount,
+    attempted: attemptedCount, skipped: skippedCount,
+    correct: correctCount, incorrect: incorrectCount,
+    breakdown: breakdownHtml,
+    targetEmail: process.env.TARGET_EMAIL
+};
 
         // Keep your local backup working
         try {
