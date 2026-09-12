@@ -497,7 +497,7 @@ async function submitQuiz() {
                 <div style="text-align: center; margin-top: 20px;">
                     <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
                     <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${resultData.score} / ${resultData.total}</h1>
-                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully.</p>
+                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully.A copy of your response has also been mailed to your provided email id.</p>
                 </div>
             `;
             showScreen('result-screen');
