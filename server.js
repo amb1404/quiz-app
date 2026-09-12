@@ -79,6 +79,13 @@ const rawData = fs.readFileSync(filePath, 'utf-8');
         const totalCount = realQuestions.length;
         const attemptedCount = Object.keys(safeUserAnswers).length;
         const skippedCount = totalCount - attemptedCount;
+        // NEW SERVER-SIDE BLOCK: Reject incomplete submissions
+if (attemptedCount < totalCount) {
+    return res.status(400).json({ 
+        success: false, 
+        error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
+    });
+}
 
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
             `<tr style="background-color: #f1f5f9; text-align: left;">` +
