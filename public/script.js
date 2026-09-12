@@ -38,7 +38,7 @@ function restoreState() {
 
     screenHistory = state.screenHistory || [];
     navState = state.navState || {};
-    currentQuizId,
+   currentQuizId = state.currentQuizId || "";
     currentChapterTitle = state.currentChapterTitle || "General Quiz";
     activeQuizTitle = state.activeQuizTitle || "Quiz Active";
     timeRemaining = state.timeRemaining;
