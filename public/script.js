@@ -20,7 +20,7 @@ function saveState() {
                                .find(screen => !screen.classList.contains('hidden'))?.id || 'class-select-screen';
     
     const state = {
-        activeScreenId, screenHistory, navState, currentChapterTitle, activeQuizTitle, timeRemaining,
+        activeScreenId, screenHistory, navState, currentQuizId, currentChapterTitle, activeQuizTitle, timeRemaining,
         currentQuestions, currentQuestionIndex, userAnswers,
         skippedQuestions: Array.from(skippedQuestions),
         firstName: document.getElementById('first-name') ? document.getElementById('first-name').value : "",
@@ -38,6 +38,7 @@ function restoreState() {
 
     screenHistory = state.screenHistory || [];
     navState = state.navState || {};
+    currentQuizId,
     currentChapterTitle = state.currentChapterTitle || "General Quiz";
     activeQuizTitle = state.activeQuizTitle || "Quiz Active";
     timeRemaining = state.timeRemaining;
