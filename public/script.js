@@ -472,13 +472,14 @@ async function submitQuiz() {
 
     try {
         const payload = {
-            firstName,
-            lastName,
-            email,
-            chapterTitle: currentChapterTitle,
-            quizId: currentQuizId,
-            userAnswers: userAnswers 
-        };
+    firstName,
+    lastName,
+    email,
+    className: navState.classSelection || "", // Passes 'IX', 'X', 'XI', 'XII', 'WB XI', or 'WB XII'
+    chapterTitle: activeQuizTitle,
+    quizId: currentQuizId,
+    userAnswers: userAnswers 
+};
 
         const response = await fetch('/api/submit', {
             method: 'POST',
