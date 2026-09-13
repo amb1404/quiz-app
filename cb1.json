@@ -1,0 +1,546 @@
+[
+  {
+    "id": "Q1_i",
+    "type": "mcq",
+    "question": "The slope of a velocity-time graph gives:",
+    "marks": 1,
+    "options": [
+      "Displacement",
+      "Acceleration",
+      "Speed",
+      "Momentum"
+    ],
+    "answer": 1,
+    "diagram_required": false
+  },
+  {
+    "id": "Q1_ii",
+    "type": "mcq",
+    "question": "The physical quantity which is the measure of inertia is:",
+    "marks": 1,
+    "options": [
+      "Velocity",
+      "Force",
+      "Mass",
+      "Weight"
+    ],
+    "answer": 2,
+    "diagram_required": false
+  },
+  {
+    "id": "Q1_iii",
+    "type": "mcq",
+    "question": "The S.I. unit of the moment of force is:",
+    "marks": 1,
+    "options": [
+      "Newton",
+      "Newton-meter (N m)",
+      "Joule",
+      "Pascal"
+    ],
+    "answer": 1,
+    "diagram_required": false
+  },
+  {
+    "id": "Q1_iv",
+    "type": "mcq",
+    "question": "The atmospheric pressure at sea level is approximately:",
+    "marks": 1,
+    "options": [
+      "10^3 Pa",
+      "10^4 Pa",
+      "10^5 Pa",
+      "10^6 Pa"
+    ],
+    "answer": 2,
+    "diagram_required": false
+  },
+  {
+    "id": "Q1_v",
+    "type": "mcq",
+    "question": "In an ideal single movable pulley system, the velocity ratio is:",
+    "marks": 1,
+    "options": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "answer": 1,
+    "diagram_required": false
+  },
+  {
+    "id": "Q2_i",
+    "type": "fill_in_the_blank",
+    "question": "Rate of change of momentum is directly proportional to the applied __________.",
+    "marks": 1,
+    "model_answer": "Force",
+    "marking_scheme": [
+      "1 mark for the correct word."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q2_ii",
+    "type": "fill_in_the_blank",
+    "question": "In a Class II lever, the __________ is located between the effort and the fulcrum.",
+    "marks": 1,
+    "model_answer": "Load",
+    "marking_scheme": [
+      "1 mark for the correct word."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q2_iii",
+    "type": "fill_in_the_blank",
+    "question": "1 Newton = __________ dynes.",
+    "marks": 1,
+    "model_answer": "10^5",
+    "marking_scheme": [
+      "1 mark for the correct numerical value."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q2_iv",
+    "type": "fill_in_the_blank",
+    "question": "The center of gravity of a uniform circular ring lies at its __________.",
+    "marks": 1,
+    "model_answer": "Geometric center",
+    "marking_scheme": [
+      "1 mark for the correct phrase."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q2_v",
+    "type": "fill_in_the_blank",
+    "question": "According to Pascal's law, pressure applied to an enclosed liquid is transmitted __________ in all directions.",
+    "marks": 1,
+    "model_answer": "Undiminished",
+    "marking_scheme": [
+      "1 mark for the correct word."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q3_i",
+    "type": "odd_one_out",
+    "question": "Pick the odd one out and give a reason for your choice: Mass, Speed, Displacement, Time.",
+    "marks": 1,
+    "model_answer": "Displacement. Reason: It is a vector quantity, while the others are scalar quantities.",
+    "marking_scheme": [
+      "0.5 marks for identifying Displacement.",
+      "0.5 marks for the correct vector/scalar reason."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q3_ii",
+    "type": "odd_one_out",
+    "question": "Pick the odd one out and give a reason for your choice: See-saw, Pair of scissors, Crowbar, Nutcracker.",
+    "marks": 1,
+    "model_answer": "Nutcracker. Reason: It is a Class II lever, while the others are Class I levers.",
+    "marking_scheme": [
+      "0.5 marks for identifying Nutcracker.",
+      "0.5 marks for the correct lever class reason."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q3_iii",
+    "type": "odd_one_out",
+    "question": "Pick the odd one out and give a reason for your choice: Pascal, Bar, Newton, mm of Hg.",
+    "marks": 1,
+    "model_answer": "Newton. Reason: It is a unit of force, while the others are units of pressure.",
+    "marking_scheme": [
+      "0.5 marks for identifying Newton.",
+      "0.5 marks for the correct unit reason."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q3_iv",
+    "type": "odd_one_out",
+    "question": "Pick the odd one out and give a reason for your choice: Inertia of rest, Inertia of motion, Inertia of direction, Retardation.",
+    "marks": 1,
+    "model_answer": "Retardation. Reason: It represents a change in the state of motion (negative acceleration), whereas the others are properties resisting a change in state.",
+    "marking_scheme": [
+      "0.5 marks for identifying Retardation.",
+      "0.5 marks for the correct reason."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q3_v",
+    "type": "odd_one_out",
+    "question": "Pick the odd one out and give a reason for your choice: Centripetal force, Frictional force, Electrostatic force, Gravitational force.",
+    "marks": 1,
+    "model_answer": "Frictional force. Reason: It is a contact force, while Electrostatic and Gravitational are non-contact forces (Note: Centripetal can be either, but friction is exclusively a contact resisting force). Alternatively, Centripetal force, as it is a net force requirement rather than a fundamental force.",
+    "marking_scheme": [
+      "0.5 marks for identifying Frictional or Centripetal force.",
+      "0.5 marks for a scientifically valid reason."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q4_i",
+    "type": "assertion_reason",
+    "question": "Assertion (A): A passenger falls forward when a moving bus suddenly stops. Reason (R): The lower part of the body comes to rest with the bus while the upper part tends to remain in motion due to inertia of motion.",
+    "marks": 1,
+    "options": [
+      "Both Assertion (A) and Reason (R) are true and R is the correct explanation of A.",
+      "Both A and R are true but R is not the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "diagram_required": false
+  },
+  {
+    "id": "Q4_ii",
+    "type": "assertion_reason",
+    "question": "Assertion (A): Water is commonly used as a barometric liquid. Reason (R): Water has a very high density compared to mercury.",
+    "marks": 1,
+    "options": [
+      "Both Assertion (A) and Reason (R) are true and R is the correct explanation of A.",
+      "Both A and R are true but R is not the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "model_answer": "Both A and R are actually FALSE in physics (Water is not commonly used, and it has a much lower density than mercury). If forced to choose from standard options where an error exists in the question paper, grade based on the student identifying the falsity.",
+    "marking_scheme": [
+      "1 mark for indicating that both statements are false."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q4_iii",
+    "type": "assertion_reason",
+    "question": "Assertion (A): The handles of doors are fixed at the edge, farthest from the hinges. Reason (R): Maximum turning effect is produced when the perpendicular distance from the axis of rotation is maximum.",
+    "marks": 1,
+    "options": [
+      "Both Assertion (A) and Reason (R) are true and R is the correct explanation of A.",
+      "Both A and R are true but R is not the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "diagram_required": false
+  },
+  {
+    "id": "Q4_iv",
+    "type": "assertion_reason",
+    "question": "Assertion (A): A single fixed pulley does not multiply force. Reason (R): The mechanical advantage of an ideal single fixed pulley is 1.",
+    "marks": 1,
+    "options": [
+      "Both Assertion (A) and Reason (R) are true and R is the correct explanation of A.",
+      "Both A and R are true but R is not the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "diagram_required": false
+  },
+  {
+    "id": "Q4_v",
+    "type": "assertion_reason",
+    "question": "Assertion (A): A feather and a coin fall with the same acceleration in a vacuum. Reason (R): Acceleration due to gravity is independent of the mass of the falling body.",
+    "marks": 1,
+    "options": [
+      "Both Assertion (A) and Reason (R) are true and R is the correct explanation of A.",
+      "Both A and R are true but R is not the correct explanation of A.",
+      "A is true but R is false.",
+      "A is false but R is true."
+    ],
+    "answer": 0,
+    "diagram_required": false
+  },
+  {
+    "id": "Q5_i",
+    "type": "short_answer",
+    "question": "State Newton's Third Law of Motion.",
+    "marks": 2,
+    "model_answer": "To every action, there is always an equal and opposite reaction.",
+    "marking_scheme": [
+      "1 mark for stating action and reaction.",
+      "1 mark for specifying they are equal and opposite."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q5_ii",
+    "type": "short_answer",
+    "question": "Give Reason: Why is it easier to cut with a sharp knife than with a blunt one?",
+    "marks": 2,
+    "model_answer": "A sharp knife has a smaller surface area at its edge compared to a blunt one. Since Pressure = Force / Area, applying the same force over a smaller area generates higher pressure, making it easier to cut.",
+    "marking_scheme": [
+      "1 mark for relating sharpness to a smaller surface area.",
+      "1 mark for correctly correlating area with increased pressure."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q5_iii",
+    "type": "short_answer",
+    "question": "State two practical reasons why the efficiency of a real machine is always less than 100%.",
+    "marks": 2,
+    "model_answer": "1. Work is lost in overcoming friction between the moving parts of the machine. 2. Work is expended in moving the parts of the machine itself (weight of the moving parts).",
+    "marking_scheme": [
+      "1 mark for mentioning friction.",
+      "1 mark for mentioning the weight/mass of moving parts."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q5_iv",
+    "type": "numerical",
+    "question": "A force of 50 N acts on a body and displaces it. If the mass of the body is 10 kg, calculate the acceleration produced.",
+    "marks": 2,
+    "model_answer": "Using F = ma. a = F / m = 50 N / 10 kg = 5 m/s².",
+    "marking_scheme": [
+      "1 mark for stating the correct formula (F=ma) and substitution.",
+      "1 mark for the final answer with correct units (5 m/s²)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q5_v",
+    "type": "short_answer",
+    "question": "Give Reason: A single movable pulley is often used in combination with a fixed pulley.",
+    "marks": 2,
+    "model_answer": "A single movable pulley acts as a force multiplier but requires the effort to be applied in an upward direction, which is inconvenient. A fixed pulley is combined with it to change the direction of the effort to a more convenient downward direction.",
+    "marking_scheme": [
+      "1 mark for identifying the inconvenient upward effort direction of a movable pulley.",
+      "1 mark for stating the fixed pulley changes the effort to a convenient downward direction."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q6_a",
+    "type": "numerical",
+    "question": "A car starting from rest accelerates uniformly to acquire a velocity of 20 m/s in 5 seconds. Calculate: (i) The acceleration. (ii) The distance travelled in these 5 seconds.",
+    "marks": 3,
+    "model_answer": "(i) v = u + at -> 20 = 0 + a(5) -> a = 4 m/s². (ii) s = ut + 0.5at² -> s = 0 + 0.5 * 4 * 5² = 50 m.",
+    "marking_scheme": [
+      "1 mark for correct acceleration formula and substitution.",
+      "0.5 marks for correct acceleration answer (4 m/s²).",
+      "1 mark for correct distance formula and substitution.",
+      "0.5 marks for correct distance answer (50 m)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q6_a_OR",
+    "type": "diagram_reasoning",
+    "question": "Draw the displacement-time graph for: (i) A body at rest. (ii) A body moving with uniform velocity.",
+    "marks": 3,
+    "model_answer": "Two graphs required. (i) A straight horizontal line parallel to the time axis. (ii) A straight line originating from the origin and sloping upwards.",
+    "marking_scheme": [
+      "1.5 marks for a correctly labeled graph showing a horizontal line for a body at rest.",
+      "1.5 marks for a correctly labeled graph showing a constant slope for uniform velocity."
+    ],
+    "diagram_required": true
+  },
+  {
+    "id": "Q6_b",
+    "type": "long_answer",
+    "question": "State the Law of Conservation of Momentum. Briefly explain how this law applies to the firing of a bullet from a gun.",
+    "marks": 3,
+    "model_answer": "Law: In the absence of an external unbalanced force, the total momentum of a system remains conserved. Application: Before firing, total momentum is zero. When the bullet is fired forward with high momentum, the gun must move backward (recoil) with equal momentum to keep the total momentum of the bullet-gun system zero.",
+    "marking_scheme": [
+      "1 mark for the correct statement of the law.",
+      "1 mark for stating initial momentum is zero.",
+      "1 mark for explaining the recoil of the gun balancing the bullet's momentum."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q6_b_OR",
+    "type": "short_answer",
+    "question": "Explain giving scientific reason: Why does a cricketer lower his hands while catching a fast-moving ball?",
+    "marks": 3,
+    "model_answer": "By lowering his hands, the cricketer increases the time taken to bring the ball to rest. Since Force = Change in momentum / time (F = dp/dt), increasing the time reduces the rate of change of momentum. Consequently, a smaller impact force acts on his hands, preventing injury.",
+    "marking_scheme": [
+      "1 mark for mentioning the increase in time.",
+      "1 mark for linking time to the rate of change of momentum (or Newton's Second Law).",
+      "1 mark for concluding that the impact force decreases."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q6_c",
+    "type": "numerical",
+    "question": "A bullet of mass 50 g moving with an initial velocity of 100 m/s strikes a wooden block and comes to rest after penetrating 20 cm into it. Calculate: (i) The initial momentum of the bullet. (ii) The retardation caused by the wooden block. (iii) The resistive force exerted by the block.",
+    "marks": 4,
+    "model_answer": "(i) Mass = 0.05 kg. Initial momentum = 0.05 * 100 = 5 kg m/s. (ii) v² = u² + 2as -> 0 = 10000 + 2 * a * 0.2 -> a = -25000 m/s². Retardation = 25000 m/s². (iii) F = ma = 0.05 * 25000 = 1250 N.",
+    "marking_scheme": [
+      "1 mark for calculating correct initial momentum (5 kg m/s).",
+      "2 marks for correctly calculating retardation (25000 m/s²).",
+      "1 mark for correctly calculating the resistive force (1250 N)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q6_c_OR",
+    "type": "numerical",
+    "question": "A car of mass 1000 kg is moving at a uniform velocity of 18 km/h. It accelerates at 2 m/s² for 5 seconds. Calculate: (i) The final velocity of the car in m/s. (ii) The distance travelled during this time. (iii) The gain in momentum of the car.",
+    "marks": 4,
+    "model_answer": "Initial velocity u = 18 km/h = 5 m/s. (i) v = u + at = 5 + 2(5) = 15 m/s. (ii) s = ut + 0.5at² = (5)(5) + 0.5(2)(25) = 25 + 25 = 50 m. (iii) Gain in momentum = Final momentum - Initial momentum = m(v-u) = 1000(15-5) = 10000 kg m/s.",
+    "marking_scheme": [
+      "1 mark for converting km/h to m/s and finding final velocity (15 m/s).",
+      "1.5 marks for correct distance formula and calculation (50 m).",
+      "1.5 marks for correct momentum gain calculation (10000 kg m/s)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_a",
+    "type": "short_answer",
+    "question": "State Pascal's law of transmission of pressure in fluids. Name one practical device based on this principle.",
+    "marks": 3,
+    "model_answer": "Pascal's Law: The pressure exerted anywhere in a confined, incompressible liquid is transmitted equally and undiminished in all directions throughout the liquid. Device: Hydraulic press / Hydraulic brakes / Hydraulic jack.",
+    "marking_scheme": [
+      "2 marks for a complete and correct statement of Pascal's Law.",
+      "1 mark for a correct practical device."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_a_OR",
+    "type": "short_answer",
+    "question": "What is atmospheric pressure? Describe a simple everyday observation that demonstrates the existence of atmospheric pressure.",
+    "marks": 3,
+    "model_answer": "Atmospheric pressure is the thrust or force exerted by the weight of the Earth's atmosphere per unit area on its surface. Observation: Drinking through a straw (sucking creates a low pressure inside, and atmospheric pressure pushes the liquid up), or sticking a rubber sucker to a smooth wall.",
+    "marking_scheme": [
+      "1.5 marks for the correct definition of atmospheric pressure.",
+      "1.5 marks for a relevant everyday observation explained correctly."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_b",
+    "type": "numerical",
+    "question": "Two forces, each of magnitude 10 N, act vertically upwards and downwards respectively at the two ends A and B of a uniform rod of length 4 m, which is pivoted at its mid-point O. Calculate the magnitude and direction of the resultant moment of forces about the pivot O.",
+    "marks": 3,
+    "model_answer": "Distance of A from pivot O = 2 m. Distance of B from pivot O = 2 m. Moment at A (upwards) = 10 N * 2 m = 20 Nm (Clockwise). Moment at B (downwards) = 10 N * 2 m = 20 Nm (Clockwise). Resultant moment = 20 + 20 = 40 Nm in the clockwise direction.",
+    "marking_scheme": [
+      "1 mark for identifying the correct distance from the pivot (2 m).",
+      "1 mark for calculating the individual moments and adding them.",
+      "1 mark for stating the correct magnitude (40 Nm) and direction (Clockwise)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_b_OR",
+    "type": "numerical",
+    "question": "A spanner of length 25 cm is used to unscrew a nut by applying a force of 40 N. Calculate the moment of force required. What force will be required to unscrew the same nut if the spanner's length is increased to 50 cm?",
+    "marks": 3,
+    "model_answer": "Moment of force = F * d = 40 N * 0.25 m = 10 Nm. Required force for 50 cm spanner: 10 Nm = F * 0.5 m -> F = 20 N.",
+    "marking_scheme": [
+      "1.5 marks for correct conversion to meters and calculation of the moment of force (10 Nm).",
+      "1.5 marks for correctly setting up the equation and calculating the new force (20 N)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_c",
+    "type": "numerical",
+    "question": "In a hydraulic machine, a force of 20 N is applied on the smaller piston of area 10 cm². (i) What upward force is exerted by the larger piston of area 200 cm²? (ii) If the smaller piston is pushed down by 5 cm, calculate the distance moved by the larger piston.",
+    "marks": 4,
+    "model_answer": "(i) F1/A1 = F2/A2 -> 20/10 = F2/200 -> F2 = 400 N. (ii) V1 = V2 -> A1*d1 = A2*d2 -> 10 * 5 = 200 * d2 -> d2 = 0.25 cm.",
+    "marking_scheme": [
+      "2 marks for correctly applying Pascal's principle to find the upward force (400 N).",
+      "2 marks for equating the volumes and finding the correct distance (0.25 cm)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q7_c_OR",
+    "type": "numerical",
+    "question": "A solid block of wood of dimensions 10 cm × 20 cm × 50 cm and mass 5 kg rests on a horizontal flat table. (Take g = 10 m/s²). Calculate: (i) The weight of the wooden block. (ii) The maximum pressure exerted by the wooden block on the table. (iii) The minimum pressure exerted by the wooden block on the table.",
+    "marks": 4,
+    "model_answer": "(i) Weight = mg = 5 * 10 = 50 N. (ii) Max pressure occurs on min area (10*20 = 200 cm² = 0.02 m²). Max P = 50 / 0.02 = 2500 Pa. (iii) Min pressure occurs on max area (20*50 = 1000 cm² = 0.1 m²). Min P = 50 / 0.1 = 500 Pa.",
+    "marking_scheme": [
+      "1 mark for calculating correct weight (50 N).",
+      "1.5 marks for identifying minimum area and calculating max pressure (2500 Pa).",
+      "1.5 marks for identifying maximum area and calculating min pressure (500 Pa)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q8_a",
+    "type": "short_answer",
+    "question": "Define Mechanical Advantage (MA) and Velocity Ratio (VR). Write the relation between MA, VR, and Efficiency (η) of a machine.",
+    "marks": 3,
+    "model_answer": "MA is the ratio of the Load lifted by a machine to the Effort applied (MA = L/E). VR is the ratio of the velocity (or distance moved) of the effort to the velocity (or distance moved) of the load (VR = Ve/Vl). Relation: Efficiency (η) = MA / VR.",
+    "marking_scheme": [
+      "1 mark for defining Mechanical Advantage.",
+      "1 mark for defining Velocity Ratio.",
+      "1 mark for the correct formula relating η, MA, and VR."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q8_a_OR",
+    "type": "diagram_reasoning",
+    "question": "Draw a neat, labelled diagram of a Class III lever showing the fulcrum, effort, and load. Give one example of a Class III lever.",
+    "marks": 3,
+    "model_answer": "Diagram should depict a lever bar with the Fulcrum at one end, Load at the opposite end, and Effort acting in between them. Example: Sugar tongs, tweezers, or human forearm.",
+    "marking_scheme": [
+      "2 marks for a neat, correctly labeled diagram showing Effort between Load and Fulcrum.",
+      "1 mark for a correct practical example."
+    ],
+    "diagram_required": true
+  },
+  {
+    "id": "Q8_b",
+    "type": "numerical",
+    "question": "A machine has a velocity ratio of 4 and an efficiency of 75%. Calculate its mechanical advantage. If the effort applied is 100 N, what is the maximum load it can lift?",
+    "marks": 3,
+    "model_answer": "Efficiency = MA / VR -> 0.75 = MA / 4 -> MA = 3. MA = Load / Effort -> 3 = Load / 100 -> Load = 300 N.",
+    "marking_scheme": [
+      "1.5 marks for calculating MA correctly (3).",
+      "1.5 marks for calculating the correct maximum load (300 N)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q8_b_OR",
+    "type": "diagram_reasoning",
+    "question": "What is a block and tackle system? Draw a diagram of a block and tackle system having a velocity ratio of 3.",
+    "marks": 3,
+    "model_answer": "A block and tackle system is an arrangement of two or more pulleys consisting of two blocks: one fixed block (usually containing multiple pulleys) and one movable block. Diagram: Must show 2 pulleys in the fixed block and 1 pulley in the movable block (or equivalent to give 3 segments of rope supporting the movable block), with effort applied downwards.",
+    "marking_scheme": [
+      "1 mark for the definition.",
+      "2 marks for a correct diagram showing 3 rope strands supporting the movable block."
+    ],
+    "diagram_required": true
+  },
+  {
+    "id": "Q8_c",
+    "type": "numerical",
+    "question": "A crowbar of length 150 cm has its fulcrum situated at a distance of 30 cm from the load. (i) Which class of lever does this crowbar belong to? (ii) Calculate the velocity ratio of the crowbar. (iii) Calculate the mechanical advantage if its efficiency is 80%. (iv) Find the effort required to lift a load of 400 N.",
+    "marks": 4,
+    "model_answer": "(i) Class I lever (fulcrum between load and effort). (ii) Effort arm = 150 - 30 = 120 cm. VR = Effort arm / Load arm = 120 / 30 = 4. (iii) MA = Efficiency * VR = 0.8 * 4 = 3.2. (iv) Effort = Load / MA = 400 / 3.2 = 125 N.",
+    "marking_scheme": [
+      "1 mark for identifying Class I lever.",
+      "1 mark for correctly calculating the Velocity Ratio (4).",
+      "1 mark for correctly calculating the Mechanical Advantage (3.2).",
+      "1 mark for correctly determining the effort (125 N)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q8_c_OR",
+    "type": "diagram_reasoning",
+    "question": "(i) Draw a diagram to show a block and tackle pulley system having a velocity ratio of 3 marking the direction of load (L), effort (E) and tension (T). (ii) The pulley system drawn lifts a load of 150 N when an effort of 60 N is applied. Find its mechanical advantage. (iii) Is the above pulley system an ideal machine or not?",
+    "marks": 4,
+    "model_answer": "(i) Diagram: Fixed block with 2 pulleys, movable block with 1 pulley. String routed such that 3 segments support the movable block. Tension 'T' marked on all segments pointing towards the support, Effort 'E' pointing down, Load 'L' pointing down from the movable block. (ii) MA = L/E = 150/60 = 2.5. (iii) Not an ideal machine because Efficiency = MA/VR = 2.5/3 = 83.33% (less than 100%).",
+    "marking_scheme": [
+      "2 marks for correct diagram with all proper directional labels (T, E, L).",
+      "1 mark for calculating MA correctly (2.5).",
+      "1 mark for concluding it is not ideal and justifying with efficiency calculation."
+    ],
+    "diagram_required": true
