@@ -4,8 +4,7 @@
     "chapters": [
       { "id": "machine", "title": "Machines", "duration": 900 },
       { "id": "energy", "title": "Work Energy Power", "duration": 950 },
-      { "id": "force", "title": "Force", "duration": 900 },
-      { "id": "cb1", "title": "Combined test", "duration": 900 }
+      { "id": "force", "title": "Force", "duration": 900 }
     ]
   },
   {
