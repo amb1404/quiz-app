@@ -34,13 +34,11 @@ app.get('/api/wb', (req, res) => {
     }
 });
 
-// --- NEW ROUTE: Fetch papers for Class IX, X (Subjects) and XI, XII (Units) ---
 app.get('/api/papers/:className/:subjectName', (req, res) => {
     const { className, subjectName } = req.params;
     let papers = [];
 
     try {
-        // 1. Check quizzes.json (Class IX, Class X)
         if (fs.existsSync(path.join(__dirname, 'quizzes.json'))) {
             const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'quizzes.json'), 'utf8'));
             const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
@@ -48,7 +46,6 @@ app.get('/api/papers/:className/:subjectName', (req, res) => {
             if (subjectObj && subjectObj.papers) papers = papers.concat(subjectObj.papers);
         }
 
-        // 2. Check neet.json (Class XI, Class XII)
         if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
             const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
             const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
@@ -63,17 +60,23 @@ app.get('/api/papers/:className/:subjectName', (req, res) => {
     }
 });
 
-// --- NEW ROUTE: Fetch papers for WB XI, WB XII (No Subjects, just Classes) ---
 app.get('/api/papers/:className', (req, res) => {
     const { className } = req.params;
     let papers = [];
 
     try {
         if (fs.existsSync(path.join(__dirname, 'wb.json'))) {
-            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'wb.json'), 'utf8'));
-            const classObj = data.find(c => c.className === className || c.className === `WB ${className}`);
-            if (classObj && classObj.papers) papers = papers.concat(classObj.papers);
+            const wbData = JSON.parse(fs.readFileSync(path.join(__dirname, 'wb.json'), 'utf8'));
+            const wbClass = wbData.find(c => c.className === className || c.className === `WB ${className}`);
+            if (wbClass && wbClass.papers) papers = papers.concat(wbClass.papers);
         }
+
+        if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
+            const neetData = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
+            const neetClass = neetData.find(c => c.name === className || c.name === `Class ${className}`);
+            if (neetClass && neetClass.papers) papers = papers.concat(neetClass.papers);
+        }
+
         res.json({ success: true, papers });
     } catch (error) {
         console.error("Error fetching papers:", error);
@@ -81,10 +84,8 @@ app.get('/api/papers/:className', (req, res) => {
     }
 });
 
-// --- NEW ROUTE: Securely serve PDF files for download ---
 app.get('/api/download/:fileName', (req, res) => {
     const fileName = req.params.fileName;
-    // Points to the new secure_papers folder in your root directory
     const filePath = path.join(__dirname, 'secure_papers', fileName); 
     
     res.download(filePath, (err) => {
