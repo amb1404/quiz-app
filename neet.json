@@ -1,12 +1,12 @@
 [
   {
     "name": "Class XI",
+    "papers": [
+          { "name": "Diversity Practice Paper", "fileName": "diversity-practice.pdf" }
+        ],
     "units": [
       {
         "name": "Diversity in the Living World",
-        "papers": [
-          { "name": "Diversity Practice Paper", "fileName": "diversity-practice.pdf" }
-        ],
         "chapters": [
           {
             "name": "The Living World",
@@ -72,7 +72,6 @@
       },
       {
         "name": "Structural Organisation in Plants and Animals",
-        "papers": [],
         "chapters": [
           {
             "name": "Morphology of Flowering Plants",
@@ -123,7 +122,6 @@
       },
       {
         "name": "Cell: Structure and Functions",
-        "papers": [],
         "chapters": [
           {
             "name": "Cell: The Unit of Life",
@@ -174,7 +172,6 @@
       },
       {
         "name": "Plant Physiology",
-        "papers": [],
         "chapters": [
           {
             "name": "Photosynthesis in Higher Plants",
@@ -225,7 +222,6 @@
       },
       {
         "name": "Human Physiology",
-        "papers": [],
         "chapters": [
           {
             "name": "Breathing and Exchange of Gases",
@@ -323,10 +319,12 @@
   },
   {
     "name": "Class XII",
+    "papers": [
+          { "name": "Diversity Practice Paper", "fileName": "diversity-practice.pdf" }
+        ],
     "units": [
       {
         "name": "Reproduction",
-        "papers": [],
         "chapters": [
           {
             "name": "Sexual Reproduction in Flowering Plants",
@@ -377,7 +375,6 @@
       },
       {
         "name": "Genetics and Evolution",
-        "papers": [],
         "chapters": [
           {
             "name": "Principles of Inheritance and Variation",
@@ -428,7 +425,6 @@
       },
       {
         "name": "Biology in Human Welfare",
-        "papers": [],
         "chapters": [
           {
             "name": "Human Health and Disease",
@@ -464,7 +460,6 @@
       },
       {
         "name": "Biotechnology",
-        "papers": [],
         "chapters": [
           {
             "name": "Biotechnology: Principles and Processes",
@@ -500,7 +495,6 @@
       },
       {
         "name": "Ecology",
-        "papers": [],
         "chapters": [
           {
             "name": "Organisms and Populations",
