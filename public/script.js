@@ -178,7 +178,6 @@ function selectClass(className) {
         showScreen('subject-select-screen');
     } else if (className === 'XI' || className === 'XII') {
         loadNeetUnits(className);
-        showScreen('xi-xii-unit-screen');
     } else if (className === 'WB XI' || className === 'WB XII') {
         loadWbChapters(className);
     }
@@ -298,33 +297,13 @@ function openDownloadScreen(papers) {
     showScreen('download-screen');
 }
 
-function loadNeetUnits(className) {
+async function loadNeetUnits(className) {
     const container = document.getElementById('xi-xii-unit-container');
     if (!container) return;
     container.innerHTML = '';
     
-    const targetClassObj = neetData.find(c => c.name && c.name.toLowerCase().includes(className.toLowerCase()));
-    if (!targetClassObj || !targetClassObj.units) return;
-
-    targetClassObj.units.forEach(unit => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerText = unit.name;
-        card.onclick = () => loadNeetChapters(targetClassObj, unit.name);
-        container.appendChild(card);
-    });
-}
-
-async function loadNeetChapters(classObj, unitName) {
-    navState.unitSelection = unitName;
-    navState.chapterSelection = null;
-    const unit = classObj.units.find(u => u.name === unitName);
-    const container = document.getElementById('xi-xii-chapter-container');
-    if (!container || !unit) return;
-    container.innerHTML = '';
-
     try {
-        const response = await fetch(`/api/papers/${navState.classSelection}/${unitName}`);
+        const response = await fetch(`/api/papers/${className}`);
         const data = await response.json();
         
         if (data.success && data.papers && data.papers.length > 0) {
@@ -337,6 +316,35 @@ async function loadNeetChapters(classObj, unitName) {
     } catch (error) {
         console.error("Error fetching papers:", error);
     }
+
+    const targetClassObj = neetData.find(c => c.name && c.name.toLowerCase().includes(className.toLowerCase()));
+    
+    if (!targetClassObj || !targetClassObj.units) {
+        const msg = document.createElement('p');
+        msg.style.cssText = "text-align:center; color:#64748b; width: 100%;";
+        msg.innerText = "No units found.";
+        container.appendChild(msg);
+        showScreen('xi-xii-unit-screen');
+        return;
+    }
+
+    targetClassObj.units.forEach(unit => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerText = unit.name;
+        card.onclick = () => loadNeetChapters(targetClassObj, unit.name);
+        container.appendChild(card);
+    });
+    showScreen('xi-xii-unit-screen');
+}
+
+function loadNeetChapters(classObj, unitName) {
+    navState.unitSelection = unitName;
+    navState.chapterSelection = null;
+    const unit = classObj.units.find(u => u.name === unitName);
+    const container = document.getElementById('xi-xii-chapter-container');
+    if (!container || !unit) return;
+    container.innerHTML = '';
 
     unit.chapters.forEach(chap => {
         const card = document.createElement('div');
