@@ -15,7 +15,9 @@
       },
       {
         "name": "Chemistry",
-        "papers": [],
+        "papers": [
+          { "name": "Motion Question Paper", "fileName": "motion-ix.pdf" }
+        ],
         "chapters": [
           { "id": "language", "title": "Language of Chemistry", "duration": 900 },
           { "id": "chemicalchanges", "title": "Chemical changes and reactions", "duration": 900 },
@@ -24,7 +26,9 @@
       },
       {
         "name": "Biology",
-        "papers": [],
+        "papers": [
+          { "name": "Motion Question Paper", "fileName": "motion-ix.pdf" }
+        ],
         "chapters": [
           { "id": "cell", "title": "Cell: The Unit of Life", "duration": 900 },
           { "id": "tisue", "title": "Tissues: Plant and Animal Tissue", "duration": 900 },
@@ -39,7 +43,9 @@
     "subjects": [
       {
         "name": "Physics",
-        "papers": [],
+        "papers": [
+          { "name": "Motion Question Paper", "fileName": "motion-ix.pdf" }
+        ],
         "chapters": [
           { "id": "machine", "title": "Machines", "duration": 900 },
           { "id": "energy", "title": "Work Energy Power", "duration": 950 },
@@ -48,7 +54,9 @@
       },
       {
         "name": "Chemistry",
-        "papers": [],
+        "papers": [
+          { "name": "Motion Question Paper", "fileName": "motion-ix.pdf" }
+        ],
         "chapters": [
           { "id": "bonding", "title": "Chemical Bonding", "duration": 900 },
           { "id": "HCl", "title": "HCl", "duration": 900 },
@@ -57,7 +65,9 @@
       },
       {
         "name": "Biology",
-        "papers": [],
+        "papers": [
+          { "name": "Motion Question Paper", "fileName": "motion-ix.pdf" }
+        ],
         "chapters": [
           { "id": "nervous", "title": "Nervous System", "duration": 900 },
           { "id": "genetics", "title": "Genetics", "duration": 900 },
