@@ -38,7 +38,7 @@ function restoreState() {
 
     screenHistory = state.screenHistory || [];
     navState = state.navState || {};
-   currentQuizId = state.currentQuizId || "";
+    currentQuizId = state.currentQuizId || "";
     currentChapterTitle = state.currentChapterTitle || "General Quiz";
     activeQuizTitle = state.activeQuizTitle || "Quiz Active";
     timeRemaining = state.timeRemaining;
@@ -214,23 +214,36 @@ function loadWbChapters(className) {
     showScreen('ix-x-chapter-screen');
 }
 
-function selectSubject(subjectName) {
+async function selectSubject(subjectName) {
     navState.subjectSelection = subjectName;
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
     container.innerHTML = '';
 
-    // CORRECTED: Checks for both 'IX' and 'Class IX' to ensure a perfect match
+    try {
+        const response = await fetch(`/api/papers/${navState.classSelection}/${subjectName}`);
+        const data = await response.json();
+        
+        if (data.success && data.papers && data.papers.length > 0) {
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerText = "📄 Download Papers";
+            downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            downloadBtn.onclick = () => openDownloadScreen(data.papers);
+            container.appendChild(downloadBtn);
+        }
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+    }
+
     const classObj = quizData.find(c => c.name === navState.classSelection || c.name === `Class ${navState.classSelection}`);
-    
-    // Find the selected Subject inside that specific Class
     const subjectObj = classObj && classObj.subjects ? classObj.subjects.find(s => s.name.toLowerCase() === subjectName.toLowerCase()) : null;
-    
-    // Extract the chapters
     const chapters = subjectObj ? subjectObj.chapters : [];
 
     if (chapters.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:#64748b;">No chapters found.</p>`;
+        const msg = document.createElement('p');
+        msg.style.cssText = "text-align:center; color:#64748b; width: 100%;";
+        msg.innerText = "No chapters found.";
+        container.appendChild(msg);
         showScreen('ix-x-chapter-screen');
         return;
     }
@@ -249,6 +262,25 @@ function selectSubject(subjectName) {
         container.appendChild(card);
     });
     showScreen('ix-x-chapter-screen');
+}
+
+function openDownloadScreen(papers) {
+    const container = document.getElementById('download-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    papers.forEach(paper => {
+        const link = document.createElement('a');
+        link.href = `/api/download/${paper.fileName}`; 
+        link.className = 'card';
+        link.style.textDecoration = 'none';
+        link.style.display = 'block';
+        link.style.color = '#333';
+        link.innerText = `📥 ${paper.name}`;
+        container.appendChild(link);
+    });
+
+    showScreen('download-screen');
 }
 
 function loadNeetUnits(className) {
@@ -361,7 +393,6 @@ function startQuiz() {
         return;
     }
 
-    // Basic email format check (ensures an @ and domain exist)
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
         alert('Please enter a valid email address.');
@@ -378,7 +409,6 @@ function startQuiz() {
 }
 
 function renderQuestion() {
-    // Update the heading immediately at the top
     const headingEl = document.getElementById('quiz-screen-heading');
     if (headingEl) {
         headingEl.innerText = activeQuizTitle;
@@ -466,7 +496,6 @@ function updateQuizStats() {
 
 async function submitQuiz(isAutoSubmit = false) { 
     
-    // <--- NEW VALIDATION BLOCK --->
     const answeredCount = Object.keys(userAnswers).length;
     const totalQuestions = currentQuestions.length;
 
@@ -489,14 +518,14 @@ async function submitQuiz(isAutoSubmit = false) {
 
     try {
         const payload = {
-    firstName,
-    lastName,
-    email,
-    className: navState.classSelection || "", // Passes 'IX', 'X', 'XI', 'XII', 'WB XI', or 'WB XII'
-    chapterTitle: activeQuizTitle,
-    quizId: currentQuizId,
-    userAnswers: userAnswers 
-};
+            firstName,
+            lastName,
+            email,
+            className: navState.classSelection || "", 
+            chapterTitle: activeQuizTitle,
+            quizId: currentQuizId,
+            userAnswers: userAnswers 
+        };
 
         const response = await fetch('/api/submit', {
             method: 'POST',
@@ -514,7 +543,7 @@ async function submitQuiz(isAutoSubmit = false) {
                 <div style="text-align: center; margin-top: 20px;">
                     <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
                     <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${resultData.score} / ${resultData.total}</h1>
-                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully.A copy of your response has also been mailed to your provided email id.</p>
+                    <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p>
                 </div>
             `;
             showScreen('result-screen');
@@ -531,7 +560,6 @@ async function submitQuiz(isAutoSubmit = false) {
     }
 }
 
-// Basic UI Protection: Deter casual copying and inspecting
 document.addEventListener('contextmenu', event => event.preventDefault());
 
 document.addEventListener('keydown', event => {
