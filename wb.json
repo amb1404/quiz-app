@@ -2,7 +2,7 @@
   {
     "className": "WB XI",
     "papers": [
-      { "name": "Semester I Model Paper", "fileName": "wb-sem1-model.pdf" }
+      { "name": "Semester II Model Paper", "fileName": "wb-sem2-model.pdf" }
     ],
     "chapters": [
       { "id": "semi1", "title": "Semester I Model 1", "duration": 4500 },
@@ -14,7 +14,9 @@
   },
   {
     "className": "WB XII",
-    "papers": [],
+    "papers": [
+      { "name": "Semester IV Model Paper", "fileName": "wb-sem4-model.pdf" }
+    ],
     "chapters": [
       { "id": "semiii1", "title": "Semester III Model 1", "duration": 4500 },
       { "id": "semiii2", "title": "Semester III Model 2", "duration": 4500 },
