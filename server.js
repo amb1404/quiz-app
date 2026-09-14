@@ -85,8 +85,11 @@ app.get('/api/papers/:className', (req, res) => {
 });
 
 app.get('/api/download/:fileName', (req, res) => {
-    const fileName = req.params.fileName;
-    const filePath = path.join(__dirname, 'secure_papers', fileName); 
+    // path.basename() completely strips out any directory paths (like ../) 
+    // and strictly returns just the final file name.
+    const safeFileName = path.basename(req.params.fileName);
+    
+    const filePath = path.join(__dirname, 'secure_papers', safeFileName); 
     
     res.download(filePath, (err) => {
         if (err) {
