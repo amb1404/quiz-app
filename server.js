@@ -195,14 +195,18 @@ app.post('/api/submit', async (req, res) => {
         try {
             const submissionsFile = path.join(__dirname, 'submissions.json');
             let allSubmissions = [];
+            
             if (fs.existsSync(submissionsFile)) {
-                allSubmissions = JSON.parse(fs.readFileSync(submissionsFile, 'utf8'));
+                const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
+                allSubmissions = JSON.parse(fileData);
             }
+            
             allSubmissions.push({
                 timestamp: new Date().toISOString(),
                 ...securePayload
             });
-            fs.writeFileSync(submissionsFile, JSON.stringify(allSubmissions, null, 2));
+            
+            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
         } catch (err) {
             console.error("Local backup failed:", err);
         }
