@@ -5,26 +5,26 @@
       {
         "name": "Physics",
         "chapters": [
-          { "id": "machine", "title": "Machines", "duration": 900 },
-          { "id": "energy", "title": "Work Energy Power", "duration": 950 },
-          { "id": "force", "title": "Force", "duration": 900 }
+          { "id": "measurement", "title": "Measurement", "duration": 900 },
+          { "id": "motion", "title": "Motion", "duration": 950 },
+          { "id": "lawsofmotion", "title": "Laws of Motion", "duration": 900 }
         ]
       },
       {
         "name": "Chemistry",
         "chapters": [
-          { "id": "bonding", "title": "Chemical Bonding", "duration": 900 },
-          { "id": "HCl", "title": "HCl", "duration": 900 },
-          { "id": "analytical", "title": "Analytical", "duration": 900 }
+          { "id": "language", "title": "Language of Chemistry", "duration": 900 },
+          { "id": "chemicalchanges", "title": "Chemical changes and reactions", "duration": 900 },
+          { "id": "atomicstructure", "title": "Atomic Structure and Chemical Bonding", "duration": 900 }
         ]
       },
       {
         "name": "Biology",
         "chapters": [
-          { "id": "nervous", "title": "Nervous System", "duration": 900 },
-          { "id": "genetics", "title": "Genetics", "duration": 900 },
-          { "id": "excretory", "title": "Excretory System", "duration": 900 },
-          { "id": "circulation", "title": "Circulatory System", "duration": 900 }
+          { "id": "cell", "title": "Cell: The Unit of Life", "duration": 900 },
+          { "id": "tisue", "title": "Tissues: Plant and Animal Tissue", "duration": 900 },
+          { "id": "flower", "title": "The Flowers", "duration": 900 },
+          { "id": "pollination", "title": "Pollination and Fertilization", "duration": 900 }
         ]
       }
     ]
