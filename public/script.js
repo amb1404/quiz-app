@@ -220,7 +220,13 @@ function selectSubject(subjectName) {
     if (!container) return;
     container.innerHTML = '';
 
-    const subjectObj = quizData.find(s => s.subject && s.subject.toLowerCase() === subjectName.toLowerCase());
+    // CORRECTED: Checks for both 'IX' and 'Class IX' to ensure a perfect match
+    const classObj = quizData.find(c => c.name === navState.classSelection || c.name === `Class ${navState.classSelection}`);
+    
+    // Find the selected Subject inside that specific Class
+    const subjectObj = classObj && classObj.subjects ? classObj.subjects.find(s => s.name.toLowerCase() === subjectName.toLowerCase()) : null;
+    
+    // Extract the chapters
     const chapters = subjectObj ? subjectObj.chapters : [];
 
     if (chapters.length === 0) {
