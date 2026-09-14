@@ -34,12 +34,72 @@ app.get('/api/wb', (req, res) => {
     }
 });
 
+// --- NEW ROUTE: Fetch papers for Class IX, X (Subjects) and XI, XII (Units) ---
+app.get('/api/papers/:className/:subjectName', (req, res) => {
+    const { className, subjectName } = req.params;
+    let papers = [];
+
+    try {
+        // 1. Check quizzes.json (Class IX, Class X)
+        if (fs.existsSync(path.join(__dirname, 'quizzes.json'))) {
+            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'quizzes.json'), 'utf8'));
+            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
+            const subjectObj = classObj?.subjects?.find(s => s.name.toLowerCase() === subjectName.toLowerCase());
+            if (subjectObj && subjectObj.papers) papers = papers.concat(subjectObj.papers);
+        }
+
+        // 2. Check neet.json (Class XI, Class XII)
+        if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
+            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
+            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
+            const unitObj = classObj?.units?.find(u => u.name.toLowerCase() === subjectName.toLowerCase());
+            if (unitObj && unitObj.papers) papers = papers.concat(unitObj.papers);
+        }
+
+        res.json({ success: true, papers });
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+        res.json({ success: false, papers: [] });
+    }
+});
+
+// --- NEW ROUTE: Fetch papers for WB XI, WB XII (No Subjects, just Classes) ---
+app.get('/api/papers/:className', (req, res) => {
+    const { className } = req.params;
+    let papers = [];
+
+    try {
+        if (fs.existsSync(path.join(__dirname, 'wb.json'))) {
+            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'wb.json'), 'utf8'));
+            const classObj = data.find(c => c.className === className || c.className === `WB ${className}`);
+            if (classObj && classObj.papers) papers = papers.concat(classObj.papers);
+        }
+        res.json({ success: true, papers });
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+        res.json({ success: false, papers: [] });
+    }
+});
+
+// --- NEW ROUTE: Securely serve PDF files for download ---
+app.get('/api/download/:fileName', (req, res) => {
+    const fileName = req.params.fileName;
+    // Points to the new secure_papers folder in your root directory
+    const filePath = path.join(__dirname, 'secure_papers', fileName); 
+    
+    res.download(filePath, (err) => {
+        if (err) {
+            console.error("File download error:", err);
+            if (!res.headersSent) res.status(404).send("File not found.");
+        }
+    });
+});
+
 app.get('/api/quiz/:id', (req, res) => {
     try {
         const id = req.params.id;
         let filePath = path.join(__dirname, `${id}.json`);
 
-        // If the exact file doesn't exist, fall back to the -questions.json suffix
         if (!fs.existsSync(filePath)) {
             filePath = path.join(__dirname, `${id}-questions.json`);
         }
@@ -47,7 +107,6 @@ app.get('/api/quiz/:id', (req, res) => {
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
-        // CREATE A "SAFE" VERSION FOR THE STUDENT (Stripping answers)
         const safeQuestions = realQuestions.map(q => {
             return {
                 question: q.question,
@@ -68,10 +127,10 @@ app.post('/api/submit', async (req, res) => {
     try {
         const safeUserAnswers = userAnswers || {};
         let filePath = path.join(__dirname, `${quizId}.json`);
-if (!fs.existsSync(filePath)) {
-    filePath = path.join(__dirname, `${quizId}-questions.json`);
-}
-const rawData = fs.readFileSync(filePath, 'utf-8');
+        if (!fs.existsSync(filePath)) {
+            filePath = path.join(__dirname, `${quizId}-questions.json`);
+        }
+        const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
         let correctCount = 0;
@@ -79,13 +138,13 @@ const rawData = fs.readFileSync(filePath, 'utf-8');
         const totalCount = realQuestions.length;
         const attemptedCount = Object.keys(safeUserAnswers).length;
         const skippedCount = totalCount - attemptedCount;
-        // NEW SERVER-SIDE BLOCK: Reject incomplete submissions
-if (attemptedCount < totalCount) {
-    return res.status(400).json({ 
-        success: false, 
-        error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
-    });
-}
+        
+        if (attemptedCount < totalCount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
+            });
+        }
 
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
             `<tr style="background-color: #f1f5f9; text-align: left;">` +
@@ -111,26 +170,24 @@ if (attemptedCount < totalCount) {
         });
         breakdownHtml += `</table>`;
 
-        // Avoid duplicate prefix if chapterTitle already contains className
-const fullTitle = (className && !chapterTitle.startsWith(className))
-    ? `${className} - ${chapterTitle}`
-    : chapterTitle;
+        const fullTitle = (className && !chapterTitle.startsWith(className))
+            ? `${className} - ${chapterTitle}`
+            : chapterTitle;
 
-const studentName = `${firstName} ${lastName}`.trim().toUpperCase();
+        const studentName = `${firstName} ${lastName}`.trim().toUpperCase();
 
-const securePayload = {
-    firstName, lastName, email,
-    className: className || "",
-    chapterTitle: fullTitle,
-    subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
-    score: correctCount, total: totalCount,
-    attempted: attemptedCount, skipped: skippedCount,
-    correct: correctCount, incorrect: incorrectCount,
-    breakdown: breakdownHtml,
-    targetEmail: process.env.TARGET_EMAIL
-};
+        const securePayload = {
+            firstName, lastName, email,
+            className: className || "",
+            chapterTitle: fullTitle,
+            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
+            score: correctCount, total: totalCount,
+            attempted: attemptedCount, skipped: skippedCount,
+            correct: correctCount, incorrect: incorrectCount,
+            breakdown: breakdownHtml,
+            targetEmail: process.env.TARGET_EMAIL
+        };
 
-        // Keep your local backup working
         try {
             const submissionsFile = path.join(__dirname, 'submissions.json');
             let allSubmissions = [];
@@ -146,10 +203,8 @@ const securePayload = {
             console.error("Local backup failed:", err);
         }
 
-        // Send score back to the frontend browser
         res.json({ success: true, score: correctCount, total: totalCount });
 
-        // Forward securely to Google Apps Script
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (scriptURL) {
             await fetch(scriptURL, {
