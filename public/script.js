@@ -184,10 +184,25 @@ function selectClass(className) {
     }
 }
 
-function loadWbChapters(className) {
+async function loadWbChapters(className) {
     const container = document.getElementById('ix-x-chapter-container');
     if (!container) return;
     container.innerHTML = '';
+
+    try {
+        const response = await fetch(`/api/papers/${className}`);
+        const data = await response.json();
+        
+        if (data.success && data.papers && data.papers.length > 0) {
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerText = "📄 Download Papers";
+            downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            downloadBtn.onclick = () => openDownloadScreen(data.papers);
+            container.appendChild(downloadBtn);
+        }
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+    }
 
     const classObj = wbData.find(c => c.className === className);
     const chapters = classObj ? classObj.chapters : [];
@@ -300,13 +315,28 @@ function loadNeetUnits(className) {
     });
 }
 
-function loadNeetChapters(classObj, unitName) {
+async function loadNeetChapters(classObj, unitName) {
     navState.unitSelection = unitName;
     navState.chapterSelection = null;
     const unit = classObj.units.find(u => u.name === unitName);
     const container = document.getElementById('xi-xii-chapter-container');
     if (!container || !unit) return;
     container.innerHTML = '';
+
+    try {
+        const response = await fetch(`/api/papers/${navState.classSelection}/${unitName}`);
+        const data = await response.json();
+        
+        if (data.success && data.papers && data.papers.length > 0) {
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerText = "📄 Download Papers";
+            downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            downloadBtn.onclick = () => openDownloadScreen(data.papers);
+            container.appendChild(downloadBtn);
+        }
+    } catch (error) {
+        console.error("Error fetching papers:", error);
+    }
 
     unit.chapters.forEach(chap => {
         const card = document.createElement('div');
