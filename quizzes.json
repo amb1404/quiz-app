@@ -72,8 +72,7 @@
           { "id": "nervous", "title": "Nervous System", "duration": 900 },
           { "id": "genetics", "title": "Genetics", "duration": 900 },
           { "id": "excretory", "title": "Excretory System", "duration": 900 },
-          { "id": "circulation", "title": "Circulatory System", "duration": 900 },
-          { "id": "reproduction", "title": "Reproductive System", "duration": 2100 }
+          { "id": "circulation", "title": "Circulatory System", "duration": 900 }
         ]
       }
     ]
