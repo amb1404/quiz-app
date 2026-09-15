@@ -3,7 +3,11 @@ let currentQuestionIndex = 0;
 let userAnswers = {};
 let timerInterval;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // 1. Fetch and render the class buttons from the backend
+  await loadClasses();
+
+  // 2. Auto-save & Restore User Inputs
   const inputIds = ['firstName', 'lastName', 'email'];
   inputIds.forEach(id => {
     const el = document.getElementById(id);
@@ -13,15 +17,42 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // 3. Restore Screen State
   const savedScreen = sessionStorage.getItem('currentScreen') || 'class-screen';
   showScreen(savedScreen);
 
-  // If refreshed on the quiz screen, silently re-sync with the backend
+  // 4. If refreshed on the quiz screen, silently re-sync with the backend
   if (savedScreen === 'quiz-screen') {
     startQuiz(true);
   }
 });
 
+// --- BACKEND CLASS LOADER ---
+async function loadClasses() {
+  const container = document.getElementById("class-container");
+  if (!container) return;
+  try {
+    const response = await fetch('/api/classes');
+    if (!response.ok) throw new Error('Network response was not ok');
+    const classes = await response.json();
+    
+    container.innerHTML = ""; 
+    classes.forEach(cls => {
+      const button = document.createElement("button");
+      button.className = "class-btn"; // Retains your CSS styling
+      button.textContent = cls.name;
+      button.addEventListener("click", () => {
+        sessionStorage.setItem('selectedClass', cls.id);
+        showScreen('chapter-screen');
+      });
+      container.appendChild(button);
+    });
+  } catch (error) {
+    console.error("Failed to load classes from the backend:", error);
+  }
+}
+
+// --- NAVIGATION LOGIC ---
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
   document.getElementById(screenId).style.display = 'block';
@@ -33,6 +64,7 @@ function selectChapter(chapterId) {
   showScreen('details-screen');
 }
 
+// --- SECURE QUIZ LOGIC ---
 async function startQuiz(isResume = false) {
   const email = document.getElementById('email').value.trim();
   const chapter = sessionStorage.getItem('selectedChapter');
@@ -74,7 +106,7 @@ function startVisualTimer(timeLeft) {
     if (remaining <= 0) {
       clearInterval(timerInterval);
       document.getElementById('timer-display').textContent = "Time Left: 00:00";
-      submitQuiz(); 
+      submitQuiz(); // Auto submit when time runs out
     } else {
       const m = Math.floor(remaining / 60000);
       const s = Math.floor((remaining % 60000) / 1000);
@@ -125,10 +157,9 @@ async function selectOption(optionIndex) {
   });
 }
 
-async function clearResponse() {
+function clearResponse() {
   delete userAnswers[currentQuestionIndex];
   renderQuestion();
-  // Optional: Send a specific save request here to nullify the answer in the backend
 }
 
 function nextQuestion() {
