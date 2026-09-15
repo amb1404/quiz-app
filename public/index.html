@@ -1,111 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pioneers Prep</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Portal</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- 1. CLASS SELECTION SCREEN -->
-    <div id="class-select-screen">
-        <h2 class="screen-heading" id="class-select-title">Select Class</h2>
-        <div class="card" id="class-ix-btn" onclick="selectClass('IX')">IX</div>
-        <div class="card" id="class-x-btn" onclick="selectClass('X')">X</div>
-        <div class="card" id="class-xi-btn" onclick="selectClass('XI')">XI</div>
-        <div class="card" id="class-xii-btn" onclick="selectClass('XII')">XII</div>
-        <div class="card" onclick="selectClass('WB XI')">WB XI</div>
-        <div class="card" onclick="selectClass('WB XII')">WB XII</div>
+  <!-- SCREEN 1: Class Selection -->
+  <div id="class-screen" class="screen">
+    <div class="card">
+      <h2>Select Class</h2>
+      <div id="class-container">
+        <!-- Buttons are dynamically loaded here from backend -->
+      </div>
     </div>
+  </div>
 
-    <!-- 2. SUBJECT SELECTION SCREEN -->
-    <div id="subject-select-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="subject-select-title">Select Subject</h2>
-        <div class="card" id="physics-sub-btn" onclick="selectSubject('Physics')">Physics</div>
-        <div class="card" id="chemistry-sub-btn" onclick="selectSubject('Chemistry')">Chemistry</div>
-        <div class="card" id="biology-sub-btn" onclick="selectSubject('Biology')">Biology</div>
+  <!-- SCREEN 2: Chapter Selection -->
+  <div id="chapter-screen" class="screen" style="display: none;">
+    <div class="card">
+      <button class="back-btn" onclick="showScreen('class-screen')">Back</button>
+      <h2>Select Chapter</h2>
+      <button id="download-papers-btn" style="background: #5a5ce6; color: white;">📄 Download Papers</button>
+      <div id="chapter-container">
+        <!-- Add your chapters here. Example: -->
+        <button class="class-btn" onclick="selectChapter('nervous')">Nervous System</button>
+        <button class="class-btn" onclick="selectChapter('genetics')">Genetics</button>
+        <button class="class-btn" onclick="selectChapter('reproductive')">Reproductive System</button>
+      </div>
     </div>
+  </div>
 
-    <!-- 3. CHAPTER SELECTION SCREEN (IX & X) -->
-    <div id="ix-x-chapter-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="ix-x-chapter-title">Select Chapter</h2>
-        <div id="ix-x-chapter-container"></div>
+  <!-- SCREEN 3: Student Details -->
+  <div id="details-screen" class="screen" style="display: none;">
+    <div class="card">
+      <button class="back-btn" onclick="showScreen('chapter-screen')">Back</button>
+      <h2>Enter Your Details</h2>
+      <input type="text" id="firstName" placeholder="First Name" class="input-field">
+      <input type="text" id="lastName" placeholder="Last Name" class="input-field">
+      <input type="email" id="email" placeholder="Email" class="input-field">
+      <button class="class-btn" onclick="startQuiz()" style="background: #28a745; color: white; margin-top: 15px;">Start Quiz</button>
     </div>
+  </div>
 
-    <!-- 4. UNIT SELECTION SCREEN (XI & XII) -->
-    <div id="xi-xii-unit-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="xi-xii-unit-title">Select Unit</h2>
-        <div id="xi-xii-unit-container"></div>
-    </div>
+  <!-- SCREEN 4: The Quiz Interface -->
+  <div id="quiz-screen" class="screen" style="display: none;">
+    <div class="card quiz-card">
+      
+      <div class="quiz-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span id="timer-display" style="color: #dc3545; font-weight: bold;">Time Left: 35:00</span>
+        <span id="stats-display" style="font-weight: bold;">Attempted: 0 / 20 | Skipped: 0</span>
+        <button onclick="submitQuiz()" style="background: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer;">Submit Quiz</button>
+      </div>
 
-    <!-- 5. CHAPTER SELECTION SCREEN (XI & XII) -->
-    <div id="xi-xii-chapter-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="xi-xii-chapter-title">Select Chapter</h2>
-        <div id="xi-xii-chapter-container"></div>
-    </div>
+      <h2 id="quiz-title" style="text-align: center; color: #4a90e2;">Reproductive System</h2>
+      <hr style="border: 0.5px solid #e0e0e0; margin-bottom: 20px;">
 
-    <!-- 6. TOPIC SELECTION SCREEN (XI & XII) -->
-    <div id="xi-xii-topic-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="xi-xii-topic-title">Select Topic</h2>
-        <div id="xi-xii-topic-container"></div>
-    </div>
-
-    <!-- 7. NAME & DETAILS SCREEN -->
-    <div id="name-screen" class="hidden">
-        <button class="back-btn" id="name-back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading" id="name-screen-title">Enter Details</h2>
-        <p id="name-screen-subtitle"><strong>Candidate Information</strong></p>
-        
-        <!-- Modified to auto-uppercase text visually and in the saved data -->
-        <input type="text" id="first-name" placeholder="First Name" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); saveState()">
-        <input type="text" id="last-name" placeholder="Last Name" style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); saveState()">
-        
-        <input type="email" id="email-address" placeholder="Email Address" autocapitalize="none">
-        <button id="name-start-btn" onclick="startQuiz()">Start Quiz</button>
-    </div>
-
-    <!-- 8. QUIZ SCREEN -->
-    <div id="quiz-screen" class="hidden">
-        <div class="quiz-header">
-            <div id="timer-container">
-                <!-- Set the default starting timer here -->
-                <span style="font-weight: bold; color: #dc2626;">Time Left: <span id="time-left">15:00</span></span>
-            </div>
-            <div id="stats-container">
-                <span id="quiz-stats" style="font-size: 14px; font-weight: bold;">Attempted: 0 | Skipped: 0</span>
-            </div>
-            <button id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
+      <div id="question-container">
+        <h3 id="question-text">Q.1: Loading...</h3>
+        <div id="options-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+          <!-- Options injected here -->
         </div>
+      </div>
 
-        <h2 class="screen-heading" id="quiz-screen-heading">Quiz Active</h2>
-        <div id="question-box" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;"></div>
-        <div id="options-container"></div>
+      <div class="quiz-footer" style="display: flex; justify-content: space-between; margin-top: 30px;">
+        <button onclick="prevQuestion()" id="prev-btn" style="background: #4a90e2; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Previous</button>
+        <button onclick="clearResponse()" style="background: #e2e6ea; color: #333; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Clear Response</button>
+        <button onclick="nextQuestion()" id="next-btn" style="background: #4a90e2; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Next</button>
+      </div>
 
-        <div class="nav-buttons">
-            <button id="prev-btn" onclick="prevQuestion()">Previous</button>
-            <button id="clear-btn" onclick="clearResponse()">Clear Response</button>
-            <button id="next-btn" onclick="nextQuestion()">Next</button>
-        </div>
     </div>
+  </div>
 
-    <!-- 9. RESULT SCREEN -->
-    <div id="result-screen" class="hidden"></div>
-
-    <!-- 10. DOWNLOAD SCREEN -->
-    <div id="download-screen" class="hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 class="screen-heading">Download Question Papers</h2>
-        <div id="download-container" class="card-container">
-            <!-- PDF links will be injected here by JavaScript -->
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
