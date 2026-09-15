@@ -30,7 +30,8 @@ function saveState() {
     sessionStorage.setItem('quizAppSession', JSON.stringify(state));
 }
 
-function restoreState() {
+// --- UPDATED: Made async to wait for background data loading ---
+async function restoreState() {
     const saved = sessionStorage.getItem('quizAppSession');
     if (!saved) return;
     isRestoring = true;
@@ -55,11 +56,14 @@ function restoreState() {
 
     if (classSelection) {
         if (['IX', 'X'].includes(classSelection)) {
-            if (subjectSelection) selectSubject(subjectSelection);
+            // Await the asynchronous fetch
+            if (subjectSelection) await selectSubject(subjectSelection);
         } else if (['WB XI', 'WB XII'].includes(classSelection)) {
-            loadWbChapters(classSelection);
+            // Await the asynchronous fetch
+            await loadWbChapters(classSelection);
         } else {
-            loadNeetUnits(classSelection);
+            // Await the asynchronous fetch
+            await loadNeetUnits(classSelection);
             if (unitSelection) {
                 const classObj = neetData.find(c => c.name && c.name.toLowerCase().includes(classSelection.toLowerCase()));
                 if (classObj) {
@@ -93,7 +97,9 @@ function restoreState() {
         renderQuestion();
         startTimer();
     }
-    isRestoring = false;
+    
+    // Release the lock after everything is perfectly in place
+    isRestoring = false; 
 }
 
 function getDefaultTimeFromHTML() {
@@ -117,17 +123,21 @@ window.addEventListener('DOMContentLoaded', async () => {
         const wbResponse = await fetch('/api/wb');
         if (wbResponse.ok) wbData = await wbResponse.json();
 
-        restoreState();
+        // --- UPDATED: Must await the restore process so it finishes completely ---
+        await restoreState(); 
     } catch (error) {
         console.error("Error fetching configurations:", error);
     }
 });
 
+// --- UPDATED: Added early-exit lock to prevent screen hijack during reload ---
 function showScreen(screenId) {
+    if (isRestoring) return; 
+
     const screens = document.querySelectorAll('body > div');
     const activeScreen = Array.from(screens).find(screen => !screen.classList.contains('hidden'));
     
-    if (!isRestoring && activeScreen && activeScreen.id !== screenId) {
+    if (activeScreen && activeScreen.id !== screenId) {
         screenHistory.push(activeScreen.id);
     }
     screens.forEach(screen => screen.classList.add('hidden'));
