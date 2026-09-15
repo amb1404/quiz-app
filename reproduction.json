@@ -1,0 +1,536 @@
+[
+  {
+    "id": "Q1",
+    "type": "mcq",
+    "question": "The site of fertilization in the human female reproductive system is the:",
+    "marks": 1,
+    "options": [
+      "Uterus",
+      "Vagina",
+      "Fallopian tube",
+      "Ovary"
+    ],
+    "answer": 2,
+    "explanation": "Fertilization, the fusion of the male and female gametes, typically takes place in the upper region of the Fallopian tube (oviduct).",
+    "diagram_required": false
+  },
+  {
+    "id": "Q2",
+    "type": "mcq",
+    "question": "Which of the following hormones triggers ovulation in females?",
+    "marks": 1,
+    "options": [
+      "Follicle Stimulating Hormone (FSH)",
+      "Luteinizing Hormone (LH)",
+      "Progesterone",
+      "Estrogen"
+    ],
+    "answer": 1,
+    "explanation": "A sudden surge in Luteinizing Hormone (LH) from the anterior pituitary triggers the rupture of the Graafian follicle and the release of the ovum (ovulation).",
+    "diagram_required": false
+  },
+  {
+    "id": "Q3",
+    "type": "mcq",
+    "question": "The normal gestation period in humans is approximately:",
+    "marks": 1,
+    "options": [
+      "280 days",
+      "250 days",
+      "300 days",
+      "265 days"
+    ],
+    "answer": 0,
+    "explanation": "The human gestation period is approximately 280 days (or about 40 weeks) calculated from the first day of the last menstrual period.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q4",
+    "type": "mcq",
+    "question": "The interstitial cells (Leydig cells) of the testes secrete:",
+    "marks": 1,
+    "options": [
+      "Testosterone",
+      "Progesterone",
+      "Estrogen",
+      "Luteinizing hormone"
+    ],
+    "answer": 0,
+    "explanation": "Leydig cells, located in the connective tissue between the seminiferous tubules, produce the male sex hormone testosterone.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q5",
+    "type": "mcq",
+    "question": "Which structure connects the fetus to the placenta?",
+    "marks": 1,
+    "options": [
+      "Amnion",
+      "Umbilical cord",
+      "Chorion",
+      "Fallopian tube"
+    ],
+    "answer": 1,
+    "explanation": "The umbilical cord is a tube-like structure that contains blood vessels connecting the developing fetus to the placenta.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q6",
+    "type": "mcq",
+    "question": "The cessation of menstruation in human females at around the age of 45-50 years is termed:",
+    "marks": 1,
+    "options": [
+      "Menarche",
+      "Menopause",
+      "Ovulation",
+      "Parturition"
+    ],
+    "answer": 1,
+    "explanation": "Menopause marks the end of a woman's reproductive life when menstruation ceases permanently.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q7",
+    "type": "mcq",
+    "question": "The surgical method of sterilization in males is known as:",
+    "marks": 1,
+    "options": [
+      "Tubectomy",
+      "Vasectomy",
+      "Ovariectomy",
+      "Castration"
+    ],
+    "answer": 1,
+    "explanation": "Vasectomy involves cutting and tying the vas deferens in males to prevent sperms from entering the semen.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q8",
+    "type": "mcq",
+    "question": "The fluid that acts as a shock absorber and protects the developing fetus is the:",
+    "marks": 1,
+    "options": [
+      "Seminal fluid",
+      "Cerebrospinal fluid",
+      "Amniotic fluid",
+      "Pleural fluid"
+    ],
+    "answer": 2,
+    "explanation": "Amniotic fluid fills the amniotic sac surrounding the fetus, protecting it from mechanical shocks and preventing desiccation.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q9",
+    "type": "mcq",
+    "question": "In the male reproductive system, sperms are temporarily stored and mature in the:",
+    "marks": 1,
+    "options": [
+      "Prostate gland",
+      "Epididymis",
+      "Seminiferous tubules",
+      "Urethra"
+    ],
+    "answer": 1,
+    "explanation": "The epididymis is a coiled tube where sperms mature and are temporarily stored before ejaculation.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q10",
+    "type": "mcq",
+    "question": "Identical twins are formed when:",
+    "marks": 1,
+    "options": [
+      "Two eggs are fertilized by two different sperms.",
+      "One egg is fertilized by two sperms.",
+      "A single fertilized egg splits into two independent developing embryos.",
+      "Two eggs are fertilized by the same sperm."
+    ],
+    "answer": 2,
+    "explanation": "Identical (monozygotic) twins arise from a single zygote that completely divides into two separate embryos early in development.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q11",
+    "type": "mcq",
+    "question": "The onset of the menstrual cycle in young females at puberty is called:",
+    "marks": 1,
+    "options": [
+      "Menopause",
+      "Menarche",
+      "Gestation",
+      "Implantation"
+    ],
+    "answer": 1,
+    "explanation": "Menarche is the first menstrual cycle or first menstrual bleeding in human females, marking the beginning of reproductive life.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q12",
+    "type": "mcq",
+    "question": "Which of the following glands adds an alkaline secretion to semen to neutralize the acidity of the female reproductive tract?",
+    "marks": 1,
+    "options": [
+      "Cowper's gland",
+      "Thyroid gland",
+      "Prostate gland",
+      "Pituitary gland"
+    ],
+    "answer": 2,
+    "explanation": "The prostate gland secretes an alkaline fluid that forms a large part of the seminal fluid, helping to neutralize vaginal acidity.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q13",
+    "type": "mcq",
+    "question": "After ovulation, the ruptured Graafian follicle transforms into a yellow glandular mass called:",
+    "marks": 1,
+    "options": [
+      "Corpus luteum",
+      "Corpus albicans",
+      "Corpus callosum",
+      "Zygote"
+    ],
+    "answer": 0,
+    "explanation": "The ruptured Graafian follicle becomes the corpus luteum, which secretes progesterone to maintain the uterine lining.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q14",
+    "type": "mcq",
+    "question": "The process of attachment of the developing blastocyst to the uterine wall is known as:",
+    "marks": 1,
+    "options": [
+      "Fertilization",
+      "Implantation",
+      "Ovulation",
+      "Parturition"
+    ],
+    "answer": 1,
+    "explanation": "Implantation is the process by which the blastocyst sinks into and attaches to the endometrium of the uterus.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q15",
+    "type": "mcq",
+    "question": "How many chromosomes are present in a normal human sperm?",
+    "marks": 1,
+    "options": [
+      "46",
+      "22",
+      "23",
+      "44"
+    ],
+    "answer": 2,
+    "explanation": "A sperm is a haploid gamete containing half the number of chromosomes of a normal body cell, which is 23 in humans.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q16",
+    "type": "mcq",
+    "question": "Which structure in the female reproductive system is analogous (functions similarly as a passage) to the vas deferens in males?",
+    "marks": 1,
+    "options": [
+      "Vagina",
+      "Fallopian tube",
+      "Cervix",
+      "Uterus"
+    ],
+    "answer": 1,
+    "explanation": "The Fallopian tube transports the ovum from the ovary, similar to how the vas deferens transports sperm from the testes.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q17",
+    "type": "mcq",
+    "question": "The cap-like structure present at the tip of the sperm head which contains enzymes to digest the egg membrane is the:",
+    "marks": 1,
+    "options": [
+      "Centriole",
+      "Mitochondria",
+      "Acrosome",
+      "Nucleus"
+    ],
+    "answer": 2,
+    "explanation": "The acrosome is located at the anterior end of the sperm head and releases hyaluronidase enzymes to penetrate the ovum during fertilization.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q18",
+    "type": "mcq",
+    "question": "The hormone responsible for the development of secondary sexual characters in human females is:",
+    "marks": 1,
+    "options": [
+      "Progesterone",
+      "Testosterone",
+      "Estrogen",
+      "Oxytocin"
+    ],
+    "answer": 2,
+    "explanation": "Estrogen, secreted by the growing ovarian follicles, triggers the development of female secondary sexual characteristics at puberty.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q19",
+    "type": "mcq",
+    "question": "Which of the following is NOT a function of the placenta?",
+    "marks": 1,
+    "options": [
+      "Supplying oxygen to the fetus",
+      "Removing carbon dioxide from the fetus",
+      "Protecting the fetus from physical shocks",
+      "Producing hormones like progesterone"
+    ],
+    "answer": 2,
+    "explanation": "Protecting the fetus from physical shocks is the function of the amniotic fluid, not the placenta.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q20",
+    "type": "mcq",
+    "question": "In human males, the testes descend into the scrotum through the:",
+    "marks": 1,
+    "options": [
+      "Inguinal canal",
+      "Urethra",
+      "Vas deferens",
+      "Ejaculatory duct"
+    ],
+    "answer": 0,
+    "explanation": "Before birth, the testes descend from the abdominal cavity into the scrotal sac through a passage called the inguinal canal.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q21",
+    "type": "fill_in_the_blank",
+    "question": "The mixture of sperms and the secretions of the seminal vesicles, prostate gland, and Cowper's glands is called __________.",
+    "marks": 1,
+    "model_answer": "Semen",
+    "marking_scheme": [
+      "1 mark for the correct answer 'Semen'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q22",
+    "type": "fill_in_the_blank",
+    "question": "The act of giving birth to the fully developed fetus is termed as __________.",
+    "marks": 1,
+    "model_answer": "Parturition",
+    "marking_scheme": [
+      "1 mark for the correct answer 'Parturition'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q23",
+    "type": "fill_in_the_blank",
+    "question": "The funnel-shaped, fringed opening of the Fallopian tube near the ovary is known as the __________.",
+    "marks": 1,
+    "model_answer": "Infundibulum",
+    "marking_scheme": [
+      "1 mark for the correct answer 'Infundibulum'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q24",
+    "type": "fill_in_the_blank",
+    "question": "The _________ phase of the menstrual cycle lasts from the 15th to the 28th day, during which progesterone is secreted.",
+    "marks": 1,
+    "model_answer": "Luteal (or Secretory)",
+    "marking_scheme": [
+      "1 mark for 'Luteal' or 'Secretory'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q25",
+    "type": "fill_in_the_blank",
+    "question": "The structure formed by the repeated division of the zygote, consisting of a hollow ball of cells, is called the __________.",
+    "marks": 1,
+    "model_answer": "Blastocyst (or Blastula)",
+    "marking_scheme": [
+      "1 mark for 'Blastocyst' or 'Blastula'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q26",
+    "type": "short_answer",
+    "question": "Name the following: The network of blood vessels of the fetus and the mother which serves to exchange materials.",
+    "marks": 1,
+    "model_answer": "Placenta",
+    "marking_scheme": [
+      "1 mark for 'Placenta'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q27",
+    "type": "short_answer",
+    "question": "Name the following: The muscular tube in human females that acts as the birth canal and the copulatory organ.",
+    "marks": 1,
+    "model_answer": "Vagina",
+    "marking_scheme": [
+      "1 mark for 'Vagina'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q28",
+    "type": "short_answer",
+    "question": "Name the following: The male reproductive cells produced by the seminiferous tubules.",
+    "marks": 1,
+    "model_answer": "Sperms (or Spermatozoa)",
+    "marking_scheme": [
+      "1 mark for 'Sperms' or 'Spermatozoa'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q29",
+    "type": "short_answer",
+    "question": "Name the following: The hormone secreted by the developing ovarian follicle.",
+    "marks": 1,
+    "model_answer": "Estrogen",
+    "marking_scheme": [
+      "1 mark for 'Estrogen'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q30",
+    "type": "short_answer",
+    "question": "Name the following: The duct which carries both urine and semen in human males.",
+    "marks": 1,
+    "model_answer": "Urethra",
+    "marking_scheme": [
+      "1 mark for 'Urethra'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q31",
+    "type": "give_reason",
+    "question": "Give Reason: The testes are located outside the abdominal cavity in the scrotum.",
+    "marks": 2,
+    "model_answer": "Sperm production (spermatogenesis) requires a temperature 2 to 3 degrees Celsius lower than the normal body temperature. The scrotum acts as a thermoregulator, maintaining this lower temperature.",
+    "marking_scheme": [
+      "1 mark for stating that sperm production requires a lower temperature.",
+      "1 mark for specifying the temperature difference (2-3 degrees lower) or identifying the scrotum as a thermoregulator."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q32",
+    "type": "give_reason",
+    "question": "Give Reason: The middle piece of a human sperm contains a large number of mitochondria.",
+    "marks": 2,
+    "model_answer": "Mitochondria are the powerhouses of the cell. They provide the necessary energy (ATP) for the rapid lashing movement of the sperm's tail, enabling it to swim through the female reproductive tract to reach the ovum.",
+    "marking_scheme": [
+      "1 mark for mentioning energy production (ATP).",
+      "1 mark for linking the energy to the movement/swimming of the sperm."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q33",
+    "type": "give_reason",
+    "question": "Give Reason: Missing a menstrual period is often the first indication of pregnancy.",
+    "marks": 2,
+    "model_answer": "When an ovum is fertilized and pregnancy begins, the corpus luteum continues to secrete progesterone. This high level of progesterone maintains the thickened uterine lining (endometrium) for the developing fetus, thus preventing the shedding of the lining and stopping menstruation.",
+    "marking_scheme": [
+      "1 mark for mentioning the sustained secretion of progesterone by the corpus luteum.",
+      "1 mark for stating that progesterone maintains the endometrium, preventing its shedding."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q34",
+    "type": "give_reason",
+    "question": "Give Reason: A large number of sperms are released during a single ejaculation, yet only one fertilizes the egg.",
+    "marks": 2,
+    "model_answer": "Many sperms die due to the acidic environment of the female reproductive tract, while others fail to reach the oviduct. The large number ensures that at least one sperm survives the journey. Once one sperm penetrates the ovum, the egg membrane immediately changes its electrical and chemical properties to block other sperms (preventing polyspermy).",
+    "marking_scheme": [
+      "1 mark for stating the loss of sperms in the tract (acidic environment/long distance).",
+      "1 mark for mentioning the membrane change after one sperm enters, blocking others."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q35",
+    "type": "give_reason",
+    "question": "Give Reason: The walls of the left ventricle of the human heart are thicker than the right (Note: Out of syllabus context intentionally placed as a standard ICSE trick question, adapt to reproductive: Why is the wall of the uterus thick and highly muscular?)",
+    "marks": 2,
+    "model_answer": "The uterine wall (myometrium) is highly muscular to accommodate the growing fetus through expansion during pregnancy and to provide the powerful contractions needed to expel the baby during childbirth (parturition).",
+    "marking_scheme": [
+      "1 mark for mentioning expansion to accommodate the growing fetus.",
+      "1 mark for mentioning powerful contractions during childbirth."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q36",
+    "type": "differentiate",
+    "question": "Differentiate between Identical twins and Fraternal twins based on their formation.",
+    "marks": 2,
+    "model_answer": "Identical twins are formed when a single fertilized egg (zygote) splits into two independent developing embryos. They share the same genetic makeup and are always of the same sex. Fraternal twins are formed when two distinct eggs are released simultaneously and are fertilized by two different sperms. They have different genetic makeups and may or may not be of the same sex.",
+    "marking_scheme": [
+      "1 mark for defining identical twins correctly (single egg, single sperm, splitting).",
+      "1 mark for defining fraternal twins correctly (two eggs, two sperms)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q37",
+    "type": "differentiate",
+    "question": "Differentiate between Vasectomy and Tubectomy.",
+    "marks": 2,
+    "model_answer": "Vasectomy is the surgical method of sterilization in males where the vas deferens are cut and tied to prevent sperms from exiting. Tubectomy is the surgical sterilization in females where the fallopian tubes are cut and tied to prevent the ovum from reaching the uterus or meeting sperms.",
+    "marking_scheme": [
+      "1 mark for correctly describing Vasectomy.",
+      "1 mark for correctly describing Tubectomy."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q38",
+    "type": "long_answer",
+    "question": "Trace the path of a sperm from its point of production to its exit from the male body.",
+    "marks": 3,
+    "model_answer": "Sperms are produced in the seminiferous tubules of the testes. From there, they pass into the epididymis where they mature and are stored. During ejaculation, they travel through the vas deferens (sperm duct). The vas deferens joins the duct of the seminal vesicle to form the ejaculatory duct, which opens into the urethra. The urethra then carries the semen out of the body through the penis.",
+    "marking_scheme": [
+      "1 mark for starting at Seminiferous tubules -> Epididymis.",
+      "1 mark for the path Epididymis -> Vas deferens.",
+      "1 mark for Ejaculatory duct -> Urethra -> exterior."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q39",
+    "type": "long_answer",
+    "question": "Briefly describe the roles of the four main hormones that regulate the menstrual cycle.",
+    "marks": 4,
+    "model_answer": "1. FSH (Follicle Stimulating Hormone) from the pituitary stimulates the growth and maturation of the ovarian follicle. 2. Estrogen, secreted by the growing follicle, stimulates the thickening of the uterine lining (endometrium). 3. LH (Luteinizing Hormone) from the pituitary triggers ovulation (release of the ovum) and the formation of the corpus luteum. 4. Progesterone, secreted by the corpus luteum, maintains the thickened endometrium for potential pregnancy.",
+    "marking_scheme": [
+      "1 mark for FSH role (follicle maturation).",
+      "1 mark for Estrogen role (uterine lining thickening).",
+      "1 mark for LH role (ovulation).",
+      "1 mark for Progesterone role (maintaining endometrium)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q40",
+    "type": "diagram_reasoning",
+    "question": "Draw a neat, labelled diagram of a human sperm. State the function of its tail.",
+    "marks": 3,
+    "model_answer": "Diagram should show a sperm cell clearly demarcated into Head, Middle Piece, and Tail. The Head should show the Acrosome and Nucleus. The Middle Piece should show Mitochondria. The Tail should be a long flagellum. Function of the tail: It provides motility by lashing movements, allowing the sperm to swim in the fluid medium of the female reproductive tract to reach the ovum.",
+    "marking_scheme": [
+      "1 mark for neatness and correct general shape of the three parts.",
+      "1 mark for correctly labelling at least three parts (Acrosome, Nucleus, Mitochondria, Tail).",
+      "1 mark for stating the function of the tail (motility/swimming)."
+    ],
+    "diagram_required": true
+  }
+]
