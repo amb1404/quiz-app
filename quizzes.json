@@ -74,9 +74,11 @@
           { "id": "excretory", "title": "Excretory System", "duration": 900 },
           { "id": "circulation", "title": "Circulatory System", "duration": 900 },
           { "id": "reproduction", "title": "Reproductive System", "duration": 900 },
-          { "id": "chapter 2", "title": "Chapter 2", "duration": 900 }
+          { "id": "chapter 2", "title": "Chapter 2", "duration": 1200 },
+          { "id": "chapter 3", "title": "Chapter 3", "duration": 1200 }
         ]
       }
     ]
   }
 ]
+
