@@ -1,0 +1,403 @@
+[
+  {
+    "id": "Q1",
+    "type": "mcq",
+    "question": "Who is known as the Father of Genetics?",
+    "marks": 1,
+    "options": [
+      "Charles Darwin",
+      "Gregor Johann Mendel",
+      "Watson and Crick",
+      "Hugo de Vries"
+    ],
+    "answer": 1,
+    "explanation": "Gregor Johann Mendel is known as the Father of Genetics for his pioneering work on inheritance in garden pea plants.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q2",
+    "type": "mcq",
+    "question": "The alternative forms of a gene occupying the same position on homologous chromosomes are called:",
+    "marks": 1,
+    "options": [
+      "Alleles",
+      "Chromatids",
+      "Autosomes",
+      "Loci"
+    ],
+    "answer": 0,
+    "explanation": "Alleles are alternative forms of a gene (e.g., T for tallness and t for dwarfness) located at the same locus on homologous chromosomes.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q3",
+    "type": "mcq",
+    "question": "The genotypic ratio of a typical Mendelian monohybrid cross in the F2 generation is:",
+    "marks": 1,
+    "options": [
+      "3:1",
+      "1:2:1",
+      "9:3:3:1",
+      "1:1"
+    ],
+    "answer": 1,
+    "explanation": "In a monohybrid cross (e.g., Tt x Tt), the genotypic ratio in the F2 generation is 1 (TT) : 2 (Tt) : 1 (tt).",
+    "diagram_required": false
+  },
+  {
+    "id": "Q4",
+    "type": "mcq",
+    "question": "Which of the following traits of the garden pea was NOT selected by Mendel for his experiments?",
+    "marks": 1,
+    "options": [
+      "Pod colour",
+      "Seed shape",
+      "Flower position",
+      "Leaf size"
+    ],
+    "answer": 3,
+    "explanation": "Mendel selected 7 pairs of contrasting characters, which included pod colour, seed shape, and flower position, but he did not study leaf size.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q5",
+    "type": "mcq",
+    "question": "The observable physical or outward expression of an inherited trait is called its:",
+    "marks": 1,
+    "options": [
+      "Genotype",
+      "Phenotype",
+      "Karyotype",
+      "Mutation"
+    ],
+    "answer": 1,
+    "explanation": "Phenotype refers to the observable physical characteristics of an organism, such as tallness or dwarfness, regardless of its genetic makeup.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q6",
+    "type": "mcq",
+    "question": "Mendel's Law of Segregation is also universally accepted and known as the:",
+    "marks": 1,
+    "options": [
+      "Law of Dominance",
+      "Law of Independent Assortment",
+      "Law of Purity of Gametes",
+      "Law of Natural Selection"
+    ],
+    "answer": 2,
+    "explanation": "The Law of Segregation is called the Law of Purity of Gametes because during gamete formation, the alleles separate so that each gamete carries only one allele for a trait.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q7",
+    "type": "mcq",
+    "question": "A sudden, inheritable change in the genetic material of an organism is called:",
+    "marks": 1,
+    "options": [
+      "Recombination",
+      "Crossing over",
+      "Mutation",
+      "Segregation"
+    ],
+    "answer": 2,
+    "explanation": "Mutation is a sudden change in one or more genes, or in the number or structure of chromosomes, which alters the hereditary material.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q8",
+    "type": "mcq",
+    "question": "What is the phenotypic ratio of a Mendelian dihybrid cross in the F2 generation?",
+    "marks": 1,
+    "options": [
+      "3:1",
+      "1:2:1",
+      "9:3:3:1",
+      "9:7"
+    ],
+    "answer": 2,
+    "explanation": "A dihybrid cross (involving two pairs of contrasting characters) yields an F2 phenotypic ratio of 9:3:3:1.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q9",
+    "type": "mcq",
+    "question": "The sex chromosomes present in a normal human female are:",
+    "marks": 1,
+    "options": [
+      "XX",
+      "XY",
+      "XO",
+      "YY"
+    ],
+    "answer": 0,
+    "explanation": "A normal human female possesses 44 autosomes and a pair of identical sex chromosomes designated as XX.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q10",
+    "type": "mcq",
+    "question": "If a pure tall pea plant (TT) is crossed with a pure dwarf pea plant (tt), the F1 generation will be:",
+    "marks": 1,
+    "options": [
+      "All dwarf",
+      "All tall",
+      "50% tall, 50% dwarf",
+      "75% tall, 25% dwarf"
+    ],
+    "answer": 1,
+    "explanation": "According to the Law of Dominance, all offspring in the F1 generation will be heterozygous (Tt) and express the dominant trait (tall).",
+    "diagram_required": false
+  },
+  {
+    "id": "Q11",
+    "type": "mcq",
+    "question": "Which of the following is a sex-linked inherited disease?",
+    "marks": 1,
+    "options": [
+      "Cholera",
+      "Tuberculosis",
+      "Colour blindness",
+      "Malaria"
+    ],
+    "answer": 2,
+    "explanation": "Colour blindness and Haemophilia are examples of sex-linked diseases caused by recessive genes located on the X chromosome.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q12",
+    "type": "mcq",
+    "question": "An organism having identical alleles for a particular character is said to be:",
+    "marks": 1,
+    "options": [
+      "Heterozygous",
+      "Homozygous",
+      "Dominant",
+      "Recessive"
+    ],
+    "answer": 1,
+    "explanation": "Homozygous refers to the condition where an organism has two identical alleles for a specific trait (e.g., TT or tt).",
+    "diagram_required": false
+  },
+  {
+    "id": "Q13",
+    "type": "mcq",
+    "question": "The cross used to determine whether an individual with a dominant phenotype is homozygous or heterozygous is called a:",
+    "marks": 1,
+    "options": [
+      "Monohybrid cross",
+      "Dihybrid cross",
+      "Test cross",
+      "Back cross"
+    ],
+    "answer": 2,
+    "explanation": "A test cross involves crossing an individual with a dominant phenotype with a homozygous recessive individual to determine its genotype.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q14",
+    "type": "mcq",
+    "question": "How many pairs of autosomes are present in a normal human cell?",
+    "marks": 1,
+    "options": [
+      "22",
+      "23",
+      "44",
+      "46"
+    ],
+    "answer": 0,
+    "explanation": "A normal human cell contains 23 pairs of chromosomes, out of which 22 pairs are autosomes and 1 pair is sex chromosomes.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q15",
+    "type": "mcq",
+    "question": "In pea plants, which of the following is a dominant trait?",
+    "marks": 1,
+    "options": [
+      "Terminal flower position",
+      "Wrinkled seeds",
+      "Green seed colour",
+      "Axial flower position"
+    ],
+    "answer": 3,
+    "explanation": "Axial flower position is dominant over terminal flower position in Mendel's garden pea plants.",
+    "diagram_required": false
+  },
+  {
+    "id": "Q16",
+    "type": "fill_in_the_blank",
+    "question": "The specific localized part of a chromosome where a particular gene is located is called its __________.",
+    "marks": 1,
+    "model_answer": "Locus",
+    "marking_scheme": [
+      "1 mark for the correct word 'Locus'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q17",
+    "type": "fill_in_the_blank",
+    "question": "The science that deals with the transmission of characters from parents to offspring is known as __________.",
+    "marks": 1,
+    "model_answer": "Genetics",
+    "marking_scheme": [
+      "1 mark for the correct word 'Genetics'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q18",
+    "type": "fill_in_the_blank",
+    "question": "In humans, the sex of the child is determined by the chromosomes contributed by the __________.",
+    "marks": 1,
+    "model_answer": "Father (or Male parent / Sperm)",
+    "marking_scheme": [
+      "1 mark for 'Father', 'Male parent', or 'Sperm'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q19",
+    "type": "fill_in_the_blank",
+    "question": "The trait that remains hidden or unexpressed in the F1 generation of a cross is called the __________ trait.",
+    "marks": 1,
+    "model_answer": "Recessive",
+    "marking_scheme": [
+      "1 mark for the correct word 'Recessive'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q20",
+    "type": "fill_in_the_blank",
+    "question": "Chromosomes that determine the general body features of an organism, other than the sex, are called __________.",
+    "marks": 1,
+    "model_answer": "Autosomes",
+    "marking_scheme": [
+      "1 mark for the correct word 'Autosomes'."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q21",
+    "type": "give_reason",
+    "question": "Give Reason: Mendel selected the garden pea (Pisum sativum) for his experiments.",
+    "marks": 2,
+    "model_answer": "Mendel selected garden peas because they have a short life span (making it possible to study multiple generations in a short time), normally undergo self-pollination, but can also be artificially cross-pollinated. Furthermore, they exhibit several distinct, easily observable contrasting characters.",
+    "marking_scheme": [
+      "1 mark for mentioning short life cycle or ease of self/cross-pollination.",
+      "1 mark for mentioning the presence of distinct contrasting characters."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q22",
+    "type": "give_reason",
+    "question": "Give Reason: The Law of Segregation is also known as the Law of Purity of Gametes.",
+    "marks": 2,
+    "model_answer": "It is called the Law of Purity of Gametes because during gamete formation, the two alleles for a trait separate, and each gamete receives only one allele. Therefore, a gamete is 'pure' as it carries only one specific gene for a given character, never a hybrid pair.",
+    "marking_scheme": [
+      "1 mark for stating that alleles separate during gamete formation.",
+      "1 mark for concluding that each gamete carries only one allele, keeping it pure."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q23",
+    "type": "give_reason",
+    "question": "Give Reason: Colour blindness is more common in men than in women.",
+    "marks": 2,
+    "model_answer": "Colour blindness is a sex-linked recessive trait located on the X chromosome. Males have only one X chromosome (XY), so a single defective allele will express the disease. Females have two X chromosomes (XX) and must inherit two defective alleles (one from each parent) to express the disease; otherwise, a single defective allele only makes them a carrier.",
+    "marking_scheme": [
+      "1 mark for stating it is an X-linked recessive trait.",
+      "1 mark for explaining the difference in expression between XY (males need 1 allele) and XX (females need 2 alleles)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q24",
+    "type": "give_reason",
+    "question": "Give Reason: A test cross is performed by plant breeders.",
+    "marks": 2,
+    "model_answer": "A test cross is performed to determine the unknown genotype of an organism exhibiting a dominant phenotype. By crossing it with a homozygous recessive individual, the phenotypic ratio of the offspring reveals whether the unknown parent was homozygous dominant or heterozygous.",
+    "marking_scheme": [
+      "1 mark for stating it determines the genotype of an organism with a dominant phenotype.",
+      "1 mark for mentioning it helps differentiate between homozygous and heterozygous dominant individuals."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q25",
+    "type": "give_reason",
+    "question": "Give Reason: Siblings (brothers and sisters) from the same parents do not look exactly alike.",
+    "marks": 2,
+    "model_answer": "Siblings do not look exactly alike due to genetic variation. During meiosis, crossing over and the independent assortment of chromosomes result in the formation of genetically unique gametes. Random fertilization further contributes to unique genetic combinations in each offspring.",
+    "marking_scheme": [
+      "1 mark for mentioning crossing over/independent assortment during meiosis.",
+      "1 mark for mentioning random fertilization leading to unique genetic variations."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q26",
+    "type": "short_answer",
+    "question": "State Mendel's Law of Dominance.",
+    "marks": 2,
+    "model_answer": "Mendel's Law of Dominance states that out of a pair of contrasting characters present together in a heterozygous individual, only one is able to express itself (dominant trait), while the other remains suppressed or hidden (recessive trait).",
+    "marking_scheme": [
+      "1 mark for stating that only one character expresses itself (dominant).",
+      "1 mark for stating that the other character remains suppressed (recessive)."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q27",
+    "type": "short_answer",
+    "question": "Define Mutation and give one example of a genetic condition caused by it.",
+    "marks": 2,
+    "model_answer": "Mutation is a sudden, random, and inheritable change in the genetic material (DNA sequence or chromosome structure/number) of an organism. An example of a condition caused by a mutation is Sickle-cell anaemia (or Haemophilia/Down syndrome).",
+    "marking_scheme": [
+      "1 mark for the correct definition of mutation.",
+      "1 mark for a valid example of a genetic condition."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q28",
+    "type": "short_answer",
+    "question": "Briefly describe the sex determination mechanism in human beings.",
+    "marks": 3,
+    "model_answer": "In humans, females possess a pair of identical sex chromosomes (XX) and produce only one type of egg (22+X). Males possess two different sex chromosomes (XY) and produce two types of sperms in equal proportion: one carrying an X chromosome (22+X) and the other carrying a Y chromosome (22+Y). If an X-bearing sperm fertilizes the egg, the zygote becomes XX (female). If a Y-bearing sperm fertilizes the egg, the zygote becomes XY (male).",
+    "marking_scheme": [
+      "1 mark for stating the female genotype (XX) and male genotype (XY).",
+      "1 mark for explaining that males produce two types of sperms (X and Y).",
+      "1 mark for explaining that fertilization by an X sperm leads to a female, and by a Y sperm leads to a male."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q29",
+    "type": "differentiate",
+    "question": "Differentiate between Genotype and Phenotype.",
+    "marks": 2,
+    "model_answer": "Genotype refers to the genetic constitution or makeup of an organism for a particular trait (e.g., TT, Tt, tt). Phenotype refers to the observable physical or physiological expression of that trait (e.g., tall or dwarf).",
+    "marking_scheme": [
+      "1 mark for correctly defining Genotype.",
+      "1 mark for correctly defining Phenotype."
+    ],
+    "diagram_required": false
+  },
+  {
+    "id": "Q30",
+    "type": "differentiate",
+    "question": "Differentiate between Homozygous and Heterozygous conditions.",
+    "marks": 2,
+    "model_answer": "A homozygous condition is one where an organism has two identical alleles for a specific trait on homologous chromosomes (e.g., TT or tt), and it produces only one type of gamete. A heterozygous condition is one where an organism has two different alleles for a specific trait (e.g., Tt), and it produces two different types of gametes.",
+    "marking_scheme": [
+      "1 mark for defining homozygous (identical alleles).",
+      "1 mark for defining heterozygous (different alleles)."
+    ],
+    "diagram_required": false
+  }
+]
