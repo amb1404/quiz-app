@@ -572,7 +572,8 @@ async function submitQuiz(isAutoSubmit = false) {
             className: navState.classSelection || "", 
             chapterTitle: activeQuizTitle,
             quizId: currentQuizId,
-            userAnswers: userAnswers 
+            userAnswers: userAnswers,
+            isAutoSubmit: isAutoSubmit
         };
 
         const response = await fetch('/api/submit', {
