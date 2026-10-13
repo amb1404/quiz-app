@@ -126,7 +126,8 @@ app.get('/api/quiz/:id', (req, res) => {
 });
 
 app.post('/api/submit', async (req, res) => {
-   const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers } = req.body;
+   // 1. ADDED isAutoSubmit TO THIS LINE
+   const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit } = req.body;
 
     try {
         const safeUserAnswers = userAnswers || {};
@@ -143,7 +144,8 @@ app.post('/api/submit', async (req, res) => {
         const attemptedCount = Object.keys(safeUserAnswers).length;
         const skippedCount = totalCount - attemptedCount;
         
-        if (attemptedCount < totalCount) {
+        // 2. UPDATED THIS IF STATEMENT TO CHECK FOR !isAutoSubmit
+        if (!isAutoSubmit && attemptedCount < totalCount) {
             return res.status(400).json({ 
                 success: false, 
                 error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
