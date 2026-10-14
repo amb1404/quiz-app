@@ -238,5 +238,17 @@
     ],
     "answer": 2,
     "explanation": "As the load increases, the constant weight of the lower movable block and strings becomes a smaller fraction of the total force. Thus, efficiency increases with a larger load but will never reach 100% due to persistent friction."
+  },
+  {
+    "id": 21,
+    "question": "An increase in the velocity ration means:",
+    "options": [
+      "Decreasesd efficiency",
+      "Increased efficiecny",
+      "Increased mechanical advantage",
+      "Remains perfectly constant regardless of the load"
+    ],
+    "answer": 2,
+    "explanation": "As the load increases, the constant weight of the lower movable block and strings becomes a smaller fraction of the total force. Thus, efficiency increases with a larger load but will never reach 100% due to persistent friction."
   }
 ]
