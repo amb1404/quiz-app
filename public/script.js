@@ -30,8 +30,6 @@ function saveState() {
     sessionStorage.setItem('quizAppSession', JSON.stringify(state));
 }
 
-// --- UPDATED: Made async to wait for background data loading ---
-// --- UPDATED: Securely syncs with backend to fetch live quiz updates mid-exam ---
 async function restoreState() {
     const saved = sessionStorage.getItem('quizAppSession');
     if (!saved) return;
@@ -52,16 +50,14 @@ async function restoreState() {
     if (state.lastName) document.getElementById('last-name').value = state.lastName;
     if (state.email) document.getElementById('email-address').value = state.email;
 
-    // --- NEW: LIVE BACKEND SYNC ---
-    // If the student refreshes while taking a quiz, force the browser to securely 
-    // download the absolute latest questions from your server, overriding the cache.
+    // LIVE BACKEND SYNC: Force browser to download latest questions mid-exam
     if (currentQuizId && state.activeScreenId === 'quiz-screen') {
         try {
             const freshQuestions = await fetchQuestionsFile(currentQuizId);
             if (freshQuestions && freshQuestions.length > 0) {
                 currentQuestions = freshQuestions;
             } else {
-                currentQuestions = state.currentQuestions || []; // Fallback to cache if server error
+                currentQuestions = state.currentQuestions || [];
             }
         } catch (e) {
             currentQuestions = state.currentQuestions || [];
@@ -69,7 +65,6 @@ async function restoreState() {
     } else {
         currentQuestions = state.currentQuestions || [];
     }
-    // ------------------------------
 
     const { classSelection, subjectSelection, unitSelection, chapterSelection } = navState;
 
@@ -116,6 +111,7 @@ async function restoreState() {
     
     isRestoring = false; 
 }
+
 function getDefaultTimeFromHTML() {
     const timeDisplay = document.getElementById('time-left');
     if (!timeDisplay) return 900;
@@ -137,14 +133,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         const wbResponse = await fetch('/api/wb');
         if (wbResponse.ok) wbData = await wbResponse.json();
 
-        // --- UPDATED: Must await the restore process so it finishes completely ---
         await restoreState(); 
     } catch (error) {
         console.error("Error fetching configurations:", error);
     }
 });
 
-// --- UPDATED: Added early-exit lock to prevent screen hijack during reload ---
 function showScreen(screenId) {
     if (isRestoring) return; 
 
@@ -218,6 +212,7 @@ async function loadWbChapters(className) {
         
         if (data.success && data.papers && data.papers.length > 0) {
             const downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
             downloadBtn.innerText = "📄 Download Papers";
             downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
             downloadBtn.onclick = () => openDownloadScreen(data.papers);
@@ -264,6 +259,7 @@ async function selectSubject(subjectName) {
         
         if (data.success && data.papers && data.papers.length > 0) {
             const downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
             downloadBtn.innerText = "📄 Download Papers";
             downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
             downloadBtn.onclick = () => openDownloadScreen(data.papers);
@@ -332,6 +328,7 @@ async function loadNeetUnits(className) {
         
         if (data.success && data.papers && data.papers.length > 0) {
             const downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
             downloadBtn.innerText = "📄 Download Papers";
             downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
             downloadBtn.onclick = () => openDownloadScreen(data.papers);
@@ -488,18 +485,17 @@ function renderQuestion() {
     const optionsContainer = document.getElementById('options-container');
     optionsContainer.innerHTML = '';
     
+    // Checks if the question requires a descriptive text box
     if (q.type === 'descriptive') {
         const textarea = document.createElement('textarea');
         textarea.placeholder = 'Type your detailed answer here...';
         textarea.rows = 6;
         textarea.style.cssText = "width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; resize: vertical; margin-bottom: 12px; color: #0f172a;";
         
-        // Restore previously typed text if navigating backward
         if (userAnswers[currentQuestionIndex] !== undefined) {
             textarea.value = userAnswers[currentQuestionIndex];
         }
         
-        // Save the typed text instantly
         textarea.addEventListener('input', (e) => {
             const val = e.target.value.trim();
             if (val === "") {
@@ -513,9 +509,11 @@ function renderQuestion() {
         
         optionsContainer.appendChild(textarea);
     } else {
+        // Standard MCQ rendering
         const opts = q.options || [];
         opts.forEach((opt, idx) => {
             const btn = document.createElement('button');
+            btn.type = 'button'; // Prevents accidental form submission reloads
             btn.className = 'option-btn';
             if (userAnswers[currentQuestionIndex] === idx) {
                 btn.classList.add('selected');
@@ -530,16 +528,12 @@ function renderQuestion() {
     updateQuizStats();
 }
 
-function clearResponse() {
-    delete userAnswers[currentQuestionIndex];
-    
-    // Clear MCQ selections
+function selectOption(button, optionIndex) {
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
+    button.classList.add('selected');
     
-    // Clear descriptive text area
-    const textarea = document.querySelector('#options-container textarea');
-    if (textarea) textarea.value = "";
+    userAnswers[currentQuestionIndex] = optionIndex;
     
     updateQuizStats();
     saveState();
@@ -547,8 +541,14 @@ function clearResponse() {
 
 function clearResponse() {
     delete userAnswers[currentQuestionIndex];
+    
+    // Clear MCQ buttons
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
+    
+    // Clear descriptive text area
+    const textarea = document.querySelector('#options-container textarea');
+    if (textarea) textarea.value = "";
     
     updateQuizStats();
     saveState();
