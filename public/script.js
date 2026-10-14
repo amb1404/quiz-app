@@ -474,28 +474,58 @@ function renderQuestion() {
     const optionsContainer = document.getElementById('options-container');
     optionsContainer.innerHTML = '';
     
-    const opts = q.options || [];
-    opts.forEach((opt, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        if (userAnswers[currentQuestionIndex] === idx) {
-            btn.classList.add('selected');
+    if (q.type === 'descriptive') {
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'Type your detailed answer here...';
+        textarea.rows = 6;
+        textarea.style.cssText = "width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; resize: vertical; margin-bottom: 12px; color: #0f172a;";
+        
+        // Restore previously typed text if navigating backward
+        if (userAnswers[currentQuestionIndex] !== undefined) {
+            textarea.value = userAnswers[currentQuestionIndex];
         }
-        btn.innerText = opt;
-        btn.onclick = () => selectOption(btn, idx);
-        optionsContainer.appendChild(btn);
-    });
+        
+        // Save the typed text instantly
+        textarea.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            if (val === "") {
+                delete userAnswers[currentQuestionIndex];
+            } else {
+                userAnswers[currentQuestionIndex] = val;
+            }
+            updateQuizStats();
+            saveState();
+        });
+        
+        optionsContainer.appendChild(textarea);
+    } else {
+        const opts = q.options || [];
+        opts.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            if (userAnswers[currentQuestionIndex] === idx) {
+                btn.classList.add('selected');
+            }
+            btn.innerText = opt;
+            btn.onclick = () => selectOption(btn, idx);
+            optionsContainer.appendChild(btn);
+        });
+    }
 
     skippedQuestions.add(currentQuestionIndex);
     updateQuizStats();
 }
 
-function selectOption(button, optionIndex) {
+function clearResponse() {
+    delete userAnswers[currentQuestionIndex];
+    
+    // Clear MCQ selections
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
-    button.classList.add('selected');
     
-    userAnswers[currentQuestionIndex] = optionIndex;
+    // Clear descriptive text area
+    const textarea = document.querySelector('#options-container textarea');
+    if (textarea) textarea.value = "";
     
     updateQuizStats();
     saveState();
