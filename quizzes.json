@@ -47,7 +47,7 @@
           { "name": "Motion Question Paper", "fileName": "" }
         ],
         "chapters": [
-          { "id": "machine", "title": "Machines", "duration": 900 },
+          { "id": "machine", "title": "Machines", "duration": 1200 },
           { "id": "energy", "title": "Work Energy Power", "duration": 950 },
           { "id": "force", "title": "Force", "duration": 900 },
           { "id": "current electricity-1410", "title": "Current practice", "duration": 3600 },
