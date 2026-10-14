@@ -50,7 +50,8 @@
           { "id": "machine", "title": "Machines", "duration": 900 },
           { "id": "energy", "title": "Work Energy Power", "duration": 950 },
           { "id": "force", "title": "Force", "duration": 900 },
-          { "id": "current electricity-1410", "title": "Current practice", "duration": 3600 }
+          { "id": "current electricity-1410", "title": "Current practice", "duration": 3600 },
+          { "id": "current electricity test-1410", "title": "Current test", "duration": 3600 }
         ]
       },
       {
