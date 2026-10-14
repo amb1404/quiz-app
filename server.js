@@ -113,8 +113,9 @@ app.get('/api/quiz/:id', (req, res) => {
 
         const safeQuestions = realQuestions.map(q => {
             return {
+                type: q.type || 'mcq', // Identifies descriptive questions
                 question: q.question,
-                options: q.options
+                options: q.options || [] // Prevents crashes if options array is missing
             };
         });
 
@@ -157,18 +158,37 @@ app.post('/api/submit', async (req, res) => {
             `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
 
         realQuestions.forEach((q, index) => {
-            const studentSelectionIndex = safeUserAnswers[index.toString()]; 
-            const isAttempted = studentSelectionIndex !== undefined;
-            const isCorrect = isAttempted && parseInt(studentSelectionIndex) === q.answer;
+            const studentResponse = safeUserAnswers[index.toString()]; 
+            // Treat as attempted if an option index exists OR if text was typed
+            const isAttempted = studentResponse !== undefined && studentResponse !== "";
 
-            if (isCorrect) correctCount++;
-            else if (isAttempted) incorrectCount++;
+            let isCorrect = false;
+            let studentSelectionText = "Skipped";
+            let correctOptionText = "N/A";
+            let rawStatus = "Skipped";
+            let statusColor = "yellow";
 
-            const studentSelectionText = isAttempted ? (q.options[studentSelectionIndex] || "Unknown") : "Skipped";
-            const correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
+            if (q.type === 'descriptive') {
+                studentSelectionText = isAttempted ? studentResponse : "Skipped";
+                // Show the model answer from your JSON in the grading email
+                correctOptionText = q.model_answer || "Refer to marking scheme";
+                if (isAttempted) {
+                    rawStatus = "Needs Review";
+                    statusColor = "orange";
+                }
+            } else {
+                // Standard MCQ grading
+                isCorrect = isAttempted && parseInt(studentResponse) === q.answer;
+                if (isCorrect) correctCount++;
+                else if (isAttempted) incorrectCount++;
+
+                studentSelectionText = isAttempted ? (q.options[studentResponse] || "Unknown") : "Skipped";
+                correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
+                rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
+                statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
+            }
             
-            const rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
-            const statusText = `<span style="background-color: yellow; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
+            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
             
             const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
 
