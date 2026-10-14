@@ -31,6 +31,7 @@ function saveState() {
 }
 
 // --- UPDATED: Made async to wait for background data loading ---
+// --- UPDATED: Securely syncs with backend to fetch live quiz updates mid-exam ---
 async function restoreState() {
     const saved = sessionStorage.getItem('quizAppSession');
     if (!saved) return;
@@ -43,7 +44,6 @@ async function restoreState() {
     currentChapterTitle = state.currentChapterTitle || "General Quiz";
     activeQuizTitle = state.activeQuizTitle || "Quiz Active";
     timeRemaining = state.timeRemaining;
-    currentQuestions = state.currentQuestions || [];
     currentQuestionIndex = state.currentQuestionIndex || 0;
     userAnswers = state.userAnswers || {};
     skippedQuestions = new Set(state.skippedQuestions || []);
@@ -52,17 +52,33 @@ async function restoreState() {
     if (state.lastName) document.getElementById('last-name').value = state.lastName;
     if (state.email) document.getElementById('email-address').value = state.email;
 
+    // --- NEW: LIVE BACKEND SYNC ---
+    // If the student refreshes while taking a quiz, force the browser to securely 
+    // download the absolute latest questions from your server, overriding the cache.
+    if (currentQuizId && state.activeScreenId === 'quiz-screen') {
+        try {
+            const freshQuestions = await fetchQuestionsFile(currentQuizId);
+            if (freshQuestions && freshQuestions.length > 0) {
+                currentQuestions = freshQuestions;
+            } else {
+                currentQuestions = state.currentQuestions || []; // Fallback to cache if server error
+            }
+        } catch (e) {
+            currentQuestions = state.currentQuestions || [];
+        }
+    } else {
+        currentQuestions = state.currentQuestions || [];
+    }
+    // ------------------------------
+
     const { classSelection, subjectSelection, unitSelection, chapterSelection } = navState;
 
     if (classSelection) {
         if (['IX', 'X'].includes(classSelection)) {
-            // Await the asynchronous fetch
             if (subjectSelection) await selectSubject(subjectSelection);
         } else if (['WB XI', 'WB XII'].includes(classSelection)) {
-            // Await the asynchronous fetch
             await loadWbChapters(classSelection);
         } else {
-            // Await the asynchronous fetch
             await loadNeetUnits(classSelection);
             if (unitSelection) {
                 const classObj = neetData.find(c => c.name && c.name.toLowerCase().includes(classSelection.toLowerCase()));
@@ -98,10 +114,8 @@ async function restoreState() {
         startTimer();
     }
     
-    // Release the lock after everything is perfectly in place
     isRestoring = false; 
 }
-
 function getDefaultTimeFromHTML() {
     const timeDisplay = document.getElementById('time-left');
     if (!timeDisplay) return 900;
