@@ -11,13 +11,13 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: SERVING HTML, CSS, AND JS SINGLE-HANDEDLY ---
+// --- MASTER BACKEND SERVER: BULLETPROOF MOBILE VIEWPORT & APP ROUTE ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pioneers Prep - Online Mock Test Platform</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -27,15 +27,23 @@ app.get('/', (req, res) => {
             display: none !important;
         }
 
-        body {
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #f8fafc;
-            min-height: 100vh;
-            margin: 0;
-            padding: 40px;
-            display: block;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             box-sizing: border-box;
+            padding: 20px;
         }
 
         #class-select-screen, 
@@ -52,13 +60,14 @@ app.get('/', (req, res) => {
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             width: 600px;
-            max-width: 90%;
+            max-width: 100%;
+            max-height: 90vh;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             box-sizing: border-box;
-            margin: 0;
             color: #0f172a;
+            overflow-y: auto;
         }
 
         #quiz-screen {
@@ -68,13 +77,16 @@ app.get('/', (req, res) => {
             border: 1px solid rgba(255, 255, 255, 0.2);
             width: 95%;
             max-width: 1200px;
-            min-height: 85vh;
-            padding: 40px;
+            height: 90vh;
+            padding: 30px;
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
             box-sizing: border-box;
-            margin: 0 auto;
             color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
         }
 
         #first-name, #last-name {
@@ -142,8 +154,8 @@ app.get('/', (req, res) => {
             font-size: 16px;
             font-weight: 500;
             text-align: left;
-            padding: 16px 20px;
-            margin-bottom: 15px;
+            padding: 14px 18px;
+            margin-bottom: 12px;
             border-radius: 8px;
             border: 1px solid #cbd5e1;
             cursor: pointer;
@@ -159,10 +171,11 @@ app.get('/', (req, res) => {
         /* 2-Row Centered Navigation Grid */
         .quiz-nav-container {
             display: grid;
-            grid-template-columns: repeat(2, 145px);
+            grid-template-columns: repeat(2, 140px);
             justify-content: center;
-            gap: 12px 16px;
-            margin-top: 25px;
+            gap: 10px 14px;
+            margin-top: 15px;
+            flex-shrink: 0;
         }
 
         .quiz-nav-container button:nth-child(1) {
@@ -185,8 +198,8 @@ app.get('/', (req, res) => {
             background-color: #ffffff;
             color: #1e293b;
             border: 1px solid #cbd5e1;
-            padding: 12px 20px;
-            font-size: 15px;
+            padding: 10px 16px;
+            font-size: 14px;
             font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
@@ -203,28 +216,30 @@ app.get('/', (req, res) => {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            gap: 15px;
+            margin-bottom: 12px;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         #submit-btn {
             background-color: #ef4444;
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 18px;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
         }
 
         .progress-container {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background-color: #e2e8f0;
-            border-radius: 4px;
-            margin-bottom: 25px;
+            border-radius: 3px;
+            margin-bottom: 15px;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .progress-bar-fill {
@@ -234,17 +249,10 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
-        /* Mobile Viewport Optimization: Fits entire card on screen without scrolling */
+        /* Mobile Viewport Strict Containment */
         @media (max-width: 600px) {
             body {
                 padding: 4px !important;
-                margin: 0 !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                overflow: hidden !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
             }
 
             #class-select-screen, 
@@ -258,103 +266,61 @@ app.get('/', (req, res) => {
             #download-screen {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                padding: 14px 16px !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                padding: 14px !important;
                 border-radius: 0 !important;
                 box-sizing: border-box !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
                 overflow-y: auto !important;
-                margin: 0 !important;
             }
 
             #quiz-screen {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                padding: 10px 12px !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                padding: 10px !important;
                 border-radius: 0 !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                margin: 0 !important;
                 overflow: hidden !important;
-            }
-
-            .quiz-header {
-                flex-wrap: nowrap !important;
-                margin-bottom: 4px !important;
-                gap: 4px !important;
-                flex-shrink: 0 !important;
-            }
-
-            #time-left {
-                font-size: 13px !important;
-                white-space: nowrap !important;
-            }
-
-            #quiz-stats {
-                font-size: 11px !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-            }
-
-            #submit-btn {
-                padding: 5px 8px !important;
-                font-size: 11px !important;
-                white-space: nowrap !important;
-                margin: 0 !important;
-            }
-
-            .progress-container {
-                height: 4px !important;
-                margin-bottom: 4px !important;
-                flex-shrink: 0 !important;
             }
 
             #quiz-screen-heading {
                 font-size: 15px !important;
-                margin: 0 0 4px 0 !important;
+                margin: 0 0 6px 0 !important;
                 flex-shrink: 0 !important;
             }
 
             #question-box {
                 font-size: 13.5px !important;
                 line-height: 1.3 !important;
-                margin-bottom: 6px !important;
+                margin-bottom: 8px !important;
                 flex-shrink: 0 !important;
             }
 
             #options-container {
-                margin-bottom: 4px !important;
+                margin-bottom: 6px !important;
                 flex-grow: 1 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
+                overflow-y: auto !important;
             }
 
             .option-btn {
-                padding: 8px 10px !important;
-                margin-bottom: 5px !important;
+                padding: 10px 12px !important;
+                margin-bottom: 8px !important;
                 font-size: 13px !important;
-                line-height: 1.2 !important;
             }
 
             .quiz-nav-container {
-                grid-template-columns: repeat(2, 120px) !important;
+                grid-template-columns: repeat(2, 115px) !important;
                 gap: 6px 10px !important;
-                margin-top: 2px !important;
-                flex-shrink: 0 !important;
+                margin-top: 4px !important;
             }
 
             .quiz-nav-container button {
-                padding: 7px 10px !important;
+                padding: 8px 10px !important;
                 font-size: 12.5px !important;
             }
         }
@@ -424,8 +390,8 @@ app.get('/', (req, res) => {
     <!-- Immersive Active Quiz Screen -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
-            <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
-            <span id="quiz-stats" style="font-size: 16px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
+            <span id="time-left" style="font-size: 16px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+            <span id="quiz-stats" style="font-size: 14px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
             <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
         </div>
         
@@ -433,13 +399,13 @@ app.get('/', (req, res) => {
             <div id="progress-bar" class="progress-bar-fill"></div>
         </div>
 
-        <h2 id="quiz-screen-heading" style="text-align: center; color: #4285f4; margin-bottom: 25px;">Current test</h2>
+        <h2 id="quiz-screen-heading" style="text-align: center; color: #4285f4; margin-bottom: 15px; font-size: 18px;">Current test</h2>
         
-        <div id="question-box" style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 25px; line-height: 1.5;">
+        <div id="question-box" style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 15px; line-height: 1.4;">
             Loading question...
         </div>
 
-        <div id="options-container" style="margin-bottom: 30px;"></div>
+        <div id="options-container" style="margin-bottom: 15px; overflow-y: auto; flex-grow: 1;"></div>
 
         <!-- Navigation Buttons Container -->
         <div class="quiz-nav-container">
@@ -1147,8 +1113,8 @@ app.get('/', (req, res) => {
             if (q.type === 'descriptive') {
                 const textarea = document.createElement('textarea');
                 textarea.placeholder = 'Type your detailed answer here...';
-                textarea.rows = 6;
-                textarea.style.cssText = "width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; resize: vertical; margin-bottom: 12px; color: #0f172a;";
+                textarea.rows = 4;
+                textarea.style.cssText = "width: 100%; padding: 12px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; resize: vertical; margin-bottom: 10px; color: #0f172a;";
                 
                 if (userAnswers[currentQuestionIndex] !== undefined) {
                     textarea.value = userAnswers[currentQuestionIndex];
