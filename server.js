@@ -11,7 +11,7 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: BULLETPROOF SCREEN HIDING & MOBILE FIT ---
+// --- MASTER BACKEND SERVER: ABSOLUTE MOBILE ISOLATION & VIEWPORT FIX ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-        /* CRITICAL: Bulletproof hiding rule */
+        /* ABSOLUTE HIDING RULE */
         .hidden {
             display: none !important;
         }
@@ -43,7 +43,7 @@ app.get('/', (req, res) => {
             padding: 40px;
         }
 
-        /* 1. Selection & Auth Screens: Aligned strictly to the Left Margin */
+        /* 1. Selection & Auth Screens: Aligned strictly to the Left Margin on Desktop */
         #class-select-screen, 
         #subject-select-screen, 
         #ix-x-chapter-screen, 
@@ -67,7 +67,7 @@ app.get('/', (req, res) => {
             color: #0f172a;
         }
 
-        /* 2. Quiz Screen: Expands wide across the page */
+        /* 2. Quiz Screen: Centered and expansive */
         #quiz-screen {
             background-color: rgba(255, 251, 235, 0.98);
             backdrop-filter: blur(10px);
@@ -241,38 +241,37 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
-        /* Mobile Viewport Optimization: Zero-scroll fit & strict screen separation */
+        /* Mobile Viewport Optimization: Zero Overlap & Full Screen Fit */
         @media (max-width: 600px) {
             body {
-                padding: 8px !important;
+                padding: 6px !important;
             }
 
-            #class-select-screen, 
-            #subject-select-screen, 
-            #ix-x-chapter-screen, 
-            #xi-xii-unit-screen, 
-            #xi-xii-chapter-screen, 
-            #xi-xii-topic-screen, 
-            #name-screen, 
-            #result-screen,
-            #download-screen {
+            #class-select-screen:not(.hidden), 
+            #subject-select-screen:not(.hidden), 
+            #ix-x-chapter-screen:not(.hidden), 
+            #xi-xii-unit-screen:not(.hidden), 
+            #xi-xii-chapter-screen:not(.hidden), 
+            #xi-xii-topic-screen:not(.hidden), 
+            #name-screen:not(.hidden), 
+            #result-screen:not(.hidden),
+            #download-screen:not(.hidden),
+            #quiz-screen:not(.hidden) {
+                display: block !important;
                 width: 100% !important;
                 max-width: 100% !important;
-                padding: 18px !important;
-                margin: 0 !important;
-            }
-
-            #quiz-screen {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-height: calc(100dvh - 16px) !important;
+                min-height: calc(100vh - 12px) !important;
+                min-height: calc(100dvh - 12px) !important;
                 padding: 14px !important;
                 border-radius: 12px !important;
                 box-sizing: border-box !important;
+                margin: 0 !important;
+            }
+
+            #quiz-screen:not(.hidden) {
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                margin: 0 !important;
             }
 
             .quiz-header {
