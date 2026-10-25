@@ -14,11 +14,12 @@ let activeQuizTitle = "Quiz Active";
 let isRestoring = false;
 let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null };
 
-// Security Timer Variables
+// Security Timer & Authentication Variables
 let serverStartTime = 0;
 let timerSignature = "";
 let quizDuration = 0;
 let clientStartTime = 0;
+let studentAuthToken = "";
 
 function saveState() {
     if (isRestoring) return;
@@ -32,7 +33,7 @@ function saveState() {
         firstName: document.getElementById('first-name') ? document.getElementById('first-name').value : "",
         lastName: document.getElementById('last-name') ? document.getElementById('last-name').value : "",
         email: document.getElementById('email-address') ? document.getElementById('email-address').value : "",
-        serverStartTime, timerSignature, quizDuration, clientStartTime
+        serverStartTime, timerSignature, quizDuration, clientStartTime, studentAuthToken
     };
     sessionStorage.setItem('quizAppSession', JSON.stringify(state));
 }
@@ -57,6 +58,7 @@ async function restoreState() {
     timerSignature = state.timerSignature || "";
     quizDuration = state.quizDuration || 0;
     clientStartTime = state.clientStartTime || 0;
+    studentAuthToken = state.studentAuthToken || "";
 
     if (state.firstName) document.getElementById('first-name').value = state.firstName;
     if (state.lastName) document.getElementById('last-name').value = state.lastName;
@@ -204,10 +206,21 @@ function goHome() {
     timerSignature = "";
     quizDuration = 0;
     clientStartTime = 0;
+    studentAuthToken = "";
     
     document.getElementById('first-name').value = '';
     document.getElementById('last-name').value = '';
     document.getElementById('email-address').value = '';
+
+    // Remove dynamic OTP input field if present on reset
+    const existingOtpWrapper = document.getElementById('otp-wrapper-container');
+    if (existingOtpWrapper) existingOtpWrapper.remove();
+
+    const submitBtn = document.querySelector('#name-screen button');
+    if (submitBtn) {
+        submitBtn.innerText = "Start Quiz";
+        submitBtn.disabled = false;
+    }
 
     const screens = document.querySelectorAll('body > div');
     screens.forEach(screen => {
@@ -445,7 +458,6 @@ async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
         currentQuizId = fileId; 
-        // NEW: Attach the secret handshake header to prove this is a legitimate app request
         const response = await fetch(`/api/quiz/${fileId}`, {
             headers: {
                 'X-Requested-With': 'PioneersPrepApp'
@@ -494,13 +506,14 @@ function startTimer() {
     }, 1000);
 }
 
+// --- UPDATED: Secure Two-Step OTP Authentication Flow ---
 async function startQuiz() {
     const firstName = document.getElementById('first-name')?.value.trim();
     const lastName = document.getElementById('last-name')?.value.trim();
     const email = document.getElementById('email-address')?.value.trim();
 
     if (!firstName || !lastName || !email) {
-        alert('Please fill in all fields (First Name, Last Name, and Email Address) to start the quiz.');
+        alert('Please fill in all fields (First Name, Last Name, and Email Address) to start.');
         return;
     }
 
@@ -510,29 +523,110 @@ async function startQuiz() {
         return;
     }
 
-    if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
-        skippedQuestions = new Set();
+    let otpInput = document.getElementById('otp-input-field');
+
+    if (!otpInput) {
+        // STEP 1: Request OTP from backend
+        const submitBtn = document.querySelector('#name-screen button');
+        if (submitBtn) {
+            submitBtn.innerText = "Sending Code...";
+            submitBtn.disabled = true;
+        }
+
+        try {
+            const response = await fetch('/api/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, email })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || "Failed to send verification code.");
+                if (submitBtn) {
+                    submitBtn.innerText = "Start Quiz";
+                    submitBtn.disabled = false;
+                }
+                return;
+            }
+
+            alert("A 6-digit verification code has been sent to your email address. Please check your inbox.");
+
+            const nameScreenContainer = document.getElementById('name-screen');
+            if (nameScreenContainer) {
+                const formDiv = nameScreenContainer.querySelector('div') || nameScreenContainer;
+                
+                const otpWrapper = document.createElement('div');
+                otpWrapper.id = 'otp-wrapper-container';
+                otpWrapper.style.cssText = "margin-top: 15px;";
+                otpWrapper.innerHTML = `
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333; text-align: left;">Enter 6-Digit Verification Code:</label>
+                    <input type="text" id="otp-input-field" maxlength="6" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />
+                `;
+                formDiv.appendChild(otpWrapper);
+
+                if (submitBtn) {
+                    submitBtn.innerText = "Verify & Start Quiz";
+                    submitBtn.disabled = false;
+                }
+            }
+        } catch (error) {
+            console.error("OTP request error:", error);
+            alert("Network error connecting to authentication server.");
+            if (submitBtn) {
+                submitBtn.innerText = "Start Quiz";
+                submitBtn.disabled = false;
+            }
+        }
+        return;
+    }
+
+    // STEP 2: Verify OTP entered by student
+    const enteredOtp = otpInput.value.trim();
+    if (enteredOtp.length !== 6) {
+        alert("Please enter the complete 6-digit verification code.");
+        return;
     }
 
     try {
-        const response = await fetch('/api/start-quiz', {
+        const verifyResponse = await fetch('/api/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp: enteredOtp })
+        });
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyResponse.ok) {
+            alert(verifyData.error || "Invalid verification code.");
+            return;
+        }
+
+        studentAuthToken = verifyData.authToken;
+
+        const tokenResponse = await fetch('/api/start-quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
         });
-        const data = await response.json();
+        const tokenData = await tokenResponse.json();
         
-        serverStartTime = data.startTime;
-        timerSignature = data.signature;
+        serverStartTime = tokenData.startTime;
+        timerSignature = tokenData.signature;
         quizDuration = timeRemaining;
         clientStartTime = Date.now(); 
         
+        if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
+            skippedQuestions = new Set();
+        }
+
         showScreen('quiz-screen');
         startTimer();
         renderQuestion();
         saveState();
+
     } catch (error) {
-        alert("Failed to securely connect to server. Please check your internet connection.");
+        console.error("Verification error:", error);
+        alert("Authentication failed. Please try again.");
     }
 }
 
@@ -691,7 +785,8 @@ async function submitQuiz(isAutoSubmit = false) {
             isAutoSubmit: isAutoSubmit,
             serverStartTime: serverStartTime,
             timerSignature: timerSignature,
-            quizDuration: quizDuration
+            quizDuration: quizDuration,
+            authToken: studentAuthToken // Sent to backend for strict validation
         };
 
         const response = await fetch('/api/submit', {
