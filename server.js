@@ -11,7 +11,7 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: PERFECT ALIGNMENT & MOBILE VIEWPORT FIX ---
+// --- MASTER BACKEND SERVER: BULLETPROOF SCREEN HIDING & MOBILE FIT ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-        /* CRITICAL: Hides inactive screens completely */
+        /* CRITICAL: Bulletproof hiding rule */
         .hidden {
             display: none !important;
         }
@@ -63,7 +63,7 @@ app.get('/', (req, res) => {
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             box-sizing: border-box;
-            margin: 0; /* Forces Left Margin alignment */
+            margin: 0;
             color: #0f172a;
         }
 
@@ -80,7 +80,7 @@ app.get('/', (req, res) => {
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
             box-sizing: border-box;
-            margin: 0 auto; /* Centered specifically for the quiz screen */
+            margin: 0 auto;
             color: #0f172a;
         }
 
@@ -241,7 +241,7 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
-        /* Mobile Viewport Optimization: Zero-scroll fit & prevents overlapping */
+        /* Mobile Viewport Optimization: Zero-scroll fit & strict screen separation */
         @media (max-width: 600px) {
             body {
                 padding: 8px !important;
@@ -339,7 +339,7 @@ app.get('/', (req, res) => {
 </head>
 <body>
 
-    <!-- Class Selection Screen -->
+    <!-- Class Selection Screen (Active by default) -->
     <div id="class-select-screen">
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Class</h2>
         <div class="card" onclick="selectClass('IX')">IX</div>
@@ -350,7 +350,7 @@ app.get('/', (req, res) => {
         <div class="card" onclick="selectClass('WB XII')">WB XII</div>
     </div>
 
-    <!-- Subject Selection Screen (for Class IX & X) -->
+    <!-- Subject Selection Screen (Hidden by default) -->
     <div id="subject-select-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Subject</h2>
@@ -359,35 +359,35 @@ app.get('/', (req, res) => {
         <div class="card" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <!-- Chapter Selection Screen (for IX, X, WB) -->
+    <!-- Chapter Selection Screen (Hidden by default) -->
     <div id="ix-x-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Unit Selection Screen -->
+    <!-- NEET / XI-XII Unit Selection Screen (Hidden by default) -->
     <div id="xi-xii-unit-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Unit</h2>
         <div id="xi-xii-unit-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Chapter Selection Screen -->
+    <!-- NEET / XI-XII Chapter Selection Screen (Hidden by default) -->
     <div id="xi-xii-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Topic Selection Screen -->
+    <!-- NEET / XI-XII Topic Selection Screen (Hidden by default) -->
     <div id="xi-xii-topic-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Topic</h2>
         <div id="xi-xii-topic-container"></div>
     </div>
 
-    <!-- Candidate Authentication & Name Screen -->
+    <!-- Candidate Authentication & Name Screen (Hidden by default) -->
     <div id="name-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Enter Details</h2>
@@ -398,7 +398,7 @@ app.get('/', (req, res) => {
         <button onclick="startQuiz()" style="width: 100%; margin-top: 10px;">Verify</button>
     </div>
 
-    <!-- Immersive Active Quiz Screen -->
+    <!-- Immersive Active Quiz Screen (Hidden by default) -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
             <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
@@ -426,10 +426,10 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- Result Screen -->
+    <!-- Result Screen (Hidden by default) -->
     <div id="result-screen" class="hidden"></div>
 
-    <!-- Secure PDF Download Screen -->
+    <!-- Secure PDF Download Screen (Hidden by default) -->
     <div id="download-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Download Study Papers</h2>
