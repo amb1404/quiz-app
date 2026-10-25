@@ -11,7 +11,7 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: BULLETPROOF MOBILE VIEWPORT & APP ROUTE ---
+// --- MASTER BACKEND SERVER: PERFECT ALIGNMENT & MOBILE VIEWPORT FIX ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -31,21 +31,19 @@ app.get('/', (req, res) => {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100vh;
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #f8fafc;
         }
 
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: block;
             box-sizing: border-box;
-            padding: 20px;
+            padding: 40px;
         }
 
+        /* 1. Selection & Auth Screens: Aligned strictly to the Left Margin */
         #class-select-screen, 
         #subject-select-screen, 
         #ix-x-chapter-screen, 
@@ -60,16 +58,16 @@ app.get('/', (req, res) => {
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             width: 600px;
-            max-width: 100%;
-            max-height: 90vh;
+            max-width: 90%;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             box-sizing: border-box;
+            margin: 0; /* Forces Left Margin alignment */
             color: #0f172a;
-            overflow-y: auto;
         }
 
+        /* 2. Quiz Screen: Expands wide across the page */
         #quiz-screen {
             background-color: rgba(255, 251, 235, 0.98);
             backdrop-filter: blur(10px);
@@ -77,16 +75,13 @@ app.get('/', (req, res) => {
             border: 1px solid rgba(255, 255, 255, 0.2);
             width: 95%;
             max-width: 1200px;
-            height: 90vh;
-            padding: 30px;
+            min-height: 85vh;
+            padding: 40px;
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
             box-sizing: border-box;
+            margin: 0 auto; /* Centered specifically for the quiz screen */
             color: #0f172a;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            overflow: hidden;
         }
 
         #first-name, #last-name {
@@ -154,8 +149,8 @@ app.get('/', (req, res) => {
             font-size: 16px;
             font-weight: 500;
             text-align: left;
-            padding: 14px 18px;
-            margin-bottom: 12px;
+            padding: 16px 20px;
+            margin-bottom: 15px;
             border-radius: 8px;
             border: 1px solid #cbd5e1;
             cursor: pointer;
@@ -171,11 +166,10 @@ app.get('/', (req, res) => {
         /* 2-Row Centered Navigation Grid */
         .quiz-nav-container {
             display: grid;
-            grid-template-columns: repeat(2, 140px);
+            grid-template-columns: repeat(2, 145px);
             justify-content: center;
-            gap: 10px 14px;
-            margin-top: 15px;
-            flex-shrink: 0;
+            gap: 12px 16px;
+            margin-top: 25px;
         }
 
         .quiz-nav-container button:nth-child(1) {
@@ -198,8 +192,8 @@ app.get('/', (req, res) => {
             background-color: #ffffff;
             color: #1e293b;
             border: 1px solid #cbd5e1;
-            padding: 10px 16px;
-            font-size: 14px;
+            padding: 12px 20px;
+            font-size: 15px;
             font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
@@ -216,30 +210,28 @@ app.get('/', (req, res) => {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            gap: 10px;
-            flex-shrink: 0;
+            margin-bottom: 20px;
+            gap: 15px;
         }
 
         #submit-btn {
             background-color: #ef4444;
             color: white;
             border: none;
-            padding: 10px 18px;
+            padding: 12px 24px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
         }
 
         .progress-container {
             width: 100%;
-            height: 6px;
+            height: 8px;
             background-color: #e2e8f0;
-            border-radius: 3px;
-            margin-bottom: 15px;
+            border-radius: 4px;
+            margin-bottom: 25px;
             overflow: hidden;
-            flex-shrink: 0;
         }
 
         .progress-bar-fill {
@@ -249,10 +241,10 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
-        /* Mobile Viewport Strict Containment */
+        /* Mobile Viewport Optimization: Zero-scroll fit & prevents overlapping */
         @media (max-width: 600px) {
             body {
-                padding: 4px !important;
+                padding: 8px !important;
             }
 
             #class-select-screen, 
@@ -266,62 +258,81 @@ app.get('/', (req, res) => {
             #download-screen {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: 100% !important;
-                max-height: 100% !important;
-                padding: 14px !important;
-                border-radius: 0 !important;
-                box-sizing: border-box !important;
-                overflow-y: auto !important;
+                padding: 18px !important;
+                margin: 0 !important;
             }
 
             #quiz-screen {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: 100% !important;
-                max-height: 100% !important;
-                padding: 10px !important;
-                border-radius: 0 !important;
+                min-height: calc(100dvh - 16px) !important;
+                padding: 14px !important;
+                border-radius: 12px !important;
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                overflow: hidden !important;
+                margin: 0 !important;
+            }
+
+            .quiz-header {
+                flex-wrap: nowrap !important;
+                margin-bottom: 8px !important;
+                gap: 6px !important;
+            }
+
+            #time-left {
+                font-size: 14px !important;
+                white-space: nowrap !important;
+            }
+
+            #quiz-stats {
+                font-size: 12px !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+            }
+
+            #submit-btn {
+                padding: 7px 12px !important;
+                font-size: 12px !important;
+                white-space: nowrap !important;
+            }
+
+            .progress-container {
+                height: 6px !important;
+                margin-bottom: 8px !important;
             }
 
             #quiz-screen-heading {
-                font-size: 15px !important;
-                margin: 0 0 6px 0 !important;
-                flex-shrink: 0 !important;
+                font-size: 17px !important;
+                margin: 0 0 8px 0 !important;
             }
 
             #question-box {
-                font-size: 13.5px !important;
-                line-height: 1.3 !important;
-                margin-bottom: 8px !important;
-                flex-shrink: 0 !important;
+                font-size: 14.5px !important;
+                line-height: 1.35 !important;
+                margin-bottom: 10px !important;
             }
 
             #options-container {
-                margin-bottom: 6px !important;
-                flex-grow: 1 !important;
-                overflow-y: auto !important;
+                margin-bottom: 8px !important;
             }
 
             .option-btn {
-                padding: 10px 12px !important;
-                margin-bottom: 8px !important;
-                font-size: 13px !important;
+                padding: 12px 14px !important;
+                margin-bottom: 10px !important;
+                font-size: 14px !important;
             }
 
             .quiz-nav-container {
-                grid-template-columns: repeat(2, 115px) !important;
-                gap: 6px 10px !important;
-                margin-top: 4px !important;
+                grid-template-columns: repeat(2, 125px) !important;
+                gap: 8px 12px !important;
+                margin-top: 6px !important;
             }
 
             .quiz-nav-container button {
-                padding: 8px 10px !important;
-                font-size: 12.5px !important;
+                padding: 9px 14px !important;
+                font-size: 13.5px !important;
             }
         }
     </style>
@@ -390,8 +401,8 @@ app.get('/', (req, res) => {
     <!-- Immersive Active Quiz Screen -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
-            <span id="time-left" style="font-size: 16px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
-            <span id="quiz-stats" style="font-size: 14px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
+            <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+            <span id="quiz-stats" style="font-size: 16px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
             <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
         </div>
         
@@ -399,13 +410,13 @@ app.get('/', (req, res) => {
             <div id="progress-bar" class="progress-bar-fill"></div>
         </div>
 
-        <h2 id="quiz-screen-heading" style="text-align: center; color: #4285f4; margin-bottom: 15px; font-size: 18px;">Current test</h2>
+        <h2 id="quiz-screen-heading" style="text-align: center; color: #4285f4; margin-bottom: 25px;">Current test</h2>
         
-        <div id="question-box" style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 15px; line-height: 1.4;">
+        <div id="question-box" style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 25px; line-height: 1.5;">
             Loading question...
         </div>
 
-        <div id="options-container" style="margin-bottom: 15px; overflow-y: auto; flex-grow: 1;"></div>
+        <div id="options-container" style="margin-bottom: 30px;"></div>
 
         <!-- Navigation Buttons Container -->
         <div class="quiz-nav-container">
