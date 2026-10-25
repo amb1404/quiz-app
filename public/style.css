@@ -13,6 +13,7 @@ body {
     margin: 0;
     padding: 40px;
     display: block;
+    box-sizing: border-box;
 }
 
 /* Selection & Name Screens: Aligned to the Left Margin */
@@ -38,7 +39,7 @@ body {
     color: #0f172a;
 }
 
-/* Quiz Screen: Expands wide to cover the page as an immersive view */
+/* Quiz Screen: Expands wide to cover the page on desktop */
 #quiz-screen {
     background-color: rgba(255, 251, 235, 0.98);
     backdrop-filter: blur(10px);
@@ -168,48 +169,53 @@ body {
     font-weight: 600;
 }
 
-/* Quiz Navigation Layout Container */
+/* 2-Row Centered Grid for Navigation Buttons (Desktop & Mobile) */
 .quiz-nav-container {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, 145px);
     justify-content: center;
-    gap: 15px;
-    margin-top: 30px;
+    gap: 12px 16px;
+    margin-top: 25px;
 }
 
-/* Arrange Previous and Next on Row 1, Clear Response on Row 2 */
+/* Row 1: Previous (Left) and Next (Right) centered */
 .quiz-nav-container button:nth-child(1) {
-    order: 1; /* Previous */
-}
-.quiz-nav-container button:nth-child(3) {
-    order: 2; /* Next */
-}
-.quiz-nav-container button:nth-child(2) {
-    order: 3; /* Clear Response */
-    flex-basis: 100%;
-    max-width: 250px;
-    margin: 0 auto;
+    grid-column: 1 / 2;
+    grid-row: 1;
 }
 
-/* Professional styling & link-style hover effect for navigation buttons */
+.quiz-nav-container button:nth-child(3) {
+    grid-column: 2 / 3;
+    grid-row: 1;
+}
+
+/* Row 2: Clear Response spanning centered below both */
+.quiz-nav-container button:nth-child(2) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
+}
+
+/* Navigation Button Styling (Strictly No Underlines) */
 .quiz-nav-container button {
     background-color: #ffffff;
     color: #1e293b;
     border: 1px solid #cbd5e1;
-    padding: 12px 28px;
+    padding: 12px 20px;
     font-size: 15px;
     font-weight: 600;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-decoration: none !important;
 }
 
 .quiz-nav-container button:hover {
     color: #2563eb;
     border-color: #2563eb;
     background-color: #eff6ff;
-    text-decoration: underline;
+    text-decoration: none !important;
 }
 
 .quiz-header {
@@ -263,10 +269,12 @@ body {
     animation: fadeIn 0.35s ease forwards;
 }
 
+/* Mobile Viewport Optimization: Fits entire quiz card on screen without scrolling */
 @media (max-width: 600px) {
     body {
-        padding: 15px;
+        padding: 8px;
     }
+
     #class-select-screen, 
     #subject-select-screen, 
     #ix-x-chapter-screen, 
@@ -274,10 +282,83 @@ body {
     #xi-xii-chapter-screen, 
     #xi-xii-topic-screen, 
     #name-screen, 
-    #quiz-screen, 
     #result-screen,
     #download-screen {
         width: 100%;
-        padding: 20px;
+        max-width: 100%;
+        padding: 18px;
+    }
+
+    #quiz-screen {
+        width: 100%;
+        max-width: 100%;
+        min-height: calc(100dvh - 16px);
+        padding: 14px;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Keep timer, stats, and submit button on a single compact row */
+    .quiz-header {
+        flex-wrap: nowrap;
+        margin-bottom: 8px;
+        gap: 6px;
+    }
+
+    #time-left {
+        font-size: 14px !important;
+        white-space: nowrap;
+    }
+
+    #quiz-stats {
+        font-size: 12px !important;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    #submit-btn {
+        padding: 7px 12px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .progress-container {
+        height: 6px;
+        margin-bottom: 8px;
+    }
+
+    #quiz-screen-heading {
+        font-size: 17px !important;
+        margin: 0 0 8px 0 !important;
+    }
+
+    #question-box {
+        font-size: 14.5px !important;
+        line-height: 1.35 !important;
+        margin-bottom: 10px !important;
+    }
+
+    #options-container {
+        margin-bottom: 8px !important;
+    }
+
+    .option-btn {
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        font-size: 14px;
+        line-height: 1.3;
+    }
+
+    .quiz-nav-container {
+        grid-template-columns: repeat(2, 125px);
+        gap: 8px 12px;
+        margin-top: 6px;
+    }
+
+    .quiz-nav-container button {
+        padding: 9px 14px;
+        font-size: 13.5px;
     }
 }
