@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-/* CRITICAL FIX: Ensures inactive screens actually disappear */
+/* Ensures inactive screens disappear completely */
 .hidden {
     display: none !important;
 }
@@ -70,6 +70,53 @@ body {
     color: #0f172a;
 }
 
+/* Professional Input Fields Styling */
+#name-screen input[type="text"], 
+#name-screen input[type="email"],
+#otp-input-field {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: #0f172a;
+    margin-bottom: 20px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#name-screen input[type="text"]:focus, 
+#name-screen input[type="email"]:focus,
+#otp-input-field:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+/* Professional Back and Start Quiz Buttons */
+.back-btn, 
+#name-screen button {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.back-btn:hover, 
+#name-screen button:hover {
+    background-color: #4338ca;
+    transform: translateY(-2px);
+}
+
 .card {
     background-color: #e8f5e9; 
     color: #0f172a;                    
@@ -121,6 +168,50 @@ body {
     font-weight: 600;
 }
 
+/* Quiz Navigation Layout Container */
+.quiz-nav-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+/* Arrange Previous and Next on Row 1, Clear Response on Row 2 */
+.quiz-nav-container button:nth-child(1) {
+    order: 1; /* Previous */
+}
+.quiz-nav-container button:nth-child(3) {
+    order: 2; /* Next */
+}
+.quiz-nav-container button:nth-child(2) {
+    order: 3; /* Clear Response */
+    flex-basis: 100%;
+    max-width: 250px;
+    margin: 0 auto;
+}
+
+/* Professional styling & link-style hover effect for navigation buttons */
+.quiz-nav-container button {
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.quiz-nav-container button:hover {
+    color: #2563eb;
+    border-color: #2563eb;
+    background-color: #eff6ff;
+    text-decoration: underline;
+}
+
 .quiz-header {
     display: flex;
     justify-content: space-between;
@@ -134,11 +225,13 @@ body {
     background-color: #ef4444;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 #submit-btn:hover {
