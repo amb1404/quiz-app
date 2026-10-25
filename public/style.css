@@ -1,17 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
+/* CRITICAL FIX: Ensures inactive screens actually disappear */
+.hidden {
+    display: none !important;
+}
+
 body {
     font-family: 'Poppins', sans-serif;
-    /* 1. Professional Background (Sleek dark tech gradient, no watermarks) */
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     color: #f8fafc;
     min-height: 100vh;
     margin: 0;
     padding: 40px;
-    display: block; /* Removes body flex-centering so items honor margins */
+    display: block;
 }
 
-/* 2. Selection & Name Screens: Aligned to the Left Margin */
+/* Selection & Name Screens: Aligned to the Left Margin */
 #class-select-screen, 
 #subject-select-screen, 
 #ix-x-chapter-screen, 
@@ -30,24 +34,24 @@ body {
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
-    margin: 0; /* Snaps cards to the left margin */
+    margin: 0;
     color: #0f172a;
 }
 
-/* 3. Quiz Screen: Expands wide to cover the page as an immersive view */
+/* Quiz Screen: Expands wide to cover the page as an immersive view */
 #quiz-screen {
     background-color: rgba(255, 251, 235, 0.98);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     width: 95%;
-    max-width: 1200px; /* Covers the page expansively */
+    max-width: 1200px;
     min-height: 85vh;
     padding: 40px;
     border-radius: 16px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
     box-sizing: border-box;
-    margin: 0 auto; /* Centered immersive layout for testing */
+    margin: 0 auto;
     color: #0f172a;
 }
 
@@ -117,7 +121,6 @@ body {
     font-weight: 600;
 }
 
-/* Quiz Header & Controls */
 .quiz-header {
     display: flex;
     justify-content: space-between;
@@ -142,7 +145,6 @@ body {
     background-color: #dc2626;
 }
 
-/* Progress Bar Styling */
 .progress-container {
     width: 100%;
     height: 8px;
@@ -159,7 +161,6 @@ body {
     transition: width 0.4s ease;
 }
 
-/* Screen Fade-In Animation */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
