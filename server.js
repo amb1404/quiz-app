@@ -11,15 +11,64 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- BACKEND-INJECTED CSS OVERRIDES (Mobile Zero-Scroll Fit & Nav Grid) ---
+// --- MASTER SERVER-SIDE CSS (Guarantees .hidden works and Mobile Viewport Fits) ---
 app.get('/style.css', (req, res) => {
-    const cssPath = path.join(__dirname, 'public', 'style.css');
-    let cssContent = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf8') : '';
+    res.type('text/css').send(`
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-    const backendCssOverrides = `
-/* --- Server-Enforced Fixes: Hidden Class, Nav Grid & Mobile Viewport Fit --- */
+/* CRITICAL: Hides inactive screens completely */
 .hidden {
     display: none !important;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f8fafc;
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px;
+    display: block;
+    box-sizing: border-box;
+}
+
+#class-select-screen, 
+#subject-select-screen, 
+#ix-x-chapter-screen, 
+#xi-xii-unit-screen, 
+#xi-xii-chapter-screen, 
+#xi-xii-topic-screen, 
+#name-screen,
+#download-screen,
+#result-screen {
+    background-color: rgba(255, 251, 235, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 600px;
+    max-width: 90%;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    margin: 0;
+    color: #0f172a;
+}
+
+#quiz-screen {
+    background-color: rgba(255, 251, 235, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 95%;
+    max-width: 1200px;
+    min-height: 85vh;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
+    margin: 0 auto;
+    color: #0f172a;
 }
 
 #first-name, #last-name {
@@ -29,51 +78,167 @@ app.get('/style.css', (req, res) => {
     text-transform: lowercase;
 }
 
+#name-screen input[type="text"], 
+#name-screen input[type="email"],
+#otp-input-field {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: #0f172a;
+    margin-bottom: 20px;
+    font-family: inherit;
+    outline: none;
+}
+
+.back-btn, 
+#name-screen button:not(.back-btn) {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card {
+    background-color: #e8f5e9; 
+    color: #0f172a;                    
+    font-size: 18px;                   
+    font-weight: bold;                 
+    text-align: center;                
+    padding: 20px;                     
+    margin-bottom: 15px;               
+    border-radius: 8px;                
+    border: 1px solid #cbd5e1;         
+    cursor: pointer;
+}
+
+.card:hover {
+    background-color: #ffffff;       
+    border: 1px solid #4285f4; 
+    color: #4285f4;      
+    transform: translateY(-4px);
+}
+
+.option-btn {
+    display: block;
+    width: 100%;
+    background-color: #ffffff;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: left;
+    padding: 16px 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+}
+
+.option-btn.selected {
+    background-color: #e0f2fe;
+    border-color: #4285f4;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* 2-Row Centered Navigation Grid */
 .quiz-nav-container {
-    display: grid !important;
-    grid-template-columns: repeat(2, 145px) !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 12px 16px !important;
-    margin-top: 24px !important;
+    display: grid;
+    grid-template-columns: repeat(2, 145px);
+    justify-content: center;
+    gap: 12px 16px;
+    margin-top: 25px;
+}
+
+.quiz-nav-container button:nth-child(1) {
+    grid-column: 1 / 2;
+    grid-row: 1;
+}
+
+.quiz-nav-container button:nth-child(3) {
+    grid-column: 2 / 3;
+    grid-row: 1;
+}
+
+.quiz-nav-container button:nth-child(2) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
 }
 
 .quiz-nav-container button {
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
     text-decoration: none !important;
 }
 
 .quiz-nav-container button:hover {
-    text-decoration: none !important;
+    color: #2563eb;
+    border-color: #2563eb;
+    background-color: #eff6ff;
 }
 
-.quiz-nav-container button:nth-child(1) {
-    grid-column: 1 / 2 !important;
-    grid-row: 1 !important;
+.quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
 }
 
-.quiz-nav-container button:nth-child(3) {
-    grid-column: 2 / 3 !important;
-    grid-row: 1 !important;
+#submit-btn {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
 }
 
-.quiz-nav-container button:nth-child(2) {
-    grid-column: 1 / 3 !important;
-    grid-row: 2 !important;
+.progress-container {
+    width: 100%;
+    height: 8px;
+    background-color: #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    overflow: hidden;
 }
 
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4285f4, #2563eb);
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+/* Mobile Viewport Optimization: Fits entire card on screen without scrolling */
 @media (max-width: 600px) {
     body {
-        padding: 4px !important;
-        margin: 0 !important;
-        height: 100vh !important;
-        height: 100dvh !important;
-        overflow: hidden !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        padding: 4px;
+        margin: 0;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     #class-select-screen, 
@@ -187,9 +352,7 @@ app.get('/style.css', (req, res) => {
         font-size: 12.5px !important;
     }
 }
-`;
-
-    res.type('text/css').send(cssContent + '\n' + backendCssOverrides);
+`);
 });
 
 // --- BACKEND-INJECTED JS OVERRIDES ---
