@@ -4,14 +4,14 @@ const path = require('path');
 const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key';
+const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
 
 const pendingOtps = {};
 const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: SILENT OTP & CENTERED RESULTS ---
+// --- MASTER BACKEND SERVER: BULLETPROOF SECURITY & MOBILE RESPONSIVE APP ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -22,7 +22,6 @@ app.get('/', (req, res) => {
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-        /* ABSOLUTE HIDING RULE */
         .hidden {
             display: none !important;
         }
@@ -35,6 +34,10 @@ app.get('/', (req, res) => {
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         body {
@@ -43,7 +46,6 @@ app.get('/', (req, res) => {
             padding: 40px;
         }
 
-        /* 1. Selection & Auth Screens: Aligned strictly to the Left Margin on Desktop */
         #class-select-screen, 
         #subject-select-screen, 
         #ix-x-chapter-screen, 
@@ -66,7 +68,6 @@ app.get('/', (req, res) => {
             color: #0f172a;
         }
 
-        /* 2. Quiz & Result Screens: Centered and expansive */
         #quiz-screen,
         #result-screen {
             background-color: rgba(255, 251, 235, 0.98);
@@ -109,6 +110,8 @@ app.get('/', (req, res) => {
             margin-bottom: 20px;
             font-family: inherit;
             outline: none;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         .back-btn, 
@@ -167,7 +170,6 @@ app.get('/', (req, res) => {
             font-weight: 600;
         }
 
-        /* 2-Row Centered Navigation Grid */
         .quiz-nav-container {
             display: grid;
             grid-template-columns: repeat(2, 145px);
@@ -245,7 +247,6 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
-        /* Mobile Viewport Optimization: Zero Overlap & Full Screen Fit */
         @media (max-width: 600px) {
             body {
                 padding: 6px !important;
@@ -343,7 +344,6 @@ app.get('/', (req, res) => {
 </head>
 <body>
 
-    <!-- Class Selection Screen (Active by default) -->
     <div id="class-select-screen">
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Class</h2>
         <div class="card" onclick="selectClass('IX')">IX</div>
@@ -354,7 +354,6 @@ app.get('/', (req, res) => {
         <div class="card" onclick="selectClass('WB XII')">WB XII</div>
     </div>
 
-    <!-- Subject Selection Screen (Hidden by default) -->
     <div id="subject-select-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Subject</h2>
@@ -363,35 +362,30 @@ app.get('/', (req, res) => {
         <div class="card" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <!-- Chapter Selection Screen (Hidden by default) -->
     <div id="ix-x-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Unit Selection Screen (Hidden by default) -->
     <div id="xi-xii-unit-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Unit</h2>
         <div id="xi-xii-unit-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Chapter Selection Screen (Hidden by default) -->
     <div id="xi-xii-chapter-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <!-- NEET / XI-XII Topic Selection Screen (Hidden by default) -->
     <div id="xi-xii-topic-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Topic</h2>
         <div id="xi-xii-topic-container"></div>
     </div>
 
-    <!-- Candidate Authentication & Name Screen (Hidden by default) -->
     <div id="name-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Enter Details</h2>
@@ -402,7 +396,6 @@ app.get('/', (req, res) => {
         <button onclick="startQuiz()" style="width: 100%; margin-top: 10px;">Verify</button>
     </div>
 
-    <!-- Immersive Active Quiz Screen (Hidden by default) -->
     <div id="quiz-screen" class="hidden">
         <div class="quiz-header">
             <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
@@ -422,7 +415,6 @@ app.get('/', (req, res) => {
 
         <div id="options-container" style="margin-bottom: 30px;"></div>
 
-        <!-- Navigation Buttons Container -->
         <div class="quiz-nav-container">
             <button onclick="prevQuestion()">Previous</button>
             <button onclick="clearResponse()">Clear Response</button>
@@ -430,17 +422,14 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- Result Screen (Hidden by default) -->
     <div id="result-screen" class="hidden"></div>
 
-    <!-- Secure PDF Download Screen (Hidden by default) -->
     <div id="download-screen" class="hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Download Study Papers</h2>
         <div id="download-container"></div>
     </div>
 
-    <!-- External Confetti Animation Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
         let screenHistory = [];
@@ -975,7 +964,6 @@ app.get('/', (req, res) => {
             }, 1000);
         }
 
-        // --- SILENT OTP REQUEST & INLINE OTP BOX REVEAL ---
         async function startQuiz() {
             const firstNameEl = document.getElementById('first-name');
             const lastNameEl = document.getElementById('last-name');
@@ -1026,7 +1014,6 @@ app.get('/', (req, res) => {
                         return;
                     }
 
-                    // Removed alert() pop-up. Seamlessly append inline OTP box.
                     const nameScreenContainer = document.getElementById('name-screen');
                     if (nameScreenContainer) {
                         const otpWrapper = document.createElement('div');
@@ -1307,18 +1294,6 @@ app.get('/', (req, res) => {
                 sessionStorage.removeItem('quizAppSession');
             }
         }
-
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('keydown', event => {
-            if (
-                event.key === 'F12' ||
-                (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'J')) ||
-                (event.ctrlKey && (event.key === 'U' || event.key === 'C'))
-            ) {
-                event.preventDefault();
-            }
-        });
-        document.addEventListener('copy', event => event.preventDefault());
     </script>
 </body>
 </html>`);
@@ -1417,6 +1392,7 @@ app.get('/api/download/:fileName', (req, res) => {
     });
 });
 
+// --- BULLETPROOF SECURITY: ANTI-SCRAPING & ANSWER STRIPPING ---
 app.get('/api/quiz/:id', (req, res) => {
     const requestSource = req.get('X-Requested-With');
     if (requestSource !== 'PioneersPrepApp') {
@@ -1434,6 +1410,7 @@ app.get('/api/quiz/:id', (req, res) => {
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
+        // Strip correct answers completely before sending to client
         const safeQuestions = realQuestions.map(q => {
             return {
                 type: q.type || 'mcq',
@@ -1535,6 +1512,7 @@ app.post('/api/verify-otp', (req, res) => {
     });
 });
 
+// --- BULLETPROOF SECURITY: SERVER-SIDE TIMER & GRACE PERIOD VERIFICATION ---
 app.post('/api/submit', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : 'UNKNOWN';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : 'NAME';
@@ -1545,7 +1523,7 @@ app.post('/api/submit', async (req, res) => {
     if (!authToken || !activeSessions.has(authToken)) {
         return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized submission. Please verify your email first.' });
     }
-    activeSessions.delete(authToken);
+    activeSessions.delete(authToken); // One-Time Use Token
 
     if (!serverStartTime || !timerSignature || !quizDuration) {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
@@ -1556,6 +1534,7 @@ app.post('/api/submit', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
     }
 
+    // Strict Server-Side Wall-Clock Timer Validation with 45s Network Grace Period
     const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
     const gracePeriod = 45; 
     if (elapsedSeconds > quizDuration + gracePeriod) {
