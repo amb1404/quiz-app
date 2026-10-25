@@ -11,362 +11,539 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER SERVER-SIDE HTML INJECTION (Guarantees .hidden works and Mobile Viewport Fits) ---
-app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    if (!fs.existsSync(indexPath)) {
-        return res.status(404).send('index.html not found in public folder.');
+// --- MASTER SERVER-SIDE CSS (Single-Handed Control over Layout & Mobile Fit) ---
+app.get('/style.css', (req, res) => {
+    res.type('text/css').send(`
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+/* CRITICAL: Hides inactive screens completely */
+.hidden {
+    display: none !important;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f8fafc;
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px;
+    display: block;
+    box-sizing: border-box;
+}
+
+#class-select-screen, 
+#subject-select-screen, 
+#ix-x-chapter-screen, 
+#xi-xii-unit-screen, 
+#xi-xii-chapter-screen, 
+#xi-xii-topic-screen, 
+#name-screen,
+#download-screen,
+#result-screen {
+    background-color: rgba(255, 251, 235, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 600px;
+    max-width: 90%;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    margin: 0;
+    color: #0f172a;
+}
+
+#quiz-screen {
+    background-color: rgba(255, 251, 235, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 95%;
+    max-width: 1200px;
+    min-height: 85vh;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
+    margin: 0 auto;
+    color: #0f172a;
+}
+
+#first-name, #last-name {
+    text-transform: uppercase;
+}
+#email-address {
+    text-transform: lowercase;
+}
+
+#name-screen input[type="text"], 
+#name-screen input[type="email"],
+#otp-input-field {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    color: #0f172a;
+    margin-bottom: 20px;
+    font-family: inherit;
+    outline: none;
+}
+
+.back-btn, 
+#name-screen button:not(.back-btn) {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card {
+    background-color: #e8f5e9; 
+    color: #0f172a;                    
+    font-size: 18px;                   
+    font-weight: bold;                 
+    text-align: center;                
+    padding: 20px;                     
+    margin-bottom: 15px;               
+    border-radius: 8px;                
+    border: 1px solid #cbd5e1;         
+    cursor: pointer;
+}
+
+.card:hover {
+    background-color: #ffffff;       
+    border: 1px solid #4285f4; 
+    color: #4285f4;      
+    transform: translateY(-4px);
+}
+
+.option-btn {
+    display: block;
+    width: 100%;
+    background-color: #ffffff;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: left;
+    padding: 16px 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+}
+
+.option-btn.selected {
+    background-color: #e0f2fe;
+    border-color: #4285f4;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* 2-Row Centered Navigation Grid */
+.quiz-nav-container {
+    display: grid;
+    grid-template-columns: repeat(2, 145px);
+    justify-content: center;
+    gap: 12px 16px;
+    margin-top: 25px;
+}
+
+.quiz-nav-container button:nth-child(1) {
+    grid-column: 1 / 2;
+    grid-row: 1;
+}
+
+.quiz-nav-container button:nth-child(3) {
+    grid-column: 2 / 3;
+    grid-row: 1;
+}
+
+.quiz-nav-container button:nth-child(2) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
+}
+
+.quiz-nav-container button {
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
+.quiz-nav-container button:hover {
+    color: #2563eb;
+    border-color: #2563eb;
+    background-color: #eff6ff;
+}
+
+.quiz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+}
+
+#submit-btn {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.progress-container {
+    width: 100%;
+    height: 8px;
+    background-color: #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4285f4, #2563eb);
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+/* Mobile Viewport Optimization: Fits entire card on screen without scrolling */
+@media (max-width: 600px) {
+    body {
+        padding: 4px !important;
+        margin: 0 !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
-    
-    let htmlContent = fs.readFileSync(indexPath, 'utf8');
 
-    const masterInlineStyle = `
-    <style>
-        /* CRITICAL: Hides inactive screens completely */
-        .hidden {
-            display: none !important;
-        }
+    #class-select-screen, 
+    #subject-select-screen, 
+    #ix-x-chapter-screen, 
+    #xi-xii-unit-screen, 
+    #xi-xii-chapter-screen, 
+    #xi-xii-topic-screen, 
+    #name-screen, 
+    #result-screen,
+    #download-screen {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        padding: 14px 16px !important;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        overflow-y: auto !important;
+        margin: 0 !important;
+    }
 
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #f8fafc;
-            min-height: 100vh;
-            margin: 0;
-            padding: 40px;
-            display: block;
-            box-sizing: border-box;
-        }
+    #quiz-screen {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        padding: 10px 12px !important;
+        border-radius: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+    }
 
-        #class-select-screen, 
-        #subject-select-screen, 
-        #ix-x-chapter-screen, 
-        #xi-xii-unit-screen, 
-        #xi-xii-chapter-screen, 
-        #xi-xii-topic-screen, 
-        #name-screen,
-        #download-screen,
-        #result-screen {
-            background-color: rgba(255, 251, 235, 0.95);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 600px;
-            max-width: 90%;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            box-sizing: border-box;
-            margin: 0;
-            color: #0f172a;
-        }
+    .quiz-header {
+        flex-wrap: nowrap !important;
+        margin-bottom: 4px !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+    }
 
-        #quiz-screen {
-            background-color: rgba(255, 251, 235, 0.98);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 95%;
-            max-width: 1200px;
-            min-height: 85vh;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-            box-sizing: border-box;
-            margin: 0 auto;
-            color: #0f172a;
-        }
+    #time-left {
+        font-size: 13px !important;
+        white-space: nowrap !important;
+    }
 
-        #first-name, #last-name {
-            text-transform: uppercase;
-        }
-        #email-address {
-            text-transform: lowercase;
-        }
+    #quiz-stats {
+        font-size: 11px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+    }
 
-        #name-screen input[type="text"], 
-        #name-screen input[type="email"],
-        #otp-input-field {
-            width: 100%;
-            padding: 14px 18px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            box-sizing: border-box;
-            background-color: #ffffff;
-            color: #0f172a;
-            margin-bottom: 20px;
-            font-family: inherit;
-            outline: none;
-        }
+    #submit-btn {
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+    }
 
-        .back-btn, 
-        #name-screen button:not(.back-btn) {
-            background-color: #4f46e5;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
+    .progress-container {
+        height: 4px !important;
+        margin-bottom: 4px !important;
+        flex-shrink: 0 !important;
+    }
 
-        .card {
-            background-color: #e8f5e9; 
-            color: #0f172a;                    
-            font-size: 18px;                   
-            font-weight: bold;                 
-            text-align: center;                
-            padding: 20px;                     
-            margin-bottom: 15px;               
-            border-radius: 8px;                
-            border: 1px solid #cbd5e1;         
-            cursor: pointer;
-        }
+    #quiz-screen-heading {
+        font-size: 15px !important;
+        margin: 0 0 4px 0 !important;
+        flex-shrink: 0 !important;
+    }
 
-        .card:hover {
-            background-color: #ffffff;       
-            border: 1px solid #4285f4; 
-            color: #4285f4;      
-            transform: translateY(-4px);
-        }
+    #question-box {
+        font-size: 13.5px !important;
+        line-height: 1.3 !important;
+        margin-bottom: 6px !important;
+        flex-shrink: 0 !important;
+    }
 
-        .option-btn {
-            display: block;
-            width: 100%;
-            background-color: #ffffff;
-            color: #0f172a;
-            font-size: 16px;
-            font-weight: 500;
-            text-align: left;
-            padding: 16px 20px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            cursor: pointer;
-        }
+    #options-container {
+        margin-bottom: 4px !important;
+        flex-grow: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+    }
 
-        .option-btn.selected {
-            background-color: #e0f2fe;
-            border-color: #4285f4;
-            color: #1e40af;
-            font-weight: 600;
-        }
+    .option-btn {
+        padding: 8px 10px !important;
+        margin-bottom: 5px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+    }
 
-        /* 2-Row Centered Navigation Grid */
-        .quiz-nav-container {
-            display: grid;
-            grid-template-columns: repeat(2, 145px);
-            justify-content: center;
-            gap: 12px 16px;
-            margin-top: 25px;
-        }
+    .quiz-nav-container {
+        grid-template-columns: repeat(2, 120px) !important;
+        gap: 6px 10px !important;
+        margin-top: 2px !important;
+        flex-shrink: 0 !important;
+    }
 
-        .quiz-nav-container button:nth-child(1) {
-            grid-column: 1 / 2;
-            grid-row: 1;
-        }
-
-        .quiz-nav-container button:nth-child(3) {
-            grid-column: 2 / 3;
-            grid-row: 1;
-        }
-
-        .quiz-nav-container button:nth-child(2) {
-            grid-column: 1 / 3;
-            grid-row: 2;
-            width: 100%;
-        }
-
-        .quiz-nav-container button {
-            background-color: #ffffff;
-            color: #1e293b;
-            border: 1px solid #cbd5e1;
-            padding: 12px 20px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none !important;
-        }
-
-        .quiz-nav-container button:hover {
-            color: #2563eb;
-            border-color: #2563eb;
-            background-color: #eff6ff;
-        }
-
-        .quiz-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            gap: 15px;
-        }
-
-        #submit-btn {
-            background-color: #ef4444;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .progress-container {
-            width: 100%;
-            height: 8px;
-            background-color: #e2e8f0;
-            border-radius: 4px;
-            margin-bottom: 25px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4285f4, #2563eb);
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        /* Mobile Viewport Optimization: Fits entire card on screen without scrolling */
-        @media (max-width: 600px) {
-            body {
-                padding: 4px;
-                margin: 0;
-                height: 100vh;
-                height: 100dvh;
-                overflow: hidden;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            #class-select-screen, 
-            #subject-select-screen, 
-            #ix-x-chapter-screen, 
-            #xi-xii-unit-screen, 
-            #xi-xii-chapter-screen, 
-            #xi-xii-topic-screen, 
-            #name-screen, 
-            #result-screen,
-            #download-screen {
-                width: 100% !important;
-                max-width: 100% !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                padding: 14px 16px !important;
-                border-radius: 0 !important;
-                box-sizing: border-box !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                overflow-y: auto !important;
-                margin: 0 !important;
-            }
-
-            #quiz-screen {
-                width: 100% !important;
-                max-width: 100% !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                padding: 10px 12px !important;
-                border-radius: 0 !important;
-                box-sizing: border-box !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-                margin: 0 !important;
-                overflow: hidden !important;
-            }
-
-            .quiz-header {
-                flex-wrap: nowrap !important;
-                margin-bottom: 4px !important;
-                gap: 4px !important;
-                flex-shrink: 0 !important;
-            }
-
-            #time-left {
-                font-size: 13px !important;
-                white-space: nowrap !important;
-            }
-
-            #quiz-stats {
-                font-size: 11px !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-            }
-
-            #submit-btn {
-                padding: 5px 8px !important;
-                font-size: 11px !important;
-                white-space: nowrap !important;
-                margin: 0 !important;
-            }
-
-            .progress-container {
-                height: 4px !important;
-                margin-bottom: 4px !important;
-                flex-shrink: 0 !important;
-            }
-
-            #quiz-screen-heading {
-                font-size: 15px !important;
-                margin: 0 0 4px 0 !important;
-                flex-shrink: 0 !important;
-            }
-
-            #question-box {
-                font-size: 13.5px !important;
-                line-height: 1.3 !important;
-                margin-bottom: 6px !important;
-                flex-shrink: 0 !important;
-            }
-
-            #options-container {
-                margin-bottom: 4px !important;
-                flex-grow: 1 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-            }
-
-            .option-btn {
-                padding: 8px 10px !important;
-                margin-bottom: 5px !important;
-                font-size: 13px !important;
-                line-height: 1.2 !important;
-            }
-
-            .quiz-nav-container {
-                grid-template-columns: repeat(2, 120px) !important;
-                gap: 6px 10px !important;
-                margin-top: 2px !important;
-                flex-shrink: 0 !important;
-            }
-
-            .quiz-nav-container button {
-                padding: 7px 10px !important;
-                font-size: 12.5px !important;
-            }
-        }
-    </style>
-    `;
-
-    // Inject the master style right into the <head> of index.html
-    const injectedHtml = htmlContent.replace('</head>', masterInlineStyle + '</head>');
-    res.send(injectedHtml);
+    .quiz-nav-container button {
+        padding: 7px 10px !important;
+        font-size: 12.5px !important;
+    }
+}
+`);
 });
 
-// Standard static middleware for other assets
+// --- MASTER SERVER-SIDE JS (Auth Flow & Input Normalization) ---
+app.get('/script.js', (req, res) => {
+    const jsPath = path.join(__dirname, 'public', 'script.js');
+    let jsContent = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, 'utf8') : '';
+
+    const backendJsOverrides = `
+function syncNameScreenButtons() {
+    const backBtn = document.querySelector('#name-screen .back-btn');
+    if (backBtn) backBtn.innerText = 'Back';
+
+    const actionBtn = document.querySelector('#name-screen button:not(.back-btn)');
+    const otpInput = document.getElementById('otp-input-field');
+    if (actionBtn) {
+        actionBtn.innerText = otpInput ? 'Start Quiz' : 'Verify';
+        actionBtn.disabled = false;
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    syncNameScreenButtons();
+
+    const firstNameInput = document.getElementById('first-name');
+    const lastNameInput = document.getElementById('last-name');
+    const emailInput = document.getElementById('email-address');
+
+    if (firstNameInput) {
+        firstNameInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
+    if (lastNameInput) {
+        lastNameInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
+    if (emailInput) {
+        emailInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toLowerCase();
+        });
+    }
+});
+
+const originalGoHome = typeof goHome === 'function' ? goHome : null;
+goHome = function() {
+    if (originalGoHome) originalGoHome();
+    const existingOtpWrapper = document.getElementById('otp-wrapper-container');
+    if (existingOtpWrapper) existingOtpWrapper.remove();
+    syncNameScreenButtons();
+};
+
+startQuiz = async function() {
+    const firstNameEl = document.getElementById('first-name');
+    const lastNameEl = document.getElementById('last-name');
+    const emailEl = document.getElementById('email-address');
+
+    if (firstNameEl) firstNameEl.value = firstNameEl.value.trim().toUpperCase();
+    if (lastNameEl) lastNameEl.value = lastNameEl.value.trim().toUpperCase();
+    if (emailEl) emailEl.value = emailEl.value.trim().toLowerCase();
+
+    const firstName = firstNameEl?.value || '';
+    const lastName = lastNameEl?.value || '';
+    const email = emailEl?.value || '';
+
+    if (!firstName || !lastName || !email) {
+        alert('Please fill in all fields (First Name, Last Name, and Email Address) to start.');
+        return;
+    }
+
+    const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+    if (!emailPattern.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+
+    const backBtn = document.querySelector('#name-screen .back-btn');
+    if (backBtn) backBtn.innerText = 'Back';
+
+    const submitBtn = document.querySelector('#name-screen button:not(.back-btn)');
+    let otpInput = document.getElementById('otp-input-field');
+
+    if (!otpInput) {
+        if (submitBtn) {
+            submitBtn.innerText = 'Sending Code...';
+            submitBtn.disabled = true;
+        }
+
+        try {
+            const response = await fetch('/api/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, email })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || 'Failed to send verification code.');
+                if (submitBtn) {
+                    submitBtn.innerText = 'Verify';
+                    submitBtn.disabled = false;
+                }
+                return;
+            }
+
+            alert('A 6-digit verification code has been sent to your email address. Please check your inbox.');
+
+            const nameScreenContainer = document.getElementById('name-screen');
+            if (nameScreenContainer) {
+                const otpWrapper = document.createElement('div');
+                otpWrapper.id = 'otp-wrapper-container';
+                otpWrapper.style.cssText = 'margin-top: 15px;';
+                otpWrapper.innerHTML = \`
+                    <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333; text-align: left;">Enter 6-Digit Verification Code:</label>
+                    <input type="text" id="otp-input-field" maxlength="6" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />
+                \`;
+
+                if (submitBtn && submitBtn.parentNode === nameScreenContainer) {
+                    nameScreenContainer.insertBefore(otpWrapper, submitBtn);
+                } else {
+                    nameScreenContainer.appendChild(otpWrapper);
+                }
+
+                if (submitBtn) {
+                    submitBtn.innerText = 'Start Quiz';
+                    submitBtn.disabled = false;
+                }
+            }
+        } catch (error) {
+            console.error('OTP request error:', error);
+            alert('Network error connecting to authentication server.');
+            if (submitBtn) {
+                submitBtn.innerText = 'Verify';
+                submitBtn.disabled = false;
+            }
+        }
+        return;
+    }
+
+    const enteredOtp = otpInput.value.trim();
+    if (enteredOtp.length !== 6) {
+        alert('Please enter the complete 6-digit verification code.');
+        return;
+    }
+
+    try {
+        const verifyResponse = await fetch('/api/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp: enteredOtp })
+        });
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyResponse.ok) {
+            alert(verifyData.error || 'Invalid verification code.');
+            return;
+        }
+
+        studentAuthToken = verifyData.authToken;
+
+        const tokenResponse = await fetch('/api/start-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+        });
+        const tokenData = await tokenResponse.json();
+        
+        serverStartTime = tokenData.startTime;
+        timerSignature = tokenData.signature;
+        quizDuration = timeRemaining;
+        clientStartTime = Date.now(); 
+        
+        if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
+            skippedQuestions = new Set();
+        }
+
+        showScreen('quiz-screen');
+        startTimer();
+        renderQuestion();
+        saveState();
+
+    } catch (error) {
+        console.error('Verification error:', error);
+        alert('Authentication failed. Please try again.');
+    }
+};
+`;
+
+    res.type('application/javascript').send(jsContent + '\n' + backendJsOverrides);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/ping', (req, res) => {
