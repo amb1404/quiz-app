@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "question": "Which of the following cations does not form a precipitate when aqueous ammonia (ammonium hydroxide) is added to its salt solution?",
+    "options": [
+      "Calcium ion (Ca²⁺)",
+      "Copper(II) ion (Cu²⁺)",
+      "Zinc ion (Zn²⁺)",
+      "Iron(III) ion (Fe³⁺)"
+    ],
+    "answer": 0,
+    "explanation": "Calcium hydroxide is sparingly soluble and requires a high concentration of hydroxyl ions, so Ca²⁺ does not precipitate with weak aqueous ammonia."
+  },
+  {
+    "id": 2,
+    "question": "A metallic salt solution forms a pale blue precipitate with sodium hydroxide, which remains insoluble in excess of the reagent. The metal ion present is:",
+    "options": [
+      "Cu²⁺",
+      "Fe²⁺",
+      "Pb²⁺",
+      "Zn²⁺"
+    ],
+    "answer": 0,
+    "explanation": "Copper(II) sulfate reacts with sodium hydroxide to form a pale blue precipitate of copper(II) hydroxide, which does not dissolve in excess NaOH."
+  },
+  {
+    "id": 3,
+    "question": "When ammonium hydroxide is added drop by drop to a solution of copper(II) sulfate until it is in excess, the final observation is:",
+    "options": [
+      "A pale blue precipitate remains insoluble",
+      "A deep blue, clear solution is formed",
+      "A chalky white precipitate is formed",
+      "A colorless solution is formed"
+    ],
+    "answer": 1,
+    "explanation": "Initially, a pale blue precipitate of Cu(OH)₂ forms, which dissolves in excess ammonium hydroxide to form a deep blue complex solution [Cu(NH₃)₄]SO₄."
+  },
+  {
+    "id": 4,
+    "question": "Which of the following metals does NOT react with hot, concentrated sodium hydroxide solution to produce hydrogen gas?",
+    "options": [
+      "Zinc",
+      "Aluminum",
+      "Iron",
+      "Lead"
+    ],
+    "answer": 2,
+    "explanation": "Zinc, aluminum, and lead are amphoteric metals that react with hot concentrated alkalis to liberate hydrogen gas, whereas iron is non-amphoteric and does not react."
+  },
+  {
+    "id": 5,
+    "question": "The dirty green precipitate formed by the addition of sodium hydroxide to iron(II) sulfate is chemically:",
+    "options": [
+      "Iron(III) hydroxide",
+      "Iron(II) hydroxide",
+      "Iron(II) oxide",
+      "Iron(III) oxide"
+    ],
+    "answer": 1,
+    "explanation": "Iron(II) ions react with sodium hydroxide to precipitate iron(II) hydroxide, Fe(OH)₂, which has a characteristic dirty green appearance."
+  },
+  {
+    "id": 6,
+    "question": "How can you chemically distinguish between a zinc salt and a lead salt using ammonium hydroxide?",
+    "options": [
+      "Zinc forms a white precipitate insoluble in excess, while lead forms a white precipitate soluble in excess.",
+      "Both form white precipitates that are completely soluble in excess ammonium hydroxide.",
+      "Zinc forms a gelatinous white precipitate soluble in excess, while lead forms a chalky white precipitate insoluble in excess.",
+      "Neither forms a precipitate with ammonium hydroxide."
+    ],
+    "answer": 2,
+    "explanation": "Both give white precipitates with NH₄OH, but zinc hydroxide dissolves in excess to form a clear solution, while lead hydroxide remains insoluble."
+  },
+  {
+    "id": 7,
+    "question": "Aluminum hydroxide reacts with excess sodium hydroxide to form a clear solution of a complex salt known as:",
+    "options": [
+      "Sodium aluminate",
+      "Sodium zincate",
+      "Sodium plumbite",
+      "Aluminum oxide"
+    ],
+    "answer": 0,
+    "explanation": "Amphoteric aluminum hydroxide dissolves in excess NaOH to form a soluble complex salt, sodium meta-aluminate (commonly called sodium aluminate)."
+  },
+  {
+    "id": 8,
+    "question": "Which of the following metallic oxides is amphoteric in nature?",
+    "options": [
+      "Calcium oxide",
+      "Magnesium oxide",
+      "Zinc oxide",
+      "Copper(II) oxide"
+    ],
+    "answer": 2,
+    "explanation": "Zinc oxide reacts with both acids and bases to form salt and water, classifying it as an amphoteric oxide."
+  },
+  {
+    "id": 9,
+    "question": "When a metallic oxide reacts with an alkali, it yields a salt and water. This chemical behavior proves that the oxide is:",
+    "options": [
+      "Purely acidic",
+      "Purely basic",
+      "Amphoteric",
+      "Neutral"
+    ],
+    "answer": 2,
+    "explanation": "Metallic oxides that react with alkalis to yield salt and water exhibit amphoteric characteristics, acting as acids in the presence of strong bases."
+  },
+  {
+    "id": 10,
+    "question": "A salt solution 'X' gives a reddish-brown precipitate with sodium hydroxide solution. The precipitate is insoluble in excess alkali. 'X' is likely to contain:",
+    "options": [
+      "Fe²⁺",
+      "Fe³⁺",
+      "Cu²⁺",
+      "Zn²⁺"
+    ],
+    "answer": 1,
+    "explanation": "Iron(III) salts react with NaOH to form a characteristic reddish-brown precipitate of iron(III) hydroxide, which is insoluble in excess sodium hydroxide."
+  },
+  {
+    "id": 11,
+    "question": "Which single reagent can be used to visually distinguish between Iron(II) chloride and Iron(III) chloride solutions?",
+    "options": [
+      "Dilute hydrochloric acid",
+      "Sodium hydroxide solution",
+      "Silver nitrate solution",
+      "Barium chloride solution"
+    ],
+    "answer": 1,
+    "explanation": "NaOH produces a dirty green precipitate with Fe²⁺ ions and a reddish-brown precipitate with Fe³⁺ ions, making it easy to distinguish them visually."
+  },
+  {
+    "id": 12,
+    "question": "The gas evolved when a mixture of an ammonium salt and sodium hydroxide is heated can be identified because it:",
+    "options": [
+      "Turns damp blue litmus paper red",
+      "Burns with a characteristic pop sound",
+      "Produces dense white fumes when brought near a glass rod dipped in concentrated HCl",
+      "Turns lime water milky"
+    ],
+    "answer": 2,
+    "explanation": "Heating an ammonium salt with a caustic alkali releases ammonia gas, which reacts with hydrogen chloride to form dense white fumes of ammonium chloride."
+  },
+  {
+    "id": 13,
+    "question": "The chemical formula of the deep blue complex formed when excess ammonium hydroxide is added to a copper(II) salt solution is:",
+    "options": [
+      "[Cu(NH₃)₄]SO₄",
+      "[Cu(NH₄)₄]SO₄",
+      "Na₂[Cu(OH)₄]",
+      "Cu(OH)₂"
+    ],
+    "answer": 0,
+    "explanation": "Excess ammonium hydroxide reacts with copper sulfate to produce tetraamminecopper(II) sulfate, which forms a clear deep blue solution."
+  },
+  {
+    "id": 14,
+    "question": "Which of the following cations forms a chalky white precipitate with NaOH that dissolves in excess of NaOH to form a colorless solution?",
+    "options": [
+      "Mg²⁺",
+      "Pb²⁺",
+      "Ca²⁺",
+      "Fe²⁺"
+    ],
+    "answer": 1,
+    "explanation": "Lead(II) ions react with sodium hydroxide to form a chalky white precipitate of lead(II) hydroxide, which dissolves in excess sodium hydroxide to form soluble sodium plumbite."
+  },
+  {
+    "id": 15,
+    "question": "Why does calcium nitrate solution not yield a precipitate with ammonium hydroxide?",
+    "options": [
+      "Calcium hydroxide is highly soluble in all solvents.",
+      "Ammonium hydroxide is a strong alkali.",
+      "The concentration of hydroxyl ions from the weak ammonium hydroxide is too low to exceed the solubility product of calcium hydroxide.",
+      "Calcium reacts directly with the dissolved ammonia gas."
+    ],
+    "answer": 2,
+    "explanation": "Calcium hydroxide requires a high concentration of OH⁻ ions to precipitate, but weak bases like NH₄OH are only sparingly ionized, providing insufficient hydroxyl ions."
+  },
+  {
+    "id": 16,
+    "question": "In the qualitative analysis of cations, the addition of a strong alkali to a heavy metal salt solution typically represents which type of chemical reaction?",
+    "options": [
+      "Neutralization",
+      "Simple displacement",
+      "Double decomposition (Precipitation)",
+      "Redox reaction"
+    ],
+    "answer": 2,
+    "explanation": "The reaction involves the exchange of ions between the metal salt and the alkali, resulting in the formation of an insoluble metallic hydroxide precipitate."
+  },
+  {
+    "id": 17,
+    "question": "A student adds NaOH dropwise to an unknown solution. A gelatinous white precipitate forms, which dissolves in excess NaOH. The same unknown solution yields a gelatinous white precipitate with NH₄OH, but it is INSOLUBLE in excess NH₄OH. The cation present is:",
+    "options": [
+      "Zn²⁺",
+      "Al³⁺",
+      "Pb²⁺",
+      "Ca²⁺"
+    ],
+    "answer": 1,
+    "explanation": "Aluminum hydroxide is a gelatinous white precipitate that dissolves in excess NaOH but remains insoluble in excess NH₄OH, distinguishing it from zinc."
+  },
+  {
+    "id": 18,
+    "question": "What is the specific color and nature of the precipitate formed when sodium hydroxide is added to a magnesium sulfate solution?",
+    "options": [
+      "Gelatinous white",
+      "Chalky white",
+      "Dull white",
+      "Pale blue"
+    ],
+    "answer": 2,
+    "explanation": "Magnesium ions react with sodium hydroxide to precipitate magnesium hydroxide, which appears as a dull white precipitate that is insoluble in excess NaOH."
+  },
+  {
+    "id": 19,
+    "question": "The soluble product formed when solid lead(II) oxide reacts with boiling sodium hydroxide solution is:",
+    "options": [
+      "Sodium plumbate",
+      "Sodium plumbite",
+      "Plumbic acid",
+      "Lead hydroxide"
+    ],
+    "answer": 1,
+    "explanation": "Lead(II) oxide is amphoteric and dissolves in hot, concentrated sodium hydroxide to form soluble sodium plumbite (Na₂PbO₂)."
+  },
+  {
+    "id": 20,
+    "question": "Ammonia gas is conceptually considered a basic gas because:",
+    "options": [
+      "It contains free hydroxide ions in its gaseous state.",
+      "It dissolves in water to produce hydronium ions.",
+      "Its lone pair of electrons accepts a proton from water to form ammonium and hydroxide ions.",
+      "It acts as a strong oxidizing agent in the presence of water."
+    ],
+    "answer": 2,
+    "explanation": "According to the Lowry-Bronsted and Lewis theories, ammonia acts as a base by donating its lone pair to accept a proton, generating hydroxide ions in aqueous solution."
+  }
+]
