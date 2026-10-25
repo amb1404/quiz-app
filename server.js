@@ -4,7 +4,13 @@ const path = require('path');
 const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
+
+// SECURE: Enforce environment variable check without insecure public fallbacks
+const SECRET = process.env.TIMER_SECRET;
+if (!SECRET) {
+    console.error("FATAL ERROR: TIMER_SECRET environment variable is not set.");
+    process.exit(1);
+}
 
 const pendingOtps = {};
 const activeSessions = new Set();
@@ -131,13 +137,13 @@ app.get('/', (req, res) => {
         .card {
             background-color: #e8f5e9; 
             color: #0f172a;                    
-            font-size: 18px;                   
-            font-weight: bold;                 
-            text-align: center;                
-            padding: 20px;                     
-            margin-bottom: 15px;               
-            border-radius: 8px;                
-            border: 1px solid #cbd5e1;         
+            font-size: 18px;                    
+            font-weight: bold;                   
+            text-align: center;                  
+            padding: 20px;                       
+            margin-bottom: 15px;                 
+            border-radius: 8px;                  
+            border: 1px solid #cbd5e1;           
             cursor: pointer;
         }
 
@@ -717,7 +723,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
 
             try {
-                const response = await fetch(\`/api/papers/\${className}\`);
+                const response = await fetch(`/api/papers/${className}`);
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -736,7 +742,7 @@ app.get('/', (req, res) => {
             const chapters = classObj ? classObj.chapters : [];
 
             if (chapters.length === 0) {
-                container.innerHTML = \`<p style="text-align:center; color:#64748b;">No chapters found.</p>\`;
+                container.innerHTML = `<p style="text-align:center; color:#64748b;">No chapters found.</p>`;
                 showScreen('ix-x-chapter-screen');
                 return;
             }
@@ -746,7 +752,7 @@ app.get('/', (req, res) => {
                 card.className = 'card';
                 card.innerText = ch.title;
                 card.onclick = async () => {
-                    currentChapterTitle = \`\${className} - \${ch.title}\`;
+                    currentChapterTitle = `${className} - ${ch.title}`;
                     activeQuizTitle = ch.title; 
                     timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
                     currentQuestions = await fetchQuestionsFile(ch.id);
@@ -764,7 +770,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
 
             try {
-                const response = await fetch(\`/api/papers/\${navState.classSelection}/\${subjectName}\`);
+                const response = await fetch(`/api/papers/${navState.classSelection}/${subjectName}`);
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -779,7 +785,7 @@ app.get('/', (req, res) => {
                 console.error("Error fetching papers:", error);
             }
 
-            const classObj = quizData.find(c => c.name === navState.classSelection || c.name === \`Class \${navState.classSelection}\`);
+            const classObj = quizData.find(c => c.name === navState.classSelection || c.name === `Class ${navState.classSelection}`);
             const subjectObj = classObj && classObj.subjects ? classObj.subjects.find(s => s.name.toLowerCase() === subjectName.toLowerCase()) : null;
             const chapters = subjectObj ? subjectObj.chapters : [];
 
@@ -815,12 +821,12 @@ app.get('/', (req, res) => {
 
             papers.forEach(paper => {
                 const link = document.createElement('a');
-                link.href = \`/api/download/\${paper.fileName}\`; 
+                link.href = `/api/download/${paper.fileName}`; 
                 link.className = 'card';
                 link.style.textDecoration = 'none';
                 link.style.display = 'block';
                 link.style.color = '#333';
-                link.innerText = \`📥 \${paper.name}\`;
+                link.innerText = `📥 ${paper.name}`;
                 container.appendChild(link);
             });
 
@@ -833,7 +839,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
             
             try {
-                const response = await fetch(\`/api/papers/\${className}\`);
+                const response = await fetch(`/api/papers/${className}`);
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -896,7 +902,7 @@ app.get('/', (req, res) => {
             const validTopics = chapter.topics.filter(t => t.name && t.name.trim() !== "");
 
             if (validTopics.length === 0) {
-                container.innerHTML = \`<p style="text-align:center; color:#64748b;">No topics available.</p>\`;
+                container.innerHTML = `<p style="text-align:center; color:#64748b;">No topics available.</p>`;
             }
 
             validTopics.forEach(topic => {
@@ -904,7 +910,7 @@ app.get('/', (req, res) => {
                 card.className = 'card';
                 card.innerText = topic.name;
                 card.onclick = async () => {
-                    currentChapterTitle = \`\${chapter.name} - \${topic.name}\`;
+                    currentChapterTitle = `${chapter.name} - ${topic.name}`;
                     activeQuizTitle = topic.name; 
                     timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
                     currentQuestions = await fetchQuestionsFile(topic.id);
@@ -919,13 +925,13 @@ app.get('/', (req, res) => {
             if (!fileId) return [];
             try {
                 currentQuizId = fileId; 
-                const response = await fetch(\`/api/quiz/\${fileId}\`, {
+                const response = await fetch(`/api/quiz/${fileId}`, {
                     headers: { 'X-Requested-With': 'PioneersPrepApp' }
                 });
                 if (response.ok) return await response.json();
                 return [];
             } catch (error) {
-                console.error(\`Error loading API for \${fileId}:\`, error);
+                console.error(`Error loading API for ${fileId}:`, error);
                 return [];
             }
         }
@@ -938,7 +944,7 @@ app.get('/', (req, res) => {
                 let displayTime = timeRemaining > 0 ? timeRemaining : 0;
                 const initMin = Math.floor(displayTime / 60).toString().padStart(2, '0');
                 const initSec = (displayTime % 60).toString().padStart(2, '0');
-                timeDisplay.innerText = \`\${initMin}:\${initSec}\`;
+                timeDisplay.innerText = `${initMin}:${initSec}`;
             };
             
             if (clientStartTime > 0 && quizDuration > 0) {
@@ -982,7 +988,7 @@ app.get('/', (req, res) => {
                 return;
             }
 
-            const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailPattern.test(email)) {
                 alert('Please enter a valid email address.');
                 return;
@@ -1019,10 +1025,10 @@ app.get('/', (req, res) => {
                         const otpWrapper = document.createElement('div');
                         otpWrapper.id = 'otp-wrapper-container';
                         otpWrapper.style.cssText = 'margin-top: 15px;';
-                        otpWrapper.innerHTML = \`
+                        otpWrapper.innerHTML = `
                             <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333; text-align: left;">Enter 6-Digit Verification Code:</label>
                             <input type="text" id="otp-input-field" maxlength="6" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />
-                        \`;
+                        `;
 
                         if (submitBtn && submitBtn.parentNode === nameScreenContainer) {
                             nameScreenContainer.insertBefore(otpWrapper, submitBtn);
@@ -1107,7 +1113,7 @@ app.get('/', (req, res) => {
             }
 
             const q = currentQuestions[currentQuestionIndex];
-            document.getElementById('question-box').innerText = \`Q.\${currentQuestionIndex + 1}: \${q.question}\`;
+            document.getElementById('question-box').innerText = `Q.${currentQuestionIndex + 1}: ${q.question}`;
             
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
@@ -1205,13 +1211,13 @@ app.get('/', (req, res) => {
 
             const statsEl = document.getElementById('quiz-stats');
             if (statsEl) {
-                statsEl.innerText = \`Attempted: \${attemptedCount} / \${currentQuestions.length} | Skipped: \${skippedCount}\`;
+                statsEl.innerText = `Attempted: ${attemptedCount} / ${currentQuestions.length} | Skipped: ${skippedCount}`;
             }
 
             const progressBar = document.getElementById('progress-bar');
             if (progressBar && currentQuestions.length > 0) {
                 const percentage = (attemptedCount / currentQuestions.length) * 100;
-                progressBar.style.width = \`\${percentage}%\`;
+                progressBar.style.width = `${percentage}%`;
             }
         }
 
@@ -1220,7 +1226,7 @@ app.get('/', (req, res) => {
             const totalQuestions = currentQuestions.length;
 
             if (!isAutoSubmit && answeredCount < totalQuestions) {
-                alert(\`Please answer all questions before submitting. You have answered \${answeredCount} out of \${totalQuestions}.\`);
+                alert(`Please answer all questions before submitting. You have answered ${answeredCount} out of ${totalQuestions}.`);
                 return; 
             }
             
@@ -1268,15 +1274,15 @@ app.get('/', (req, res) => {
 
                 const resultContainer = document.getElementById('result-screen');
                 if (resultContainer && resultData.success) {
-                    resultContainer.innerHTML = \`
+                    resultContainer.innerHTML = `
                         <button class="back-btn" onclick="goHome()">Back to Home</button>
                         <h2 class="screen-heading">Quiz Results</h2>
                         <div style="text-align: center; margin-top: 20px;">
-                            <p style="font-size: 18px; color: #333;">Candidate: <strong>\${firstName} \${lastName}</strong></p>
-                            <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">\${resultData.score} / \${resultData.total}</h1>
+                            <p style="font-size: 18px; color: #333;">Candidate: <strong>${firstName} ${lastName}</strong></p>
+                            <h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">${resultData.score} / ${resultData.total}</h1>
                             <p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p>
                         </div>
-                    \`;
+                    `;
                     showScreen('result-screen');
                     
                     if (typeof confetti === 'function') {
@@ -1452,7 +1458,7 @@ app.post('/api/send-otp', async (req, res) => {
 
     const scriptURL = process.env.APP_SCRIPT_URL;
     if (scriptURL) {
-        // Fire-and-forget: background fetch avoids button freezing/lag
+        // Fire-and-forget: background fetch avoids button freezing/lag, including secretKey auth
         fetch(scriptURL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1460,6 +1466,7 @@ app.post('/api/send-otp', async (req, res) => {
                 type: 'otp',
                 targetEmail: email,
                 subject: 'Pioneers Prep - Verification Code',
+                secretKey: process.env.APPS_SCRIPT_SECRET,
                 breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">` +
                            `<h2>Hello ${firstName} ${lastName},</h2>` +
                            `<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>` +
@@ -1608,7 +1615,8 @@ app.post('/api/submit', async (req, res) => {
             attempted: attemptedCount, skipped: skippedCount,
             correct: correctCount, incorrect: incorrectCount,
             breakdown: breakdownHtml,
-            targetEmail: process.env.TARGET_EMAIL
+            targetEmail: process.env.TARGET_EMAIL,
+            secretKey: process.env.APPS_SCRIPT_SECRET
         };
 
         try {
