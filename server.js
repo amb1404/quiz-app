@@ -144,9 +144,12 @@ app.post('/api/start-quiz', (req, res) => {
     res.json({ startTime, signature });
 });
 
-// --- NEW: Backend OTP Routes ---
+// --- NEW: Backend OTP Routes with Text Normalization ---
 app.post('/api/send-otp', async (req, res) => {
-    const { firstName, lastName, email } = req.body;
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : '';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : '';
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+
     if (!firstName || !lastName || !email) {
         return res.status(400).json({ success: false, error: 'All fields are required.' });
     }
@@ -191,7 +194,8 @@ app.post('/api/send-otp', async (req, res) => {
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    const { email, otp } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    const otp = req.body.otp ? req.body.otp.trim() : '';
     const record = pendingOtps[email];
 
     if (!record) {
@@ -221,9 +225,14 @@ app.post('/api/verify-otp', (req, res) => {
 // -----------------------------
 
 app.post('/api/submit', async (req, res) => {
-    const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
+    // --- Backend Normalization for Submission Data ---
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : 'UNKNOWN';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : 'NAME';
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : 'no-email';
+    
+    const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    // --- NEW: BACKEND AUTHENTICATION CHECK ---
+    // --- BACKEND AUTHENTICATION CHECK ---
     if (!authToken || !activeSessions.has(authToken)) {
         return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized submission. Please verify your email first.' });
     }
@@ -311,7 +320,7 @@ app.post('/api/submit', async (req, res) => {
             ? `${className} - ${chapterTitle}`
             : chapterTitle;
 
-        const studentName = `${firstName} ${lastName}`.trim().toUpperCase();
+        const studentName = `${firstName} ${lastName}`.trim();
 
         const securePayload = {
             firstName, lastName, email,
