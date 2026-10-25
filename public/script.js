@@ -445,7 +445,13 @@ async function fetchQuestionsFile(fileId) {
     if (!fileId) return [];
     try {
         currentQuizId = fileId; 
-        const response = await fetch(`/api/quiz/${fileId}`);
+        // NEW: Attach the secret handshake header to prove this is a legitimate app request
+        const response = await fetch(`/api/quiz/${fileId}`, {
+            headers: {
+                'X-Requested-With': 'PioneersPrepApp'
+            }
+        });
+        
         if (response.ok) return await response.json();
         return [];
     } catch (error) {
