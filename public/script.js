@@ -14,6 +14,12 @@ let activeQuizTitle = "Quiz Active";
 let isRestoring = false;
 let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null };
 
+// Security Timer Variables
+let serverStartTime = 0;
+let timerSignature = "";
+let quizDuration = 0;
+let clientStartTime = 0;
+
 function saveState() {
     if (isRestoring) return;
     const activeScreenId = Array.from(document.querySelectorAll('body > div'))
@@ -25,7 +31,8 @@ function saveState() {
         skippedQuestions: Array.from(skippedQuestions),
         firstName: document.getElementById('first-name') ? document.getElementById('first-name').value : "",
         lastName: document.getElementById('last-name') ? document.getElementById('last-name').value : "",
-        email: document.getElementById('email-address') ? document.getElementById('email-address').value : ""
+        email: document.getElementById('email-address') ? document.getElementById('email-address').value : "",
+        serverStartTime, timerSignature, quizDuration, clientStartTime
     };
     sessionStorage.setItem('quizAppSession', JSON.stringify(state));
 }
@@ -45,6 +52,11 @@ async function restoreState() {
     currentQuestionIndex = state.currentQuestionIndex || 0;
     userAnswers = state.userAnswers || {};
     skippedQuestions = new Set(state.skippedQuestions || []);
+    
+    serverStartTime = state.serverStartTime || 0;
+    timerSignature = state.timerSignature || "";
+    quizDuration = state.quizDuration || 0;
+    clientStartTime = state.clientStartTime || 0;
 
     if (state.firstName) document.getElementById('first-name').value = state.firstName;
     if (state.lastName) document.getElementById('last-name').value = state.lastName;
@@ -148,9 +160,15 @@ function showScreen(screenId) {
     if (activeScreen && activeScreen.id !== screenId) {
         screenHistory.push(activeScreen.id);
     }
-    screens.forEach(screen => screen.classList.add('hidden'));
+    screens.forEach(screen => {
+        screen.classList.add('hidden');
+        screen.classList.remove('fade-in'); 
+    });
     const targetScreen = document.getElementById(screenId);
-    if (targetScreen) targetScreen.classList.remove('hidden');
+    if (targetScreen) {
+        targetScreen.classList.remove('hidden');
+        targetScreen.classList.add('fade-in'); 
+    }
     saveState();
 }
 
@@ -158,10 +176,16 @@ function goBack() {
     if (screenHistory.length > 0) {
         const previousScreenId = screenHistory.pop();
         const screens = document.querySelectorAll('body > div');
-        screens.forEach(screen => screen.classList.add('hidden'));
+        screens.forEach(screen => {
+            screen.classList.add('hidden');
+            screen.classList.remove('fade-in');
+        });
         
         const prevScreen = document.getElementById(previousScreenId);
-        if (prevScreen) prevScreen.classList.remove('hidden');
+        if (prevScreen) {
+            prevScreen.classList.remove('hidden');
+            prevScreen.classList.add('fade-in');
+        }
         saveState();
     } else {
         goHome();
@@ -176,13 +200,25 @@ function goHome() {
     skippedQuestions = new Set();
     clearInterval(timerInterval);
     
+    serverStartTime = 0;
+    timerSignature = "";
+    quizDuration = 0;
+    clientStartTime = 0;
+    
     document.getElementById('first-name').value = '';
     document.getElementById('last-name').value = '';
     document.getElementById('email-address').value = '';
 
     const screens = document.querySelectorAll('body > div');
-    screens.forEach(screen => screen.classList.add('hidden'));
-    document.getElementById('class-select-screen').classList.remove('hidden');
+    screens.forEach(screen => {
+        screen.classList.add('hidden');
+        screen.classList.remove('fade-in');
+    });
+    const classScreen = document.getElementById('class-select-screen');
+    if (classScreen) {
+        classScreen.classList.remove('hidden');
+        classScreen.classList.add('fade-in');
+    }
     sessionStorage.removeItem('quizAppSession');
 }
 
@@ -423,26 +459,36 @@ function startTimer() {
     const timeDisplay = document.getElementById('time-left');
     
     const updateDisplay = () => {
-        const initMin = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
-        const initSec = (timeRemaining % 60).toString().padStart(2, '0');
+        let displayTime = timeRemaining > 0 ? timeRemaining : 0;
+        const initMin = Math.floor(displayTime / 60).toString().padStart(2, '0');
+        const initSec = (displayTime % 60).toString().padStart(2, '0');
         timeDisplay.innerText = `${initMin}:${initSec}`;
     };
+    
+    if (clientStartTime > 0 && quizDuration > 0) {
+        const elapsed = Math.floor((Date.now() - clientStartTime) / 1000);
+        timeRemaining = quizDuration - elapsed;
+    }
     
     updateDisplay();
 
     timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - clientStartTime) / 1000);
+        timeRemaining = quizDuration - elapsed;
+
         if (timeRemaining <= 0) {
             clearInterval(timerInterval);
+            timeRemaining = 0;
+            updateDisplay();
             submitQuiz(true);
             return;
         }
-        timeRemaining--;
         updateDisplay();
         saveState();
     }, 1000);
 }
 
-function startQuiz() {
+async function startQuiz() {
     const firstName = document.getElementById('first-name')?.value.trim();
     const lastName = document.getElementById('last-name')?.value.trim();
     const email = document.getElementById('email-address')?.value.trim();
@@ -462,9 +508,26 @@ function startQuiz() {
         skippedQuestions = new Set();
     }
 
-    showScreen('quiz-screen');
-    startTimer();
-    renderQuestion();
+    try {
+        const response = await fetch('/api/start-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+        });
+        const data = await response.json();
+        
+        serverStartTime = data.startTime;
+        timerSignature = data.signature;
+        quizDuration = timeRemaining;
+        clientStartTime = Date.now(); 
+        
+        showScreen('quiz-screen');
+        startTimer();
+        renderQuestion();
+        saveState();
+    } catch (error) {
+        alert("Failed to securely connect to server. Please check your internet connection.");
+    }
 }
 
 function renderQuestion() {
@@ -485,7 +548,6 @@ function renderQuestion() {
     const optionsContainer = document.getElementById('options-container');
     optionsContainer.innerHTML = '';
     
-    // Checks if the question requires a descriptive text box
     if (q.type === 'descriptive') {
         const textarea = document.createElement('textarea');
         textarea.placeholder = 'Type your detailed answer here...';
@@ -509,11 +571,10 @@ function renderQuestion() {
         
         optionsContainer.appendChild(textarea);
     } else {
-        // Standard MCQ rendering
         const opts = q.options || [];
         opts.forEach((opt, idx) => {
             const btn = document.createElement('button');
-            btn.type = 'button'; // Prevents accidental form submission reloads
+            btn.type = 'button'; 
             btn.className = 'option-btn';
             if (userAnswers[currentQuestionIndex] === idx) {
                 btn.classList.add('selected');
@@ -542,11 +603,9 @@ function selectOption(button, optionIndex) {
 function clearResponse() {
     delete userAnswers[currentQuestionIndex];
     
-    // Clear MCQ buttons
     const buttons = document.querySelectorAll('#options-container .option-btn');
     buttons.forEach(btn => btn.classList.remove('selected'));
     
-    // Clear descriptive text area
     const textarea = document.querySelector('#options-container textarea');
     if (textarea) textarea.value = "";
     
@@ -584,6 +643,12 @@ function updateQuizStats() {
     if (statsEl) {
         statsEl.innerText = `Attempted: ${attemptedCount} / ${currentQuestions.length} | Skipped: ${skippedCount}`;
     }
+
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar && currentQuestions.length > 0) {
+        const percentage = (attemptedCount / currentQuestions.length) * 100;
+        progressBar.style.width = `${percentage}%`;
+    }
 }
 
 async function submitQuiz(isAutoSubmit = false) { 
@@ -617,7 +682,10 @@ async function submitQuiz(isAutoSubmit = false) {
             chapterTitle: activeQuizTitle,
             quizId: currentQuizId,
             userAnswers: userAnswers,
-            isAutoSubmit: isAutoSubmit
+            isAutoSubmit: isAutoSubmit,
+            serverStartTime: serverStartTime,
+            timerSignature: timerSignature,
+            quizDuration: quizDuration
         };
 
         const response = await fetch('/api/submit', {
@@ -627,6 +695,12 @@ async function submitQuiz(isAutoSubmit = false) {
         });
 
         const resultData = await response.json();
+
+        if (!response.ok) {
+            alert(resultData.error || "Submission rejected by server.");
+            goHome();
+            return;
+        }
 
         const resultContainer = document.getElementById('result-screen');
         if (resultContainer && resultData.success) {
@@ -640,6 +714,10 @@ async function submitQuiz(isAutoSubmit = false) {
                 </div>
             `;
             showScreen('result-screen');
+            
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            }
         }
 
     } catch (error) {
