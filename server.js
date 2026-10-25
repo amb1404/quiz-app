@@ -102,6 +102,13 @@ app.get('/api/download/:fileName', (req, res) => {
 });
 
 app.get('/api/quiz/:id', (req, res) => {
+    // --- NEW: Anti-Scraping Security Check ---
+    const requestSource = req.get('X-Requested-With');
+    if (requestSource !== 'PioneersPrepApp') {
+        return res.status(403).json({ error: "Security Alert: Direct API access is forbidden." });
+    }
+    // -----------------------------------------
+
     try {
         const id = req.params.id;
         let filePath = path.join(__dirname, `${id}.json`);
