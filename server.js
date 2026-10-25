@@ -12,13 +12,17 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- BACKEND-INJECTED CSS OVERRIDES (Mobile Fit, Centered Nav Grid, No Underlines) ---
+// --- BACKEND-INJECTED CSS OVERRIDES (Hidden fix, Mobile Fit, Centered Nav Grid, No Underlines) ---
 app.get('/style.css', (req, res) => {
     const cssPath = path.join(__dirname, 'public', 'style.css');
     let cssContent = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf8') : '';
 
     const backendCssOverrides = `
-/* --- Server-Enforced Navigation Grid & Mobile Viewport Fit --- */
+/* --- Server-Enforced Fixes: Hidden Class, Nav Grid & Mobile Viewport Fit --- */
+.hidden {
+    display: none !important;
+}
+
 #first-name, #last-name {
     text-transform: uppercase;
 }
@@ -145,13 +149,12 @@ app.get('/style.css', (req, res) => {
     res.type('text/css').send(cssContent + '\n' + backendCssOverrides);
 });
 
-// --- BACKEND-INJECTED JS OVERRIDES (Verify -> Start Quiz Button, Back Button Fix, Casing) ---
+// --- BACKEND-INJECTED JS OVERRIDES ---
 app.get('/script.js', (req, res) => {
     const jsPath = path.join(__dirname, 'public', 'script.js');
     let jsContent = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, 'utf8') : '';
 
     const backendJsOverrides = `
-// --- Server-Enforced Frontend Behavior Overrides ---
 function syncNameScreenButtons() {
     const backBtn = document.querySelector('#name-screen .back-btn');
     if (backBtn) backBtn.innerText = 'Back';
@@ -188,7 +191,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Override goHome so resetting always restores "Back" and "Verify"
 const originalGoHome = typeof goHome === 'function' ? goHome : null;
 goHome = function() {
     if (originalGoHome) originalGoHome();
@@ -197,7 +199,6 @@ goHome = function() {
     syncNameScreenButtons();
 };
 
-// Override startQuiz to keep Back button intact and transition Verify -> Start Quiz
 startQuiz = async function() {
     const firstNameEl = document.getElementById('first-name');
     const lastNameEl = document.getElementById('last-name');
@@ -339,7 +340,6 @@ startQuiz = async function() {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Keep-awake route for cron-job.org
 app.get('/ping', (req, res) => {
     res.status(200).send('Awake');
 });
@@ -473,7 +473,6 @@ app.post('/api/start-quiz', (req, res) => {
     res.json({ startTime, signature });
 });
 
-// Backend OTP Routes with Text Normalization
 app.post('/api/send-otp', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : '';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : '';
@@ -568,132 +567,4 @@ app.post('/api/submit', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
     }
 
-    const expectedSignature = crypto.createHmac('sha256', SECRET).update(`${quizId}:${quizDuration}:${serverStartTime}`).digest('hex');
-    if (expectedSignature !== timerSignature) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
-    }
-
-    const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
-    const gracePeriod = 45; 
-    if (elapsedSeconds > quizDuration + gracePeriod) {
-        return res.status(400).json({ success: false, error: 'Time limit exceeded. Submission blocked by server.' });
-    }
-
-    try {
-        const safeUserAnswers = userAnswers || {};
-        let filePath = path.join(__dirname, `${quizId}.json`);
-        if (!fs.existsSync(filePath)) {
-            filePath = path.join(__dirname, `${quizId}-questions.json`);
-        }
-        const rawData = fs.readFileSync(filePath, 'utf-8');
-        const realQuestions = JSON.parse(rawData);
-
-        let correctCount = 0;
-        let incorrectCount = 0;
-        const totalCount = realQuestions.length;
-        const attemptedCount = Object.keys(safeUserAnswers).length;
-        const skippedCount = totalCount - attemptedCount;
-        
-        if (!isAutoSubmit && attemptedCount < totalCount) {
-            return res.status(400).json({ 
-                success: false, 
-                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
-            });
-        }
-
-        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
-            `<tr style="background-color: #f1f5f9; text-align: left;">` +
-            `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
-
-        realQuestions.forEach((q, index) => {
-            const studentResponse = safeUserAnswers[index.toString()]; 
-            const isAttempted = studentResponse !== undefined && studentResponse !== "";
-
-            let isCorrect = false;
-            let studentSelectionText = "Skipped";
-            let correctOptionText = "N/A";
-            let rawStatus = "Skipped";
-            let statusColor = "yellow";
-
-            if (q.type === 'descriptive') {
-                studentSelectionText = isAttempted ? studentResponse : "Skipped";
-                correctOptionText = q.model_answer || "Refer to marking scheme";
-                if (isAttempted) {
-                    rawStatus = "Needs Review";
-                    statusColor = "orange";
-                }
-            } else {
-                isCorrect = isAttempted && parseInt(studentResponse) === q.answer;
-                if (isCorrect) correctCount++;
-                else if (isAttempted) incorrectCount++;
-
-                studentSelectionText = isAttempted ? (q.options[studentResponse] || "Unknown") : "Skipped";
-                correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
-                rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
-                statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
-            }
-            
-            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
-            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
-
-            breakdownHtml += `<tr><td>${index + 1}</td><td>${q.question || "N/A"}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
-        });
-        breakdownHtml += `</table>`;
-
-        const fullTitle = (className && !chapterTitle.startsWith(className))
-            ? `${className} - ${chapterTitle}`
-            : chapterTitle;
-
-        const studentName = `${firstName} ${lastName}`.trim();
-
-        const securePayload = {
-            firstName, lastName, email,
-            className: className || "",
-            chapterTitle: fullTitle,
-            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
-            score: correctCount, total: totalCount,
-            attempted: attemptedCount, skipped: skippedCount,
-            correct: correctCount, incorrect: incorrectCount,
-            breakdown: breakdownHtml,
-            targetEmail: process.env.TARGET_EMAIL
-        };
-
-        try {
-            const submissionsFile = path.join(__dirname, 'submissions.json');
-            let allSubmissions = [];
-            
-            if (fs.existsSync(submissionsFile)) {
-                const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
-                allSubmissions = JSON.parse(fileData);
-            }
-            
-            allSubmissions.push({
-                timestamp: new Date().toISOString(),
-                ...securePayload
-            });
-            
-            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-        } catch (err) {
-            console.error("Local backup failed:", err);
-        }
-
-        res.json({ success: true, score: correctCount, total: totalCount });
-
-        const scriptURL = process.env.APP_SCRIPT_URL;
-        if (scriptURL) {
-            await fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(securePayload)
-            });
-        }
-
-    } catch (error) {
-        console.error("Submission error:", error);
-        res.status(500).json({ success: false, error: "Grading failed" });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+    const expectedSignature = crypto.crea
