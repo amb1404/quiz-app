@@ -1,46 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #e0f2fe;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='350' height='350'%3E%3Ctext x='50%25' y='50%25' transform='rotate(-35 175 175)' font-family='Algerian, sans-serif' font-size='22' fill='rgba(0,0,0,0.06)' text-anchor='middle' dominant-baseline='middle'%3EANIRUDDHA BANERJEE%3C/text%3E%3C/svg%3E");
-    background-repeat: repeat;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    font-family: 'Poppins', sans-serif;
+    /* 1. Professional Background (Sleek dark tech gradient, no watermarks) */
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f8fafc;
     min-height: 100vh;
+    margin: 0;
+    padding: 40px;
+    display: block; /* Removes body flex-centering so items honor margins */
 }
 
+/* 2. Selection & Name Screens: Aligned to the Left Margin */
 #class-select-screen, 
 #subject-select-screen, 
 #ix-x-chapter-screen, 
 #xi-xii-unit-screen, 
 #xi-xii-chapter-screen, 
 #xi-xii-topic-screen, 
-#name-screen, 
-#quiz-screen, 
-#result-screen {
-    background-color: #fffbeb;
+#name-screen,
+#download-screen {
+    background-color: rgba(255, 251, 235, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     width: 600px;
     max-width: 90%;
     padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     box-sizing: border-box;
+    margin: 0; /* Snaps cards to the left margin */
+    color: #0f172a;
 }
 
-.screen-heading {
-    color: #4285f4;       
-    font-size: 22px;      
-    font-weight: bold;    
-    text-align: center;   
-    margin-top: 0;                  
-    border-bottom: 2px solid #e2e8f0; 
-    padding-bottom: 10px;
-    margin-bottom: 20px;
+/* 3. Quiz Screen: Expands wide to cover the page as an immersive view */
+#quiz-screen {
+    background-color: rgba(255, 251, 235, 0.98);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 95%;
+    max-width: 1200px; /* Covers the page expansively */
+    min-height: 85vh;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
+    margin: 0 auto; /* Centered immersive layout for testing */
+    color: #0f172a;
+}
+
+#result-screen {
+    background-color: rgba(255, 251, 235, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 700px;
+    max-width: 90%;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    margin: 0 auto;
+    color: #0f172a;
 }
 
 .card {
@@ -54,28 +77,17 @@ body {
     border-radius: 8px;                
     border: 1px solid #cbd5e1;         
     cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .card:hover {
-    background-color: #e2e8f0;       
+    background-color: #ffffff;       
     border: 1px solid #4285f4; 
     color: #4285f4;      
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(66, 133, 244, 0.15);
 }
-
-.back-btn {
-    background-color: #64748b; 
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px 20px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    display: inline-block;
-    margin-bottom: 15px;
-}
-
-.back-btn:hover { background-color: #475569; }
 
 .option-btn {
     display: block;
@@ -83,13 +95,14 @@ body {
     background-color: #ffffff;
     color: #0f172a;
     font-size: 16px;
+    font-weight: 500;
     text-align: left;
-    padding: 14px 18px;
-    margin-bottom: 12px;
+    padding: 16px 20px;
+    margin-bottom: 15px;
     border-radius: 8px;
     border: 1px solid #cbd5e1;
     cursor: pointer;
-    box-sizing: border-box;
+    transition: all 0.2s ease;
 }
 
 .option-btn:hover {
@@ -98,125 +111,68 @@ body {
 }
 
 .option-btn.selected {
-    background-color: #4285f4 !important;
-    color: #ffffff !important;
-    border-color: #4285f4 !important;
-}
-
-#name-screen input {
-    display: block;
-    width: 100%;
-    padding: 14px 18px;
-    margin-bottom: 15px;
-    font-size: 16px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    box-sizing: border-box;
-    background-color: #ffffff;
-    color: #0f172a;
-}
-
-#name-screen input:focus {
-    outline: none;
+    background-color: #e0f2fe;
     border-color: #4285f4;
+    color: #1e40af;
+    font-weight: 600;
 }
 
-#name-start-btn {
-    display: block;
-    width: 100%;
-    max-width: 280px;
-    margin: 25px auto 0 auto;
-    background-color: #22c55e;
-    color: #ffffff;
-    font-size: 18px;
-    font-weight: bold;
-    padding: 14px 24px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    text-align: center;
-}
-
-#name-start-btn:hover { background-color: #16a34a; }
-
+/* Quiz Header & Controls */
 .quiz-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 #submit-btn {
     background-color: #ef4444;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 8px 16px;
-    border-radius: 6px;
+    color: white;
     border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: bold;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
-#submit-btn:hover { background-color: #dc2626; }
-
-.nav-buttons {
-    display: grid;
-    grid-template-columns: minmax(110px, 1fr) auto minmax(110px, 1fr);
-    align-items: center;
-    gap: 15px;                          
-    margin-top: 30px;               
+#submit-btn:hover {
+    background-color: #dc2626;
 }
 
-/* Shared colors and borders for both buttons */
-#prev-btn, #next-btn {
-    background-color: #4285f4; 
-    color: #ffffff;    
-    font-weight: bold;                        
-    border-radius: 6px;        
-    border: none;              
-    cursor: pointer;
+/* Progress Bar Styling */
+.progress-container {
+    width: 100%;
+    height: 8px;
+    background-color: #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    overflow: hidden;
 }
 
-/* Change the size of the PREVIOUS button here */
-#prev-btn { 
-    justify-self: start; 
-    font-size: 18px;           /* Change text size */
-    padding: 12px 20px;        /* Change height and width (top/bottom left/right) */
-    width: 140px;              /* Optional: force a specific width */
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4285f4, #2563eb);
+    width: 0%;
+    transition: width 0.4s ease;
 }
 
-/* Change the size of the NEXT button here */
-#next-btn { 
-    justify-self: end; 
-    font-size: 18px;           /* Example: Made text larger */
-    padding: 12px 20px;        /* Example: Made button thicker and wider */
-    width: 140px;              /* Optional: force a specific width */
-}
-#prev-btn:hover, #next-btn:hover { background-color: #2563eb; }
-
-#clear-btn {
-    background-color: #e2e8f0;   
-    color: #333333;   
-    font-size: 16px;
-    font-weight: bold;                        
-    padding: 12px 20px;        
-    border-radius: 6px;        
-    border: none;              
-    cursor: pointer;                     
-    justify-self: center;              
+/* Screen Fade-In Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-#clear-btn:hover { background-color: #cbd5e1; color: #000000; }
-.hidden { display: none !important; }
-/* Force the email input text to always be lowercase */
-#email-address {
-    text-transform: lowercase;
+.fade-in {
+    animation: fadeIn 0.35s ease forwards;
 }
 
 @media (max-width: 600px) {
     body {
-        background-size: 180px;
-        }
+        padding: 15px;
+    }
     #class-select-screen, 
     #subject-select-screen, 
     #ix-x-chapter-screen, 
@@ -225,23 +181,9 @@ body {
     #xi-xii-topic-screen, 
     #name-screen, 
     #quiz-screen, 
-    #result-screen { 
-        width: 95%; 
-        margin: 15px auto; 
-        padding: 15px; 
+    #result-screen,
+    #download-screen {
+        width: 100%;
+        padding: 20px;
     }
-    .quiz-header { 
-        flex-direction: column; 
-        align-items: flex-start; 
-        gap: 10px; 
-        margin-bottom: 20px; 
-    }
-    #submit-btn { width: 100%; margin-top: 5px; }
-    .nav-buttons {
-        grid-template-columns: minmax(75px, 1fr) auto minmax(75px, 1fr);
-        gap: 8px;
-    }
-    #clear-btn { font-size: 10px; padding: 10px 10px; }
-    #prev-btn { font-size: 15px; padding: 10px 10px; width: 100%; } 
-    #next-btn { font-size: 15px; padding: 10px 10px; width: 100%; }
 }
