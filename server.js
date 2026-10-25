@@ -1,8 +1,10 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto'); // ADDED: For cryptographic signatures
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key'; // ADDED: Secret key for timer
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -126,9 +128,38 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
+// ADDED: Generates a cryptographically signed start time
+app.post('/api/start-quiz', (req, res) => {
+    const { quizId, duration } = req.body;
+    const startTime = Date.now();
+    // Create a tamper-proof signature binding the quiz, duration, and start time
+    const dataToSign = `${quizId}:${duration}:${startTime}`;
+    const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
+    res.json({ startTime, signature });
+});
+
 app.post('/api/submit', async (req, res) => {
-   // 1. ADDED isAutoSubmit TO THIS LINE
-   const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit } = req.body;
+    // ADDED: serverStartTime, timerSignature, and quizDuration
+    const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration } = req.body;
+
+    // --- ADDED: SECURE SERVER-SIDE TIMER CHECK ---
+    if (!serverStartTime || !timerSignature || !quizDuration) {
+        return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
+    }
+
+    // 1. Verify the signature wasn't tampered with by a student
+    const expectedSignature = crypto.createHmac('sha256', SECRET).update(`${quizId}:${quizDuration}:${serverStartTime}`).digest('hex');
+    if (expectedSignature !== timerSignature) {
+        return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
+    }
+
+    // 2. Verify they didn't take too long (Allowing a 45-second grace period for network lag)
+    const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
+    const gracePeriod = 45; 
+    if (elapsedSeconds > quizDuration + gracePeriod) {
+        return res.status(400).json({ success: false, error: 'Time limit exceeded. Submission blocked by server.' });
+    }
+    // -------------------------------------------
 
     try {
         const safeUserAnswers = userAnswers || {};
@@ -145,7 +176,6 @@ app.post('/api/submit', async (req, res) => {
         const attemptedCount = Object.keys(safeUserAnswers).length;
         const skippedCount = totalCount - attemptedCount;
         
-        // 2. UPDATED THIS IF STATEMENT TO CHECK FOR !isAutoSubmit
         if (!isAutoSubmit && attemptedCount < totalCount) {
             return res.status(400).json({ 
                 success: false, 
