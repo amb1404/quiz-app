@@ -6,6 +6,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key'; // ADDED: Secret key for timer
 
+// --- NEW: OTP & Session Stores ---
+const pendingOtps = {};
+const activeSessions = new Set();
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -87,10 +91,7 @@ app.get('/api/papers/:className', (req, res) => {
 });
 
 app.get('/api/download/:fileName', (req, res) => {
-    // path.basename() completely strips out any directory paths (like ../) 
-    // and strictly returns just the final file name.
     const safeFileName = path.basename(req.params.fileName);
-    
     const filePath = path.join(__dirname, 'secure_papers', safeFileName); 
     
     res.download(filePath, (err) => {
@@ -102,12 +103,11 @@ app.get('/api/download/:fileName', (req, res) => {
 });
 
 app.get('/api/quiz/:id', (req, res) => {
-    // --- NEW: Anti-Scraping Security Check ---
+    // --- Anti-Scraping Security Check ---
     const requestSource = req.get('X-Requested-With');
     if (requestSource !== 'PioneersPrepApp') {
         return res.status(403).json({ error: "Security Alert: Direct API access is forbidden." });
     }
-    // -----------------------------------------
 
     try {
         const id = req.params.id;
@@ -122,9 +122,9 @@ app.get('/api/quiz/:id', (req, res) => {
 
         const safeQuestions = realQuestions.map(q => {
             return {
-                type: q.type || 'mcq', // Identifies descriptive questions
+                type: q.type || 'mcq',
                 question: q.question,
-                options: q.options || [] // Prevents crashes if options array is missing
+                options: q.options || []
             };
         });
 
@@ -135,38 +135,116 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
-// ADDED: Generates a cryptographically signed start time
+// Generates a cryptographically signed start time
 app.post('/api/start-quiz', (req, res) => {
     const { quizId, duration } = req.body;
     const startTime = Date.now();
-    // Create a tamper-proof signature binding the quiz, duration, and start time
     const dataToSign = `${quizId}:${duration}:${startTime}`;
     const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
     res.json({ startTime, signature });
 });
 
-app.post('/api/submit', async (req, res) => {
-    // ADDED: serverStartTime, timerSignature, and quizDuration
-    const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration } = req.body;
+// --- NEW: Backend OTP Routes ---
+app.post('/api/send-otp', async (req, res) => {
+    const { firstName, lastName, email } = req.body;
+    if (!firstName || !lastName || !email) {
+        return res.status(400).json({ success: false, error: 'All fields are required.' });
+    }
 
-    // --- ADDED: SECURE SERVER-SIDE TIMER CHECK ---
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    pendingOtps[email] = {
+        otp,
+        firstName,
+        lastName,
+        expiresAt: Date.now() + 5 * 60 * 1000 // Valid for 5 minutes
+    };
+
+    const scriptURL = process.env.APP_SCRIPT_URL;
+    if (scriptURL) {
+        try {
+            const emailPayload = {
+                targetEmail: email,
+                subject: 'Pioneers Prep - Verification Code',
+                breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">` +
+                           `<h2>Hello ${firstName} ${lastName},</h2>` +
+                           `<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>` +
+                           `<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1>` +
+                           `<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>` +
+                           `</div>`,
+                score: 0, total: 0, attempted: 0, skipped: 0, correct: 0, incorrect: 0
+            };
+
+            await fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(emailPayload)
+            });
+
+            res.json({ success: true, message: 'OTP sent successfully to your email.' });
+        } catch (err) {
+            console.error('Failed to dispatch OTP email:', err);
+            res.status(500).json({ success: false, error: 'Failed to send OTP email via server.' });
+        }
+    } else {
+        res.status(500).json({ success: false, error: 'Email service URL not configured on server.' });
+    }
+});
+
+app.post('/api/verify-otp', (req, res) => {
+    const { email, otp } = req.body;
+    const record = pendingOtps[email];
+
+    if (!record) {
+        return res.status(400).json({ success: false, error: 'No pending verification found. Please request a new code.' });
+    }
+    if (Date.now() > record.expiresAt) {
+        delete pendingOtps[email];
+        return res.status(400).json({ success: false, error: 'OTP has expired. Please request a new one.' });
+    }
+    if (record.otp !== otp) {
+        return res.status(400).json({ success: false, error: 'Invalid verification code entered.' });
+    }
+
+    delete pendingOtps[email];
+    
+    // Issue secure session token and register it on the backend
+    const authToken = crypto.createHmac('sha256', SECRET).update(`${email}:${Date.now()}`).digest('hex');
+    activeSessions.add(authToken);
+
+    res.json({ 
+        success: true, 
+        authToken, 
+        firstName: record.firstName, 
+        lastName: record.lastName 
+    });
+});
+// -----------------------------
+
+app.post('/api/submit', async (req, res) => {
+    const { firstName, lastName, email, className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
+
+    // --- NEW: BACKEND AUTHENTICATION CHECK ---
+    if (!authToken || !activeSessions.has(authToken)) {
+        return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized submission. Please verify your email first.' });
+    }
+    activeSessions.delete(authToken); // Invalidate token immediately (One-Time Use)
+    // ----------------------------------------
+
+    // --- SECURE SERVER-SIDE TIMER CHECK ---
     if (!serverStartTime || !timerSignature || !quizDuration) {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
     }
 
-    // 1. Verify the signature wasn't tampered with by a student
     const expectedSignature = crypto.createHmac('sha256', SECRET).update(`${quizId}:${quizDuration}:${serverStartTime}`).digest('hex');
     if (expectedSignature !== timerSignature) {
         return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
     }
 
-    // 2. Verify they didn't take too long (Allowing a 45-second grace period for network lag)
     const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
     const gracePeriod = 45; 
     if (elapsedSeconds > quizDuration + gracePeriod) {
         return res.status(400).json({ success: false, error: 'Time limit exceeded. Submission blocked by server.' });
     }
-    // -------------------------------------------
 
     try {
         const safeUserAnswers = userAnswers || {};
@@ -196,7 +274,6 @@ app.post('/api/submit', async (req, res) => {
 
         realQuestions.forEach((q, index) => {
             const studentResponse = safeUserAnswers[index.toString()]; 
-            // Treat as attempted if an option index exists OR if text was typed
             const isAttempted = studentResponse !== undefined && studentResponse !== "";
 
             let isCorrect = false;
@@ -207,14 +284,12 @@ app.post('/api/submit', async (req, res) => {
 
             if (q.type === 'descriptive') {
                 studentSelectionText = isAttempted ? studentResponse : "Skipped";
-                // Show the model answer from your JSON in the grading email
                 correctOptionText = q.model_answer || "Refer to marking scheme";
                 if (isAttempted) {
                     rawStatus = "Needs Review";
                     statusColor = "orange";
                 }
             } else {
-                // Standard MCQ grading
                 isCorrect = isAttempted && parseInt(studentResponse) === q.answer;
                 if (isCorrect) correctCount++;
                 else if (isAttempted) incorrectCount++;
@@ -226,7 +301,6 @@ app.post('/api/submit', async (req, res) => {
             }
             
             const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
-            
             const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
 
             breakdownHtml += `<tr><td>${index + 1}</td><td>${q.question || "N/A"}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
