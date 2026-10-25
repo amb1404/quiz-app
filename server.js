@@ -101,6 +101,7 @@ app.get('/', (req, res) => {
 
         #name-screen input[type="text"], 
         #name-screen input[type="email"],
+        #name-screen input[type="number"],
         #otp-input-field {
             width: 100%;
             padding: 14px 18px;
@@ -1024,7 +1025,7 @@ app.get('/', (req, res) => {
                         otpWrapper.style.cssText = 'margin-top: 15px;';
                         otpWrapper.innerHTML = \`
                             <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333; text-align: left;">Enter 6-Digit Verification Code:</label>
-                            <input type="text" id="otp-input-field" maxlength="6" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />
+                            <input type="number" id="otp-input-field" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />
                         \`;
 
                         if (submitBtn && submitBtn.parentNode === nameScreenContainer) {
@@ -1639,11 +1640,11 @@ app.post('/api/submit', async (req, res) => {
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (scriptURL) {
-            await fetch(scriptURL, {
+            fetch(scriptURL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(securePayload)
-            });
+            }).catch(err => console.error('Background submission email error:', err));
         }
 
     } catch (error) {
