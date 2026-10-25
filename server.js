@@ -11,7 +11,7 @@ const activeSessions = new Set();
 
 app.use(express.json());
 
-// --- MASTER BACKEND SERVER: ABSOLUTE MOBILE ISOLATION & VIEWPORT FIX ---
+// --- MASTER BACKEND SERVER: SILENT OTP & CENTERED RESULTS ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -51,8 +51,7 @@ app.get('/', (req, res) => {
         #xi-xii-chapter-screen, 
         #xi-xii-topic-screen, 
         #name-screen,
-        #download-screen,
-        #result-screen {
+        #download-screen {
             background-color: rgba(255, 251, 235, 0.95);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -67,8 +66,9 @@ app.get('/', (req, res) => {
             color: #0f172a;
         }
 
-        /* 2. Quiz Screen: Centered and expansive */
-        #quiz-screen {
+        /* 2. Quiz & Result Screens: Centered and expansive */
+        #quiz-screen,
+        #result-screen {
             background-color: rgba(255, 251, 235, 0.98);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -82,6 +82,10 @@ app.get('/', (req, res) => {
             box-sizing: border-box;
             margin: 0 auto;
             color: #0f172a;
+        }
+
+        #result-screen {
+            max-width: 800px;
         }
 
         #first-name, #last-name {
@@ -268,7 +272,8 @@ app.get('/', (req, res) => {
                 margin: 0 !important;
             }
 
-            #quiz-screen:not(.hidden) {
+            #quiz-screen:not(.hidden),
+            #result-screen:not(.hidden) {
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
@@ -970,6 +975,7 @@ app.get('/', (req, res) => {
             }, 1000);
         }
 
+        // --- SILENT OTP REQUEST & INLINE OTP BOX REVEAL ---
         async function startQuiz() {
             const firstNameEl = document.getElementById('first-name');
             const lastNameEl = document.getElementById('last-name');
@@ -1020,8 +1026,7 @@ app.get('/', (req, res) => {
                         return;
                     }
 
-                    alert('A 6-digit verification code has been sent to your email address. Please check your inbox.');
-
+                    // Removed alert() pop-up. Seamlessly append inline OTP box.
                     const nameScreenContainer = document.getElementById('name-screen');
                     if (nameScreenContainer) {
                         const otpWrapper = document.createElement('div');
