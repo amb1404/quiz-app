@@ -1392,7 +1392,6 @@ app.get('/api/download/:fileName', (req, res) => {
     });
 });
 
-// --- BULLETPROOF SECURITY: ANTI-SCRAPING & ANSWER STRIPPING ---
 app.get('/api/quiz/:id', (req, res) => {
     const requestSource = req.get('X-Requested-With');
     if (requestSource !== 'PioneersPrepApp') {
@@ -1410,7 +1409,6 @@ app.get('/api/quiz/:id', (req, res) => {
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
-        // Strip correct answers completely before sending to client
         const safeQuestions = realQuestions.map(q => {
             return {
                 type: q.type || 'mcq',
@@ -1434,6 +1432,7 @@ app.post('/api/start-quiz', (req, res) => {
     res.json({ startTime, signature });
 });
 
+// --- ASYNCHRONOUS NON-BLOCKING OTP DISPATCH ---
 app.post('/api/send-otp', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : '';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : '';
@@ -1453,8 +1452,12 @@ app.post('/api/send-otp', async (req, res) => {
 
     const scriptURL = process.env.APP_SCRIPT_URL;
     if (scriptURL) {
-        try {
-            const emailPayload = {
+        // Fire-and-forget: background fetch avoids button freezing/lag
+        fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'otp',
                 targetEmail: email,
                 subject: 'Pioneers Prep - Verification Code',
                 breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">` +
@@ -1462,21 +1465,11 @@ app.post('/api/send-otp', async (req, res) => {
                            `<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>` +
                            `<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1>` +
                            `<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>` +
-                           `</div>`,
-                score: 0, total: 0, attempted: 0, skipped: 0, correct: 0, incorrect: 0
-            };
+                           `</div>`
+            })
+        }).catch(err => console.error('Background email error:', err));
 
-            await fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(emailPayload)
-            });
-
-            res.json({ success: true, message: 'OTP sent successfully to your email.', firstName, lastName, email });
-        } catch (err) {
-            console.error('Failed to dispatch OTP email:', err);
-            res.status(500).json({ success: false, error: 'Failed to send OTP email via server.' });
-        }
+        res.json({ success: true, message: 'OTP sent successfully.', firstName, lastName, email });
     } else {
         res.status(500).json({ success: false, error: 'Email service URL not configured on server.' });
     }
@@ -1512,7 +1505,6 @@ app.post('/api/verify-otp', (req, res) => {
     });
 });
 
-// --- BULLETPROOF SECURITY: SERVER-SIDE TIMER & GRACE PERIOD VERIFICATION ---
 app.post('/api/submit', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : 'UNKNOWN';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : 'NAME';
@@ -1523,7 +1515,7 @@ app.post('/api/submit', async (req, res) => {
     if (!authToken || !activeSessions.has(authToken)) {
         return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized submission. Please verify your email first.' });
     }
-    activeSessions.delete(authToken); // One-Time Use Token
+    activeSessions.delete(authToken);
 
     if (!serverStartTime || !timerSignature || !quizDuration) {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
@@ -1534,7 +1526,6 @@ app.post('/api/submit', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
     }
 
-    // Strict Server-Side Wall-Clock Timer Validation with 45s Network Grace Period
     const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
     const gracePeriod = 45; 
     if (elapsedSeconds > quizDuration + gracePeriod) {
