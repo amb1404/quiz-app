@@ -1299,7 +1299,7 @@ app.get('/', (req, res) => {
         }
     </script>
 </body>
-</html>\`);
+</html>`);
 });
 
 app.get('/ping', (req, res) => {
@@ -1340,14 +1340,14 @@ app.get('/api/papers/:className/:subjectName', (req, res) => {
     try {
         if (fs.existsSync(path.join(__dirname, 'quizzes.json'))) {
             const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'quizzes.json'), 'utf8'));
-            const classObj = data.find(c => c.name === className || c.name === \`Class \${className}\`);
+            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
             const subjectObj = classObj?.subjects?.find(s => s.name.toLowerCase() === subjectName.toLowerCase());
             if (subjectObj && subjectObj.papers) papers = papers.concat(subjectObj.papers);
         }
 
         if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
             const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
-            const classObj = data.find(c => c.name === className || c.name === \`Class \${className}\`);
+            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
             const unitObj = classObj?.units?.find(u => u.name.toLowerCase() === subjectName.toLowerCase());
             if (unitObj && unitObj.papers) papers = papers.concat(unitObj.papers);
         }
@@ -1366,13 +1366,13 @@ app.get('/api/papers/:className', (req, res) => {
     try {
         if (fs.existsSync(path.join(__dirname, 'wb.json'))) {
             const wbData = JSON.parse(fs.readFileSync(path.join(__dirname, 'wb.json'), 'utf8'));
-            const wbClass = wbData.find(c => c.className === className || c.className === \`WB \${className}\`);
+            const wbClass = wbData.find(c => c.className === className || c.className === `WB ${className}`);
             if (wbClass && wbClass.papers) papers = papers.concat(wbClass.papers);
         }
 
         if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
             const neetData = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
-            const neetClass = neetData.find(c => c.name === className || c.name === \`Class \${className}\`);
+            const neetClass = neetData.find(c => c.name === className || c.name === `Class ${className}`);
             if (neetClass && neetClass.papers) papers = papers.concat(neetClass.papers);
         }
 
@@ -1403,10 +1403,10 @@ app.get('/api/quiz/:id', (req, res) => {
 
     try {
         const id = req.params.id;
-        let filePath = path.join(__dirname, \`\${id}.json\`);
+        let filePath = path.join(__dirname, `${id}.json`);
 
         if (!fs.existsSync(filePath)) {
-            filePath = path.join(__dirname, \`\${id}-questions.json\`);
+            filePath = path.join(__dirname, `${id}-questions.json`);
         }
 
         const rawData = fs.readFileSync(filePath, 'utf-8');
@@ -1430,7 +1430,7 @@ app.get('/api/quiz/:id', (req, res) => {
 app.post('/api/start-quiz', (req, res) => {
     const { quizId, duration } = req.body;
     const startTime = Date.now();
-    const dataToSign = \`\${quizId}:\${duration}:\${startTime}\`;
+    const dataToSign = `${quizId}:${duration}:${startTime}`;
     const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
     res.json({ startTime, signature });
 });
@@ -1464,12 +1464,12 @@ app.post('/api/send-otp', async (req, res) => {
                 targetEmail: email,
                 subject: 'Pioneers Prep - Verification Code',
                 secretKey: APPS_SECRET,
-                breakdown: \`<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">\` +
-                           \`<h2>Hello \${firstName} \${lastName},</h2>\` +
-                           \`<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>\` +
-                           \`<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">\${otp}</h1>\` +
-                           \`<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>\` +
-                           \`</div>\`
+                breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">` +
+                           `<h2>Hello ${firstName} ${lastName},</h2>` +
+                           `<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>` +
+                           `<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1>` +
+                           `<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>` +
+                           `</div>`
             })
         }).catch(err => console.error('Background email error:', err));
 
@@ -1497,7 +1497,7 @@ app.post('/api/verify-otp', (req, res) => {
 
     delete pendingOtps[email];
     
-    const authToken = crypto.createHmac('sha256', SECRET).update(\`\${email}:\${Date.now()}\`).digest('hex');
+    const authToken = crypto.createHmac('sha256', SECRET).update(`${email}:${Date.now()}`).digest('hex');
     activeSessions.add(authToken);
 
     res.json({ 
@@ -1525,7 +1525,7 @@ app.post('/api/submit', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
     }
 
-    const expectedSignature = crypto.createHmac('sha256', SECRET).update(\`\${quizId}:\${quizDuration}:\${serverStartTime}\`).digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', SECRET).update(`${quizId}:${quizDuration}:${serverStartTime}`).digest('hex');
     if (expectedSignature !== timerSignature) {
         return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
     }
@@ -1538,9 +1538,9 @@ app.post('/api/submit', async (req, res) => {
 
     try {
         const safeUserAnswers = userAnswers || {};
-        let filePath = path.join(__dirname, \`\${quizId}.json\`);
+        let filePath = path.join(__dirname, `${quizId}.json`);
         if (!fs.existsSync(filePath)) {
-            filePath = path.join(__dirname, \`\${quizId}-questions.json\`);
+            filePath = path.join(__dirname, `${quizId}-questions.json`);
         }
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
@@ -1554,13 +1554,13 @@ app.post('/api/submit', async (req, res) => {
         if (!isAutoSubmit && attemptedCount < totalCount) {
             return res.status(400).json({ 
                 success: false, 
-                error: \`Submission rejected. Only \${attemptedCount} out of \${totalCount} questions were answered.\` 
+                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
             });
         }
 
-        let breakdownHtml = \`<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">\` +
-            \`<tr style="background-color: #f1f5f9; text-align: left;">\` +
-            \`<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>\`;
+        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
+            `<tr style="background-color: #f1f5f9; text-align: left;">` +
+            `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
 
         realQuestions.forEach((q, index) => {
             const studentResponse = safeUserAnswers[index.toString()]; 
@@ -1590,24 +1590,24 @@ app.post('/api/submit', async (req, res) => {
                 statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
             }
             
-            const statusText = \`<span style="background-color: \${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">\${rawStatus}</span>\`;
-            const explanationHtml = q.explanation ? \`<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> \${q.explanation}</span>\` : "";
+            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
+            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
 
-            breakdownHtml += \`<tr><td>\${index + 1}</td><td>\${q.question || "N/A"}\${explanationHtml}</td><td>\${studentSelectionText}</td><td>\${correctOptionText}</td><td style="text-align: center;">\${statusText}</td></tr>\`;
+            breakdownHtml += `<tr><td>${index + 1}</td><td>${q.question || "N/A"}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
         });
-        breakdownHtml += \`</table>\`;
+        breakdownHtml += `</table>`;
 
         const fullTitle = (className && !chapterTitle.startsWith(className))
-            ? \`\${className} - \${chapterTitle}\`
+            ? `${className} - ${chapterTitle}`
             : chapterTitle;
 
-        const studentName = \`\${firstName} \${lastName}\`.trim();
+        const studentName = `${firstName} ${lastName}`.trim();
 
         const securePayload = {
             firstName, lastName, email,
             className: className || "",
             chapterTitle: fullTitle,
-            subject: \`New Quiz Submission - \${fullTitle} - \${studentName}\`,
+            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
             score: correctCount, total: totalCount,
             attempted: attemptedCount, skipped: skippedCount,
             correct: correctCount, incorrect: incorrectCount,
@@ -1653,5 +1653,5 @@ app.post('/api/submit', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(\`Server running at http://localhost:\${PORT}\`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
