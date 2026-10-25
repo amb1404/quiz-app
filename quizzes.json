@@ -62,7 +62,8 @@
         "chapters": [
           { "id": "bonding", "title": "Chemical Bonding", "duration": 900 },
           { "id": "HCl", "title": "HCl", "duration": 900 },
-          { "id": "analytical", "title": "Analytical", "duration": 900 }
+          { "id": "analytical", "title": "Analytical", "duration": 900 },
+          { "id": "Chp-4", "title": "Cahpter-4", "duration": 900 }
         ]
       },
       {
