@@ -1,0 +1,30 @@
+[
+  {
+    "class": "IX",
+    "subject": "Physics",
+    "notes": [
+      {
+        "name": "Chapter 1: Kinematics Summary",
+        "fileName": "ix_kinematics_notes.pdf"
+      },
+      {
+        "name": "Chapter 2: Laws of Motion",
+        "fileName": "ix_laws_motion.pdf"
+      }
+    ]
+  },
+  {
+    "class": "XII",
+    "subject": "Biology",
+    "notes": [
+      {
+        "name": "Human Reproduction Comprehensive",
+        "fileName": "xii_bio_reproduction.pdf"
+      },
+      {
+        "name": "Genetics and Evolution",
+        "fileName": "xii_bio_genetics.pdf"
+      }
+    ]
+  }
+]
