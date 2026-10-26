@@ -1221,7 +1221,6 @@ app.get('/', (req, res) => {
                 }
 
                 // SECURE FIX: Create a self-verifying, stateless signature token.
-                // This guarantees active tests survive a Render server restart seamlessly.
                 studentAuthToken = verifyData.authToken;
 
                 const tokenResponse = await fetch('/api/start-quiz', {
@@ -1666,10 +1665,10 @@ app.post('/api/verify-otp', (req, res) => {
 
     delete pendingOtps[email];
     
-    // SECURE FIX: Stateless, self-verifying token that survives Render server restarts
+    // SECURE FIX: Using ||| delimiter so .com in emails doesn't break the string split
     const tokenData = email + ':' + Date.now();
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    const authToken = tokenData + '.' + signature;
+    const authToken = tokenData + '|||' + signature;
 
     res.json({ 
         success: true, 
@@ -1687,11 +1686,11 @@ app.post('/api/submit', async (req, res) => {
     
     const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    // SECURE FIX: Verify the stateless token mathematically instead of relying on memory
-    if (!authToken || !authToken.includes('.')) {
+    // SECURE FIX: Extracting by ||| to prevent breaking on email addresses
+    if (!authToken || !authToken.includes('|||')) {
         return res.status(403).json({ success: false, error: 'Security Alert: Invalid submission token.' });
     }
-    const [tokenData, authSignature] = authToken.split('.');
+    const [tokenData, authSignature] = authToken.split('|||');
     const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
     if (authSignature !== expectedAuthSig) {
         return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized or tampered session.' });
