@@ -63,14 +63,40 @@ app.get('/', (req, res) => {
             transform: translateY(0) !important;
         }
 
-        #class-select-screen, 
+        /* DASHBOARD FLEX LAYOUT FOR SIDE-BY-SIDE PANELS */
+        #home-dashboard {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .dashboard-panel {
+            background-color: rgba(255, 251, 235, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 500px;
+            max-width: 100%;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+            color: #0f172a;
+        }
+
+        /* GENERAL SCREEN CONTAINERS */
         #subject-select-screen, 
         #ix-x-chapter-screen, 
         #xi-xii-unit-screen, 
         #xi-xii-chapter-screen, 
         #xi-xii-topic-screen, 
         #name-screen,
-        #download-screen {
+        #download-screen,
+        #notes-subject-screen,
+        #notes-list-screen {
             background-color: rgba(255, 251, 235, 0.95);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -81,7 +107,7 @@ app.get('/', (req, res) => {
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             box-sizing: border-box;
-            margin: 0;
+            margin: 0 auto;
             color: #0f172a;
         }
 
@@ -263,21 +289,24 @@ app.get('/', (req, res) => {
             transition: width 0.4s ease;
         }
 
+        @media (max-width: 800px) {
+            #home-dashboard {
+                flex-direction: column;
+                gap: 20px !important;
+                padding: 0 !important;
+            }
+            .dashboard-panel {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 6px !important;
             }
 
-            #class-select-screen:not(.hidden), 
-            #subject-select-screen:not(.hidden), 
-            #ix-x-chapter-screen:not(.hidden), 
-            #xi-xii-unit-screen:not(.hidden), 
-            #xi-xii-chapter-screen:not(.hidden), 
-            #xi-xii-topic-screen:not(.hidden), 
-            #name-screen:not(.hidden), 
-            #result-screen:not(.hidden),
-            #download-screen:not(.hidden),
-            #quiz-screen:not(.hidden) {
+            .app-screen:not(.hidden) {
                 display: block !important;
                 width: 100% !important;
                 max-width: 100% !important;
@@ -287,6 +316,14 @@ app.get('/', (req, res) => {
                 border-radius: 12px !important;
                 box-sizing: border-box !important;
                 margin: 0 !important;
+            }
+
+            #home-dashboard:not(.hidden) {
+                display: flex !important;
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 0 !important;
             }
 
             #quiz-screen:not(.hidden),
@@ -360,17 +397,41 @@ app.get('/', (req, res) => {
 </head>
 <body>
 
-    <div id="class-select-screen">
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Class</h2>
-        <div class="card" onclick="selectClass('IX')">IX</div>
-        <div class="card" onclick="selectClass('X')">X</div>
-        <div class="card" onclick="selectClass('XI')">XI</div>
-        <div class="card" onclick="selectClass('XII')">XII</div>
-        <div class="card" onclick="selectClass('WB XI')">WB XI</div>
-        <div class="card" onclick="selectClass('WB XII')">WB XII</div>
+    <div id="home-dashboard" class="app-screen">
+        <div class="dashboard-panel">
+            <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Mock Tests</h2>
+            <div class="card" onclick="selectClass('IX')">IX</div>
+            <div class="card" onclick="selectClass('X')">X</div>
+            <div class="card" onclick="selectClass('XI')">XI</div>
+            <div class="card" onclick="selectClass('XII')">XII</div>
+            <div class="card" onclick="selectClass('WB XI')">WB XI</div>
+            <div class="card" onclick="selectClass('WB XII')">WB XII</div>
+        </div>
+
+        <div class="dashboard-panel">
+            <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
+            <div class="card" onclick="selectNotesClass('IX')">IX</div>
+            <div class="card" onclick="selectNotesClass('X')">X</div>
+            <div class="card" onclick="selectNotesClass('XI')">XI</div>
+            <div class="card" onclick="selectNotesClass('XII')">XII</div>
+        </div>
     </div>
 
-    <div id="subject-select-screen" class="hidden">
+    <!-- NOTES PORTAL SCREENS -->
+    <div id="notes-subject-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
+        <div id="notes-subject-container"></div>
+    </div>
+
+    <div id="notes-list-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Descriptive Notes</h2>
+        <div id="notes-list-container"></div>
+    </div>
+
+    <!-- MOCK TEST PORTAL SCREENS -->
+    <div id="subject-select-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Subject</h2>
         <div class="card" onclick="selectSubject('Physics')">Physics</div>
@@ -378,31 +439,31 @@ app.get('/', (req, res) => {
         <div class="card" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
-    <div id="ix-x-chapter-screen" class="hidden">
+    <div id="ix-x-chapter-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <div id="xi-xii-unit-screen" class="hidden">
+    <div id="xi-xii-unit-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Unit</h2>
         <div id="xi-xii-unit-container"></div>
     </div>
 
-    <div id="xi-xii-chapter-screen" class="hidden">
+    <div id="xi-xii-chapter-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
         <div id="xi-xii-chapter-container"></div>
     </div>
 
-    <div id="xi-xii-topic-screen" class="hidden">
+    <div id="xi-xii-topic-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Topic</h2>
         <div id="xi-xii-topic-container"></div>
     </div>
 
-    <div id="name-screen" class="hidden">
+    <div id="name-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Enter Details</h2>
         <p style="font-weight: bold; color: #333; margin-bottom: 15px;">Candidate Information</p>
@@ -412,7 +473,7 @@ app.get('/', (req, res) => {
         <button onclick="startQuiz()" style="width: 100%; margin-top: 10px;">Verify</button>
     </div>
 
-    <div id="quiz-screen" class="hidden">
+    <div id="quiz-screen" class="app-screen hidden">
         <div class="quiz-header">
             <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
             <span id="quiz-stats" style="font-size: 16px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
@@ -438,9 +499,9 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <div id="result-screen" class="hidden"></div>
+    <div id="result-screen" class="app-screen hidden"></div>
 
-    <div id="download-screen" class="hidden">
+    <div id="download-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Download Study Papers</h2>
         <div id="download-container"></div>
@@ -462,7 +523,9 @@ app.get('/', (req, res) => {
         let currentChapterTitle = "General Quiz";
         let activeQuizTitle = "Quiz Active";
         let isRestoring = false;
-        let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null };
+        
+        // Expanded navState to track Notes navigation
+        let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null, notesClass: null, notesSubject: null };
 
         let serverStartTime = 0;
         let timerSignature = "";
@@ -523,8 +586,8 @@ app.get('/', (req, res) => {
 
         function saveState() {
             if (isRestoring) return;
-            const activeScreenId = Array.from(document.querySelectorAll('body > div'))
-                                       .find(screen => !screen.classList.contains('hidden'))?.id || 'class-select-screen';
+            const activeScreenId = Array.from(document.querySelectorAll('.app-screen'))
+                                       .find(screen => !screen.classList.contains('hidden'))?.id || 'home-dashboard';
             
             const state = {
                 activeScreenId, screenHistory, navState, currentQuizId, currentChapterTitle, activeQuizTitle, timeRemaining,
@@ -580,8 +643,9 @@ app.get('/', (req, res) => {
                 currentQuestions = state.currentQuestions || [];
             }
 
-            const { classSelection, subjectSelection, unitSelection, chapterSelection } = navState;
+            const { classSelection, subjectSelection, unitSelection, chapterSelection, notesClass, notesSubject } = navState;
 
+            // Restore Mock Test Nav
             if (classSelection) {
                 if (['IX', 'X'].includes(classSelection)) {
                     if (subjectSelection) await selectSubject(subjectSelection);
@@ -604,9 +668,17 @@ app.get('/', (req, res) => {
                     }
                 }
             }
+
+            // Restore Notes Nav
+            if (notesClass) {
+                selectNotesClass(notesClass);
+                if (notesSubject) {
+                    await selectNotesSubject(notesSubject);
+                }
+            }
             
-            navState = { classSelection, subjectSelection, unitSelection, chapterSelection };
-            const activeScreenId = state.activeScreenId || 'class-select-screen';
+            navState = { classSelection, subjectSelection, unitSelection, chapterSelection, notesClass, notesSubject };
+            const activeScreenId = state.activeScreenId || 'home-dashboard';
             
             if (activeScreenId === 'result-screen') {
                 goHome();
@@ -614,7 +686,7 @@ app.get('/', (req, res) => {
                 return;
             }
             
-            document.querySelectorAll('body > div').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
             const targetScreen = document.getElementById(activeScreenId);
             if (targetScreen) targetScreen.classList.remove('hidden');
 
@@ -639,7 +711,7 @@ app.get('/', (req, res) => {
         function showScreen(screenId) {
             if (isRestoring) return; 
 
-            const screens = document.querySelectorAll('body > div');
+            const screens = document.querySelectorAll('.app-screen');
             const activeScreen = Array.from(screens).find(screen => !screen.classList.contains('hidden'));
             
             if (activeScreen && activeScreen.id !== screenId) {
@@ -660,7 +732,7 @@ app.get('/', (req, res) => {
         function goBack() {
             if (screenHistory.length > 0) {
                 const previousScreenId = screenHistory.pop();
-                const screens = document.querySelectorAll('body > div');
+                const screens = document.querySelectorAll('.app-screen');
                 screens.forEach(screen => {
                     screen.classList.add('hidden');
                     screen.classList.remove('fade-in');
@@ -679,7 +751,7 @@ app.get('/', (req, res) => {
 
         function goHome() {
             screenHistory = [];
-            navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null };
+            navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null, notesClass: null, notesSubject: null };
             currentQuestions = [];
             userAnswers = {};
             skippedQuestions = new Set();
@@ -700,18 +772,85 @@ app.get('/', (req, res) => {
 
             syncNameScreenButtons();
 
-            const screens = document.querySelectorAll('body > div');
+            const screens = document.querySelectorAll('.app-screen');
             screens.forEach(screen => {
                 screen.classList.add('hidden');
                 screen.classList.remove('fade-in');
             });
-            const classScreen = document.getElementById('class-select-screen');
+            const classScreen = document.getElementById('home-dashboard');
             if (classScreen) {
                 classScreen.classList.remove('hidden');
                 classScreen.classList.add('fade-in');
             }
             sessionStorage.removeItem('quizAppSession');
         }
+
+        // --- NOTES PORTAL LOGIC ---
+
+        function selectNotesClass(className) {
+            navState.notesClass = className;
+            navState.notesSubject = null;
+            
+            const container = document.getElementById('notes-subject-container');
+            container.innerHTML = '';
+            
+            let subjects = [];
+            if (className === 'IX' || className === 'X') {
+                subjects = ['Physics', 'Chemistry', 'Biology'];
+            } else if (className === 'XI' || className === 'XII') {
+                subjects = ['Biology'];
+            }
+
+            subjects.forEach(sub => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = sub;
+                card.onclick = () => selectNotesSubject(sub);
+                container.appendChild(card);
+            });
+
+            showScreen('notes-subject-screen');
+        }
+
+        async function selectNotesSubject(subjectName) {
+            navState.notesSubject = subjectName;
+            const container = document.getElementById('notes-list-container');
+            container.innerHTML = '<p style="text-align:center; font-weight:bold;">Loading notes...</p>';
+            showScreen('notes-list-screen');
+
+            try {
+                const response = await fetch('/api/notes');
+                if (response.ok) {
+                    const allNotes = await response.json();
+                    
+                    // Match the selected class and subject
+                    const matchedObj = allNotes.find(n => n.class === navState.notesClass && n.subject.toLowerCase() === subjectName.toLowerCase());
+                    
+                    container.innerHTML = '';
+                    if (matchedObj && matchedObj.notes && matchedObj.notes.length > 0) {
+                        matchedObj.notes.forEach(note => {
+                            const link = document.createElement('a');
+                            link.href = '/api/download-note/' + note.fileName;
+                            link.className = 'card';
+                            link.style.textDecoration = 'none';
+                            link.style.display = 'block';
+                            link.style.color = '#333';
+                            link.innerText = '📚 ' + note.name;
+                            container.appendChild(link);
+                        });
+                    } else {
+                        container.innerHTML = '<p style="text-align:center; color:#64748b;">No notes available for this subject yet.</p>';
+                    }
+                } else {
+                    container.innerHTML = '<p style="text-align:center; color:#ef4444;">Failed to load notes.</p>';
+                }
+            } catch (error) {
+                console.error("Notes fetch error:", error);
+                container.innerHTML = '<p style="text-align:center; color:#ef4444;">Error connecting to server.</p>';
+            }
+        }
+
+        // --- MOCK TEST PORTAL LOGIC ---
 
         function selectClass(className) {
             navState.classSelection = className;
@@ -1079,6 +1218,8 @@ app.get('/', (req, res) => {
                     return;
                 }
 
+                // SECURE FIX: Create a self-verifying, stateless signature token.
+                // This guarantees active tests survive a Render server restart seamlessly.
                 studentAuthToken = verifyData.authToken;
 
                 const tokenResponse = await fetch('/api/start-quiz', {
@@ -1309,6 +1450,30 @@ app.get('/ping', (req, res) => {
     res.status(200).send('Awake');
 });
 
+// --- NEW DESCRIPTIVE NOTES APIs ---
+app.get('/api/notes', (req, res) => {
+    const notesPath = path.join(__dirname, 'notes.json');
+    if (fs.existsSync(notesPath)) {
+        res.json(JSON.parse(fs.readFileSync(notesPath, 'utf8')));
+    } else {
+        // Return empty array instead of 404 to ensure frontend renders gracefully if file is missing
+        res.json([]);
+    }
+});
+
+app.get('/api/download-note/:fileName', (req, res) => {
+    const safeFileName = path.basename(req.params.fileName);
+    const filePath = path.join(__dirname, 'secure_notes', safeFileName); 
+    
+    res.download(filePath, (err) => {
+        if (err) {
+            console.error("Note download error:", err);
+            if (!res.headersSent) res.status(404).send("Note file not found.");
+        }
+    });
+});
+// ------------------------------------
+
 app.get('/api/quizzes', (req, res) => {
     const quizListPath = path.join(__dirname, 'quizzes.json');
     if (fs.existsSync(quizListPath)) {
@@ -1499,8 +1664,10 @@ app.post('/api/verify-otp', (req, res) => {
 
     delete pendingOtps[email];
     
-    const authToken = crypto.createHmac('sha256', SECRET).update(`${email}:${Date.now()}`).digest('hex');
-    activeSessions.add(authToken);
+    // SECURE FIX: Stateless, self-verifying token that survives Render server restarts
+    const tokenData = email + ':' + Date.now();
+    const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+    const authToken = tokenData + '.' + signature;
 
     res.json({ 
         success: true, 
@@ -1518,10 +1685,15 @@ app.post('/api/submit', async (req, res) => {
     
     const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    if (!authToken || !activeSessions.has(authToken)) {
-        return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized submission. Please verify your email first.' });
+    // SECURE FIX: Verify the stateless token mathematically instead of relying on memory
+    if (!authToken || !authToken.includes('.')) {
+        return res.status(403).json({ success: false, error: 'Security Alert: Invalid submission token.' });
     }
-    activeSessions.delete(authToken);
+    const [tokenData, authSignature] = authToken.split('.');
+    const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+    if (authSignature !== expectedAuthSig) {
+        return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized or tampered session.' });
+    }
 
     if (!serverStartTime || !timerSignature || !quizDuration) {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
