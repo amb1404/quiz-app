@@ -229,7 +229,7 @@ app.get('/', (req, res) => {
             width: 100%;
             min-height: 100vh;
             font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             color: #f8fafc;
             user-select: none;
             -webkit-user-select: none;
