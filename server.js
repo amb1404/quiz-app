@@ -6,13 +6,13 @@ const https = require('https');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enforce mandatory environment variables
-const TIMER_SECRET = process.env.TIMER_SECRET;
-const APPS_SECRET = process.env.APPS_SECRET;
+// Use environment variables, but provide a temporary fallback to prevent deployment crashes
+const TIMER_SECRET = process.env.TIMER_SECRET || 'temp_timer_secret_pioneers_2026';
+const APPS_SECRET = process.env.APPS_SECRET || 'temp_apps_secret_pioneers_2026';
 
-if (!TIMER_SECRET || !APPS_SECRET) {
-  console.error("FATAL ERROR: Required environment variables (TIMER_SECRET, APPS_SECRET) are missing.");
-  process.exit(1);
+if (!process.env.TIMER_SECRET || !process.env.APPS_SECRET) {
+  console.warn("⚠️ WARNING: TIMER_SECRET or APPS_SECRET is missing in Render Environment Variables.");
+  console.warn("⚠️ Server is running using temporary fallbacks. Please add them in Render settings.");
 }
 
 // Middleware
@@ -25,95 +25,83 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', uptime: process.uptime() });
 });
 
-/**
- * 1. Generate Stateless Quiz Session Token
- * Returns: base64(payload).signature
- */
-app.post('/api/start-quiz', (req, res) => {
-  try {
-    const { email, testId } = req.body;
-    if (!email || !testId) {
-      return res.status(400).json({ success: false, error: 'Email and testId required' });
-    }
+// Route for serving the quiz page (Stateless HTML generation)
+app.get('/quiz', (req, res) => {
+  const email = req.query.email || 'student@example.com'; 
+  const testId = req.query.testId || 'IX_Physics_01';
 
-    const payload = JSON.stringify({
-      email: email.trim().toLowerCase(),
-      testId,
-      startTime: Date.now()
-    });
+  const payload = JSON.stringify({
+    email: email.trim().toLowerCase(),
+    testId,
+    startTime: Date.now()
+  });
+  
+  const encodedPayload = Buffer.from(payload).toString('base64');
+  const signature = crypto
+    .createHmac('sha256', TIMER_SECRET)
+    .update(encodedPayload)
+    .digest('hex');
+    
+  const sessionToken = `${encodedPayload}.${signature}`;
 
-    const encodedPayload = Buffer.from(payload).toString('base64');
-    const signature = crypto
-      .createHmac('sha256', TIMER_SECRET)
-      .update(encodedPayload)
-      .digest('hex');
+  const quizHtml = `
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <h2>Mock Test: ${testId}</h2>
+      <form action="/submit-quiz" method="POST">
+        <div>
+          <p>1. What is the SI unit of force?</p>
+          <input type="radio" name="q1" value="Newton"> Newton
+          <input type="radio" name="q1" value="Joule"> Joule
+        </div>
+        <input type="hidden" name="sessionToken" value="${sessionToken}">
+        <input type="hidden" name="userEmail" value="${email}">
+        <br><br>
+        <button type="submit">Submit Test</button>
+      </form>
+    </body>
+    </html>
+  `;
 
-    const sessionToken = `${encodedPayload}.${signature}`;
-    return res.status(200).json({ success: true, sessionToken });
-  } catch (err) {
-    console.error("Error generating session:", err);
-    return res.status(500).json({ success: false, error: 'Could not initialize session' });
-  }
+  res.send(quizHtml);
 });
 
-/**
- * 2. Validate Session & Score Submission
- * Validates HMAC signature independently of server restarts
- */
-app.post('/api/submit-quiz', (req, res) => {
+// Route for validating the submitted quiz
+app.post('/submit-quiz', (req, res) => {
   try {
-    const { sessionToken, answers, userEmail } = req.body;
+    const { sessionToken, userEmail, q1 } = req.body;
 
     if (!sessionToken || !sessionToken.includes('.')) {
-      return res.status(401).json({ success: false, error: 'Unauthorized/tampered session: Missing token.' });
+      return res.status(401).send("<h1>Error: Unauthorized or tampered session.</h1>");
     }
 
     const [encodedPayload, clientSignature] = sessionToken.split('.');
 
-    // Compute expected HMAC signature
     const expectedSignature = crypto
       .createHmac('sha256', TIMER_SECRET)
       .update(encodedPayload)
       .digest('hex');
 
-    // Timing-safe comparison against tampering
     const isSignatureValid = crypto.timingSafeEqual(
       Buffer.from(clientSignature, 'hex'),
       Buffer.from(expectedSignature, 'hex')
     );
 
     if (!isSignatureValid) {
-      return res.status(401).json({ success: false, error: 'Unauthorized/tampered session: Invalid signature.' });
+      return res.status(401).send("<h1>Error: Tampered session token.</h1>");
     }
 
-    // Decode verified payload
     const decodedPayload = JSON.parse(Buffer.from(encodedPayload, 'base64').toString('utf-8'));
-    const { email, startTime, testId } = decodedPayload;
+    const elapsedSeconds = Math.floor((Date.now() - decodedPayload.startTime) / 1000);
 
-    // Optional email consistency check
-    if (userEmail && userEmail.trim().toLowerCase() !== email) {
-      return res.status(401).json({ success: false, error: 'Unauthorized/tampered session: User identity mismatch.' });
-    }
+    let score = (q1 === 'Newton') ? 1 : 0;
 
-    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-
-    // Prevent impossible instantaneous bot submissions (< 5 seconds)
-    if (elapsedSeconds < 5) {
-      return res.status(400).json({ success: false, error: 'Submission rejected: Minimum duration not met.' });
-    }
-
-    // Place your score computation logic and Google Apps Script forwarder here
-    console.log(`Verified submission from ${email} for ${testId}. Time elapsed: ${elapsedSeconds}s`);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Quiz submitted successfully',
-      elapsedSeconds
-    });
+    res.send(`<h1>Quiz Complete!</h1><p>Time taken: ${elapsedSeconds} seconds.</p><p>Score: ${score}</p>`);
 
   } catch (err) {
-    console.error("Submission verification error:", err);
-    return res.status(401).json({ success: false, error: 'Unauthorized/tampered session' });
+    console.error("Submission error:", err);
+    res.status(500).send("<h1>Server Error during submission.</h1>");
   }
 });
 
@@ -123,11 +111,9 @@ const server = app.listen(PORT, () => {
   startSelfPing();
 });
 
-/**
- * 3. Keep-Alive Ping Routine (Prevents Render Free-Tier 15-Minute Sleep)
- */
+// Keep-Alive Ping Routine
 function startSelfPing() {
-  const PING_INTERVAL = 12 * 60 * 1000; // Ping every 12 minutes
+  const PING_INTERVAL = 12 * 60 * 1000; 
   const pingUrl = process.env.PING_URL || 'https://pioneersprep.in/health';
 
   setInterval(() => {
