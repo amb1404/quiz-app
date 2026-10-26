@@ -159,7 +159,7 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
-// Single-file HTML template response
+// Single-file HTML template response with Mock Tests & Study Notes restored
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -176,11 +176,15 @@ app.get('/', (req, res) => {
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             color: #0f172a; box-sizing: border-box; padding: 40px;
         }
-        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #quiz-screen, #result-screen {
+        #home-dashboard {
+            display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
+        }
+        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #quiz-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
             background-color: rgba(255, 251, 235, 0.95);
             border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            max-width: 800px; margin: 0 auto; box-sizing: border-box;
+            width: 500px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
         }
+        #quiz-screen, #result-screen { max-width: 800px; }
         .card {
             background-color: #e8f5e9; font-size: 18px; font-weight: bold;
             text-align: center; padding: 20px; margin-bottom: 15px; border-radius: 8px;
@@ -206,7 +210,7 @@ app.get('/', (req, res) => {
 <body>
     <div id="home-dashboard" class="app-screen">
         <div class="dashboard-panel">
-            <h2 style="text-align: center; color: #4285f4;">Mock Tests</h2>
+            <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Mock Tests</h2>
             <div class="card" onclick="selectClass('IX')">Class IX</div>
             <div class="card" onclick="selectClass('X')">Class X</div>
             <div class="card" onclick="selectClass('XI')">NEET Class XI</div>
@@ -214,6 +218,26 @@ app.get('/', (req, res) => {
             <div class="card" onclick="selectClass('WB XI')">WBCHSE Class XI</div>
             <div class="card" onclick="selectClass('WB XII')">WBCHSE Class XII</div>
         </div>
+
+        <div class="dashboard-panel">
+            <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
+            <div class="card" onclick="selectNotesClass('IX')">Class IX</div>
+            <div class="card" onclick="selectNotesClass('X')">Class X</div>
+            <div class="card" onclick="selectNotesClass('XI')">Class XI</div>
+            <div class="card" onclick="selectNotesClass('XII')">Class XII</div>
+        </div>
+    </div>
+
+    <div id="notes-subject-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goHome()">Back</button>
+        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
+        <div id="notes-subject-container"></div>
+    </div>
+
+    <div id="notes-list-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBackToNotesClass()">Back</button>
+        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Descriptive Notes</h2>
+        <div id="notes-list-container"></div>
     </div>
 
     <div id="subject-select-screen" class="app-screen hidden">
@@ -267,6 +291,7 @@ app.get('/', (req, res) => {
         let studentAuthToken = "";
         let selectedClassName = "";
         let activeQuizTitle = "";
+        let selectedNotesClass = "";
 
         window.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -288,6 +313,57 @@ app.get('/', (req, res) => {
             showScreen('home-dashboard');
         }
 
+        // Notes Portal Logic
+        function selectNotesClass(className) {
+            selectedNotesClass = className;
+            const container = document.getElementById('notes-subject-container');
+            container.innerHTML = '';
+            let subjects = (className === 'IX' || className === 'X') ? ['Physics', 'Chemistry', 'Biology'] : ['Biology'];
+            
+            subjects.forEach(sub => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = sub;
+                card.onclick = () => selectNotesSubject(sub);
+                container.appendChild(card);
+            });
+            showScreen('notes-subject-screen');
+        }
+
+        async function selectNotesSubject(subjectName) {
+            const container = document.getElementById('notes-list-container');
+            container.innerHTML = '<p style="text-align:center;">Loading notes...</p>';
+            showScreen('notes-list-screen');
+
+            try {
+                const res = await fetch('/api/notes');
+                const notesList = await res.json();
+                const matched = notesList.find(n => n.class === selectedNotesClass && n.subject.toLowerCase() === subjectName.toLowerCase());
+                
+                container.innerHTML = '';
+                if (matched && matched.notes && matched.notes.length > 0) {
+                    matched.notes.forEach(note => {
+                        const link = document.createElement('a');
+                        link.href = '/api/download-note/' + encodeURIComponent(note.fileName);
+                        link.className = 'card';
+                        link.style.textDecoration = 'none';
+                        link.style.display = 'block';
+                        link.innerText = '📚 ' + note.name;
+                        container.appendChild(link);
+                    });
+                } else {
+                    container.innerHTML = '<p style="text-align:center;">No notes available for this subject yet.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p style="text-align:center; color:red;">Failed to load notes.</p>';
+            }
+        }
+
+        function goBackToNotesClass() {
+            showScreen('notes-subject-screen');
+        }
+
+        // Mock Tests Logic
         function selectClass(className) {
             selectedClassName = className;
             if (className === 'IX' || className === 'X') {
@@ -521,7 +597,7 @@ app.post('/api/send-otp', (req, res) => {
     if (!firstName || !lastName || !email) return res.status(400).json({ success: false });
     const otp = crypto.randomInt(100000, 1000000).toString();
     pendingOtps.set(email, { otp, firstName, lastName, expiresAt: Date.now() + 300000, attempts: 0, lastSentAt: Date.now() });
-    console.log(`[OTP for ${email}]: ${otp}`); // Check Render logs for code testing
+    console.log(`[OTP for ${email}]: ${otp}`);
     res.json({ success: true });
 });
 
