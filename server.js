@@ -49,6 +49,20 @@ app.get('/', (req, res) => {
             padding: 40px;
         }
 
+        /* PROFESSIONAL GLOBAL SHADOW EFFECT FOR ALL BUTTONS & CARDS */
+        button, .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+            transition: all 0.2s ease !important;
+        }
+        button:hover, .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(-2px) !important;
+        }
+        button:active, .card:active {
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(0) !important;
+        }
+
         #class-select-screen, 
         #subject-select-screen, 
         #ix-x-chapter-screen, 
@@ -128,7 +142,6 @@ app.get('/', (req, res) => {
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
 
@@ -149,7 +162,6 @@ app.get('/', (req, res) => {
             background-color: #ffffff;       
             border: 1px solid #4285f4; 
             color: #4285f4;      
-            transform: translateY(-4px);
         }
 
         .option-btn {
@@ -729,7 +741,7 @@ app.get('/', (req, res) => {
                     const downloadBtn = document.createElement('button');
                     downloadBtn.type = 'button';
                     downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
                     downloadBtn.onclick = () => openDownloadScreen(data.papers);
                     container.appendChild(downloadBtn);
                 }
@@ -776,7 +788,7 @@ app.get('/', (req, res) => {
                     const downloadBtn = document.createElement('button');
                     downloadBtn.type = 'button';
                     downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
                     downloadBtn.onclick = () => openDownloadScreen(data.papers);
                     container.appendChild(downloadBtn);
                 }
@@ -845,7 +857,7 @@ app.get('/', (req, res) => {
                     const downloadBtn = document.createElement('button');
                     downloadBtn.type = 'button';
                     downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
                     downloadBtn.onclick = () => openDownloadScreen(data.papers);
                     container.appendChild(downloadBtn);
                 }
