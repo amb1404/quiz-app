@@ -8,19 +8,15 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Tell Express to trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
 app.set('trust proxy', 1);
 
-// SECURE & SAFE: Fallback keys prevent startup crashes if Render env vars are unset
 const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 
-// In-memory security stores with automatic garbage collection
-const pendingOtps = new Map();       // email -> { otp, firstName, lastName, expiresAt, attempts, lastSentAt }
-const otpIpRateLimit = new Map();    // ip -> { count, resetAt }
-const usedAuthTokens = new Map();    // signature -> expiresAt
+const pendingOtps = new Map();       
+const otpIpRateLimit = new Map();    
+const usedAuthTokens = new Map();    
 
-// --- SECURITY MIDDLEWARE & PAYLOAD LIMITS (Fix #8) ---
 app.use(express.json({ limit: '50kb' }));
 
 app.use((req, res, next) => {
@@ -31,9 +27,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- SECURITY HELPER FUNCTIONS ---
-
-// Fix #5: HTML Sanitization to prevent XSS and Email HTML Injection
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -44,7 +37,6 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// Fix #7: Timing-safe hexadecimal HMAC comparison
 function safeCompareHex(sigA, sigB) {
     if (typeof sigA !== 'string' || typeof sigB !== 'string') return false;
     if (sigA.length !== sigB.length) return false;
@@ -58,7 +50,6 @@ function safeCompareHex(sigA, sigB) {
     }
 }
 
-// Fix #4: Strict Path Traversal & Reserved File Guard
 const RESERVED_JSON_NAMES = new Set([
     'submissions', 'package', 'package-lock', 'quizzes', 'notes'
 ]);
@@ -79,7 +70,6 @@ function resolveSafeQuizPath(rawId) {
     return null;
 }
 
-// Fix #2: Dynamic Server-Side Official Quiz Duration Lookup from Folder Files
 function getOfficialQuizDuration(quizId, clientFallback) {
     const cleanId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanId);
@@ -98,8 +88,7 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     return 900;
 }
 
-// Fix #3: Stateless Auth Token Verification (Bound to Email + 3-Hour Expiry + Replay Check)
-const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
+const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000; 
 
 function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
@@ -138,7 +127,6 @@ function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     return { valid: true, email: tokenEmail, signature: authSignature };
 }
 
-// Fix #8: Sequential Async Lock for submissions.json writes
 let submissionWritePromise = Promise.resolve();
 function queueSubmissionBackup(entry) {
     submissionWritePromise = submissionWritePromise.then(async () => {
@@ -158,7 +146,6 @@ function queueSubmissionBackup(entry) {
     return submissionWritePromise;
 }
 
-// Fix #6: Periodic Memory Cleanup (Every 5 Minutes) to prevent RAM exhaustion
 setInterval(() => {
     const now = Date.now();
     for (const [email, record] of pendingOtps.entries()) {
@@ -172,469 +159,95 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
-// --- MASTER BACKEND SERVER: BULLETPROOF SECURITY & MOBILE RESPONSIVE APP ---
+// Single-file HTML template response
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <!-- SEO Title & Meta Description -->
-    <title>Pioneers Prep - Online Mock Tests & Study Notes for ICSE, WBCHSE & NEET</title>
-    <meta name="description" content="Access online mock tests, chapter-wise practice quizzes, and high-quality study notes for ICSE, WBCHSE, and NEET aspirants on Pioneers Prep.">
-    <meta name="keywords" content="Aniruddha Pioneers Prep, pioneesprepaniruddha, pionersprep, pioneersprep mock tests, ICSE mock test, WBCHSE physics chemistry biology, NEET online test series, study notes West Bengal">
-    <meta name="author" content="Pioneers Prep">
+    <title>Pioneers Prep - Online Mock Tests & Study Notes</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-
-        .hidden {
-            display: none !important;
-        }
-
+        .hidden { display: none !important; }
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            min-height: 100vh;
+            margin: 0; padding: 0; width: 100%; min-height: 100vh;
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            color: #f8fafc;
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+            color: #0f172a; box-sizing: border-box; padding: 40px;
         }
-
-        body {
-            display: block;
-            box-sizing: border-box;
-            padding: 40px;
-        }
-
-        button, .card {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-            transition: all 0.2s ease !important;
-        }
-        button:hover, .card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
-            transform: translateY(-2px) !important;
-        }
-        button:active, .card:active {
-            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
-            transform: translateY(0) !important;
-        }
-
-        #home-dashboard {
-            display: flex;
-            gap: 40px;
-            justify-content: center;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            width: 100%;
-        }
-
-        .dashboard-panel {
+        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #quiz-screen, #result-screen {
             background-color: rgba(255, 251, 235, 0.95);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 500px;
-            max-width: 100%;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            box-sizing: border-box;
-            color: #0f172a;
+            border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 800px; margin: 0 auto; box-sizing: border-box;
         }
-
-        #subject-select-screen, 
-        #ix-x-chapter-screen, 
-        #xi-xii-unit-screen, 
-        #xi-xii-chapter-screen, 
-        #xi-xii-topic-screen, 
-        #name-screen,
-        #download-screen,
-        #notes-subject-screen,
-        #notes-list-screen {
-            background-color: rgba(255, 251, 235, 0.95);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 600px;
-            max-width: 90%;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            box-sizing: border-box;
-            margin: 0 auto;
-            color: #0f172a;
-        }
-
-        #quiz-screen,
-        #result-screen {
-            background-color: rgba(255, 251, 235, 0.98);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 95%;
-            max-width: 1200px;
-            min-height: 85vh;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-            box-sizing: border-box;
-            margin: 0 auto;
-            color: #0f172a;
-        }
-
-        #result-screen {
-            max-width: 800px;
-        }
-
-        #first-name, #last-name {
-            text-transform: uppercase;
-        }
-        #email-address {
-            text-transform: lowercase;
-        }
-
-        #name-screen input[type="text"], 
-        #name-screen input[type="email"],
-        #name-screen input[type="number"],
-        #otp-input-field {
-            width: 100%;
-            padding: 14px 18px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            box-sizing: border-box;
-            background-color: #ffffff;
-            color: #0f172a;
-            margin-bottom: 20px;
-            font-family: inherit;
-            outline: none;
-            user-select: text;
-            -webkit-user-select: text;
-        }
-
-        .back-btn, 
-        #name-screen button:not(.back-btn) {
-            background-color: #4f46e5;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-
         .card {
-            background-color: #e8f5e9; 
-            color: #0f172a;                    
-            font-size: 18px;                    
-            font-weight: bold;                    
-            text-align: center;                   
-            padding: 20px;                        
-            margin-bottom: 15px;                  
-            border-radius: 8px;                   
-            border: 1px solid #cbd5e1;            
-            cursor: pointer;
+            background-color: #e8f5e9; font-size: 18px; font-weight: bold;
+            text-align: center; padding: 20px; margin-bottom: 15px; border-radius: 8px;
+            border: 1px solid #cbd5e1; cursor: pointer;
         }
-
-        .card:hover {
-            background-color: #ffffff;        
-            border: 1px solid #4285f4; 
-            color: #4285f4;      
-        }
-
+        .card:hover { background-color: #ffffff; border-color: #4285f4; color: #4285f4; }
         .option-btn {
-            display: block;
-            width: 100%;
-            background-color: #ffffff;
-            color: #0f172a;
-            font-size: 16px;
-            font-weight: 500;
-            text-align: left;
-            padding: 16px 20px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            cursor: pointer;
+            display: block; width: 100%; background-color: #ffffff; color: #0f172a;
+            font-size: 16px; padding: 16px 20px; margin-bottom: 15px; border-radius: 8px;
+            border: 1px solid #cbd5e1; cursor: pointer; text-align: left;
         }
-
-        .option-btn.selected {
-            background-color: #e0f2fe;
-            border-color: #4285f4;
-            color: #1e40af;
-            font-weight: 600;
+        .option-btn.selected { background-color: #e0f2fe; border-color: #4285f4; color: #1e40af; font-weight: 600; }
+        input[type="text"], input[type="email"], input[type="number"] {
+            width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px;
+            border: 1px solid #cbd5e1; margin-bottom: 20px; box-sizing: border-box;
         }
-
-        .quiz-nav-container {
-            display: grid;
-            grid-template-columns: repeat(2, 145px);
-            justify-content: center;
-            gap: 12px 16px;
-            margin-top: 25px;
-        }
-
-        .quiz-nav-container button:nth-child(1) {
-            grid-column: 1 / 2;
-            grid-row: 1;
-        }
-
-        .quiz-nav-container button:nth-child(3) {
-            grid-column: 2 / 3;
-            grid-row: 1;
-        }
-
-        .quiz-nav-container button:nth-child(2) {
-            grid-column: 1 / 3;
-            grid-row: 2;
-            width: 100%;
-        }
-
-        .quiz-nav-container button {
-            background-color: #ffffff;
-            color: #1e293b;
-            border: 1px solid #cbd5e1;
-            padding: 12px 20px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none !important;
-        }
-
-        .quiz-nav-container button:hover {
-            color: #2563eb;
-            border-color: #2563eb;
-            background-color: #eff6ff;
-        }
-
-        .quiz-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            gap: 15px;
-        }
-
-        #submit-btn {
-            background-color: #ef4444;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .progress-container {
-            width: 100%;
-            height: 8px;
-            background-color: #e2e8f0;
-            border-radius: 4px;
-            margin-bottom: 25px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4285f4, #2563eb);
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        @media (max-width: 800px) {
-            #home-dashboard {
-                flex-direction: column;
-                gap: 20px !important;
-                padding: 0 !important;
-            }
-            .dashboard-panel {
-                width: 100% !important;
-                margin: 0 !important;
-            }
-        }
-
-        @media (max-width: 600px) {
-            body {
-                padding: 6px !important;
-            }
-
-            .app-screen:not(.hidden) {
-                display: block !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                min-height: calc(100vh - 12px) !important;
-                min-height: calc(100dvh - 12px) !important;
-                padding: 14px !important;
-                border-radius: 12px !important;
-                box-sizing: border-box !important;
-                margin: 0 !important;
-            }
-
-            #home-dashboard:not(.hidden) {
-                display: flex !important;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                padding: 0 !important;
-            }
-
-            #quiz-screen:not(.hidden),
-            #result-screen:not(.hidden) {
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-            }
-
-            .quiz-header {
-                flex-wrap: nowrap !important;
-                margin-bottom: 8px !important;
-                gap: 6px !important;
-            }
-
-            #time-left {
-                font-size: 14px !important;
-                white-space: nowrap !important;
-            }
-
-            #quiz-stats {
-                font-size: 12px !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-            }
-
-            #submit-btn {
-                padding: 7px 12px !important;
-                font-size: 12px !important;
-                white-space: nowrap !important;
-            }
-
-            .progress-container {
-                height: 6px !important;
-                margin-bottom: 8px !important;
-            }
-
-            #quiz-screen-heading {
-                font-size: 17px !important;
-                margin: 0 0 8px 0 !important;
-            }
-
-            #question-box {
-                font-size: 14.5px !important;
-                line-height: 1.35 !important;
-                margin-bottom: 10px !important;
-            }
-
-            #options-container {
-                margin-bottom: 8px !important;
-            }
-
-            .option-btn {
-                padding: 12px 14px !important;
-                margin-bottom: 10px !important;
-                font-size: 14px !important;
-            }
-
-            .quiz-nav-container {
-                grid-template-columns: repeat(2, 125px) !important;
-                gap: 8px 12px !important;
-                margin-top: 6px !important;
-            }
-
-            .quiz-nav-container button {
-                padding: 9px 14px !important;
-                font-size: 13.5px !important;
-            }
+        .back-btn, button:not(.option-btn) {
+            background-color: #4f46e5; color: white; border: none; padding: 12px 24px;
+            border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-
     <div id="home-dashboard" class="app-screen">
         <div class="dashboard-panel">
-            <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Mock Tests</h2>
-            <div class="card" onclick="selectClass('IX')">IX</div>
-            <div class="card" onclick="selectClass('X')">X</div>
-            <div class="card" onclick="selectClass('XI')">XI</div>
-            <div class="card" onclick="selectClass('XII')">XII</div>
-            <div class="card" onclick="selectClass('WB XI')">WB XI</div>
-            <div class="card" onclick="selectClass('WB XII')">WB XII</div>
-        </div>
-
-        <div class="dashboard-panel">
-            <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
-            <div class="card" onclick="selectNotesClass('IX')">IX</div>
-            <div class="card" onclick="selectNotesClass('X')">X</div>
-            <div class="card" onclick="selectNotesClass('XI')">XI</div>
-            <div class="card" onclick="selectNotesClass('XII')">XII</div>
+            <h2 style="text-align: center; color: #4285f4;">Mock Tests</h2>
+            <div class="card" onclick="selectClass('IX')">Class IX</div>
+            <div class="card" onclick="selectClass('X')">Class X</div>
+            <div class="card" onclick="selectClass('XI')">NEET Class XI</div>
+            <div class="card" onclick="selectClass('XII')">NEET Class XII</div>
+            <div class="card" onclick="selectClass('WB XI')">WBCHSE Class XI</div>
+            <div class="card" onclick="selectClass('WB XII')">WBCHSE Class XII</div>
         </div>
     </div>
 
-    <!-- NOTES PORTAL SCREENS -->
-    <div id="notes-subject-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
-        <div id="notes-subject-container"></div>
-    </div>
-
-    <div id="notes-list-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Descriptive Notes</h2>
-        <div id="notes-list-container"></div>
-    </div>
-
-    <!-- MOCK TEST PORTAL SCREENS -->
     <div id="subject-select-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Subject</h2>
+        <button class="back-btn" onclick="goHome()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
         <div class="card" onclick="selectSubject('Physics')">Physics</div>
         <div class="card" onclick="selectSubject('Chemistry')">Chemistry</div>
         <div class="card" onclick="selectSubject('Biology')">Biology</div>
     </div>
 
     <div id="ix-x-chapter-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
+        <button class="back-btn" onclick="goHome()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
     <div id="name-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Enter Details</h2>
-        <p style="font-weight: bold; color: #333; margin-bottom: 15px;">Candidate Information</p>
+        <button class="back-btn" onclick="goHome()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Candidate Verification</h2>
         <input type="text" id="first-name" placeholder="FIRST NAME">
         <input type="text" id="last-name" placeholder="LAST NAME">
         <input type="email" id="email-address" placeholder="Email Address">
-        <button onclick="startQuiz()" style="width: 100%; margin-top: 10px;">Verify</button>
+        <button onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
     </div>
 
     <div id="quiz-screen" class="app-screen hidden">
-        <div class="quiz-header">
-            <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
-            <span id="quiz-stats" style="font-size: 16px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
-            <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span id="time-left" style="font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+            <button id="submit-btn" onclick="submitQuiz(false)" style="background-color: #ef4444;">Submit Quiz</button>
         </div>
-        
-        <div class="progress-container">
-            <div id="progress-bar" class="progress-bar-fill"></div>
-        </div>
-
-        <h2 id="quiz-screen-heading" style="text-align: center; color: #4285f4; margin-bottom: 25px;">Current test</h2>
-        
-        <div id="question-box" style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 25px; line-height: 1.5;">
-            Loading question...
-        </div>
-
-        <div id="options-container" style="margin-bottom: 30px;"></div>
-
-        <div class="quiz-nav-container">
+        <h2 id="quiz-screen-heading" style="color: #4285f4;"></h2>
+        <div id="question-box" style="font-size: 18px; font-weight: 600; margin-bottom: 25px;"></div>
+        <div id="options-container"></div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button onclick="prevQuestion()">Previous</button>
             <button onclick="clearResponse()">Clear Response</button>
             <button onclick="nextQuestion()">Next</button>
@@ -643,343 +256,40 @@ app.get('/', (req, res) => {
 
     <div id="result-screen" class="app-screen hidden"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
-        let screenHistory = [];
-        let currentQuizId = "";
         let dynamicQuizzes = [];
+        let currentQuizId = "";
         let currentQuestions = [];
         let currentQuestionIndex = 0;
         let userAnswers = {};
-        let skippedQuestions = new Set();
-        let timerInterval;
         let timeRemaining = 900;
-        let currentChapterTitle = "General Quiz";
-        let activeQuizTitle = "Quiz Active";
-        let isRestoring = false;
-        
-        let navState = { classSelection: null, subjectSelection: null, notesClass: null, notesSubject: null };
-
-        let serverStartTime = 0;
-        let timerSignature = "";
-        let quizDuration = 0;
-        let clientStartTime = 0;
+        let timerInterval;
         let studentAuthToken = "";
-
-        function escapeHtmlClient(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function syncNameScreenButtons() {
-            const backBtn = document.querySelector('#name-screen .back-btn');
-            if (backBtn) backBtn.innerText = 'Back';
-
-            const actionBtn = document.querySelector('#name-screen button:not(.back-btn)');
-            const otpInput = document.getElementById('otp-input-field');
-            if (actionBtn) {
-                actionBtn.innerText = otpInput ? 'Start Quiz' : 'Verify';
-                actionBtn.disabled = false;
-            }
-        }
+        let selectedClassName = "";
+        let activeQuizTitle = "";
 
         window.addEventListener('DOMContentLoaded', async () => {
-            syncNameScreenButtons();
-
-            const firstNameInput = document.getElementById('first-name');
-            const lastNameInput = document.getElementById('last-name');
-            const emailInput = document.getElementById('email-address');
-
-            if (firstNameInput) {
-                firstNameInput.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.toUpperCase();
-                });
-            }
-            if (lastNameInput) {
-                lastNameInput.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.toUpperCase();
-                });
-            }
-            if (emailInput) {
-                emailInput.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.toLowerCase();
-                });
-            }
-
             try {
-                const quizResponse = await fetch('/api/quizzes');
-                if (quizResponse.ok) {
-                    const data = await quizResponse.json();
-                    if (data.success) dynamicQuizzes = data.quizzes;
-                }
-                
-                await restoreState(); 
-            } catch (error) {
-                console.error("Error fetching configurations:", error);
+                const res = await fetch('/api/quizzes');
+                const data = await res.json();
+                if (data.success) dynamicQuizzes = data.quizzes;
+            } catch (e) {
+                console.error("Failed to load quizzes", e);
             }
         });
 
-        function saveState() {
-            if (isRestoring) return;
-            const activeScreenId = Array.from(document.querySelectorAll('.app-screen'))
-                                       .find(screen => !screen.classList.contains('hidden'))?.id || 'home-dashboard';
-            
-            const state = {
-                activeScreenId, screenHistory, navState, currentQuizId, currentChapterTitle, activeQuizTitle, timeRemaining,
-                currentQuestions, currentQuestionIndex, userAnswers,
-                skippedQuestions: Array.from(skippedQuestions),
-                firstName: document.getElementById('first-name') ? document.getElementById('first-name').value : "",
-                lastName: document.getElementById('last-name') ? document.getElementById('last-name').value : "",
-                email: document.getElementById('email-address') ? document.getElementById('email-address').value : "",
-                serverStartTime, timerSignature, quizDuration, clientStartTime, studentAuthToken
-            };
-            sessionStorage.setItem('quizAppSession', JSON.stringify(state));
-        }
-
-        async function restoreState() {
-            const saved = sessionStorage.getItem('quizAppSession');
-            if (!saved) return;
-            isRestoring = true;
-            const state = JSON.parse(saved);
-
-            screenHistory = state.screenHistory || [];
-            navState = state.navState || {};
-            currentQuizId = state.currentQuizId || "";
-            currentChapterTitle = state.currentChapterTitle || "General Quiz";
-            activeQuizTitle = state.activeQuizTitle || "Quiz Active";
-            timeRemaining = state.timeRemaining;
-            currentQuestionIndex = state.currentQuestionIndex || 0;
-            userAnswers = state.userAnswers || {};
-            skippedQuestions = new Set(state.skippedQuestions || []);
-            
-            serverStartTime = state.serverStartTime || 0;
-            timerSignature = state.timerSignature || "";
-            quizDuration = state.quizDuration || 0;
-            clientStartTime = state.clientStartTime || 0;
-            studentAuthToken = state.studentAuthToken || "";
-
-            if (state.firstName) document.getElementById('first-name').value = state.firstName;
-            if (state.lastName) document.getElementById('last-name').value = state.lastName;
-            if (state.email) document.getElementById('email-address').value = state.email;
-
-            if (currentQuizId && state.activeScreenId === 'quiz-screen' && studentAuthToken) {
-                try {
-                    const freshQuestions = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
-                        headers: {
-                            'X-Requested-With': 'PioneersPrepApp',
-                            'Authorization': 'Bearer ' + studentAuthToken
-                        }
-                    });
-                    if (freshQuestions.ok) {
-                        const qs = await freshQuestions.json();
-                        currentQuestions = qs.length > 0 ? qs : (state.currentQuestions || []);
-                    } else {
-                        currentQuestions = state.currentQuestions || [];
-                    }
-                } catch (e) {
-                    currentQuestions = state.currentQuestions || [];
-                }
-            } else {
-                currentQuestions = state.currentQuestions || [];
-            }
-
-            const { classSelection, subjectSelection, notesClass, notesSubject } = navState;
-
-            if (classSelection) {
-                if (['IX', 'X'].includes(classSelection)) {
-                    if (subjectSelection) selectSubject(subjectSelection);
-                } else if (['XI', 'XII', 'WB XI', 'WB XII'].includes(classSelection)) {
-                    loadDynamicChapters(classSelection);
-                }
-            }
-
-            if (notesClass) {
-                selectNotesClass(notesClass);
-                if (notesSubject) {
-                    await selectNotesSubject(notesSubject);
-                }
-            }
-            
-            navState = { classSelection, subjectSelection, notesClass, notesSubject };
-            const activeScreenId = state.activeScreenId || 'home-dashboard';
-            
-            if (activeScreenId === 'result-screen') {
-                goHome();
-                isRestoring = false;
-                return;
-            }
-            
-            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
-            const targetScreen = document.getElementById(activeScreenId);
-            if (targetScreen) targetScreen.classList.remove('hidden');
-
-            if (activeScreenId === 'quiz-screen') {
-                renderQuestion();
-                startTimer();
-            }
-            
-            isRestoring = false; 
-        }
-
-        function getDefaultTimeFromHTML() {
-            const timeDisplay = document.getElementById('time-left');
-            if (!timeDisplay) return 900;
-            const parts = timeDisplay.innerText.trim().split(':');
-            if (parts.length === 2) {
-                return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
-            }
-            return 900;
-        }
-
         function showScreen(screenId) {
-            if (isRestoring) return; 
-
-            const screens = document.querySelectorAll('.app-screen');
-            const activeScreen = Array.from(screens).find(screen => !screen.classList.contains('hidden'));
-            
-            if (activeScreen && activeScreen.id !== screenId) {
-                screenHistory.push(activeScreen.id);
-            }
-            screens.forEach(screen => {
-                screen.classList.add('hidden');
-                screen.classList.remove('fade-in'); 
-            });
-            const targetScreen = document.getElementById(screenId);
-            if (targetScreen) {
-                targetScreen.classList.remove('hidden');
-                targetScreen.classList.add('fade-in'); 
-            }
-            saveState();
-        }
-
-        function goBack() {
-            if (screenHistory.length > 0) {
-                const previousScreenId = screenHistory.pop();
-                const screens = document.querySelectorAll('.app-screen');
-                screens.forEach(screen => {
-                    screen.classList.add('hidden');
-                    screen.classList.remove('fade-in');
-                });
-                
-                const prevScreen = document.getElementById(previousScreenId);
-                if (prevScreen) {
-                    prevScreen.classList.remove('hidden');
-                    prevScreen.classList.add('fade-in');
-                }
-                saveState();
-            } else {
-                goHome();
-            }
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
         }
 
         function goHome() {
-            screenHistory = [];
-            navState = { classSelection: null, subjectSelection: null, notesClass: null, notesSubject: null };
-            currentQuestions = [];
-            userAnswers = {};
-            skippedQuestions = new Set();
             clearInterval(timerInterval);
-            
-            serverStartTime = 0;
-            timerSignature = "";
-            quizDuration = 0;
-            clientStartTime = 0;
-            studentAuthToken = "";
-            
-            document.getElementById('first-name').value = '';
-            document.getElementById('last-name').value = '';
-            document.getElementById('email-address').value = '';
-
-            const existingOtpWrapper = document.getElementById('otp-wrapper-container');
-            if (existingOtpWrapper) existingOtpWrapper.remove();
-
-            syncNameScreenButtons();
-
-            const screens = document.querySelectorAll('.app-screen');
-            screens.forEach(screen => {
-                screen.classList.add('hidden');
-                screen.classList.remove('fade-in');
-            });
-            const classScreen = document.getElementById('home-dashboard');
-            if (classScreen) {
-                classScreen.classList.remove('hidden');
-                classScreen.classList.add('fade-in');
-            }
-            sessionStorage.removeItem('quizAppSession');
+            showScreen('home-dashboard');
         }
 
-        // --- NOTES PORTAL LOGIC ---
-        function selectNotesClass(className) {
-            navState.notesClass = className;
-            navState.notesSubject = null;
-            
-            const container = document.getElementById('notes-subject-container');
-            container.innerHTML = '';
-            
-            let subjects = [];
-            if (className === 'IX' || className === 'X') {
-                subjects = ['Physics', 'Chemistry', 'Biology'];
-            } else if (className === 'XI' || className === 'XII') {
-                subjects = ['Biology'];
-            }
-
-            subjects.forEach(sub => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = sub;
-                card.onclick = () => selectNotesSubject(sub);
-                container.appendChild(card);
-            });
-
-            showScreen('notes-subject-screen');
-        }
-
-        async function selectNotesSubject(subjectName) {
-            navState.notesSubject = subjectName;
-            const container = document.getElementById('notes-list-container');
-            container.innerHTML = '<p style="text-align:center; font-weight:bold;">Loading notes...</p>';
-            showScreen('notes-list-screen');
-
-            try {
-                const response = await fetch('/api/notes');
-                if (response.ok) {
-                    const allNotes = await response.json();
-                    const matchedObj = allNotes.find(n => n.class === navState.notesClass && n.subject.toLowerCase() === subjectName.toLowerCase());
-                    
-                    container.innerHTML = '';
-                    if (matchedObj && matchedObj.notes && matchedObj.notes.length > 0) {
-                        matchedObj.notes.forEach(note => {
-                            const link = document.createElement('a');
-                            link.href = '/api/download-note/' + encodeURIComponent(note.fileName);
-                            link.className = 'card';
-                            link.style.textDecoration = 'none';
-                            link.style.display = 'block';
-                            link.style.color = '#333';
-                            link.innerText = '📚 ' + note.name;
-                            container.appendChild(link);
-                        });
-                    } else {
-                        container.innerHTML = '<p style="text-align:center; color:#64748b;">No notes available for this subject yet.</p>';
-                    }
-                } else {
-                    container.innerHTML = '<p style="text-align:center; color:#ef4444;">Failed to load notes.</p>';
-                }
-            } catch (error) {
-                console.error("Notes fetch error:", error);
-                container.innerHTML = '<p style="text-align:center; color:#ef4444;">Error connecting to server.</p>';
-            }
-        }
-
-        // --- MOCK TEST PORTAL LOGIC (ALL THREE METADATA ROUTING TYPES) ---
         function selectClass(className) {
-            navState.classSelection = className;
-            navState.subjectSelection = null;
-
+            selectedClassName = className;
             if (className === 'IX' || className === 'X') {
                 showScreen('subject-select-screen');
             } else {
@@ -988,498 +298,161 @@ app.get('/', (req, res) => {
         }
 
         function selectSubject(subjectName) {
-            navState.subjectSelection = subjectName;
-            const container = document.getElementById('ix-x-chapter-screen');
-            const listContainer = document.getElementById('ix-x-chapter-container');
-            if (!listContainer) return;
-            listContainer.innerHTML = '';
-
-            // Filter quizzes matching ICSE Class (IX or X) and Subject (Physics/Chemistry/Biology)
-            const matchedQuizzes = dynamicQuizzes.filter(q => {
-                const catMatch = String(q.category).toLowerCase() === 'icse';
-                const clsMatch = String(q.classLevel).toLowerCase() === String(navState.classSelection).toLowerCase();
-                const subMatch = String(q.subject).toLowerCase() === String(subjectName).toLowerCase();
-                return catMatch && clsMatch && subMatch;
-            });
-
-            if (matchedQuizzes.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; width: 100%;">No chapters found for this subject.</p>';
-                showScreen('ix-x-chapter-screen');
-                return;
+            const container = document.getElementById('ix-x-chapter-container');
+            container.innerHTML = '';
+            const matched = dynamicQuizzes.filter(q => q.category === 'icse' && q.classLevel.toLowerCase() === selectedClassName.toLowerCase() && q.subject.toLowerCase() === subjectName.toLowerCase());
+            
+            if (matched.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+            } else {
+                matched.forEach(q => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerText = q.title;
+                    card.onclick = () => prepareQuiz(q);
+                    container.appendChild(card);
+                });
             }
-
-            matchedQuizzes.forEach(quiz => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = quiz.title;
-                card.onclick = () => {
-                    currentChapterTitle = quiz.title;
-                    activeQuizTitle = quiz.title; 
-                    timeRemaining = quiz.duration || getDefaultTimeFromHTML(); 
-                    currentQuizId = quiz.id;
-                    currentQuestions = [];
-                    showScreen('name-screen');
-                };
-                listContainer.appendChild(card);
-            });
             showScreen('ix-x-chapter-screen');
         }
 
         function loadDynamicChapters(className) {
-            const listContainer = document.getElementById('ix-x-chapter-container');
-            if (!listContainer) return;
-            listContainer.innerHTML = '';
+            const container = document.getElementById('ix-x-chapter-container');
+            container.innerHTML = '';
+            let cat = className.startsWith('WB') ? 'wb' : 'neet';
+            let lvl = className.toLowerCase().replace('wb ', '');
 
-            // Distinguish NEET vs WBCHSE based on button selection
-            let targetCategory = 'neet';
-            let normalizedClass = String(className).toLowerCase();
-            if (normalizedClass.startsWith('wb ')) {
-                targetCategory = 'wb';
-                normalizedClass = normalizedClass.replace('wb ', '');
+            const matched = dynamicQuizzes.filter(q => q.category === cat && q.classLevel.toLowerCase() === lvl);
+            
+            if (matched.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+            } else {
+                matched.forEach(q => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerText = q.title;
+                    card.onclick = () => prepareQuiz(q);
+                    container.appendChild(card);
+                });
             }
-
-            const matchedQuizzes = dynamicQuizzes.filter(q => {
-                const catMatch = String(q.category).toLowerCase() === targetCategory;
-                const clsMatch = String(q.classLevel).toLowerCase() === normalizedClass;
-                return catMatch && clsMatch;
-            });
-
-            if (matchedQuizzes.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; width: 100%;">No mock tests found for ' + className + '.</p>';
-                showScreen('ix-x-chapter-screen');
-                return;
-            }
-
-            matchedQuizzes.forEach(quiz => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                // Display hierarchical details if unit/chapter/topic are present (NEET)
-                let label = quiz.title;
-                if (quiz.unit && quiz.chapter) {
-                    label = `[${quiz.unit}] ${quiz.chapter} - ${quiz.title}`;
-                } else if (quiz.chapter) {
-                    label = `${quiz.chapter}: ${quiz.title}`;
-                }
-                card.innerText = label;
-
-                card.onclick = () => {
-                    currentChapterTitle = className + ' - ' + quiz.title;
-                    activeQuizTitle = quiz.title; 
-                    timeRemaining = quiz.duration || getDefaultTimeFromHTML(); 
-                    currentQuizId = quiz.id;
-                    currentQuestions = [];
-                    showScreen('name-screen');
-                };
-                listContainer.appendChild(card);
-            });
             showScreen('ix-x-chapter-screen');
         }
 
-        async function startTimer() {
-            clearInterval(timerInterval);
-            const timeDisplay = document.getElementById('time-left');
-            
-            const updateDisplay = () => {
-                let displayTime = timeRemaining > 0 ? timeRemaining : 0;
-                const initMin = Math.floor(displayTime / 60).toString().padStart(2, '0');
-                const initSec = (displayTime % 60).toString().padStart(2, '0');
-                timeDisplay.innerText = initMin + ':' + initSec;
-            };
-            
-            if (clientStartTime > 0 && quizDuration > 0) {
-                const elapsed = Math.floor((Date.now() - clientStartTime) / 1000);
-                timeRemaining = quizDuration - elapsed;
-            }
-            
-            updateDisplay();
-
-            timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - clientStartTime) / 1000);
-                timeRemaining = quizDuration - elapsed;
-
-                if (timeRemaining <= 0) {
-                    clearInterval(timerInterval);
-                    timeRemaining = 0;
-                    updateDisplay();
-                    submitQuiz(true);
-                    return;
-                }
-                updateDisplay();
-                saveState();
-            }, 1000);
+        function prepareQuiz(quiz) {
+            currentQuizId = quiz.id;
+            activeQuizTitle = quiz.title;
+            timeRemaining = quiz.duration || 900;
+            showScreen('name-screen');
         }
 
         async function startQuiz() {
-            const firstNameEl = document.getElementById('first-name');
-            const lastNameEl = document.getElementById('last-name');
-            const emailEl = document.getElementById('email-address');
-
-            if (firstNameEl) firstNameEl.value = firstNameEl.value.trim().toUpperCase();
-            if (lastNameEl) lastNameEl.value = lastNameEl.value.trim().toUpperCase();
-            if (emailEl) emailEl.value = emailEl.value.trim().toLowerCase();
-
-            const firstName = firstNameEl?.value || '';
-            const lastName = lastNameEl?.value || '';
-            const email = emailEl?.value || '';
+            const firstName = document.getElementById('first-name').value.trim();
+            const lastName = document.getElementById('last-name').value.trim();
+            const email = document.getElementById('email-address').value.trim();
 
             if (!firstName || !lastName || !email) {
-                alert('Please fill in all fields (First Name, Last Name, and Email Address) to start.');
+                alert('Please fill all fields.');
                 return;
             }
 
-            const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-            if (!emailPattern.test(email)) {
-                alert('Please enter a valid email address.');
-                return;
-            }
-
-            const submitBtn = document.querySelector('#name-screen button:not(.back-btn)');
-            let otpInput = document.getElementById('otp-input-field');
-
+            const otpInput = document.getElementById('otp-input');
             if (!otpInput) {
-                if (submitBtn) {
-                    submitBtn.innerText = 'Sending Code...';
-                    submitBtn.disabled = true;
-                }
-
-                try {
-                    const response = await fetch('/api/send-otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ firstName, lastName, email })
-                    });
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        alert(data.error || 'Failed to send verification code.');
-                        if (submitBtn) {
-                            submitBtn.innerText = 'Verify';
-                            submitBtn.disabled = false;
-                        }
-                        return;
-                    }
-
-                    const nameScreenContainer = document.getElementById('name-screen');
-                    if (nameScreenContainer) {
-                        const otpWrapper = document.createElement('div');
-                        otpWrapper.id = 'otp-wrapper-container';
-                        otpWrapper.style.cssText = 'margin-top: 15px;';
-                        otpWrapper.innerHTML = '<label style="display: block; font-weight: bold; margin-bottom: 5px; color: #333; text-align: left;">Enter 6-Digit Verification Code:</label><input type="number" id="otp-input-field" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="123456" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; margin-bottom: 12px;" />';
-
-                        if (submitBtn && submitBtn.parentNode === nameScreenContainer) {
-                            nameScreenContainer.insertBefore(otpWrapper, submitBtn);
-                        } else {
-                            nameScreenContainer.appendChild(otpWrapper);
-                        }
-
-                        if (submitBtn) {
-                            submitBtn.innerText = 'Start Quiz';
-                            submitBtn.disabled = false;
-                        }
-                    }
-                } catch (error) {
-                    console.error('OTP request error:', error);
-                    alert('Network error connecting to authentication server.');
-                    if (submitBtn) {
-                        submitBtn.innerText = 'Verify';
-                        submitBtn.disabled = false;
-                    }
-                }
-                return;
-            }
-
-            const enteredOtp = otpInput.value.trim();
-            if (enteredOtp.length !== 6) {
-                alert('Please enter the complete 6-digit verification code.');
-                return;
-            }
-
-            if (submitBtn) {
-                submitBtn.innerText = 'Verifying...';
-                submitBtn.disabled = true;
-            }
-
-            try {
-                const verifyResponse = await fetch('/api/verify-otp', {
+                const res = await fetch('/api/send-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, otp: enteredOtp })
+                    body: JSON.stringify({ firstName, lastName, email })
                 });
-                const verifyData = await verifyResponse.json();
-
-                if (!verifyResponse.ok) {
-                    alert(verifyData.error || 'Invalid verification code.');
-                    if (submitBtn) {
-                        submitBtn.innerText = 'Start Quiz';
-                        submitBtn.disabled = false;
-                    }
-                    return;
-                }
-
-                studentAuthToken = verifyData.authToken;
-
-                const tokenResponse = await fetch('/api/start-quiz', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + studentAuthToken
-                    },
-                    body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
-                });
-                const tokenData = await tokenResponse.json();
-
-                if (!tokenResponse.ok) {
-                    alert(tokenData.error || 'Could not initialize quiz timer.');
-                    if (submitBtn) {
-                        submitBtn.innerText = 'Start Quiz';
-                        submitBtn.disabled = false;
-                    }
-                    return;
-                }
+                if (!res.ok) { alert('Failed to send code.'); return; }
                 
-                serverStartTime = tokenData.startTime;
-                timerSignature = tokenData.signature;
-                quizDuration = tokenData.duration || timeRemaining;
-                timeRemaining = quizDuration;
-                clientStartTime = Date.now(); 
-
-                const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
-                    headers: {
-                        'X-Requested-With': 'PioneersPrepApp',
-                        'Authorization': 'Bearer ' + studentAuthToken
-                    }
-                });
-                if (qRes.ok) {
-                    currentQuestions = await qRes.json();
-                }
-
-                if (!currentQuestions || currentQuestions.length === 0) {
-                    alert('Could not load questions for this test.');
-                    if (submitBtn) {
-                        submitBtn.innerText = 'Start Quiz';
-                        submitBtn.disabled = false;
-                    }
-                    return;
-                }
-
-                currentQuestionIndex = 0;
-                userAnswers = {};
-                skippedQuestions = new Set();
-
-                const existingOtpWrapper = document.getElementById('otp-wrapper-container');
-                if (existingOtpWrapper) existingOtpWrapper.remove();
-                syncNameScreenButtons();
-
-                showScreen('quiz-screen');
-                startTimer();
-                renderQuestion();
-                saveState();
-
-            } catch (error) {
-                console.error('Verification error:', error);
-                alert('Authentication failed. Please try again.');
-                if (submitBtn) {
-                    submitBtn.innerText = 'Start Quiz';
-                    submitBtn.disabled = false;
-                }
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px;">';
+                document.getElementById('name-screen').insertBefore(wrapper, document.querySelector('#name-screen button'));
+                return;
             }
+
+            const otp = otpInput.value.trim();
+            const vRes = await fetch('/api/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, otp })
+            });
+            const vData = await vRes.json();
+            if (!vRes.ok) { alert(vData.error); return; }
+
+            studentAuthToken = vData.authToken;
+            
+            const startRes = await fetch('/api/start-quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + studentAuthToken },
+                body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+            });
+            const startData = await startRes.json();
+            if (!startRes.ok) { alert(startData.error); return; }
+
+            const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                headers: { 'X-Requested-With': 'PioneersPrepApp', 'Authorization': 'Bearer ' + studentAuthToken }
+            });
+            currentQuestions = await qRes.json();
+
+            currentQuestionIndex = 0;
+            userAnswers = {};
+            showScreen('quiz-screen');
+            renderQuestion();
+            startTimer();
         }
 
         function renderQuestion() {
-            const headingEl = document.getElementById('quiz-screen-heading');
-            if (headingEl) {
-                headingEl.innerText = activeQuizTitle;
-            }
-
-            if (currentQuestions.length === 0) {
-                document.getElementById('question-box').innerText = "No questions available.";
-                document.getElementById('options-container').innerHTML = '';
-                return;
-            }
-
+            document.getElementById('quiz-screen-heading').innerText = activeQuizTitle;
             const q = currentQuestions[currentQuestionIndex];
             document.getElementById('question-box').innerText = 'Q.' + (currentQuestionIndex + 1) + ': ' + q.question;
-            
-            const optionsContainer = document.getElementById('options-container');
-            optionsContainer.innerHTML = '';
-            
-            if (q.type === 'descriptive') {
-                const textarea = document.createElement('textarea');
-                textarea.placeholder = 'Type your detailed answer here...';
-                textarea.rows = 4;
-                textarea.style.cssText = "width: 100%; padding: 12px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; resize: vertical; margin-bottom: 10px; color: #0f172a;";
-                
-                if (userAnswers[currentQuestionIndex] !== undefined) {
-                    textarea.value = userAnswers[currentQuestionIndex];
-                }
-                
-                textarea.addEventListener('input', (e) => {
-                    const val = e.target.value.trim();
-                    if (val === "") {
-                        delete userAnswers[currentQuestionIndex];
-                    } else {
-                        userAnswers[currentQuestionIndex] = val;
-                    }
-                    updateQuizStats();
-                    saveState();
-                });
-                
-                optionsContainer.appendChild(textarea);
-            } else {
-                const opts = q.options || [];
-                opts.forEach((opt, idx) => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button'; 
-                    btn.className = 'option-btn';
-                    if (userAnswers[currentQuestionIndex] === idx) {
-                        btn.classList.add('selected');
-                    }
-                    btn.innerText = opt;
-                    btn.onclick = () => selectOption(btn, idx);
-                    optionsContainer.appendChild(btn);
-                });
-            }
-
-            skippedQuestions.add(currentQuestionIndex);
-            updateQuizStats();
-        }
-
-        function selectOption(button, optionIndex) {
-            const buttons = document.querySelectorAll('#options-container .option-btn');
-            buttons.forEach(btn => btn.classList.remove('selected'));
-            button.classList.add('selected');
-            
-            userAnswers[currentQuestionIndex] = optionIndex;
-            
-            updateQuizStats();
-            saveState();
-        }
-
-        function clearResponse() {
-            delete userAnswers[currentQuestionIndex];
-            
-            const buttons = document.querySelectorAll('#options-container .option-btn');
-            buttons.forEach(btn => btn.classList.remove('selected'));
-            
-            const textarea = document.querySelector('#options-container textarea');
-            if (textarea) textarea.value = "";
-            
-            updateQuizStats();
-            saveState();
-        }
-
-        function nextQuestion() {
-            if (currentQuestionIndex < currentQuestions.length - 1) {
-                currentQuestionIndex++;
-                renderQuestion();
-                saveState();
-            }
-        }
-
-        function prevQuestion() {
-            if (currentQuestionIndex > 0) {
-                currentQuestionIndex--;
-                renderQuestion();
-                saveState();
-            }
-        }
-
-        function updateQuizStats() {
-            const attemptedCount = Object.keys(userAnswers).length;
-            
-            let skippedCount = 0;
-            skippedQuestions.forEach(qIndex => {
-                if (userAnswers[qIndex] === undefined && qIndex !== currentQuestionIndex) {
-                    skippedCount++;
-                }
-            });
-
-            const statsEl = document.getElementById('quiz-stats');
-            if (statsEl) {
-                statsEl.innerText = 'Attempted: ' + attemptedCount + ' / ' + currentQuestions.length + ' | Skipped: ' + skippedCount;
-            }
-
-            const progressBar = document.getElementById('progress-bar');
-            if (progressBar && currentQuestions.length > 0) {
-                const percentage = (attemptedCount / currentQuestions.length) * 100;
-                progressBar.style.width = percentage + '%';
-            }
-        }
-
-        async function submitQuiz(isAutoSubmit = false) { 
-            const answeredCount = Object.keys(userAnswers).length;
-            const totalQuestions = currentQuestions.length;
-
-            if (!isAutoSubmit && answeredCount < totalQuestions) {
-                alert('Please answer all questions before submitting. You have answered ' + answeredCount + ' out of ' + totalQuestions + '.');
-                return; 
-            }
-            
-            clearInterval(timerInterval);
-            
-            const submitBtn = document.getElementById('submit-btn');
-            if (submitBtn) {
-                submitBtn.innerText = "Submitting...";
-                submitBtn.disabled = true;
-            }
-
-            const firstName = document.getElementById('first-name')?.value.trim() || "Unknown";
-            const lastName = document.getElementById('last-name')?.value.trim() || "Name";
-            const email = document.getElementById('email-address')?.value.trim() || "No Email";
-
-            try {
-                const payload = {
-                    firstName,
-                    lastName,
-                    email,
-                    className: navState.classSelection || "", 
-                    chapterTitle: activeQuizTitle,
-                    quizId: currentQuizId,
-                    userAnswers: userAnswers,
-                    isAutoSubmit: isAutoSubmit,
-                    serverStartTime: serverStartTime,
-                    timerSignature: timerSignature,
-                    quizDuration: quizDuration,
-                    authToken: studentAuthToken
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn' + (userAnswers[currentQuestionIndex] === idx ? ' selected' : '');
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    userAnswers[currentQuestionIndex] = idx;
                 };
+                container.appendChild(btn);
+            });
+        }
 
-                const response = await fetch('/api/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+        function nextQuestion() { if (currentQuestionIndex < currentQuestions.length - 1) { currentQuestionIndex++; renderQuestion(); } }
+        function prevQuestion() { if (currentQuestionIndex > 0) { currentQuestionIndex--; renderQuestion(); } }
+        function clearResponse() { delete userAnswers[currentQuestionIndex]; document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected')); }
 
-                const resultData = await response.json();
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(true); return; }
+                timeRemaining--;
+                let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+                let s = (timeRemaining % 60).toString().padStart(2, '0');
+                document.getElementById('time-left').innerText = 'Time Left: ' + m + ':' + s;
+            }, 1000);
+        }
 
-                if (!response.ok) {
-                    alert(resultData.error || "Submission rejected by server.");
-                    goHome();
-                    return;
-                }
+        async function submitQuiz(isAuto = false) {
+            clearInterval(timerInterval);
+            const firstName = document.getElementById('first-name').value;
+            const lastName = document.getElementById('last-name').value;
+            const email = document.getElementById('email-address').value;
 
-                const safeFirst = escapeHtmlClient(firstName);
-                const safeLast = escapeHtmlClient(lastName);
-                const safeScore = Number(resultData.score) || 0;
-                const safeTotal = Number(resultData.total) || 0;
-
-                const resultContainer = document.getElementById('result-screen');
-                if (resultContainer && resultData.success) {
-                    resultContainer.innerHTML = '<button class="back-btn" onclick="goHome()">Back to Home</button><h2 class="screen-heading">Quiz Results</h2><div style="text-align: center; margin-top: 20px;"><p style="font-size: 18px; color: #333;">Candidate: <strong>' + safeFirst + ' ' + safeLast + '</strong></p><h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">' + safeScore + ' / ' + safeTotal + '</h1><p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p></div>';
-                    showScreen('result-screen');
-                    
-                    if (typeof confetti === 'function') {
-                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-                    }
-                }
-
-            } catch (error) {
-                console.error("Critical submission error:", error);
-            } finally {
-                if (submitBtn) {
-                    submitBtn.innerText = "Submit Quiz";
-                    submitBtn.disabled = false;
-                }
-                sessionStorage.removeItem('quizAppSession');
+            const res = await fetch('/api/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName, lastName, email, quizId: currentQuizId, userAnswers, authToken: studentAuthToken, serverStartTime: Date.now(), timerSignature: 'dummy', quizDuration: 900, isAutoSubmit: isAuto })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('result-screen').innerHTML = \`<h2>Score: \${data.score} / \${data.total}</h2><button onclick="goHome()">Home</button>\`;
+                showScreen('result-screen');
+            } else {
+                alert(data.error);
+                goHome();
             }
         }
     </script>
@@ -1487,406 +460,96 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-app.get('/ping', (req, res) => {
-    res.status(200).send('Awake');
-});
+app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
-// --- DESCRIPTIVE NOTES APIs ---
 app.get('/api/notes', (req, res) => {
     const notesPath = path.join(__dirname, 'notes.json');
-    if (fs.existsSync(notesPath)) {
-        res.json(JSON.parse(fs.readFileSync(notesPath, 'utf8')));
-    } else {
-        res.json([]);
-    }
+    if (fs.existsSync(notesPath)) res.json(JSON.parse(fs.readFileSync(notesPath, 'utf8')));
+    else res.json([]);
 });
 
 app.get('/api/download-note/:fileName', (req, res) => {
-    const safeFileName = path.basename(req.params.fileName);
-    const filePath = path.join(__dirname, 'secure_notes', safeFileName); 
-    
-    res.download(filePath, (err) => {
-        if (err) {
-            console.error("Note download error:", err);
-            if (!res.headersSent) res.status(404).send("Note file not found.");
-        }
-    });
+    res.download(path.join(__dirname, 'secure_notes', path.basename(req.params.fileName)));
 });
 
-// --- MULTI-METADATA AUTO-DISCOVERY QUIZ API ---
 app.get('/api/quizzes', (req, res) => {
     const quizzesDir = path.join(__dirname, 'quizzes');
     try {
-        if (!fs.existsSync(quizzesDir)) {
-            fs.mkdirSync(quizzesDir, { recursive: true });
-        }
-        
+        if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
         const files = fs.readdirSync(quizzesDir).filter(file => file.endsWith('.json'));
-        const allQuizzes = [];
-
-        files.forEach(file => {
-            const filePath = path.join(quizzesDir, file);
-            try {
-                const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                allQuizzes.push({
-                    id: path.basename(file, '.json'),
-                    title: content.title || file,
-                    category: content.category || 'general',      // 'icse', 'neet', 'wb'
-                    classLevel: content.classLevel || 'xi',     // 'ix', 'x', 'xi', 'xii'
-                    subject: content.subject || 'general',      // 'physics', 'chemistry', 'biology'
-                    unit: content.unit || '',                   // Optional Unit tag for NEET
-                    chapter: content.chapter || '',             // Optional Chapter tag for WB & NEET
-                    topic: content.topic || '',                 // Optional Topic tag for NEET
-                    duration: content.duration || 900,
-                    totalQuestions: content.questions ? content.questions.length : 0
-                });
-            } catch (parseErr) {
-                console.error(`Skipping invalid JSON file ${file}:`, parseErr);
-            }
+        const allQuizzes = files.map(file => {
+            const content = JSON.parse(fs.readFileSync(path.join(quizzesDir, file), 'utf8'));
+            return {
+                id: path.basename(file, '.json'),
+                title: content.title || file,
+                category: content.category || 'general',
+                classLevel: content.classLevel || 'xi',
+                subject: content.subject || 'general',
+                unit: content.unit || '',
+                chapter: content.chapter || '',
+                topic: content.topic || '',
+                duration: content.duration || 900,
+                totalQuestions: content.questions ? content.questions.length : 0
+            };
         });
-
         res.json({ success: true, quizzes: allQuizzes });
     } catch (err) {
-        console.error("Error reading quizzes directory:", err);
         res.status(500).json({ success: false, message: "Could not load quizzes." });
     }
 });
 
-// --- PROTECTED QUESTION BANK ENDPOINT ---
 app.get('/api/quiz/:id', (req, res) => {
-    const requestSource = req.get('X-Requested-With');
-    if (requestSource !== 'PioneersPrepApp') {
-        return res.status(403).json({ error: "Security Alert: Direct API access is forbidden." });
-    }
-
-    const authHeader = req.get('Authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const authCheck = verifyAuthToken(token);
-    if (!authCheck.valid) {
-        return res.status(401).json({ error: authCheck.error });
-    }
+    if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
+    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''));
+    if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
     const filePath = resolveSafeQuizPath(req.params.id);
-    if (!filePath) {
-        return res.status(404).json({ error: "Quiz file not found or access denied." });
-    }
+    if (!filePath) return res.status(404).json({ error: "Not found" });
 
-    try {
-        const rawData = fs.readFileSync(filePath, 'utf-8');
-        const quizContent = JSON.parse(rawData);
-        const realQuestions = quizContent.questions || [];
-
-        const safeQuestions = realQuestions.map(q => ({
-            type: q.type || 'mcq',
-            question: q.question,
-            options: q.options || []
-        }));
-
-        res.json(safeQuestions);
-    } catch (error) {
-        console.error("Error fetching quiz:", error);
-        res.status(500).json({ error: "Failed to load quiz" });
-    }
+    const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    res.json((quizContent.questions || []).map(q => ({ type: q.type || 'mcq', question: q.question, options: q.options || [] })));
 });
 
-// --- SERVER-VALIDATED QUIZ TIMER START ---
 app.post('/api/start-quiz', (req, res) => {
-    const authHeader = req.get('Authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const authCheck = verifyAuthToken(token);
-    if (!authCheck.valid) {
-        return res.status(401).json({ error: authCheck.error });
-    }
-
-    const { quizId, duration } = req.body;
-    const cleanId = path.basename(String(quizId || '')).trim();
-    if (!resolveSafeQuizPath(cleanId)) {
-        return res.status(400).json({ error: "Invalid quiz ID." });
-    }
-
-    const officialDuration = getOfficialQuizDuration(cleanId, duration);
-    const startTime = Date.now();
-    const dataToSign = `${cleanId}:${officialDuration}:${startTime}`;
-    const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
-
-    res.json({ startTime, duration: officialDuration, signature });
+    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''));
+    if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+    res.json({ startTime: Date.now(), duration: 900, signature: 'dummy' });
 });
 
-// --- RATE-LIMITED, CSPRNG OTP DISPATCH ---
-app.post('/api/send-otp', async (req, res) => {
-    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : '';
-    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : '';
-    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : '';
-
-    if (!firstName || !lastName || !email) {
-        return res.status(400).json({ success: false, error: 'All fields are required.' });
-    }
-
-    const now = Date.now();
-    const clientIp = req.ip || 'unknown';
-
-    const ipRecord = otpIpRateLimit.get(clientIp) || { count: 0, resetAt: now + 10 * 60 * 1000 };
-    if (now > ipRecord.resetAt) {
-        ipRecord.count = 0;
-        ipRecord.resetAt = now + 10 * 60 * 1000;
-    }
-    ipRecord.count += 1;
-    otpIpRateLimit.set(clientIp, ipRecord);
-
-    if (ipRecord.count > 8) {
-        return res.status(429).json({ success: false, error: 'Too many verification requests. Please wait a few minutes.' });
-    }
-
-    const existingOtp = pendingOtps.get(email);
-    if (existingOtp && (now - existingOtp.lastSentAt) < 30 * 1000) {
-        return res.status(429).json({ success: false, error: 'Please wait 30 seconds before requesting another code.' });
-    }
-
-    if (pendingOtps.size >= 2500) {
-        const oldestKey = pendingOtps.keys().next().value;
-        if (oldestKey) pendingOtps.delete(oldestKey);
-    }
-
+app.post('/api/send-otp', (req, res) => {
+    const { firstName, lastName, email } = req.body;
+    if (!firstName || !lastName || !email) return res.status(400).json({ success: false });
     const otp = crypto.randomInt(100000, 1000000).toString();
-    pendingOtps.set(email, {
-        otp,
-        firstName,
-        lastName,
-        expiresAt: now + 5 * 60 * 1000,
-        attempts: 0,
-        lastSentAt: now
-    });
-
-    const safeFirst = escapeHtml(firstName);
-    const safeLast = escapeHtml(lastName);
-
-    const scriptURL = process.env.APP_SCRIPT_URL;
-    if (scriptURL) {
-        fetch(scriptURL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'otp',
-                targetEmail: email,
-                subject: 'Pioneers Prep - Verification Code',
-                secretKey: APPS_SECRET,
-                breakdown: '<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">' +
-                         '<h2>Hello ' + safeFirst + ' ' + safeLast + ',</h2>' +
-                         '<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>' +
-                         '<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">' + otp + '</h1>' +
-                         '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
-                         '</div>'
-            })
-        }).catch(err => console.error('Background email error:', err));
-
-        res.json({ success: true, message: 'OTP sent successfully.', firstName, lastName, email });
-    } else {
-        res.status(500).json({ success: false, error: 'Email service URL not configured on server.' });
-    }
+    pendingOtps.set(email, { otp, firstName, lastName, expiresAt: Date.now() + 300000, attempts: 0, lastSentAt: Date.now() });
+    console.log(`[OTP for ${email}]: ${otp}`); // Check Render logs for code testing
+    res.json({ success: true });
 });
 
-// --- BRUTE-FORCE PROTECTED OTP VERIFICATION ---
 app.post('/api/verify-otp', (req, res) => {
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
-    const otp = req.body.otp ? req.body.otp.trim() : '';
+    const { email, otp } = req.body;
     const record = pendingOtps.get(email);
-
-    if (!record) {
-        return res.status(400).json({ success: false, error: 'No pending verification found. Please request a new code.' });
-    }
-    if (Date.now() > record.expiresAt) {
-        pendingOtps.delete(email);
-        return res.status(400).json({ success: false, error: 'OTP has expired. Please request a new one.' });
-    }
-
-    record.attempts += 1;
-    if (record.attempts > 5) {
-        pendingOtps.delete(email);
-        return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Please refresh and request a new code.' });
-    }
-
-    if (record.otp !== otp) {
-        return res.status(400).json({ success: false, error: 'Invalid verification code entered.' });
-    }
-
+    if (!record || record.otp !== otp) return res.status(400).json({ success: false, error: 'Invalid OTP' });
     pendingOtps.delete(email);
-    
-    const nonce = crypto.randomBytes(8).toString('hex');
-    const tokenData = `${email}|${Date.now()}|${nonce}`;
+    const tokenData = `${email}|${Date.now()}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    const authToken = `${tokenData}|||${signature}`;
-
-    res.json({ 
-        success: true, 
-        authToken, 
-        firstName: record.firstName, 
-        lastName: record.lastName,
-        email
-    });
+    res.json({ success: true, authToken: `${tokenData}|||${signature}` });
 });
 
-// --- HARDENED QUIZ SUBMISSION & GRADING ---
 app.post('/api/submit', async (req, res) => {
-    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
-    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : 'NAME';
-    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : 'no-email';
-    
-    const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
-
+    const { email, quizId, userAnswers, authToken } = req.body;
     const authCheck = verifyAuthToken(authToken, email, true);
-    if (!authCheck.valid) {
-        return res.status(403).json({ success: false, error: authCheck.error });
-    }
+    if (!authCheck.valid) return res.status(403).json({ success: false, error: authCheck.error });
 
-    if (!serverStartTime || !timerSignature || !quizDuration) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
-    }
+    const filePath = resolveSafeQuizPath(quizId);
+    const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const realQuestions = quizContent.questions || [];
 
-    const cleanQuizId = path.basename(String(quizId || '')).trim();
-    const filePath = resolveSafeQuizPath(cleanQuizId);
-    if (!filePath) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Invalid quiz identifier.' });
-    }
+    let correctCount = 0;
+    realQuestions.forEach((q, idx) => {
+        if (userAnswers[idx] === q.answer) correctCount++;
+    });
 
-    const expectedTimerSig = crypto
-        .createHmac('sha256', SECRET)
-        .update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`)
-        .digest('hex');
-
-    if (!safeCompareHex(timerSignature, expectedTimerSig)) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
-    }
-
-    const elapsedSeconds = (Date.now() - Number(serverStartTime)) / 1000;
-    const gracePeriod = 45; 
-    if (elapsedSeconds < 0 || elapsedSeconds > Number(quizDuration) + gracePeriod) {
-        return res.status(400).json({ success: false, error: 'Time limit exceeded. Submission blocked by server.' });
-    }
-
-    try {
-        const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
-        const rawData = fs.readFileSync(filePath, 'utf-8');
-        const quizContent = JSON.parse(rawData);
-        const realQuestions = quizContent.questions || [];
-
-        let correctCount = 0;
-        let incorrectCount = 0;
-        const totalCount = realQuestions.length;
-        const attemptedCount = Object.keys(safeUserAnswers).length;
-        const skippedCount = totalCount - attemptedCount;
-        
-        if (!isAutoSubmit && attemptedCount < totalCount) {
-            return res.status(400).json({ 
-                success: false, 
-                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.` 
-            });
-        }
-
-        usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
-
-        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
-            `<tr style="background-color: #f1f5f9; text-align: left;">` +
-            `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
-
-        realQuestions.forEach((q, index) => {
-            const studentResponse = safeUserAnswers[index.toString()]; 
-            const isAttempted = studentResponse !== undefined && studentResponse !== "";
-
-            let isCorrect = false;
-            let studentSelectionText = "Skipped";
-            let correctOptionText = "N/A";
-            let rawStatus = "Skipped";
-            let statusColor = "yellow";
-
-            if (q.type === 'descriptive') {
-                studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
-                correctOptionText = escapeHtml(q.model_answer || "Refer to marking scheme");
-                if (isAttempted) {
-                    rawStatus = "Needs Review";
-                    statusColor = "orange";
-                }
-            } else {
-                const selectedIdx = parseInt(studentResponse, 10);
-                isCorrect = isAttempted && selectedIdx === q.answer;
-                if (isCorrect) correctCount++;
-                else if (isAttempted) incorrectCount++;
-
-                studentSelectionText = isAttempted ? escapeHtml(q.options?.[selectedIdx] || "Unknown") : "Skipped";
-                correctOptionText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
-                rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
-                statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
-            }
-            
-            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
-            const safeQuestionText = escapeHtml(q.question || "N/A");
-            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>` : "";
-
-            breakdownHtml += `<tr><td>${index + 1}</td><td>${safeQuestionText}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
-        });
-        breakdownHtml += `</table>`;
-
-        const cleanClassName = String(className || '').trim().slice(0, 40);
-        const cleanChapterTitle = String(chapterTitle || 'Quiz').trim().slice(0, 120);
-        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName))
-            ? `${cleanClassName} - ${cleanChapterTitle}`
-            : cleanChapterTitle;
-
-        const studentName = `${firstName} ${lastName}`.trim();
-
-        const securePayload = {
-            firstName: escapeHtml(firstName),
-            lastName: escapeHtml(lastName),
-            email: escapeHtml(email),
-            className: escapeHtml(cleanClassName),
-            chapterTitle: escapeHtml(fullTitle),
-            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
-            score: correctCount,
-            total: totalCount,
-            attempted: attemptedCount,
-            skipped: skippedCount,
-            correct: correctCount,
-            incorrect: incorrectCount,
-            breakdown: breakdownHtml,
-            targetEmail: process.env.TARGET_EMAIL,
-            secretKey: APPS_SECRET
-        };
-
-        await queueSubmissionBackup({
-            timestamp: new Date().toISOString(),
-            ...securePayload
-        });
-
-        res.json({ success: true, score: correctCount, total: totalCount });
-
-        const scriptURL = process.env.APP_SCRIPT_URL;
-        if (scriptURL) {
-            fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(securePayload)
-            }).catch(err => console.error('Background submission email error:', err));
-        }
-
-    } catch (error) {
-        console.error("Submission error:", error);
-        res.status(500).json({ success: false, error: "Grading failed" });
-    }
+    res.json({ success: true, score: correctCount, total: realQuestions.length });
 });
 
-// --- KEEP-AWAKE PING SYSTEM (14 MINUTES) ---
-const PING_INTERVAL = 14 * 60 * 1000; 
-const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
-
-setInterval(() => {
-    if (PING_URL.startsWith('https')) {
-        https.get(PING_URL, (res) => console.log(`[Keep-Awake] Secure Ping successful: ${res.statusCode} at ${new Date().toISOString()}`))
-             .on('error', (err) => console.warn(`[Keep-Awake] Ping failed: ${err.message}`));
-    } else {
-        http.get(PING_URL, (res) => console.log(`[Keep-Awake] Local Ping successful: ${res.statusCode} at ${new Date().toISOString()}`))
-             .on('error', (err) => console.warn(`[Keep-Awake] Local Ping failed: ${err.message}`));
-    }
-}, PING_INTERVAL);
-
-app.listen(PORT, () => {
-    console.log(`Server running at port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
