@@ -4,17 +4,209 @@ const path = require('path');
 const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// SECURE & SAFE: Fallback to default keys to prevent startup crashes if environment variables are missing
+// Tell Express to trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
+app.set('trust proxy', 1);
+
+// SECURE & SAFE: Fallback keys prevent startup crashes if Render env vars are unset
 const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 
-const pendingOtps = {};
-const activeSessions = new Set();
+// In-memory security stores with automatic garbage collection
+const pendingOtps = new Map();       // email -> { otp, firstName, lastName, expiresAt, attempts, lastSentAt }
+const otpIpRateLimit = new Map();    // ip -> { count, resetAt }
+const usedAuthTokens = new Map();    // signature -> expiresAt
 
-app.use(express.json());
+// --- SECURITY MIDDLEWARE &PAYLOAD LIMITS (Fix #8) ---
+app.use(express.json({ limit: '50kb' }));
+
+app.use((req, res, next) => {
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
+
+// --- SECURITY HELPER FUNCTIONS ---
+
+// Fix #5: HTML Sanitization to prevent XSS and Email HTML Injection
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Fix #7: Timing-safe hexadecimal HMAC comparison
+function safeCompareHex(sigA, sigB) {
+    if (typeof sigA !== 'string' || typeof sigB !== 'string') return false;
+    if (sigA.length !== sigB.length) return false;
+    try {
+        const bufA = Buffer.from(sigA, 'hex');
+        const bufB = Buffer.from(sigB, 'hex');
+        if (bufA.length !== bufB.length || bufA.length === 0) return false;
+        return crypto.timingSafeEqual(bufA, bufB);
+    } catch {
+        return false;
+    }
+}
+
+// Fix #4: Strict Path Traversal & Reserved File Guard
+const RESERVED_JSON_NAMES = new Set([
+    'submissions', 'package', 'package-lock', 'quizzes', 'neet', 'wb', 'notes'
+]);
+
+function resolveSafeQuizPath(rawId) {
+    if (!rawId || typeof rawId !== 'string') return null;
+    const cleanId = path.basename(rawId.trim());
+    // Allow only alphanumeric, hyphen, and underscore characters
+    if (!/^[a-zA-Z0-9_-]+$/.test(cleanId)) return null;
+    if (RESERVED_JSON_NAMES.has(cleanId.toLowerCase())) return null;
+
+    let filePath = path.join(__dirname, `${cleanId}.json`);
+    if (fs.existsSync(filePath)) return filePath;
+
+    filePath = path.join(__dirname, `${cleanId}-questions.json`);
+    if (fs.existsSync(filePath)) return filePath;
+
+    return null;
+}
+
+// Fix #2: Server-Side Official Quiz Duration Lookup
+function getOfficialQuizDuration(quizId, clientFallback) {
+    const cleanId = path.basename(String(quizId || '')).trim();
+    try {
+        // 1. Check quizzes.json (Classes IX, X)
+        const quizzesPath = path.join(__dirname, 'quizzes.json');
+        if (fs.existsSync(quizzesPath)) {
+            const quizData = JSON.parse(fs.readFileSync(quizzesPath, 'utf8'));
+            for (const cls of quizData) {
+                for (const sub of (cls.subjects || [])) {
+                    for (const ch of (sub.chapters || [])) {
+                        if (ch.id === cleanId && Number(ch.duration) > 0) {
+                            return Number(ch.duration);
+                        }
+                    }
+                }
+            }
+        }
+        // 2. Check neet.json (Classes XI, XII)
+        const neetPath = path.join(__dirname, 'neet.json');
+        if (fs.existsSync(neetPath)) {
+            const neetData = JSON.parse(fs.readFileSync(neetPath, 'utf8'));
+            for (const cls of neetData) {
+                for (const unit of (cls.units || [])) {
+                    for (const ch of (unit.chapters || [])) {
+                        for (const topic of (ch.topics || [])) {
+                            if (topic.id === cleanId && Number(topic.duration) > 0) {
+                                return Number(topic.duration);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 3. Check wb.json (WB XI, WB XII)
+        const wbPath = path.join(__dirname, 'wb.json');
+        if (fs.existsSync(wbPath)) {
+            const wbData = JSON.parse(fs.readFileSync(wbPath, 'utf8'));
+            for (const cls of wbData) {
+                for (const ch of (cls.chapters || [])) {
+                    if (ch.id === cleanId && Number(ch.duration) > 0) {
+                        return Number(ch.duration);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error looking up official duration:', err);
+    }
+    // Safe fallback clamped between 60s (1 min) and 10800s (3 hours), default 900s (15 mins)
+    const parsed = parseInt(clientFallback, 10);
+    if (!isNaN(parsed) && parsed >= 60 && parsed <= 10800) return parsed;
+    return 900;
+}
+
+// Fix #3: Stateless Auth Token Verification (Bound to Email + 3-Hour Expiry + Replay Check)
+const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
+    if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
+        return { valid: false, error: 'Security Alert: Invalid submission token.' };
+    }
+    const parts = authToken.split('|||');
+    if (parts.length !== 2) {
+        return { valid: false, error: 'Security Alert: Malformed token.' };
+    }
+    const [tokenData, authSignature] = parts;
+    const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+
+    if (!safeCompareHex(authSignature, expectedAuthSig)) {
+        return { valid: false, error: 'Security Alert: Unauthorized or tampered session.' };
+    }
+
+    const dataParts = tokenData.split('|');
+    if (dataParts.length < 2) {
+        return { valid: false, error: 'Security Alert: Outdated session token.' };
+    }
+    const tokenEmail = dataParts[0];
+    const issuedAt = parseInt(dataParts[1], 10);
+
+    if (isNaN(issuedAt) || (Date.now() - issuedAt) > TOKEN_MAX_AGE_MS) {
+        return { valid: false, error: 'Session expired. Please verify your email again.' };
+    }
+
+    if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
+        return { valid: false, error: 'Security Alert: Token email mismatch.' };
+    }
+
+    if (checkReplay && usedAuthTokens.has(authSignature)) {
+        return { valid: false, error: 'This quiz session has already been submitted.' };
+    }
+
+    return { valid: true, email: tokenEmail, signature: authSignature };
+}
+
+// Fix #8: Sequential Async Lock for submissions.json writes
+let submissionWritePromise = Promise.resolve();
+function queueSubmissionBackup(entry) {
+    submissionWritePromise = submissionWritePromise.then(async () => {
+        try {
+            const submissionsFile = path.join(__dirname, 'submissions.json');
+            let allSubmissions = [];
+            if (fs.existsSync(submissionsFile)) {
+                const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
+                allSubmissions = JSON.parse(fileData);
+            }
+            allSubmissions.push(entry);
+            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
+        } catch (err) {
+            console.error('Local backup failed:', err);
+        }
+    });
+    return submissionWritePromise;
+}
+
+// Fix #6: Periodic Memory Cleanup (Every 5 Minutes) to prevent RAM exhaustion
+setInterval(() => {
+    const now = Date.now();
+    for (const [email, record] of pendingOtps.entries()) {
+        if (now > record.expiresAt) pendingOtps.delete(email);
+    }
+    for (const [ip, record] of otpIpRateLimit.entries()) {
+        if (now > record.resetAt) otpIpRateLimit.delete(ip);
+    }
+    for (const [sig, expiresAt] of usedAuthTokens.entries()) {
+        if (now > expiresAt) usedAuthTokens.delete(sig);
+    }
+}, 5 * 60 * 1000);
 
 // --- MASTER BACKEND SERVER: BULLETPROOF SECURITY & MOBILE RESPONSIVE APP ---
 app.get('/', (req, res) => {
@@ -526,7 +718,6 @@ app.get('/', (req, res) => {
         let activeQuizTitle = "Quiz Active";
         let isRestoring = false;
         
-        // Expanded navState to track Notes navigation
         let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null, notesClass: null, notesSubject: null };
 
         let serverStartTime = 0;
@@ -534,6 +725,17 @@ app.get('/', (req, res) => {
         let quizDuration = 0;
         let clientStartTime = 0;
         let studentAuthToken = "";
+
+        // Client-side HTML escaping to prevent DOM XSS
+        function escapeHtmlClient(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function syncNameScreenButtons() {
             const backBtn = document.querySelector('#name-screen .back-btn');
@@ -629,9 +831,14 @@ app.get('/', (req, res) => {
             if (state.lastName) document.getElementById('last-name').value = state.lastName;
             if (state.email) document.getElementById('email-address').value = state.email;
 
-            if (currentQuizId && state.activeScreenId === 'quiz-screen') {
+            if (currentQuizId && state.activeScreenId === 'quiz-screen' && studentAuthToken) {
                 try {
-                    const freshQuestions = await fetch('/api/quiz/' + currentQuizId, { headers: { 'X-Requested-With': 'PioneersPrepApp' }});
+                    const freshQuestions = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                        headers: {
+                            'X-Requested-With': 'PioneersPrepApp',
+                            'Authorization': 'Bearer ' + studentAuthToken
+                        }
+                    });
                     if (freshQuestions.ok) {
                         const qs = await freshQuestions.json();
                         currentQuestions = qs.length > 0 ? qs : (state.currentQuestions || []);
@@ -647,7 +854,6 @@ app.get('/', (req, res) => {
 
             const { classSelection, subjectSelection, unitSelection, chapterSelection, notesClass, notesSubject } = navState;
 
-            // Restore Mock Test Nav
             if (classSelection) {
                 if (['IX', 'X'].includes(classSelection)) {
                     if (subjectSelection) await selectSubject(subjectSelection);
@@ -671,7 +877,6 @@ app.get('/', (req, res) => {
                 }
             }
 
-            // Restore Notes Nav
             if (notesClass) {
                 selectNotesClass(notesClass);
                 if (notesSubject) {
@@ -824,15 +1029,13 @@ app.get('/', (req, res) => {
                 const response = await fetch('/api/notes');
                 if (response.ok) {
                     const allNotes = await response.json();
-                    
-                    // Match the selected class and subject
                     const matchedObj = allNotes.find(n => n.class === navState.notesClass && n.subject.toLowerCase() === subjectName.toLowerCase());
                     
                     container.innerHTML = '';
                     if (matchedObj && matchedObj.notes && matchedObj.notes.length > 0) {
                         matchedObj.notes.forEach(note => {
                             const link = document.createElement('a');
-                            link.href = '/api/download-note/' + note.fileName;
+                            link.href = '/api/download-note/' + encodeURIComponent(note.fileName);
                             link.className = 'card';
                             link.style.textDecoration = 'none';
                             link.style.display = 'block';
@@ -875,7 +1078,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
 
             try {
-                const response = await fetch('/api/papers/' + className);
+                const response = await fetch('/api/papers/' + encodeURIComponent(className));
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -899,15 +1102,17 @@ app.get('/', (req, res) => {
                 return;
             }
 
+            // Fix #1: Do not fetch questions until OTP verification succeeds
             chapters.forEach(ch => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerText = ch.title;
-                card.onclick = async () => {
+                card.onclick = () => {
                     currentChapterTitle = className + ' - ' + ch.title;
                     activeQuizTitle = ch.title; 
                     timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
-                    currentQuestions = await fetchQuestionsFile(ch.id);
+                    currentQuizId = ch.id;
+                    currentQuestions = [];
                     showScreen('name-screen');
                 };
                 container.appendChild(card);
@@ -922,7 +1127,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
 
             try {
-                const response = await fetch('/api/papers/' + navState.classSelection + '/' + subjectName);
+                const response = await fetch('/api/papers/' + encodeURIComponent(navState.classSelection) + '/' + encodeURIComponent(subjectName));
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -950,15 +1155,17 @@ app.get('/', (req, res) => {
                 return;
             }
 
+            // Fix #1: Do not fetch questions until OTP verification succeeds
             chapters.forEach(ch => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerText = ch.title;
-                card.onclick = async () => {
+                card.onclick = () => {
                     currentChapterTitle = ch.title;
                     activeQuizTitle = ch.title; 
                     timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
-                    currentQuestions = await fetchQuestionsFile(ch.id);
+                    currentQuizId = ch.id;
+                    currentQuestions = [];
                     showScreen('name-screen');
                 };
                 container.appendChild(card);
@@ -973,7 +1180,7 @@ app.get('/', (req, res) => {
 
             papers.forEach(paper => {
                 const link = document.createElement('a');
-                link.href = '/api/download/' + paper.fileName; 
+                link.href = '/api/download/' + encodeURIComponent(paper.fileName); 
                 link.className = 'card';
                 link.style.textDecoration = 'none';
                 link.style.display = 'block';
@@ -991,7 +1198,7 @@ app.get('/', (req, res) => {
             container.innerHTML = '';
             
             try {
-                const response = await fetch('/api/papers/' + className);
+                const response = await fetch('/api/papers/' + encodeURIComponent(className));
                 const data = await response.json();
                 
                 if (data.success && data.papers && data.papers.length > 0) {
@@ -1057,15 +1264,17 @@ app.get('/', (req, res) => {
                 container.innerHTML = '<p style="text-align:center; color:#64748b;">No topics available.</p>';
             }
 
+            // Fix #1: Do not fetch questions until OTP verification succeeds
             validTopics.forEach(topic => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerText = topic.name;
-                card.onclick = async () => {
+                card.onclick = () => {
                     currentChapterTitle = chapter.name + ' - ' + topic.name;
                     activeQuizTitle = topic.name; 
                     timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
-                    currentQuestions = await fetchQuestionsFile(topic.id);
+                    currentQuizId = topic.id;
+                    currentQuestions = [];
                     showScreen('name-screen');
                 };
                 container.appendChild(card);
@@ -1074,11 +1283,14 @@ app.get('/', (req, res) => {
         }
 
         async function fetchQuestionsFile(fileId) {
-            if (!fileId) return [];
+            if (!fileId || !studentAuthToken) return [];
             try {
                 currentQuizId = fileId; 
-                const response = await fetch('/api/quiz/' + fileId, {
-                    headers: { 'X-Requested-With': 'PioneersPrepApp' }
+                const response = await fetch('/api/quiz/' + encodeURIComponent(fileId), {
+                    headers: {
+                        'X-Requested-With': 'PioneersPrepApp',
+                        'Authorization': 'Bearer ' + studentAuthToken
+                    }
                 });
                 if (response.ok) return await response.json();
                 return [];
@@ -1207,6 +1419,11 @@ app.get('/', (req, res) => {
                 return;
             }
 
+            if (submitBtn) {
+                submitBtn.innerText = 'Verifying...';
+                submitBtn.disabled = true;
+            }
+
             try {
                 const verifyResponse = await fetch('/api/verify-otp', {
                     method: 'POST',
@@ -1217,27 +1434,58 @@ app.get('/', (req, res) => {
 
                 if (!verifyResponse.ok) {
                     alert(verifyData.error || 'Invalid verification code.');
+                    if (submitBtn) {
+                        submitBtn.innerText = 'Start Quiz';
+                        submitBtn.disabled = false;
+                    }
                     return;
                 }
 
-                // SECURE FIX: Create a self-verifying, stateless signature token.
                 studentAuthToken = verifyData.authToken;
 
                 const tokenResponse = await fetch('/api/start-quiz', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + studentAuthToken
+                    },
                     body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
                 });
                 const tokenData = await tokenResponse.json();
+
+                if (!tokenResponse.ok) {
+                    alert(tokenData.error || 'Could not initialize quiz timer.');
+                    if (submitBtn) {
+                        submitBtn.innerText = 'Start Quiz';
+                        submitBtn.disabled = false;
+                    }
+                    return;
+                }
                 
                 serverStartTime = tokenData.startTime;
                 timerSignature = tokenData.signature;
-                quizDuration = timeRemaining;
+                quizDuration = tokenData.duration || timeRemaining;
+                timeRemaining = quizDuration;
                 clientStartTime = Date.now(); 
-                
-                if (currentQuestionIndex === 0 && Object.keys(userAnswers).length === 0) {
-                    skippedQuestions = new Set();
+
+                // Fix #1: Fetch questions ONLY after OTP and timer initialization succeed
+                currentQuestions = await fetchQuestionsFile(currentQuizId);
+                if (!currentQuestions || currentQuestions.length === 0) {
+                    alert('Could not load questions for this test.');
+                    if (submitBtn) {
+                        submitBtn.innerText = 'Start Quiz';
+                        submitBtn.disabled = false;
+                    }
+                    return;
                 }
+
+                currentQuestionIndex = 0;
+                userAnswers = {};
+                skippedQuestions = new Set();
+
+                const existingOtpWrapper = document.getElementById('otp-wrapper-container');
+                if (existingOtpWrapper) existingOtpWrapper.remove();
+                syncNameScreenButtons();
 
                 showScreen('quiz-screen');
                 startTimer();
@@ -1247,6 +1495,10 @@ app.get('/', (req, res) => {
             } catch (error) {
                 console.error('Verification error:', error);
                 alert('Authentication failed. Please try again.');
+                if (submitBtn) {
+                    submitBtn.innerText = 'Start Quiz';
+                    submitBtn.disabled = false;
+                }
             }
         }
 
@@ -1422,9 +1674,14 @@ app.get('/', (req, res) => {
                     return;
                 }
 
+                const safeFirst = escapeHtmlClient(firstName);
+                const safeLast = escapeHtmlClient(lastName);
+                const safeScore = Number(resultData.score) || 0;
+                const safeTotal = Number(resultData.total) || 0;
+
                 const resultContainer = document.getElementById('result-screen');
                 if (resultContainer && resultData.success) {
-                    resultContainer.innerHTML = '<button class="back-btn" onclick="goHome()">Back to Home</button><h2 class="screen-heading">Quiz Results</h2><div style="text-align: center; margin-top: 20px;"><p style="font-size: 18px; color: #333;">Candidate: <strong>' + firstName + ' ' + lastName + '</strong></p><h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">' + resultData.score + ' / ' + resultData.total + '</h1><p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p></div>';
+                    resultContainer.innerHTML = '<button class="back-btn" onclick="goHome()">Back to Home</button><h2 class="screen-heading">Quiz Results</h2><div style="text-align: center; margin-top: 20px;"><p style="font-size: 18px; color: #333;">Candidate: <strong>' + safeFirst + ' ' + safeLast + '</strong></p><h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">' + safeScore + ' / ' + safeTotal + '</h1><p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p></div>';
                     showScreen('result-screen');
                     
                     if (typeof confetti === 'function') {
@@ -1451,13 +1708,12 @@ app.get('/ping', (req, res) => {
     res.status(200).send('Awake');
 });
 
-// --- NEW DESCRIPTIVE NOTES APIs ---
+// --- DESCRIPTIVE NOTES APIs ---
 app.get('/api/notes', (req, res) => {
     const notesPath = path.join(__dirname, 'notes.json');
     if (fs.existsSync(notesPath)) {
         res.json(JSON.parse(fs.readFileSync(notesPath, 'utf8')));
     } else {
-        // Return empty array instead of 404 to ensure frontend renders gracefully if file is missing
         res.json([]);
     }
 });
@@ -1473,8 +1729,8 @@ app.get('/api/download-note/:fileName', (req, res) => {
         }
     });
 });
-// ------------------------------------
 
+// --- QUIZ CONFIGURATION APIs ---
 app.get('/api/quizzes', (req, res) => {
     const quizListPath = path.join(__dirname, 'quizzes.json');
     if (fs.existsSync(quizListPath)) {
@@ -1564,30 +1820,35 @@ app.get('/api/download/:fileName', (req, res) => {
     });
 });
 
+// --- PROTECTED QUESTION BANK ENDPOINT (Fixes #1 & #4) ---
 app.get('/api/quiz/:id', (req, res) => {
     const requestSource = req.get('X-Requested-With');
     if (requestSource !== 'PioneersPrepApp') {
         return res.status(403).json({ error: "Security Alert: Direct API access is forbidden." });
     }
 
+    // Require verified OTP session token before serving questions
+    const authHeader = req.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const authCheck = verifyAuthToken(token);
+    if (!authCheck.valid) {
+        return res.status(401).json({ error: authCheck.error });
+    }
+
+    const filePath = resolveSafeQuizPath(req.params.id);
+    if (!filePath) {
+        return res.status(404).json({ error: "Quiz file not found or access denied." });
+    }
+
     try {
-        const id = req.params.id;
-        let filePath = path.join(__dirname, `${id}.json`);
-
-        if (!fs.existsSync(filePath)) {
-            filePath = path.join(__dirname, `${id}-questions.json`);
-        }
-
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
-        const safeQuestions = realQuestions.map(q => {
-            return {
-                type: q.type || 'mcq',
-                question: q.question,
-                options: q.options || []
-            };
-        });
+        const safeQuestions = realQuestions.map(q => ({
+            type: q.type || 'mcq',
+            question: q.question,
+            options: q.options || []
+        }));
 
         res.json(safeQuestions);
     } catch (error) {
@@ -1596,31 +1857,80 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
+// --- SERVER-VALIDATED QUIZ TIMER START (Fix #2) ---
 app.post('/api/start-quiz', (req, res) => {
+    const authHeader = req.get('Authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const authCheck = verifyAuthToken(token);
+    if (!authCheck.valid) {
+        return res.status(401).json({ error: authCheck.error });
+    }
+
     const { quizId, duration } = req.body;
+    const cleanId = path.basename(String(quizId || '')).trim();
+    if (!resolveSafeQuizPath(cleanId)) {
+        return res.status(400).json({ error: "Invalid quiz ID." });
+    }
+
+    const officialDuration = getOfficialQuizDuration(cleanId, duration);
     const startTime = Date.now();
-    const dataToSign = `${quizId}:${duration}:${startTime}`;
+    const dataToSign = `${cleanId}:${officialDuration}:${startTime}`;
     const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
-    res.json({ startTime, signature });
+
+    res.json({ startTime, duration: officialDuration, signature });
 });
 
-// --- ASYNCHRONOUS NON-BLOCKING OTP DISPATCH ---
+// --- RATE-LIMITED, CSPRNG OTP DISPATCH (Fixes #5 & #6) ---
 app.post('/api/send-otp', async (req, res) => {
-    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : '';
-    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : '';
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : '';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : '';
+    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : '';
 
     if (!firstName || !lastName || !email) {
         return res.status(400).json({ success: false, error: 'All fields are required.' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    pendingOtps[email] = {
+    const now = Date.now();
+    const clientIp = req.ip || 'unknown';
+
+    // IP Rate Limit: Max 8 OTP requests per 10 minutes per IP
+    const ipRecord = otpIpRateLimit.get(clientIp) || { count: 0, resetAt: now + 10 * 60 * 1000 };
+    if (now > ipRecord.resetAt) {
+        ipRecord.count = 0;
+        ipRecord.resetAt = now + 10 * 60 * 1000;
+    }
+    ipRecord.count += 1;
+    otpIpRateLimit.set(clientIp, ipRecord);
+
+    if (ipRecord.count > 8) {
+        return res.status(429).json({ success: false, error: 'Too many verification requests. Please wait a few minutes.' });
+    }
+
+    // Per-Email Cooldown: 30 seconds between OTP sends
+    const existingOtp = pendingOtps.get(email);
+    if (existingOtp && (now - existingOtp.lastSentAt) < 30 * 1000) {
+        return res.status(429).json({ success: false, error: 'Please wait 30 seconds before requesting another code.' });
+    }
+
+    // Cap total pending OTPs in memory to prevent RAM exhaustion
+    if (pendingOtps.size >= 2500) {
+        const oldestKey = pendingOtps.keys().next().value;
+        if (oldestKey) pendingOtps.delete(oldestKey);
+    }
+
+    // Cryptographically secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    pendingOtps.set(email, {
         otp,
         firstName,
         lastName,
-        expiresAt: Date.now() + 5 * 60 * 1000
-    };
+        expiresAt: now + 5 * 60 * 1000,
+        attempts: 0,
+        lastSentAt: now
+    });
+
+    const safeFirst = escapeHtml(firstName);
+    const safeLast = escapeHtml(lastName);
 
     const scriptURL = process.env.APP_SCRIPT_URL;
     if (scriptURL) {
@@ -1633,7 +1943,7 @@ app.post('/api/send-otp', async (req, res) => {
                 subject: 'Pioneers Prep - Verification Code',
                 secretKey: APPS_SECRET,
                 breakdown: '<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">' +
-                           '<h2>Hello ' + firstName + ' ' + lastName + ',</h2>' +
+                           '<h2>Hello ' + safeFirst + ' ' + safeLast + ',</h2>' +
                            '<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>' +
                            '<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">' + otp + '</h1>' +
                            '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
@@ -1647,28 +1957,37 @@ app.post('/api/send-otp', async (req, res) => {
     }
 });
 
+// --- BRUTE-FORCE PROTECTED OTP VERIFICATION (Fixes #3 & #6) ---
 app.post('/api/verify-otp', (req, res) => {
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const otp = req.body.otp ? req.body.otp.trim() : '';
-    const record = pendingOtps[email];
+    const record = pendingOtps.get(email);
 
     if (!record) {
         return res.status(400).json({ success: false, error: 'No pending verification found. Please request a new code.' });
     }
     if (Date.now() > record.expiresAt) {
-        delete pendingOtps[email];
+        pendingOtps.delete(email);
         return res.status(400).json({ success: false, error: 'OTP has expired. Please request a new one.' });
     }
+
+    record.attempts += 1;
+    if (record.attempts > 5) {
+        pendingOtps.delete(email);
+        return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Please refresh and request a new code.' });
+    }
+
     if (record.otp !== otp) {
         return res.status(400).json({ success: false, error: 'Invalid verification code entered.' });
     }
 
-    delete pendingOtps[email];
+    pendingOtps.delete(email);
     
-    // SECURE FIX: Using ||| delimiter so .com in emails doesn't break the string split
-    const tokenData = email + ':' + Date.now();
+    // Stateless token with email, timestamp, and random nonce separated by |||
+    const nonce = crypto.randomBytes(8).toString('hex');
+    const tokenData = `${email}|${Date.now()}|${nonce}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    const authToken = tokenData + '|||' + signature;
+    const authToken = `${tokenData}|||${signature}`;
 
     res.json({ 
         success: true, 
@@ -1679,44 +1998,47 @@ app.post('/api/verify-otp', (req, res) => {
     });
 });
 
+// --- HARDENED QUIZ SUBMISSION & GRADING (Fixes #2, #3, #4, #5, #7, #8) ---
 app.post('/api/submit', async (req, res) => {
-    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase() : 'UNKNOWN';
-    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase() : 'NAME';
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : 'no-email';
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : 'NAME';
+    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : 'no-email';
     
     const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    // SECURE FIX: Extracting by ||| to prevent breaking on email addresses
-    if (!authToken || !authToken.includes('|||')) {
-        return res.status(403).json({ success: false, error: 'Security Alert: Invalid submission token.' });
-    }
-    const [tokenData, authSignature] = authToken.split('|||');
-    const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    if (authSignature !== expectedAuthSig) {
-        return res.status(403).json({ success: false, error: 'Security Alert: Unauthorized or tampered session.' });
+    // Verify stateless token signature, email binding, 3-hour expiry, and single-use replay status
+    const authCheck = verifyAuthToken(authToken, email, true);
+    if (!authCheck.valid) {
+        return res.status(403).json({ success: false, error: authCheck.error });
     }
 
     if (!serverStartTime || !timerSignature || !quizDuration) {
         return res.status(400).json({ success: false, error: 'Security Alert: Missing timer tokens. Submission rejected.' });
     }
 
-    const expectedSignature = crypto.createHmac('sha256', SECRET).update(`${quizId}:${quizDuration}:${serverStartTime}`).digest('hex');
-    if (expectedSignature !== timerSignature) {
+    const cleanQuizId = path.basename(String(quizId || '')).trim();
+    const filePath = resolveSafeQuizPath(cleanQuizId);
+    if (!filePath) {
+        return res.status(400).json({ success: false, error: 'Security Alert: Invalid quiz identifier.' });
+    }
+
+    const expectedTimerSig = crypto
+        .createHmac('sha256', SECRET)
+        .update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`)
+        .digest('hex');
+
+    if (!safeCompareHex(timerSignature, expectedTimerSig)) {
         return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
     }
 
-    const elapsedSeconds = (Date.now() - serverStartTime) / 1000;
+    const elapsedSeconds = (Date.now() - Number(serverStartTime)) / 1000;
     const gracePeriod = 45; 
-    if (elapsedSeconds > quizDuration + gracePeriod) {
+    if (elapsedSeconds < 0 || elapsedSeconds > Number(quizDuration) + gracePeriod) {
         return res.status(400).json({ success: false, error: 'Time limit exceeded. Submission blocked by server.' });
     }
 
     try {
-        const safeUserAnswers = userAnswers || {};
-        let filePath = path.join(__dirname, `${quizId}.json`);
-        if (!fs.existsSync(filePath)) {
-            filePath = path.join(__dirname, `${quizId}-questions.json`);
-        }
+        const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
         const rawData = fs.readFileSync(filePath, 'utf-8');
         const realQuestions = JSON.parse(rawData);
 
@@ -1733,6 +2055,9 @@ app.post('/api/submit', async (req, res) => {
             });
         }
 
+        // Mark token as used so it cannot be replayed
+        usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
+
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
             `<tr style="background-color: #f1f5f9; text-align: left;">` +
             `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
@@ -1748,67 +2073,62 @@ app.post('/api/submit', async (req, res) => {
             let statusColor = "yellow";
 
             if (q.type === 'descriptive') {
-                studentSelectionText = isAttempted ? studentResponse : "Skipped";
-                correctOptionText = q.model_answer || "Refer to marking scheme";
+                studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
+                correctOptionText = escapeHtml(q.model_answer || "Refer to marking scheme");
                 if (isAttempted) {
                     rawStatus = "Needs Review";
                     statusColor = "orange";
                 }
             } else {
-                isCorrect = isAttempted && parseInt(studentResponse) === q.answer;
+                const selectedIdx = parseInt(studentResponse, 10);
+                isCorrect = isAttempted && selectedIdx === q.answer;
                 if (isCorrect) correctCount++;
                 else if (isAttempted) incorrectCount++;
 
-                studentSelectionText = isAttempted ? (q.options[studentResponse] || "Unknown") : "Skipped";
-                correctOptionText = q.options[q.answer] !== undefined ? q.options[q.answer] : "N/A";
+                studentSelectionText = isAttempted ? escapeHtml(q.options?.[selectedIdx] || "Unknown") : "Skipped";
+                correctOptionText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
                 rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
                 statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
             }
             
             const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
-            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${q.explanation}</span>` : "";
+            const safeQuestionText = escapeHtml(q.question || "N/A");
+            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>` : "";
 
-            breakdownHtml += `<tr><td>${index + 1}</td><td>${q.question || "N/A"}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
+            breakdownHtml += `<tr><td>${index + 1}</td><td>${safeQuestionText}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
         });
         breakdownHtml += `</table>`;
 
-        const fullTitle = (className && !chapterTitle.startsWith(className))
-            ? `${className} - ${chapterTitle}`
-            : chapterTitle;
+        const cleanClassName = String(className || '').trim().slice(0, 40);
+        const cleanChapterTitle = String(chapterTitle || 'Quiz').trim().slice(0, 120);
+        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName))
+            ? `${cleanClassName} - ${cleanChapterTitle}`
+            : cleanChapterTitle;
 
         const studentName = `${firstName} ${lastName}`.trim();
 
         const securePayload = {
-            firstName, lastName, email,
-            className: className || "",
-            chapterTitle: fullTitle,
+            firstName: escapeHtml(firstName),
+            lastName: escapeHtml(lastName),
+            email: escapeHtml(email),
+            className: escapeHtml(cleanClassName),
+            chapterTitle: escapeHtml(fullTitle),
             subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
-            score: correctCount, total: totalCount,
-            attempted: attemptedCount, skipped: skippedCount,
-            correct: correctCount, incorrect: incorrectCount,
+            score: correctCount,
+            total: totalCount,
+            attempted: attemptedCount,
+            skipped: skippedCount,
+            correct: correctCount,
+            incorrect: incorrectCount,
             breakdown: breakdownHtml,
             targetEmail: process.env.TARGET_EMAIL,
             secretKey: APPS_SECRET
         };
 
-        try {
-            const submissionsFile = path.join(__dirname, 'submissions.json');
-            let allSubmissions = [];
-            
-            if (fs.existsSync(submissionsFile)) {
-                const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
-                allSubmissions = JSON.parse(fileData);
-            }
-            
-            allSubmissions.push({
-                timestamp: new Date().toISOString(),
-                ...securePayload
-            });
-            
-            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-        } catch (err) {
-            console.error("Local backup failed:", err);
-        }
+        await queueSubmissionBackup({
+            timestamp: new Date().toISOString(),
+            ...securePayload
+        });
 
         res.json({ success: true, score: correctCount, total: totalCount });
 
@@ -1827,8 +2147,7 @@ app.post('/api/submit', async (req, res) => {
     }
 });
 
-// --- UPDATED KEEP-AWAKE PING SYSTEM (14 MINUTES) ---
-// Using native https module instead of fetch to ensure compatibility across all Node versions on Render
+// --- KEEP-AWAKE PING SYSTEM (14 MINUTES) ---
 const PING_INTERVAL = 14 * 60 * 1000; 
 const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
 
