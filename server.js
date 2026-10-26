@@ -20,7 +20,7 @@ const pendingOtps = new Map();       // email -> { otp, firstName, lastName, exp
 const otpIpRateLimit = new Map();    // ip -> { count, resetAt }
 const usedAuthTokens = new Map();    // signature -> expiresAt
 
-// --- SECURITY MIDDLEWARE &PAYLOAD LIMITS (Fix #8) ---
+// --- SECURITY MIDDLEWARE & PAYLOAD LIMITS (Fix #8) ---
 app.use(express.json({ limit: '50kb' }));
 
 app.use((req, res, next) => {
@@ -60,75 +60,39 @@ function safeCompareHex(sigA, sigB) {
 
 // Fix #4: Strict Path Traversal & Reserved File Guard
 const RESERVED_JSON_NAMES = new Set([
-    'submissions', 'package', 'package-lock', 'quizzes', 'neet', 'wb', 'notes'
+    'submissions', 'package', 'package-lock', 'quizzes', 'notes'
 ]);
 
 function resolveSafeQuizPath(rawId) {
     if (!rawId || typeof rawId !== 'string') return null;
     const cleanId = path.basename(rawId.trim());
-    // Allow only alphanumeric, hyphen, and underscore characters
     if (!/^[a-zA-Z0-9_-]+$/.test(cleanId)) return null;
     if (RESERVED_JSON_NAMES.has(cleanId.toLowerCase())) return null;
 
-    let filePath = path.join(__dirname, `${cleanId}.json`);
+    const quizzesDir = path.join(__dirname, 'quizzes');
+    let filePath = path.join(quizzesDir, `${cleanId}.json`);
     if (fs.existsSync(filePath)) return filePath;
 
-    filePath = path.join(__dirname, `${cleanId}-questions.json`);
+    filePath = path.join(quizzesDir, `${cleanId}-questions.json`);
     if (fs.existsSync(filePath)) return filePath;
 
     return null;
 }
 
-// Fix #2: Server-Side Official Quiz Duration Lookup
+// Fix #2: Dynamic Server-Side Official Quiz Duration Lookup from Folder Files
 function getOfficialQuizDuration(quizId, clientFallback) {
     const cleanId = path.basename(String(quizId || '')).trim();
-    try {
-        // 1. Check quizzes.json (Classes IX, X)
-        const quizzesPath = path.join(__dirname, 'quizzes.json');
-        if (fs.existsSync(quizzesPath)) {
-            const quizData = JSON.parse(fs.readFileSync(quizzesPath, 'utf8'));
-            for (const cls of quizData) {
-                for (const sub of (cls.subjects || [])) {
-                    for (const ch of (sub.chapters || [])) {
-                        if (ch.id === cleanId && Number(ch.duration) > 0) {
-                            return Number(ch.duration);
-                        }
-                    }
-                }
+    const filePath = resolveSafeQuizPath(cleanId);
+    if (filePath && fs.existsSync(filePath)) {
+        try {
+            const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            if (Number(quizContent.duration) > 0) {
+                return Number(quizContent.duration);
             }
+        } catch (err) {
+            console.error('Error reading quiz duration from file:', err);
         }
-        // 2. Check neet.json (Classes XI, XII)
-        const neetPath = path.join(__dirname, 'neet.json');
-        if (fs.existsSync(neetPath)) {
-            const neetData = JSON.parse(fs.readFileSync(neetPath, 'utf8'));
-            for (const cls of neetData) {
-                for (const unit of (cls.units || [])) {
-                    for (const ch of (unit.chapters || [])) {
-                        for (const topic of (ch.topics || [])) {
-                            if (topic.id === cleanId && Number(topic.duration) > 0) {
-                                return Number(topic.duration);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // 3. Check wb.json (WB XI, WB XII)
-        const wbPath = path.join(__dirname, 'wb.json');
-        if (fs.existsSync(wbPath)) {
-            const wbData = JSON.parse(fs.readFileSync(wbPath, 'utf8'));
-            for (const cls of wbData) {
-                for (const ch of (cls.chapters || [])) {
-                    if (ch.id === cleanId && Number(ch.duration) > 0) {
-                        return Number(ch.duration);
-                    }
-                }
-            }
-        }
-    } catch (err) {
-        console.error('Error looking up official duration:', err);
     }
-    // Safe fallback clamped between 60s (1 min) and 10800s (3 hours), default 900s (15 mins)
     const parsed = parseInt(clientFallback, 10);
     if (!isNaN(parsed) && parsed >= 60 && parsed <= 10800) return parsed;
     return 900;
@@ -248,7 +212,6 @@ app.get('/', (req, res) => {
             padding: 40px;
         }
 
-        /* PROFESSIONAL GLOBAL SHADOW EFFECT FOR ALL BUTTONS & CARDS */
         button, .card {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
             transition: all 0.2s ease !important;
@@ -262,7 +225,6 @@ app.get('/', (req, res) => {
             transform: translateY(0) !important;
         }
 
-        /* DASHBOARD FLEX LAYOUT FOR SIDE-BY-SIDE PANELS */
         #home-dashboard {
             display: flex;
             gap: 40px;
@@ -286,7 +248,6 @@ app.get('/', (req, res) => {
             color: #0f172a;
         }
 
-        /* GENERAL SCREEN CONTAINERS */
         #subject-select-screen, 
         #ix-x-chapter-screen, 
         #xi-xii-unit-screen, 
@@ -375,10 +336,10 @@ app.get('/', (req, res) => {
             color: #0f172a;                    
             font-size: 18px;                    
             font-weight: bold;                    
-            text-align: center;                  
+            text-align: center;                   
             padding: 20px;                        
             margin-bottom: 15px;                  
-            border-radius: 8px;                  
+            border-radius: 8px;                   
             border: 1px solid #cbd5e1;            
             cursor: pointer;
         }
@@ -644,24 +605,6 @@ app.get('/', (req, res) => {
         <div id="ix-x-chapter-container"></div>
     </div>
 
-    <div id="xi-xii-unit-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Unit</h2>
-        <div id="xi-xii-unit-container"></div>
-    </div>
-
-    <div id="xi-xii-chapter-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Chapter</h2>
-        <div id="xi-xii-chapter-container"></div>
-    </div>
-
-    <div id="xi-xii-topic-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Topic</h2>
-        <div id="xi-xii-topic-container"></div>
-    </div>
-
     <div id="name-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Enter Details</h2>
@@ -700,19 +643,11 @@ app.get('/', (req, res) => {
 
     <div id="result-screen" class="app-screen hidden"></div>
 
-    <div id="download-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Download Study Papers</h2>
-        <div id="download-container"></div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
         let screenHistory = [];
         let currentQuizId = "";
-        let neetData = [];
-        let quizData = [];
-        let wbData = [];
+        let dynamicQuizzes = [];
         let currentQuestions = [];
         let currentQuestionIndex = 0;
         let userAnswers = {};
@@ -723,7 +658,7 @@ app.get('/', (req, res) => {
         let activeQuizTitle = "Quiz Active";
         let isRestoring = false;
         
-        let navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null, notesClass: null, notesSubject: null };
+        let navState = { classSelection: null, subjectSelection: null, notesClass: null, notesSubject: null };
 
         let serverStartTime = 0;
         let timerSignature = "";
@@ -731,7 +666,6 @@ app.get('/', (req, res) => {
         let clientStartTime = 0;
         let studentAuthToken = "";
 
-        // Client-side HTML escaping to prevent DOM XSS
         function escapeHtmlClient(str) {
             if (!str) return '';
             return String(str)
@@ -778,15 +712,12 @@ app.get('/', (req, res) => {
             }
 
             try {
-                const neetResponse = await fetch('/api/neet');
-                if (neetResponse.ok) neetData = await neetResponse.json();
-                
                 const quizResponse = await fetch('/api/quizzes');
-                if (quizResponse.ok) quizData = await quizResponse.json();
-
-                const wbResponse = await fetch('/api/wb');
-                if (wbResponse.ok) wbData = await wbResponse.json();
-
+                if (quizResponse.ok) {
+                    const data = await quizResponse.json();
+                    if (data.success) dynamicQuizzes = data.quizzes;
+                }
+                
                 await restoreState(); 
             } catch (error) {
                 console.error("Error fetching configurations:", error);
@@ -857,28 +788,13 @@ app.get('/', (req, res) => {
                 currentQuestions = state.currentQuestions || [];
             }
 
-            const { classSelection, subjectSelection, unitSelection, chapterSelection, notesClass, notesSubject } = navState;
+            const { classSelection, subjectSelection, notesClass, notesSubject } = navState;
 
             if (classSelection) {
                 if (['IX', 'X'].includes(classSelection)) {
-                    if (subjectSelection) await selectSubject(subjectSelection);
-                } else if (['WB XI', 'WB XII'].includes(classSelection)) {
-                    await loadWbChapters(classSelection);
-                } else {
-                    await loadNeetUnits(classSelection);
-                    if (unitSelection) {
-                        const classObj = neetData.find(c => c.name && c.name.toLowerCase().includes(classSelection.toLowerCase()));
-                        if (classObj) {
-                            loadNeetChapters(classObj, unitSelection);
-                            if (chapterSelection) {
-                                const unit = classObj.units.find(u => u.name === unitSelection);
-                                if (unit) {
-                                    const chapter = unit.chapters.find(c => c.name === chapterSelection);
-                                    if (chapter) loadNeetTopics(chapter);
-                                }
-                            }
-                        }
-                    }
+                    if (subjectSelection) selectSubject(subjectSelection);
+                } else if (['XI', 'XII', 'WB XI', 'WB XII'].includes(classSelection)) {
+                    loadDynamicChapters(classSelection);
                 }
             }
 
@@ -889,7 +805,7 @@ app.get('/', (req, res) => {
                 }
             }
             
-            navState = { classSelection, subjectSelection, unitSelection, chapterSelection, notesClass, notesSubject };
+            navState = { classSelection, subjectSelection, notesClass, notesSubject };
             const activeScreenId = state.activeScreenId || 'home-dashboard';
             
             if (activeScreenId === 'result-screen') {
@@ -963,7 +879,7 @@ app.get('/', (req, res) => {
 
         function goHome() {
             screenHistory = [];
-            navState = { classSelection: null, subjectSelection: null, unitSelection: null, chapterSelection: null, notesClass: null, notesSubject: null };
+            navState = { classSelection: null, subjectSelection: null, notesClass: null, notesSubject: null };
             currentQuestions = [];
             userAnswers = {};
             skippedQuestions = new Set();
@@ -998,7 +914,6 @@ app.get('/', (req, res) => {
         }
 
         // --- NOTES PORTAL LOGIC ---
-
         function selectNotesClass(className) {
             navState.notesClass = className;
             navState.notesSubject = null;
@@ -1060,252 +975,107 @@ app.get('/', (req, res) => {
             }
         }
 
-        // --- MOCK TEST PORTAL LOGIC ---
-
+        // --- MOCK TEST PORTAL LOGIC (ALL THREE METADATA ROUTING TYPES) ---
         function selectClass(className) {
             navState.classSelection = className;
             navState.subjectSelection = null;
-            navState.unitSelection = null;
-            navState.chapterSelection = null;
 
             if (className === 'IX' || className === 'X') {
                 showScreen('subject-select-screen');
-            } else if (className === 'XI' || className === 'XII') {
-                loadNeetUnits(className);
-            } else if (className === 'WB XI' || className === 'WB XII') {
-                loadWbChapters(className);
+            } else {
+                loadDynamicChapters(className);
             }
         }
 
-        async function loadWbChapters(className) {
-            const container = document.getElementById('ix-x-chapter-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            try {
-                const response = await fetch('/api/papers/' + encodeURIComponent(className));
-                const data = await response.json();
-                
-                if (data.success && data.papers && data.papers.length > 0) {
-                    const downloadBtn = document.createElement('button');
-                    downloadBtn.type = 'button';
-                    downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
-                    downloadBtn.onclick = () => openDownloadScreen(data.papers);
-                    container.appendChild(downloadBtn);
-                }
-            } catch (error) {
-                console.error("Error fetching papers:", error);
-            }
-
-            const classObj = wbData.find(c => c.className === className);
-            const chapters = classObj ? classObj.chapters : [];
-
-            if (chapters.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#64748b;">No chapters found.</p>';
-                showScreen('ix-x-chapter-screen');
-                return;
-            }
-
-            // Fix #1: Do not fetch questions until OTP verification succeeds
-            chapters.forEach(ch => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = ch.title;
-                card.onclick = () => {
-                    currentChapterTitle = className + ' - ' + ch.title;
-                    activeQuizTitle = ch.title; 
-                    timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
-                    currentQuizId = ch.id;
-                    currentQuestions = [];
-                    showScreen('name-screen');
-                };
-                container.appendChild(card);
-            });
-            showScreen('ix-x-chapter-screen');
-        }
-
-        async function selectSubject(subjectName) {
+        function selectSubject(subjectName) {
             navState.subjectSelection = subjectName;
-            const container = document.getElementById('ix-x-chapter-container');
-            if (!container) return;
-            container.innerHTML = '';
+            const container = document.getElementById('ix-x-chapter-screen');
+            const listContainer = document.getElementById('ix-x-chapter-container');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
 
-            try {
-                const response = await fetch('/api/papers/' + encodeURIComponent(navState.classSelection) + '/' + encodeURIComponent(subjectName));
-                const data = await response.json();
-                
-                if (data.success && data.papers && data.papers.length > 0) {
-                    const downloadBtn = document.createElement('button');
-                    downloadBtn.type = 'button';
-                    downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
-                    downloadBtn.onclick = () => openDownloadScreen(data.papers);
-                    container.appendChild(downloadBtn);
-                }
-            } catch (error) {
-                console.error("Error fetching papers:", error);
-            }
+            // Filter quizzes matching ICSE Class (IX or X) and Subject (Physics/Chemistry/Biology)
+            const matchedQuizzes = dynamicQuizzes.filter(q => {
+                const catMatch = String(q.category).toLowerCase() === 'icse';
+                const clsMatch = String(q.classLevel).toLowerCase() === String(navState.classSelection).toLowerCase();
+                const subMatch = String(q.subject).toLowerCase() === String(subjectName).toLowerCase();
+                return catMatch && clsMatch && subMatch;
+            });
 
-            const classObj = quizData.find(c => c.name === navState.classSelection || c.name === ('Class ' + navState.classSelection));
-            const subjectObj = classObj && classObj.subjects ? classObj.subjects.find(s => s.name.toLowerCase() === subjectName.toLowerCase()) : null;
-            const chapters = subjectObj ? subjectObj.chapters : [];
-
-            if (chapters.length === 0) {
-                const msg = document.createElement('p');
-                msg.style.cssText = "text-align:center; color:#64748b; width: 100%;";
-                msg.innerText = "No chapters found.";
-                container.appendChild(msg);
+            if (matchedQuizzes.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; width: 100%;">No chapters found for this subject.</p>';
                 showScreen('ix-x-chapter-screen');
                 return;
             }
 
-            // Fix #1: Do not fetch questions until OTP verification succeeds
-            chapters.forEach(ch => {
+            matchedQuizzes.forEach(quiz => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.innerText = ch.title;
+                card.innerText = quiz.title;
                 card.onclick = () => {
-                    currentChapterTitle = ch.title;
-                    activeQuizTitle = ch.title; 
-                    timeRemaining = ch.duration || getDefaultTimeFromHTML(); 
-                    currentQuizId = ch.id;
+                    currentChapterTitle = quiz.title;
+                    activeQuizTitle = quiz.title; 
+                    timeRemaining = quiz.duration || getDefaultTimeFromHTML(); 
+                    currentQuizId = quiz.id;
                     currentQuestions = [];
                     showScreen('name-screen');
                 };
-                container.appendChild(card);
+                listContainer.appendChild(card);
             });
             showScreen('ix-x-chapter-screen');
         }
 
-        function openDownloadScreen(papers) {
-            const container = document.getElementById('download-container');
-            if (!container) return;
-            container.innerHTML = '';
+        function loadDynamicChapters(className) {
+            const listContainer = document.getElementById('ix-x-chapter-container');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
 
-            papers.forEach(paper => {
-                const link = document.createElement('a');
-                link.href = '/api/download/' + encodeURIComponent(paper.fileName); 
-                link.className = 'card';
-                link.style.textDecoration = 'none';
-                link.style.display = 'block';
-                link.style.color = '#333';
-                link.innerText = '📥 ' + paper.name;
-                container.appendChild(link);
-            });
-
-            showScreen('download-screen');
-        }
-
-        async function loadNeetUnits(className) {
-            const container = document.getElementById('xi-xii-unit-container');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            try {
-                const response = await fetch('/api/papers/' + encodeURIComponent(className));
-                const data = await response.json();
-                
-                if (data.success && data.papers && data.papers.length > 0) {
-                    const downloadBtn = document.createElement('button');
-                    downloadBtn.type = 'button';
-                    downloadBtn.innerText = "📄 Download Papers";
-                    downloadBtn.style.cssText = "display: block; width: 100%; max-width: 300px; margin: 0 auto 20px; padding: 12px; background-color: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;";
-                    downloadBtn.onclick = () => openDownloadScreen(data.papers);
-                    container.appendChild(downloadBtn);
-                }
-            } catch (error) {
-                console.error("Error fetching papers:", error);
+            // Distinguish NEET vs WBCHSE based on button selection
+            let targetCategory = 'neet';
+            let normalizedClass = String(className).toLowerCase();
+            if (normalizedClass.startsWith('wb ')) {
+                targetCategory = 'wb';
+                normalizedClass = normalizedClass.replace('wb ', '');
             }
 
-            const targetClassObj = neetData.find(c => c.name && c.name.toLowerCase().includes(className.toLowerCase()));
-            
-            if (!targetClassObj || !targetClassObj.units) {
-                const msg = document.createElement('p');
-                msg.style.cssText = "text-align:center; color:#64748b; width: 100%;";
-                msg.innerText = "No units found.";
-                container.appendChild(msg);
-                showScreen('xi-xii-unit-screen');
+            const matchedQuizzes = dynamicQuizzes.filter(q => {
+                const catMatch = String(q.category).toLowerCase() === targetCategory;
+                const clsMatch = String(q.classLevel).toLowerCase() === normalizedClass;
+                return catMatch && clsMatch;
+            });
+
+            if (matchedQuizzes.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#64748b; width: 100%;">No mock tests found for ' + className + '.</p>';
+                showScreen('ix-x-chapter-screen');
                 return;
             }
 
-            targetClassObj.units.forEach(unit => {
+            matchedQuizzes.forEach(quiz => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.innerText = unit.name;
-                card.onclick = () => loadNeetChapters(targetClassObj, unit.name);
-                container.appendChild(card);
-            });
-            showScreen('xi-xii-unit-screen');
-        }
+                // Display hierarchical details if unit/chapter/topic are present (NEET)
+                let label = quiz.title;
+                if (quiz.unit && quiz.chapter) {
+                    label = `[${quiz.unit}] ${quiz.chapter} - ${quiz.title}`;
+                } else if (quiz.chapter) {
+                    label = `${quiz.chapter}: ${quiz.title}`;
+                }
+                card.innerText = label;
 
-        function loadNeetChapters(classObj, unitName) {
-            navState.unitSelection = unitName;
-            navState.chapterSelection = null;
-            const unit = classObj.units.find(u => u.name === unitName);
-            const container = document.getElementById('xi-xii-chapter-container');
-            if (!container || !unit) return;
-            container.innerHTML = '';
-
-            unit.chapters.forEach(chap => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = chap.name;
-                card.onclick = () => loadNeetTopics(chap);
-                container.appendChild(card);
-            });
-            showScreen('xi-xii-chapter-screen');
-        }
-
-        function loadNeetTopics(chapter) {
-            navState.chapterSelection = chapter.name;
-            const container = document.getElementById('xi-xii-topic-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            const validTopics = chapter.topics.filter(t => t.name && t.name.trim() !== "");
-
-            if (validTopics.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#64748b;">No topics available.</p>';
-            }
-
-            // Fix #1: Do not fetch questions until OTP verification succeeds
-            validTopics.forEach(topic => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = topic.name;
                 card.onclick = () => {
-                    currentChapterTitle = chapter.name + ' - ' + topic.name;
-                    activeQuizTitle = topic.name; 
-                    timeRemaining = topic.duration || getDefaultTimeFromHTML(); 
-                    currentQuizId = topic.id;
+                    currentChapterTitle = className + ' - ' + quiz.title;
+                    activeQuizTitle = quiz.title; 
+                    timeRemaining = quiz.duration || getDefaultTimeFromHTML(); 
+                    currentQuizId = quiz.id;
                     currentQuestions = [];
                     showScreen('name-screen');
                 };
-                container.appendChild(card);
+                listContainer.appendChild(card);
             });
-            showScreen('xi-xii-topic-screen');
+            showScreen('ix-x-chapter-screen');
         }
 
-        async function fetchQuestionsFile(fileId) {
-            if (!fileId || !studentAuthToken) return [];
-            try {
-                currentQuizId = fileId; 
-                const response = await fetch('/api/quiz/' + encodeURIComponent(fileId), {
-                    headers: {
-                        'X-Requested-With': 'PioneersPrepApp',
-                        'Authorization': 'Bearer ' + studentAuthToken
-                    }
-                });
-                if (response.ok) return await response.json();
-                return [];
-            } catch (error) {
-                console.error('Error loading API for ' + fileId + ':', error);
-                return [];
-            }
-        }
-
-        function startTimer() {
+        async function startTimer() {
             clearInterval(timerInterval);
             const timeDisplay = document.getElementById('time-left');
             
@@ -1473,8 +1243,16 @@ app.get('/', (req, res) => {
                 timeRemaining = quizDuration;
                 clientStartTime = Date.now(); 
 
-                // Fix #1: Fetch questions ONLY after OTP and timer initialization succeed
-                currentQuestions = await fetchQuestionsFile(currentQuizId);
+                const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                    headers: {
+                        'X-Requested-With': 'PioneersPrepApp',
+                        'Authorization': 'Bearer ' + studentAuthToken
+                    }
+                });
+                if (qRes.ok) {
+                    currentQuestions = await qRes.json();
+                }
+
                 if (!currentQuestions || currentQuestions.length === 0) {
                     alert('Could not load questions for this test.');
                     if (submitBtn) {
@@ -1735,104 +1513,52 @@ app.get('/api/download-note/:fileName', (req, res) => {
     });
 });
 
-// --- QUIZ CONFIGURATION APIs ---
+// --- MULTI-METADATA AUTO-DISCOVERY QUIZ API ---
 app.get('/api/quizzes', (req, res) => {
-    const quizListPath = path.join(__dirname, 'quizzes.json');
-    if (fs.existsSync(quizListPath)) {
-        res.json(JSON.parse(fs.readFileSync(quizListPath, 'utf8')));
-    } else {
-        res.status(404).json({ error: 'quizzes.json configuration file not found' });
-    }
-});
-
-app.get('/api/neet', (req, res) => {
-    const neetListPath = path.join(__dirname, 'neet.json');
-    if (fs.existsSync(neetListPath)) {
-        res.json(JSON.parse(fs.readFileSync(neetListPath, 'utf8')));
-    } else {
-        res.status(404).json({ error: 'neet.json configuration file not found' });
-    }
-});
-
-app.get('/api/wb', (req, res) => {
-    const wbListPath = path.join(__dirname, 'wb.json');
-    if (fs.existsSync(wbListPath)) {
-        res.json(JSON.parse(fs.readFileSync(wbListPath, 'utf8')));
-    } else {
-        res.status(404).json({ error: 'wb.json configuration file not found' });
-    }
-});
-
-app.get('/api/papers/:className/:subjectName', (req, res) => {
-    const { className, subjectName } = req.params;
-    let papers = [];
-
+    const quizzesDir = path.join(__dirname, 'quizzes');
     try {
-        if (fs.existsSync(path.join(__dirname, 'quizzes.json'))) {
-            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'quizzes.json'), 'utf8'));
-            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
-            const subjectObj = classObj?.subjects?.find(s => s.name.toLowerCase() === subjectName.toLowerCase());
-            if (subjectObj && subjectObj.papers) papers = papers.concat(subjectObj.papers);
+        if (!fs.existsSync(quizzesDir)) {
+            fs.mkdirSync(quizzesDir, { recursive: true });
         }
+        
+        const files = fs.readdirSync(quizzesDir).filter(file => file.endsWith('.json'));
+        const allQuizzes = [];
 
-        if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
-            const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
-            const classObj = data.find(c => c.name === className || c.name === `Class ${className}`);
-            const unitObj = classObj?.units?.find(u => u.name.toLowerCase() === subjectName.toLowerCase());
-            if (unitObj && unitObj.papers) papers = papers.concat(unitObj.papers);
-        }
+        files.forEach(file => {
+            const filePath = path.join(quizzesDir, file);
+            try {
+                const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                allQuizzes.push({
+                    id: path.basename(file, '.json'),
+                    title: content.title || file,
+                    category: content.category || 'general',      // 'icse', 'neet', 'wb'
+                    classLevel: content.classLevel || 'xi',     // 'ix', 'x', 'xi', 'xii'
+                    subject: content.subject || 'general',      // 'physics', 'chemistry', 'biology'
+                    unit: content.unit || '',                   // Optional Unit tag for NEET
+                    chapter: content.chapter || '',             // Optional Chapter tag for WB & NEET
+                    topic: content.topic || '',                 // Optional Topic tag for NEET
+                    duration: content.duration || 900,
+                    totalQuestions: content.questions ? content.questions.length : 0
+                });
+            } catch (parseErr) {
+                console.error(`Skipping invalid JSON file ${file}:`, parseErr);
+            }
+        });
 
-        res.json({ success: true, papers });
-    } catch (error) {
-        console.error("Error fetching papers:", error);
-        res.json({ success: false, papers: [] });
+        res.json({ success: true, quizzes: allQuizzes });
+    } catch (err) {
+        console.error("Error reading quizzes directory:", err);
+        res.status(500).json({ success: false, message: "Could not load quizzes." });
     }
 });
 
-app.get('/api/papers/:className', (req, res) => {
-    const { className } = req.params;
-    let papers = [];
-
-    try {
-        if (fs.existsSync(path.join(__dirname, 'wb.json'))) {
-            const wbData = JSON.parse(fs.readFileSync(path.join(__dirname, 'wb.json'), 'utf8'));
-            const wbClass = wbData.find(c => c.className === className || c.className === `WB ${className}`);
-            if (wbClass && wbClass.papers) papers = papers.concat(wbClass.papers);
-        }
-
-        if (papers.length === 0 && fs.existsSync(path.join(__dirname, 'neet.json'))) {
-            const neetData = JSON.parse(fs.readFileSync(path.join(__dirname, 'neet.json'), 'utf8'));
-            const neetClass = neetData.find(c => c.name === className || c.name === `Class ${className}`);
-            if (neetClass && neetClass.papers) papers = papers.concat(neetClass.papers);
-        }
-
-        res.json({ success: true, papers });
-    } catch (error) {
-        console.error("Error fetching papers:", error);
-        res.json({ success: false, papers: [] });
-    }
-});
-
-app.get('/api/download/:fileName', (req, res) => {
-    const safeFileName = path.basename(req.params.fileName);
-    const filePath = path.join(__dirname, 'secure_papers', safeFileName); 
-    
-    res.download(filePath, (err) => {
-        if (err) {
-            console.error("File download error:", err);
-            if (!res.headersSent) res.status(404).send("File not found.");
-        }
-    });
-});
-
-// --- PROTECTED QUESTION BANK ENDPOINT (Fixes #1 & #4) ---
+// --- PROTECTED QUESTION BANK ENDPOINT ---
 app.get('/api/quiz/:id', (req, res) => {
     const requestSource = req.get('X-Requested-With');
     if (requestSource !== 'PioneersPrepApp') {
         return res.status(403).json({ error: "Security Alert: Direct API access is forbidden." });
     }
 
-    // Require verified OTP session token before serving questions
     const authHeader = req.get('Authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
     const authCheck = verifyAuthToken(token);
@@ -1847,7 +1573,8 @@ app.get('/api/quiz/:id', (req, res) => {
 
     try {
         const rawData = fs.readFileSync(filePath, 'utf-8');
-        const realQuestions = JSON.parse(rawData);
+        const quizContent = JSON.parse(rawData);
+        const realQuestions = quizContent.questions || [];
 
         const safeQuestions = realQuestions.map(q => ({
             type: q.type || 'mcq',
@@ -1862,7 +1589,7 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
-// --- SERVER-VALIDATED QUIZ TIMER START (Fix #2) ---
+// --- SERVER-VALIDATED QUIZ TIMER START ---
 app.post('/api/start-quiz', (req, res) => {
     const authHeader = req.get('Authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
@@ -1885,7 +1612,7 @@ app.post('/api/start-quiz', (req, res) => {
     res.json({ startTime, duration: officialDuration, signature });
 });
 
-// --- RATE-LIMITED, CSPRNG OTP DISPATCH (Fixes #5 & #6) ---
+// --- RATE-LIMITED, CSPRNG OTP DISPATCH ---
 app.post('/api/send-otp', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : '';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : '';
@@ -1898,7 +1625,6 @@ app.post('/api/send-otp', async (req, res) => {
     const now = Date.now();
     const clientIp = req.ip || 'unknown';
 
-    // IP Rate Limit: Max 8 OTP requests per 10 minutes per IP
     const ipRecord = otpIpRateLimit.get(clientIp) || { count: 0, resetAt: now + 10 * 60 * 1000 };
     if (now > ipRecord.resetAt) {
         ipRecord.count = 0;
@@ -1911,19 +1637,16 @@ app.post('/api/send-otp', async (req, res) => {
         return res.status(429).json({ success: false, error: 'Too many verification requests. Please wait a few minutes.' });
     }
 
-    // Per-Email Cooldown: 30 seconds between OTP sends
     const existingOtp = pendingOtps.get(email);
     if (existingOtp && (now - existingOtp.lastSentAt) < 30 * 1000) {
         return res.status(429).json({ success: false, error: 'Please wait 30 seconds before requesting another code.' });
     }
 
-    // Cap total pending OTPs in memory to prevent RAM exhaustion
     if (pendingOtps.size >= 2500) {
         const oldestKey = pendingOtps.keys().next().value;
         if (oldestKey) pendingOtps.delete(oldestKey);
     }
 
-    // Cryptographically secure 6-digit OTP
     const otp = crypto.randomInt(100000, 1000000).toString();
     pendingOtps.set(email, {
         otp,
@@ -1948,11 +1671,11 @@ app.post('/api/send-otp', async (req, res) => {
                 subject: 'Pioneers Prep - Verification Code',
                 secretKey: APPS_SECRET,
                 breakdown: '<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">' +
-                           '<h2>Hello ' + safeFirst + ' ' + safeLast + ',</h2>' +
-                           '<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>' +
-                           '<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">' + otp + '</h1>' +
-                           '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
-                           '</div>'
+                         '<h2>Hello ' + safeFirst + ' ' + safeLast + ',</h2>' +
+                         '<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>' +
+                         '<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">' + otp + '</h1>' +
+                         '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
+                         '</div>'
             })
         }).catch(err => console.error('Background email error:', err));
 
@@ -1962,7 +1685,7 @@ app.post('/api/send-otp', async (req, res) => {
     }
 });
 
-// --- BRUTE-FORCE PROTECTED OTP VERIFICATION (Fixes #3 & #6) ---
+// --- BRUTE-FORCE PROTECTED OTP VERIFICATION ---
 app.post('/api/verify-otp', (req, res) => {
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const otp = req.body.otp ? req.body.otp.trim() : '';
@@ -1988,7 +1711,6 @@ app.post('/api/verify-otp', (req, res) => {
 
     pendingOtps.delete(email);
     
-    // Stateless token with email, timestamp, and random nonce separated by |||
     const nonce = crypto.randomBytes(8).toString('hex');
     const tokenData = `${email}|${Date.now()}|${nonce}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
@@ -2003,7 +1725,7 @@ app.post('/api/verify-otp', (req, res) => {
     });
 });
 
-// --- HARDENED QUIZ SUBMISSION & GRADING (Fixes #2, #3, #4, #5, #7, #8) ---
+// --- HARDENED QUIZ SUBMISSION & GRADING ---
 app.post('/api/submit', async (req, res) => {
     const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
     const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : 'NAME';
@@ -2011,7 +1733,6 @@ app.post('/api/submit', async (req, res) => {
     
     const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    // Verify stateless token signature, email binding, 3-hour expiry, and single-use replay status
     const authCheck = verifyAuthToken(authToken, email, true);
     if (!authCheck.valid) {
         return res.status(403).json({ success: false, error: authCheck.error });
@@ -2045,7 +1766,8 @@ app.post('/api/submit', async (req, res) => {
     try {
         const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
         const rawData = fs.readFileSync(filePath, 'utf-8');
-        const realQuestions = JSON.parse(rawData);
+        const quizContent = JSON.parse(rawData);
+        const realQuestions = quizContent.questions || [];
 
         let correctCount = 0;
         let incorrectCount = 0;
@@ -2060,7 +1782,6 @@ app.post('/api/submit', async (req, res) => {
             });
         }
 
-        // Mark token as used so it cannot be replayed
         usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
 
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
