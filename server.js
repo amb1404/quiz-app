@@ -219,7 +219,7 @@ app.get('/', (req, res) => {
     <!-- SEO Title & Meta Description -->
     <title>Pioneers Prep - Online Mock Tests & Study Notes for ICSE, WBCHSE & NEET</title>
     <meta name="description" content="Access online mock tests, chapter-wise practice quizzes, and high-quality study notes for ICSE, WBCHSE, and NEET aspirants on Pioneers Prep.">
-    <meta name="keywords" content="Pioneers Prep, ICSE mock test, WBCHSE physics chemistry biology, NEET online test series, study notes West Bengal">
+    <meta name="keywords" content="Aniruddha Pioneers Prep, pioneesprepaniruddha, pionersprep, pioneersprep mock tests, ICSE mock test, WBCHSE physics chemistry biology, NEET online test series, study notes West Bengal">
     <meta name="author" content="Pioneers Prep">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
