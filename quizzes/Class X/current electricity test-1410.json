@@ -1,0 +1,540 @@
+{
+  "title": "ICSE Physics Class X - Comprehensive Test: Current Electricity",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "physics",
+  "duration": 2700,
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "question": "How many electrons must pass through a cross-section of a conductor to constitute 1 Coulomb of charge?",
+      "marks": 1,
+      "options": [
+        "1.6 × 10^-19",
+        "6.25 × 10^18",
+        "6.25 × 10^19",
+        "1.6 × 10^18"
+      ],
+      "answer": 1,
+      "explanation": "Use the quantization of charge formula Q = ne. Since the charge on a single electron (e) is 1.6 × 10^-19 C, n = 1 / (1.6 × 10^-19) = 6.25 × 10^18 electrons.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "question": "If a graph is plotted for an ohmic conductor with Current (I) on the Y-axis and Potential Difference (V) on the X-axis, the slope of the straight line represents:",
+      "marks": 1,
+      "options": [
+        "Resistance",
+        "Resistivity",
+        "Conductance",
+        "Electric Power"
+      ],
+      "answer": 2,
+      "explanation": "Slope = ΔY / ΔX = ΔI / ΔV = 1 / R. The reciprocal of resistance (1/R) is Conductance, not Resistance.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "question": "Two copper wires A and B have the same length, but their radii are in the ratio 1:2. What is the ratio of their resistances (R_A : R_B)?",
+      "marks": 1,
+      "options": [
+        "1 : 2",
+        "2 : 1",
+        "4 : 1",
+        "1 : 4"
+      ],
+      "answer": 2,
+      "explanation": "Resistance is inversely proportional to cross-sectional area (A = πr²), meaning R ∝ 1/r². Since r_A : r_B = 1:2, R_A : R_B = (2)² : (1)² = 4:1.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "question": "Which of the following materials is used to wind standard resistance coils in laboratory resistance boxes because its resistance barely changes with temperature?",
+      "marks": 1,
+      "options": [
+        "Pure Copper",
+        "Tungsten",
+        "Manganin",
+        "Nichrome"
+      ],
+      "answer": 2,
+      "explanation": "Manganin and Constantan are alloys with a nearly zero temperature coefficient of resistance.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "question": "What is the work done in moving a charge of +2 C from a point at a potential of -10 V to another point at a potential of +5 V?",
+      "marks": 1,
+      "options": [
+        "10 J",
+        "30 J",
+        "-10 J",
+        "15 J"
+      ],
+      "answer": 1,
+      "explanation": "Potential difference ΔV = V_final - V_initial = 5 - (-10) = 15 V. Work done W = Q × ΔV = 2 C × 15 V = 30 J.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "question": "If the current flowing through a fixed heating element is doubled (increased by 100%) for a given time, the heat energy produced in it will increase by:",
+      "marks": 1,
+      "options": [
+        "100%",
+        "200%",
+        "300%",
+        "400%"
+      ],
+      "answer": 2,
+      "explanation": "By Joule's Law (H = I²Rt), doubling the current makes the new heat H' = (2I)²Rt = 4H. The heat increases 'to' 400%, which means it increases 'by' 300%.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "question": "The SI unit of electrical conductivity (σ) is:",
+      "marks": 1,
+      "options": [
+        "Ohm-metre (Ω m)",
+        "Ohm^-1 (Ω^-1)",
+        "Ohm^-1 metre^-1 (Ω^-1 m^-1)",
+        "Volt per Ampere (V A^-1)"
+      ],
+      "answer": 2,
+      "explanation": "Conductivity is the reciprocal of resistivity (σ = 1/ρ). The unit of resistivity is Ω m, so the unit of conductivity is Ω^-1 m^-1.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q8",
+      "type": "mcq",
+      "question": "The V-I graph (with V on Y-axis and I on X-axis) for a metallic wire is plotted at two temperatures T1 and T2. If the straight line for T1 is steeper than that for T2, which relation is correct?",
+      "marks": 1,
+      "options": [
+        "T1 > T2",
+        "T1 < T2",
+        "T1 = T2",
+        "Cannot be predicted without knowing the metal"
+      ],
+      "answer": 0,
+      "explanation": "On a V-I graph, a steeper slope means higher resistance (R_1 > R_2). Since metal resistance increases with temperature, T1 > T2.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q9",
+      "type": "mcq",
+      "question": "Two identical cells, each of EMF 'E' and internal resistance 'r', are connected in parallel. What are the effective EMF and effective internal resistance of this combination?",
+      "marks": 1,
+      "options": [
+        "2E and 2r",
+        "E and 2r",
+        "E and r/2",
+        "2E and r/2"
+      ],
+      "answer": 2,
+      "explanation": "Connecting identical cells in parallel keeps the potential difference (EMF) the same as a single cell (E), while internal resistances in parallel halve to r/2.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q10",
+      "type": "mcq",
+      "question": "As the current drawn from a cell in a closed circuit is gradually increased, the terminal voltage across the cell:",
+      "marks": 1,
+      "options": [
+        "Increases proportionally",
+        "Decreases",
+        "Remains constant and equal to EMF",
+        "Drops to zero immediately"
+      ],
+      "answer": 1,
+      "explanation": "From V = E - Ir, as current (I) increases, the internal voltage drop (Ir) increases, causing the terminal voltage (V) to decrease.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q11",
+      "type": "mcq",
+      "question": "Two bulbs marked '60 W, 220 V' and '100 W, 220 V' are connected in PARALLEL across a 220 V mains supply. Which statement is true?",
+      "marks": 1,
+      "options": [
+        "The 60 W bulb glows brighter because it has higher resistance.",
+        "The 100 W bulb glows brighter because it has lower resistance and draws more current.",
+        "Both glow with equal brightness because the voltage is the same.",
+        "The 100 W bulb has higher resistance and glows brighter."
+      ],
+      "answer": 1,
+      "explanation": "In parallel, both bulbs get 220 V. Since P = V²/R, the 100 W bulb has lower resistance, consumes more power, and glows brighter.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q12",
+      "type": "mcq",
+      "question": "A uniform wire of total resistance 12 Ω is bent to form a closed equilateral triangle. What is the equivalent resistance between any two vertices of this triangle?",
+      "marks": 1,
+      "options": [
+        "4 Ω",
+        "8 Ω",
+        "2.67 Ω (8/3 Ω)",
+        "6 Ω"
+      ],
+      "answer": 2,
+      "explanation": "Each side has resistance 4 Ω. Across any two vertices, two sides are in series (8 Ω) in parallel with the third side (4 Ω). R_p = (8 × 4) / (8 + 4) = 8/3 Ω.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q13",
+      "type": "mcq",
+      "question": "An electric heater is rated '1000 W, 220 V'. If it is connected to a 110 V power supply instead, how much power will it actually consume?",
+      "marks": 1,
+      "options": [
+        "1000 W",
+        "500 W",
+        "250 W",
+        "2000 W"
+      ],
+      "answer": 2,
+      "explanation": "Resistance remains constant, so power is proportional to the square of voltage (P ∝ V²). Halving the voltage reduces power to (1/2)² = 1/4th of 1000 W = 250 W.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q14",
+      "type": "mcq",
+      "question": "Which of the following substances becomes a superconductor when cooled below 4.2 K?",
+      "marks": 1,
+      "options": [
+        "Copper",
+        "Silicon",
+        "Mercury",
+        "Constantan"
+      ],
+      "answer": 2,
+      "explanation": "Mercury completely loses its electrical resistance below its critical temperature of 4.2 K.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q15",
+      "type": "mcq",
+      "question": "How does increasing the concentration of the electrolyte in a cell affect its internal resistance?",
+      "marks": 1,
+      "options": [
+        "Internal resistance decreases",
+        "Internal resistance increases",
+        "Internal resistance remains unaffected",
+        "Internal resistance becomes zero"
+      ],
+      "answer": 1,
+      "explanation": "Higher ion concentration increases inter-ionic collisions and hinders mobility, thereby increasing internal resistance.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q16",
+      "type": "mcq",
+      "question": "A steady current of 0.5 A flows through a metallic wire when 10^20 electrons pass through its cross-section. What is the time taken for this flow?",
+      "marks": 1,
+      "options": [
+        "16 seconds",
+        "32 seconds",
+        "8 seconds",
+        "64 seconds"
+      ],
+      "answer": 1,
+      "explanation": "Total charge Q = ne = 10^20 × 1.6 × 10^-19 = 16 C. Time t = Q / I = 16 C / 0.5 A = 32 seconds.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q17",
+      "type": "mcq",
+      "question": "You are given five identical resistors, each of resistance 1/5 Ω. What is the ratio of the maximum resistance to the minimum resistance that can be obtained by combining all five of them?",
+      "marks": 1,
+      "options": [
+        "5 : 1",
+        "1 : 25",
+        "25 : 1",
+        "1 : 5"
+      ],
+      "answer": 2,
+      "explanation": "For 'n' identical resistors, R_max / R_min = n² : 1. Here, 5² : 1 = 25 : 1.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q18",
+      "type": "mcq",
+      "question": "Two resistors R1 and R2 (where R1 = 3 R2) are connected in series across a battery. What is the ratio of the potential difference across R1 to that across R2 (V1 : V2)?",
+      "marks": 1,
+      "options": [
+        "1 : 1",
+        "1 : 3",
+        "3 : 1",
+        "9 : 1"
+      ],
+      "answer": 2,
+      "explanation": "In series, current is constant, so voltage drops in direct proportion to resistance (V1 / V2 = R1 / R2 = 3 : 1).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q19",
+      "type": "mcq",
+      "question": "If a graph is plotted between Terminal Voltage (V) on the Y-axis and Current (I) on the X-axis for a cell, it forms a straight line with a negative slope. What do the Y-intercept and the magnitude of the slope represent?",
+      "marks": 1,
+      "options": [
+        "Y-intercept = Internal resistance, Slope = EMF",
+        "Y-intercept = EMF, Slope = Internal resistance",
+        "Y-intercept = EMF, Slope = External resistance",
+        "Y-intercept = Zero, Slope = Conductance"
+      ],
+      "answer": 1,
+      "explanation": "From V = E - Ir (V = (-r)I + E), the Y-intercept is E (EMF) and the slope magnitude is r (internal resistance).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q20",
+      "type": "mcq",
+      "question": "Why are thick copper wires used as connecting leads in electrical circuits?",
+      "marks": 1,
+      "options": [
+        "They have high resistance and prevent short circuits.",
+        "They have negligible resistance and prevent unwanted voltage drop or heat loss.",
+        "They have a low melting point and act as a safety fuse.",
+        "They increase the EMF of the battery."
+      ],
+      "answer": 1,
+      "explanation": "Thick copper wires maximize cross-sectional area, making resistance nearly zero and preventing energy loss as heat.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q21",
+      "type": "mcq",
+      "question": "While current in a metallic wire is due to the drift of free electrons, electric current inside an electrolyte (like dilute sulphuric acid) is due to the movement of:",
+      "marks": 1,
+      "options": [
+        "Free electrons only",
+        "Positive ions (cations) only",
+        "Negative ions (anions) only",
+        "Both positive ions (cations) and negative ions (anions) moving in opposite directions"
+      ],
+      "answer": 3,
+      "explanation": "Conduction in liquids is ionic—cations and anions move simultaneously toward opposite electrodes.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q22",
+      "type": "mcq",
+      "question": "Two resistors of resistance R and 2R are connected in parallel in a circuit. What is the ratio of heat produced in them in the same time interval (H_R : H_2R)?",
+      "marks": 1,
+      "options": [
+        "1 : 2",
+        "2 : 1",
+        "1 : 4",
+        "4 : 1"
+      ],
+      "answer": 1,
+      "explanation": "In parallel, V is constant, so use H = (V² / R)t. Since H ∝ 1/R, H_R : H_2R = (1/R) : (1/2R) = 2 : 1.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q23",
+      "type": "mcq",
+      "question": "A cell of EMF 2.0 V and internal resistance 0.5 Ω is accidentally short-circuited by connecting a thick copper wire of zero resistance across its terminals. What is the maximum current drawn from the cell?",
+      "marks": 1,
+      "options": [
+        "Infinite current",
+        "Zero current",
+        "4.0 A",
+        "1.0 A"
+      ],
+      "answer": 2,
+      "explanation": "Maximum current is limited by internal resistance: I_max = E / (0 + r) = 2.0 / 0.5 = 4.0 A.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q24",
+      "type": "mcq",
+      "question": "Which of the following mathematical expressions does NOT represent electrical energy?",
+      "marks": 1,
+      "options": [
+        "V × I × t",
+        "I² × R × t",
+        "I² × R",
+        "(V² / R) × t"
+      ],
+      "answer": 2,
+      "explanation": "I²R represents Electrical Power, not Electrical Energy (which requires the time factor t).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q25",
+      "type": "mcq",
+      "question": "If the diameter of a wire is halved while keeping its length and material unchanged, its resistance will become:",
+      "marks": 1,
+      "options": [
+        "Half",
+        "Double",
+        "Four times",
+        "Sixteen times"
+      ],
+      "answer": 2,
+      "explanation": "With length constant, area A = πd²/4. Halving diameter reduces area to 1/4th, increasing resistance 4 times.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q26",
+      "type": "mcq",
+      "question": "Tungsten is used for making the filament of an electric bulb primarily because:",
+      "marks": 1,
+      "options": [
+        "It has a very low melting point and high conductivity.",
+        "It has a very high melting point (approx. 3380°C) and high resistivity.",
+        "It is an alloy that does not glow even at high temperatures.",
+        "It has zero temperature coefficient of resistance."
+      ],
+      "answer": 1,
+      "explanation": "Tungsten's extreme melting point (3380°C) and high resistivity allow it to reach white-hot temperatures without melting.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q27",
+      "type": "mcq",
+      "question": "Three resistors of 1 Ω, 100 Ω, and 10,000 Ω are connected in parallel. Without doing exact calculations, what can be said with certainty about their equivalent resistance (R_p)?",
+      "marks": 1,
+      "options": [
+        "R_p is between 100 Ω and 10,000 Ω",
+        "R_p is slightly greater than 1 Ω",
+        "R_p is strictly less than 1 Ω",
+        "R_p is approximately 3,367 Ω"
+      ],
+      "answer": 2,
+      "explanation": "Equivalent resistance in a parallel combination is always strictly less than the smallest individual resistor.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q28",
+      "type": "mcq",
+      "question": "When a secondary cell (like a lead-acid battery) is being charged by an external DC source, how does its terminal voltage (V) compare to its EMF (E)?",
+      "marks": 1,
+      "options": [
+        "V < E",
+        "V = E",
+        "V > E",
+        "V = 0"
+      ],
+      "answer": 2,
+      "explanation": "During charging, current is forced into the positive terminal, so V = E + Ir (meaning V > E).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q29",
+      "type": "mcq",
+      "question": "Which of the following combinations of units is equivalent to 1 Ohm (1 Ω)?",
+      "marks": 1,
+      "options": [
+        "1 Joule / 1 Coulomb",
+        "1 Volt × 1 Ampere",
+        "1 Joule × 1 Second / 1 Coulomb²",
+        "1 Coulomb / 1 Second"
+      ],
+      "answer": 2,
+      "explanation": "R = V / I = (J / C) / (C / s) = (J × s) / C².",
+      "diagram_required": false
+    },
+    {
+      "id": "Q30",
+      "type": "mcq",
+      "question": "Ten decorative fairy lights are connected in series to a power supply. If the filament of the 4th bulb breaks (fuses), what happens to the other nine bulbs?",
+      "marks": 1,
+      "options": [
+        "Only the first three bulbs glow.",
+        "The remaining nine bulbs glow brighter.",
+        "All nine bulbs go off immediately.",
+        "The remaining nine bulbs glow dimmer."
+      ],
+      "answer": 2,
+      "explanation": "A break anywhere in a series circuit creates an open circuit, stopping current flow everywhere simultaneously.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q31",
+      "type": "descriptive",
+      "question": "A cell supplies a current of 1.2 A through two 2 Ω resistors connected in parallel. When the same two resistors are connected in series, the cell supplies a current of 0.4 A. Calculate: (i) The internal resistance (r) of the cell, and (ii) The electromotive force (E) of the cell.",
+      "marks": 3,
+      "model_answer": "Case 1 (Parallel): R1 = (2 × 2) / (2 + 2) = 1 Ω. Given I1 = 1.2 A, E = 1.2(1 + r) --- (Equation 1). Case 2 (Series): R2 = 2 + 2 = 4 Ω. Given I2 = 0.4 A, E = 0.4(4 + r) --- (Equation 2). (i) Equating Equation 1 and Equation 2: 1.2(1 + r) = 0.4(4 + r) => 3(1 + r) = 4 + r => 3 + 3r = 4 + r => 2r = 1 => r = 0.5 Ω. (ii) Substituting r = 0.5 Ω into Equation 1: E = 1.2(1 + 0.5) = 1.2 × 1.5 = 1.8 V.",
+      "marking_scheme": [
+        "1 mark for finding equivalent resistances in parallel (1 Ω) and series (4 Ω) and setting up the two EMF equations.",
+        "1 mark for solving the simultaneous equations to find internal resistance r = 0.5 Ω.",
+        "1 mark for calculating the electromotive force E = 1.8 V."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q32",
+      "type": "descriptive",
+      "question": "A battery of EMF 10 V and internal resistance 1 Ω is connected across a parallel combination of two resistors of 4 Ω and 12 Ω. A switch S is placed solely in the 12 Ω branch. An ideal ammeter measures the total current from the battery, and an ideal voltmeter is connected directly across the terminals of the battery. Calculate the readings of the ammeter and the voltmeter when: (i) Switch S is open, and (ii) Switch S is closed.",
+      "marks": 4,
+      "model_answer": "(i) When Switch S is open: No current flows through the 12 Ω resistor; only the 4 Ω resistor is active (R = 4 Ω). Total resistance R_total = 4 + 1 = 5 Ω. Ammeter reading (I1) = E / R_total = 10 / 5 = 2.0 A. Voltmeter reading (V1) = E - I1 × r = 10 - (2.0 × 1) = 8.0 V. (ii) When Switch S is closed: Both 4 Ω and 12 Ω are in parallel, so Rp = (4 × 12) / (4 + 12) = 3 Ω. Total resistance R'_total = 3 + 1 = 4 Ω. Ammeter reading (I2) = 10 / 4 = 2.5 A. Voltmeter reading (V2) = 10 - (2.5 × 1) = 7.5 V.",
+      "marking_scheme": [
+        "1 mark for Ammeter reading when S is open (2.0 A).",
+        "1 mark for Voltmeter reading when S is open (8.0 V).",
+        "1 mark for calculating parallel resistance (3 Ω) and Ammeter reading when S is closed (2.5 A).",
+        "1 mark for Voltmeter reading when S is closed (7.5 V)."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q33",
+      "type": "descriptive",
+      "question": "Two wires A and B are made of the same metal and have equal masses. The radius of wire A is half the radius of wire B. If the resistance of wire B is 2 Ω, calculate the resistance of wire A.",
+      "marks": 3,
+      "model_answer": "Since both wires are made of the same metal (same density and resistivity) and have equal masses, their volumes are equal: A_A × L_A = A_B × L_B => L_A / L_B = A_B / A_A. Comparing resistances: R_A / R_B = (L_A / L_B) × (A_B / A_A) = (A_B / A_A)² = (π r_B² / π r_A²)² = (r_B / r_A)^4. Given r_A = (1/2) r_B, we have r_B / r_A = 2. Therefore, R_A / R_B = (2)^4 = 16. Given R_B = 2 Ω, R_A = 16 × 2 Ω = 32 Ω.",
+      "marking_scheme": [
+        "1 mark for equating volumes to establish L_A / L_B = A_B / A_A.",
+        "1 mark for deriving the inverse fourth-power radius relationship R_A / R_B = (r_B / r_A)^4.",
+        "1 mark for calculating the final resistance R_A = 32 Ω."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q34",
+      "type": "descriptive",
+      "question": "A battery of EMF 18 V and internal resistance 3 Ω is connected to a network consisting of two resistors of 3 Ω and 6 Ω connected in parallel, which is in series with a 4 Ω resistor. Find: (i) The total current drawn from the battery, (ii) The potential difference across the parallel combination, (iii) The current flowing through the 3 Ω resistor, and (iv) The heat energy produced in the 4 Ω resistor in 1 minute.",
+      "marks": 4,
+      "model_answer": "(i) Parallel resistance Rp = (3 × 6) / (3 + 6) = 2 Ω. Total external resistance R = 2 + 4 = 6 Ω. Total circuit resistance R_total = 6 + 3 = 9 Ω. Main current I = 18 V / 9 Ω = 2 A. (ii) Potential difference across the parallel block Vp = I × Rp = 2 A × 2 Ω = 4 V. (iii) Current in the 3 Ω resistor I_3Ω = Vp / 3 = 4 / 3 = 1.33 A. (iv) Heat produced in the 4 Ω series resistor in 1 minute (60 s): H = I² × R_4Ω × t = (2)² × 4 × 60 = 960 J.",
+      "marking_scheme": [
+        "1 mark for total circuit resistance (9 Ω) and main current (2 A).",
+        "1 mark for potential difference across the parallel combination (4 V).",
+        "1 mark for current through the 3 Ω resistor (1.33 A).",
+        "1 mark for heat energy produced in the 4 Ω resistor in 60 seconds (960 J)."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q35",
+      "type": "descriptive",
+      "question": "An electric kettle is rated 2.5 kW, 250 V. It is used to bring 3 kg of water from 20°C to its boiling point (100°C). Assuming that only 80% of the electrical energy consumed by the kettle is actually absorbed by the water (specific heat capacity of water = 4200 J kg^-1 K^-1), calculate: (i) The current drawn by the kettle, (ii) The useful heat energy required to boil the water, and (iii) The time taken (in minutes) for the water to boil.",
+      "marks": 4,
+      "model_answer": "(i) Power P = 2.5 kW = 2500 W. Current I = P / V = 2500 / 250 = 10 A. (ii) Useful heat energy required by water Q = m × c × ΔT = 3 kg × 4200 J kg^-1 K^-1 × (100 - 20) K = 3 × 4200 × 80 = 1,008,000 J (or 1.008 MJ). (iii) Total electrical energy consumed in t seconds is E_elec = 2500 × t. Given 80% efficiency: 0.80 × 2500 × t = 1,008,000 => 2000 × t = 1,008,000 => t = 504 seconds. In minutes: t = 504 / 60 = 8.4 minutes (or 8 minutes 24 seconds).",
+      "marking_scheme": [
+        "1 mark for calculating the current drawn (10 A).",
+        "1 mark for calculating the useful heat energy required by water (1,008,000 J).",
+        "1 mark for equating 80% of electrical energy to heat absorbed to find time in seconds (504 s).",
+        "1 mark for converting time into minutes (8.4 minutes)."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q36",
+      "type": "descriptive",
+      "question": "Two bulbs A and B are rated '40 W, 220 V' and '60 W, 220 V' respectively. If both bulbs are connected in series across a variable voltage supply, what is the maximum safe current that can flow through this series circuit without fusing either bulb? Also, calculate the resistances of both bulbs.",
+      "marks": 3,
+      "model_answer": "(i) Maximum safe current for Bulb A (40 W): I_A = P_A / V = 40 / 220 = 2/11 A ≈ 0.18 A. Maximum safe current for Bulb B (60 W): I_B = P_B / V = 60 / 220 = 3/11 A ≈ 0.27 A. In a series circuit, the same current flows through both bulbs; if current exceeds 0.18 A, the 40 W bulb will fuse. Therefore, the maximum safe circuit current is 2/11 A (or 0.18 A). (ii) Resistance of Bulb A: R_A = V² / P_A = (220 × 220) / 40 = 1210 Ω. Resistance of Bulb B: R_B = V² / P_B = (220 × 220) / 60 = 806.67 Ω.",
+      "marking_scheme": [
+        "1 mark for calculating the individual safe current limits of both bulbs (0.18 A and 0.27 A).",
+        "1 mark for identifying the maximum safe series current as the smaller limit (2/11 A or 0.18 A).",
+        "1 mark for calculating the resistances of both bulbs (1210 Ω and 806.67 Ω)."
+      ],
+      "diagram_required": false
+    }
+  ]
+}
