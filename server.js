@@ -8,17 +8,18 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Tell Express to trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
+// Trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
 app.set('trust proxy', 1);
 
-// SECURE & SAFE: Fallback keys prevent startup crashes if Render env vars are unset
+// Fallback keys prevent startup crashes if Render env vars are unset
 const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
+const ADMIN_EMAIL = process.env.TARGET_EMAIL || 'anibanerjee699@gmail.com';
 
 // In-memory security stores with automatic garbage collection
-const pendingOtps = new Map();       
-const otpIpRateLimit = new Map();    
-const usedAuthTokens = new Map();    
+const pendingOtps = new Map();
+const otpIpRateLimit = new Map();
+const usedAuthTokens = new Map();
 
 // --- SECURITY MIDDLEWARE & PAYLOAD LIMITS ---
 app.use(express.json({ limit: '50kb' }));
@@ -93,7 +94,7 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     return 900;
 }
 
-const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000; 
+const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 
 function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
@@ -179,36 +180,183 @@ app.get('/', (req, res) => {
             margin: 0; padding: 0; width: 100%; min-height: 100vh;
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            color: #0f172a; box-sizing: border-box; padding: 40px;
+            color: #0f172a; box-sizing: border-box; padding: 30px;
+            user-select: none; -webkit-user-select: none;
         }
         #home-dashboard {
             display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
         }
-        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #quiz-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
             background-color: rgba(255, 251, 235, 0.95);
             border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             width: 500px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
         }
-        #quiz-screen, #result-screen { max-width: 800px; }
+        #result-screen { width: 90%; max-width: 800px; }
+
+        /* Full-Screen Responsive Quiz Screen (Desktop & Mobile) */
+        #quiz-screen:not(.hidden) {
+            background-color: rgba(255, 251, 235, 0.98);
+            border-radius: 16px;
+            padding: 35px 45px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            width: 96%;
+            max-width: 1200px;
+            min-height: calc(100vh - 60px);
+            margin: 0 auto;
+            box-sizing: border-box;
+            display: flex !important;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Button and Card Professional Shadow Effects */
+        button, .card, .option-btn {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+        }
+        button:hover, .card:hover, .option-btn:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(-2px) !important;
+        }
+        button:active, .card:active, .option-btn:active {
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
+            transform: translateY(0) !important;
+        }
+
         .card {
             background-color: #e8f5e9; font-size: 18px; font-weight: bold;
             text-align: center; padding: 20px; margin-bottom: 15px; border-radius: 8px;
             border: 1px solid #cbd5e1; cursor: pointer;
         }
         .card:hover { background-color: #ffffff; border-color: #4285f4; color: #4285f4; }
+
         .option-btn {
             display: block; width: 100%; background-color: #ffffff; color: #0f172a;
-            font-size: 16px; padding: 16px 20px; margin-bottom: 15px; border-radius: 8px;
+            font-size: 17px; font-weight: 500; padding: 16px 20px; margin-bottom: 15px; border-radius: 8px;
             border: 1px solid #cbd5e1; cursor: pointer; text-align: left;
         }
         .option-btn.selected { background-color: #e0f2fe; border-color: #4285f4; color: #1e40af; font-weight: 600; }
+
         input[type="text"], input[type="email"], input[type="number"] {
             width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px;
             border: 1px solid #cbd5e1; margin-bottom: 20px; box-sizing: border-box;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
         }
+        #first-name, #last-name { text-transform: uppercase; }
+        #email-address { text-transform: lowercase; }
+
         .back-btn, button:not(.option-btn) {
             background-color: #4f46e5; color: white; border: none; padding: 12px 24px;
             border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
+        }
+
+        /* Quiz Header & Progress Bar */
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        #submit-btn {
+            background-color: #ef4444 !important;
+            margin-bottom: 0 !important;
+        }
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background-color: #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4285f4, #2563eb);
+            width: 0%;
+            transition: width 0.35s ease;
+        }
+
+        /* Equal Left & Right Margin Navigation Container */
+        .quiz-nav-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            margin-top: 25px;
+            padding-top: 15px;
+            box-sizing: border-box;
+        }
+        .quiz-nav-container button {
+            flex: 1;
+            max-width: 240px;
+            margin-bottom: 0 !important;
+            text-align: center;
+            padding: 14px 18px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 8px !important;
+            }
+            .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+                width: 100% !important;
+                padding: 20px !important;
+            }
+            #quiz-screen:not(.hidden) {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: calc(100vh - 16px) !important;
+                min-height: calc(100dvh - 16px) !important;
+                padding: 16px !important;
+                border-radius: 12px !important;
+            }
+            .quiz-header {
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+                margin-bottom: 10px !important;
+            }
+            #time-left {
+                font-size: 13.5px !important;
+                white-space: nowrap !important;
+            }
+            #quiz-stats {
+                font-size: 11.5px !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+            }
+            #submit-btn {
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                white-space: nowrap !important;
+            }
+            .progress-container {
+                height: 7px !important;
+                margin-bottom: 14px !important;
+            }
+            #quiz-screen-heading {
+                font-size: 18px !important;
+                margin: 0 0 12px 0 !important;
+            }
+            #question-box {
+                font-size: 15.5px !important;
+                margin-bottom: 16px !important;
+            }
+            .option-btn {
+                padding: 13px 15px !important;
+                font-size: 14.5px !important;
+                margin-bottom: 12px !important;
+            }
+            .quiz-nav-container {
+                gap: 10px !important;
+                margin-top: 15px !important;
+            }
+            .quiz-nav-container button {
+                padding: 11px 8px !important;
+                font-size: 13px !important;
+            }
         }
     </style>
 </head>
@@ -234,19 +382,19 @@ app.get('/', (req, res) => {
     </div>
 
     <div id="notes-subject-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goHome()">Back</button>
+        <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
         <div id="notes-subject-container"></div>
     </div>
 
     <div id="notes-list-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goBackToNotesClass()">Back</button>
+        <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #10b981; margin-top: 0;">Descriptive Notes</h2>
         <div id="notes-list-container"></div>
     </div>
 
     <div id="subject-select-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goHome()">Back</button>
+        <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
         <div class="card" onclick="selectSubject('Physics')">Physics</div>
         <div class="card" onclick="selectSubject('Chemistry')">Chemistry</div>
@@ -254,29 +402,36 @@ app.get('/', (req, res) => {
     </div>
 
     <div id="ix-x-chapter-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goHome()">Back</button>
+        <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
         <div id="ix-x-chapter-container"></div>
     </div>
 
     <div id="name-screen" class="app-screen hidden">
-        <button class="back-btn" onclick="goHome()">Back</button>
+        <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Candidate Verification</h2>
         <input type="text" id="first-name" placeholder="FIRST NAME">
         <input type="text" id="last-name" placeholder="LAST NAME">
         <input type="email" id="email-address" placeholder="Email Address">
-        <button onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
+        <button id="verify-start-btn" onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
     </div>
 
     <div id="quiz-screen" class="app-screen hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <span id="time-left" style="font-weight: bold; color: #dc2626;">Time Left: --:--</span>
-            <button id="submit-btn" onclick="submitQuiz(false)" style="background-color: #ef4444;">Submit Quiz</button>
+        <div>
+            <div class="quiz-header">
+                <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+                <span id="quiz-stats" style="font-size: 15px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
+                <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
+            </div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar-fill"></div>
+            </div>
+            <h2 id="quiz-screen-heading" style="color: #4285f4; text-align: center; margin-top: 0; margin-bottom: 20px;"></h2>
+            <div id="question-box" style="font-size: 19px; font-weight: 600; margin-bottom: 25px; line-height: 1.5;"></div>
+            <div id="options-container"></div>
         </div>
-        <h2 id="quiz-screen-heading" style="color: #4285f4;"></h2>
-        <div id="question-box" style="font-size: 18px; font-weight: 600; margin-bottom: 25px;"></div>
-        <div id="options-container"></div>
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
+
+        <div class="quiz-nav-container">
             <button onclick="prevQuestion()">Previous</button>
             <button onclick="clearResponse()">Clear Response</button>
             <button onclick="nextQuestion()">Next</button>
@@ -285,13 +440,19 @@ app.get('/', (req, res) => {
 
     <div id="result-screen" class="app-screen hidden"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
+        let screenHistory = [];
         let dynamicQuizzes = [];
         let currentQuizId = "";
         let currentQuestions = [];
         let currentQuestionIndex = 0;
         let userAnswers = {};
+        let skippedQuestions = new Set();
         let timeRemaining = 900;
+        let quizDuration = 900;
+        let serverStartTime = 0;
+        let timerSignature = "";
         let timerInterval;
         let studentAuthToken = "";
         let selectedClassName = "";
@@ -299,6 +460,14 @@ app.get('/', (req, res) => {
         let selectedNotesClass = "";
 
         window.addEventListener('DOMContentLoaded', async () => {
+            const firstInput = document.getElementById('first-name');
+            const lastInput = document.getElementById('last-name');
+            const emailInput = document.getElementById('email-address');
+
+            if (firstInput) firstInput.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
+            if (lastInput) lastInput.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
+            if (emailInput) emailInput.addEventListener('input', e => e.target.value = e.target.value.toLowerCase());
+
             try {
                 const res = await fetch('/api/quizzes');
                 const data = await res.json();
@@ -308,14 +477,40 @@ app.get('/', (req, res) => {
             }
         });
 
+        // Global Navigation Engine
         function showScreen(screenId) {
+            const currentScreen = document.querySelector('.app-screen:not(.hidden)');
+            if (currentScreen && currentScreen.id !== screenId) {
+                screenHistory.push(currentScreen.id);
+            }
             document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
         }
 
+        function goBack() {
+            if (screenHistory.length > 0) {
+                const previousScreenId = screenHistory.pop();
+                document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+                document.getElementById(previousScreenId).classList.remove('hidden');
+            } else {
+                goHome();
+            }
+        }
+
         function goHome() {
+            screenHistory = [];
             clearInterval(timerInterval);
-            showScreen('home-dashboard');
+            userAnswers = {};
+            skippedQuestions = new Set();
+            const otpWrapper = document.getElementById('otp-wrapper');
+            if (otpWrapper) otpWrapper.remove();
+            const verifyBtn = document.getElementById('verify-start-btn');
+            if (verifyBtn) {
+                verifyBtn.innerText = 'Verify & Start';
+                verifyBtn.disabled = false;
+            }
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById('home-dashboard').classList.remove('hidden');
         }
 
         // --- Notes Portal Logic ---
@@ -353,6 +548,7 @@ app.get('/', (req, res) => {
                         link.className = 'card';
                         link.style.textDecoration = 'none';
                         link.style.display = 'block';
+                        link.style.color = '#0f172a';
                         link.innerText = '📚 ' + note.name;
                         container.appendChild(link);
                     });
@@ -362,10 +558,6 @@ app.get('/', (req, res) => {
             } catch (e) {
                 container.innerHTML = '<p style="text-align:center; color:red;">Failed to load notes.</p>';
             }
-        }
-
-        function goBackToNotesClass() {
-            showScreen('notes-subject-screen');
         }
 
         // --- Mock Tests Logic ---
@@ -423,13 +615,30 @@ app.get('/', (req, res) => {
             currentQuizId = quiz.id;
             activeQuizTitle = quiz.title;
             timeRemaining = quiz.duration || 900;
+            quizDuration = timeRemaining;
+            const otpWrapper = document.getElementById('otp-wrapper');
+            if (otpWrapper) otpWrapper.remove();
+            const verifyBtn = document.getElementById('verify-start-btn');
+            if (verifyBtn) {
+                verifyBtn.innerText = 'Verify & Start';
+                verifyBtn.disabled = false;
+            }
             showScreen('name-screen');
         }
 
         async function startQuiz() {
-            const firstName = document.getElementById('first-name').value.trim();
-            const lastName = document.getElementById('last-name').value.trim();
-            const email = document.getElementById('email-address').value.trim();
+            const firstNameEl = document.getElementById('first-name');
+            const lastNameEl = document.getElementById('last-name');
+            const emailEl = document.getElementById('email-address');
+            const verifyBtn = document.getElementById('verify-start-btn');
+
+            const firstName = firstNameEl.value.trim().toUpperCase();
+            const lastName = lastNameEl.value.trim().toUpperCase();
+            const email = emailEl.value.trim().toLowerCase();
+
+            firstNameEl.value = firstName;
+            lastNameEl.value = lastName;
+            emailEl.value = email;
 
             if (!firstName || !lastName || !email) {
                 alert('Please fill all fields.');
@@ -438,27 +647,52 @@ app.get('/', (req, res) => {
 
             const otpInput = document.getElementById('otp-input');
             if (!otpInput) {
+                verifyBtn.innerText = 'Sending OTP...';
+                verifyBtn.disabled = true;
+
                 const res = await fetch('/api/send-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ firstName, lastName, email })
                 });
-                if (!res.ok) { alert('Failed to send code.'); return; }
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Failed to send verification code.');
+                    verifyBtn.innerText = 'Verify & Start';
+                    verifyBtn.disabled = false;
+                    return;
+                }
                 
                 const wrapper = document.createElement('div');
-                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px; margin-top: 15px; margin-bottom: 15px;">';
-                document.getElementById('name-screen').insertBefore(wrapper, document.querySelector('#name-screen button'));
+                wrapper.id = 'otp-wrapper';
+                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px; margin-top: 5px; margin-bottom: 20px;">';
+                document.getElementById('name-screen').insertBefore(wrapper, verifyBtn);
+                verifyBtn.innerText = 'Start Quiz';
+                verifyBtn.disabled = false;
                 return;
             }
 
             const otp = otpInput.value.trim();
+            if (otp.length !== 6) {
+                alert('Please enter the 6-digit OTP sent to your email.');
+                return;
+            }
+
+            verifyBtn.innerText = 'Verifying...';
+            verifyBtn.disabled = true;
+
             const vRes = await fetch('/api/verify-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, otp })
             });
             const vData = await vRes.json();
-            if (!vRes.ok) { alert(vData.error); return; }
+            if (!vRes.ok) {
+                alert(vData.error || 'Invalid OTP');
+                verifyBtn.innerText = 'Start Quiz';
+                verifyBtn.disabled = false;
+                return;
+            }
 
             studentAuthToken = vData.authToken;
             
@@ -468,7 +702,17 @@ app.get('/', (req, res) => {
                 body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
             });
             const startData = await startRes.json();
-            if (!startRes.ok) { alert(startData.error); return; }
+            if (!startRes.ok) {
+                alert(startData.error);
+                verifyBtn.innerText = 'Start Quiz';
+                verifyBtn.disabled = false;
+                return;
+            }
+
+            serverStartTime = startData.startTime;
+            timerSignature = startData.signature;
+            quizDuration = startData.duration || timeRemaining;
+            timeRemaining = quizDuration;
 
             const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
                 headers: { 'X-Requested-With': 'PioneersPrepApp', 'Authorization': 'Bearer ' + studentAuthToken }
@@ -477,9 +721,34 @@ app.get('/', (req, res) => {
 
             currentQuestionIndex = 0;
             userAnswers = {};
+            skippedQuestions = new Set();
+            screenHistory = [];
             showScreen('quiz-screen');
             renderQuestion();
             startTimer();
+        }
+
+        function updateQuizStats() {
+            const total = currentQuestions.length;
+            const attemptedCount = Object.keys(userAnswers).length;
+            
+            let skippedCount = 0;
+            skippedQuestions.forEach(idx => {
+                if (userAnswers[idx] === undefined) {
+                    skippedCount++;
+                }
+            });
+
+            const statsEl = document.getElementById('quiz-stats');
+            if (statsEl) {
+                statsEl.innerText = 'Attempted: ' + attemptedCount + ' / ' + total + ' | Skipped: ' + skippedCount;
+            }
+
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar && total > 0) {
+                const pct = (attemptedCount / total) * 100;
+                progressBar.style.width = pct + '%';
+            }
         }
 
         function renderQuestion() {
@@ -488,52 +757,158 @@ app.get('/', (req, res) => {
             document.getElementById('question-box').innerText = 'Q.' + (currentQuestionIndex + 1) + ': ' + q.question;
             const container = document.getElementById('options-container');
             container.innerHTML = '';
-            q.options.forEach((opt, idx) => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn' + (userAnswers[currentQuestionIndex] === idx ? ' selected' : '');
-                btn.innerText = opt;
-                btn.onclick = () => {
-                    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-                    userAnswers[currentQuestionIndex] = idx;
-                };
-                container.appendChild(btn);
-            });
+
+            if (q.type === 'descriptive') {
+                const textarea = document.createElement('textarea');
+                textarea.placeholder = 'Type your answer here...';
+                textarea.rows = 4;
+                textarea.style.cssText = 'width: 100%; padding: 12px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; margin-bottom: 10px;';
+                if (userAnswers[currentQuestionIndex] !== undefined) {
+                    textarea.value = userAnswers[currentQuestionIndex];
+                }
+                textarea.addEventListener('input', e => {
+                    const val = e.target.value.trim();
+                    if (val === '') {
+                        delete userAnswers[currentQuestionIndex];
+                    } else {
+                        userAnswers[currentQuestionIndex] = val;
+                        skippedQuestions.delete(currentQuestionIndex);
+                    }
+                    updateQuizStats();
+                });
+                container.appendChild(textarea);
+            } else {
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn' + (userAnswers[currentQuestionIndex] === idx ? ' selected' : '');
+                    btn.innerText = opt;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        userAnswers[currentQuestionIndex] = idx;
+                        skippedQuestions.delete(currentQuestionIndex);
+                        updateQuizStats();
+                    };
+                    container.appendChild(btn);
+                });
+            }
+
+            updateQuizStats();
         }
 
-        function nextQuestion() { if (currentQuestionIndex < currentQuestions.length - 1) { currentQuestionIndex++; renderQuestion(); } }
-        function prevQuestion() { if (currentQuestionIndex > 0) { currentQuestionIndex--; renderQuestion(); } }
-        function clearResponse() { delete userAnswers[currentQuestionIndex]; document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected')); }
+        // Count a question as skipped ONLY when the user clicks Next without attempting it
+        function nextQuestion() {
+            if (userAnswers[currentQuestionIndex] === undefined) {
+                skippedQuestions.add(currentQuestionIndex);
+            }
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                currentQuestionIndex++;
+                renderQuestion();
+            } else {
+                updateQuizStats();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderQuestion();
+            }
+        }
+
+        function clearResponse() {
+            delete userAnswers[currentQuestionIndex];
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            const textarea = document.querySelector('#options-container textarea');
+            if (textarea) textarea.value = '';
+            updateQuizStats();
+        }
 
         function startTimer() {
             clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(true); return; }
-                timeRemaining--;
+            const updateDisplay = () => {
                 let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
                 let s = (timeRemaining % 60).toString().padStart(2, '0');
                 document.getElementById('time-left').innerText = 'Time Left: ' + m + ':' + s;
+            };
+            updateDisplay();
+            timerInterval = setInterval(() => {
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    submitQuiz(true);
+                    return;
+                }
+                timeRemaining--;
+                updateDisplay();
             }, 1000);
         }
 
         async function submitQuiz(isAuto = false) {
-            clearInterval(timerInterval);
-            const firstName = document.getElementById('first-name').value;
-            const lastName = document.getElementById('last-name').value;
-            const email = document.getElementById('email-address').value;
+            const answeredCount = Object.keys(userAnswers).length;
+            const totalQuestions = currentQuestions.length;
 
-            const res = await fetch('/api/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ firstName, lastName, email, quizId: currentQuizId, userAnswers, authToken: studentAuthToken, serverStartTime: Date.now(), timerSignature: 'dummy', quizDuration: 900, isAutoSubmit: isAuto })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                document.getElementById('result-screen').innerHTML = '<h2 class="screen-heading">Quiz Results</h2><div style="text-align: center; margin-top: 20px;"><p style="font-size: 18px;">Candidate: <strong>' + firstName + ' ' + lastName + '</strong></p><h1 style="color: #4285f4; font-size: 48px;">' + data.score + ' / ' + data.total + '</h1><p>Response recorded successfully.</p></div><button class="back-btn" style="margin-top: 20px; width: 100%;" onclick="goHome()">Back to Home</button>';
-                showScreen('result-screen');
-            } else {
-                alert(data.error);
-                goHome();
+            if (!isAuto && answeredCount < totalQuestions) {
+                alert('Please answer all questions before submitting. You have answered ' + answeredCount + ' out of ' + totalQuestions + '.');
+                return;
+            }
+
+            clearInterval(timerInterval);
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.innerText = 'Submitting...';
+                submitBtn.disabled = true;
+            }
+
+            const firstName = document.getElementById('first-name').value.trim().toUpperCase();
+            const lastName = document.getElementById('last-name').value.trim().toUpperCase();
+            const email = document.getElementById('email-address').value.trim().toLowerCase();
+
+            try {
+                const res = await fetch('/api/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        firstName,
+                        lastName,
+                        email,
+                        className: selectedClassName,
+                        chapterTitle: activeQuizTitle,
+                        quizId: currentQuizId,
+                        userAnswers,
+                        authToken: studentAuthToken,
+                        serverStartTime,
+                        timerSignature,
+                        quizDuration,
+                        isAutoSubmit: isAuto
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    document.getElementById('result-screen').innerHTML =
+                        '<button class="back-btn" onclick="goHome()">Back to Home</button>' +
+                        '<h2 style="text-align: center; color: #4285f4; margin-top: 0;">Quiz Results</h2>' +
+                        '<div style="text-align: center; margin-top: 20px;">' +
+                        '<p style="font-size: 18px; color: #333;">Candidate: <strong>' + firstName + ' ' + lastName + '</strong></p>' +
+                        '<h1 style="color: #4285f4; font-size: 48px; margin: 10px 0;">' + data.score + ' / ' + data.total + '</h1>' +
+                        '<p style="font-size: 16px; color: #64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p>' +
+                        '</div>';
+                    screenHistory = [];
+                    showScreen('result-screen');
+                    if (typeof confetti === 'function') {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                    }
+                } else {
+                    alert(data.error || 'Submission failed.');
+                    goHome();
+                }
+            } catch (err) {
+                console.error('Submission error:', err);
+                alert('Network error while submitting quiz.');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.innerText = 'Submit Quiz';
+                    submitBtn.disabled = false;
+                }
             }
         }
     </script>
@@ -562,27 +937,24 @@ app.get('/api/notes', (req, res) => {
         files.forEach(file => {
             const lowerFile = file.toLowerCase();
             
-            // Determine Class
             let cls = 'XI';
             if (lowerFile.includes('class9') || lowerFile.includes('ix')) cls = 'IX';
             else if (lowerFile.includes('class10') || lowerFile.includes('x')) cls = 'X';
             else if (lowerFile.includes('class11') || lowerFile.includes('xi')) cls = 'XI';
             else if (lowerFile.includes('class12') || lowerFile.includes('xii')) cls = 'XII';
 
-            // Determine Subject
             let subject = 'Biology';
             if (lowerFile.includes('physics')) subject = 'Physics';
             else if (lowerFile.includes('chemistry')) subject = 'Chemistry';
             else if (lowerFile.includes('biology')) subject = 'Biology';
 
-            // Clean up file name into a readable title
             const title = path.basename(file, '.pdf')
                 .replace(/[_]/g, ' ')
                 .replace(/-/g, ' ')
                 .replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '')
                 .replace(/(physics|chemistry|biology)/gi, '')
                 .trim()
-                .replace(/\b\w/g, c => c.toUpperCase()); // Capitalize words
+                .replace(/\b\w/g, c => c.toUpperCase());
 
             if (groupedNotes[cls] && groupedNotes[cls][subject]) {
                 groupedNotes[cls][subject].push({
@@ -592,7 +964,6 @@ app.get('/api/notes', (req, res) => {
             }
         });
 
-        // Convert grouped object format to match frontend expectations
         const formattedNotes = [];
         for (const [cls, subjects] of Object.entries(groupedNotes)) {
             for (const [sub, fileList] of Object.entries(subjects)) {
@@ -613,10 +984,9 @@ app.get('/api/notes', (req, res) => {
     }
 });
 
-// Secure Note Download Route for the new 'notes' folder
 app.get('/api/download-note/:fileName', (req, res) => {
     const safeFileName = path.basename(req.params.fileName);
-    const filePath = path.join(__dirname, 'notes', safeFileName); 
+    const filePath = path.join(__dirname, 'notes', safeFileName);
     
     res.download(filePath, (err) => {
         if (err) {
@@ -632,20 +1002,26 @@ app.get('/api/quizzes', (req, res) => {
     try {
         if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
         const files = fs.readdirSync(quizzesDir).filter(file => file.endsWith('.json'));
-        const allQuizzes = files.map(file => {
-            const content = JSON.parse(fs.readFileSync(path.join(quizzesDir, file), 'utf8'));
-            return {
-                id: path.basename(file, '.json'),
-                title: content.title || file,
-                category: content.category || 'general',
-                classLevel: content.classLevel || 'xi',
-                subject: content.subject || 'general',
-                unit: content.unit || '',
-                chapter: content.chapter || '',
-                topic: content.topic || '',
-                duration: content.duration || 900,
-                totalQuestions: content.questions ? content.questions.length : 0
-            };
+        const allQuizzes = [];
+
+        files.forEach(file => {
+            try {
+                const content = JSON.parse(fs.readFileSync(path.join(quizzesDir, file), 'utf8'));
+                allQuizzes.push({
+                    id: path.basename(file, '.json'),
+                    title: content.title || file,
+                    category: content.category || 'general',
+                    classLevel: content.classLevel || 'xi',
+                    subject: content.subject || 'general',
+                    unit: content.unit || '',
+                    chapter: content.chapter || '',
+                    topic: content.topic || '',
+                    duration: content.duration || 900,
+                    totalQuestions: content.questions ? content.questions.length : 0
+                });
+            } catch (e) {
+                console.error('Skipping invalid quiz JSON:', file, e);
+            }
         });
         res.json({ success: true, quizzes: allQuizzes });
     } catch (err) {
@@ -668,19 +1044,35 @@ app.get('/api/quiz/:id', (req, res) => {
 app.post('/api/start-quiz', (req, res) => {
     const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''));
     if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
-    res.json({ startTime: Date.now(), duration: 900, signature: 'dummy' });
+
+    const { quizId, duration } = req.body;
+    const cleanId = path.basename(String(quizId || '')).trim();
+    if (!resolveSafeQuizPath(cleanId)) {
+        return res.status(400).json({ error: "Invalid quiz ID." });
+    }
+
+    const officialDuration = getOfficialQuizDuration(cleanId, duration);
+    const startTime = Date.now();
+    const dataToSign = `${cleanId}:${officialDuration}:${startTime}`;
+    const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
+
+    res.json({ startTime, duration: officialDuration, signature });
 });
 
 app.post('/api/send-otp', (req, res) => {
-    const { firstName, lastName, email } = req.body;
-    if (!firstName || !lastName || !email) return res.status(400).json({ success: false });
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : '';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : '';
+    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : '';
+
+    if (!firstName || !lastName || !email) {
+        return res.status(400).json({ success: false, error: 'All fields are required.' });
+    }
+
     const otp = crypto.randomInt(100000, 1000000).toString();
     pendingOtps.set(email, { otp, firstName, lastName, expiresAt: Date.now() + 300000, attempts: 0, lastSentAt: Date.now() });
     
-    // Log OTP to server console (useful for you to test locally or via Render logs)
     console.log(`[OTP for ${email}]: ${otp}`);
     
-    // Send email securely via App Script
     const scriptURL = process.env.APP_SCRIPT_URL;
     if (scriptURL) {
         fetch(scriptURL, {
@@ -698,40 +1090,168 @@ app.post('/api/send-otp', (req, res) => {
                          '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
                          '</div>'
             })
-        }).catch(err => console.error('Background email error:', err));
+        }).catch(err => console.error('Background OTP email error:', err));
     }
     
     res.json({ success: true });
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    const { email, otp } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    const otp = req.body.otp ? req.body.otp.trim() : '';
     const record = pendingOtps.get(email);
-    if (!record || record.otp !== otp) return res.status(400).json({ success: false, error: 'Invalid OTP' });
+
+    if (!record || record.otp !== otp) {
+        return res.status(400).json({ success: false, error: 'Invalid verification code entered.' });
+    }
+
     pendingOtps.delete(email);
-    const tokenData = email + '|' + Date.now();
+    const nonce = crypto.randomBytes(8).toString('hex');
+    const tokenData = `${email}|${Date.now()}|${nonce}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    res.json({ success: true, authToken: tokenData + '|||' + signature });
+    res.json({ success: true, authToken: `${tokenData}|||${signature}` });
 });
 
+// --- FULL QUIZ SUBMISSION, GRADING & DUAL EMAIL DELIVERY ---
 app.post('/api/submit', async (req, res) => {
-    const { email, quizId, userAnswers, authToken } = req.body;
+    const firstName = req.body.firstName ? req.body.firstName.trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
+    const lastName = req.body.lastName ? req.body.lastName.trim().toUpperCase().slice(0, 60) : 'NAME';
+    const email = req.body.email ? req.body.email.trim().toLowerCase().slice(0, 120) : 'no-email';
+    
+    const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
+
     const authCheck = verifyAuthToken(authToken, email, true);
-    if (!authCheck.valid) return res.status(403).json({ success: false, error: authCheck.error });
+    if (!authCheck.valid) {
+        return res.status(403).json({ success: false, error: authCheck.error });
+    }
 
-    const filePath = resolveSafeQuizPath(quizId);
-    const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    const realQuestions = quizContent.questions || [];
+    const cleanQuizId = path.basename(String(quizId || '')).trim();
+    const filePath = resolveSafeQuizPath(cleanQuizId);
+    if (!filePath) {
+        return res.status(400).json({ success: false, error: 'Security Alert: Invalid quiz identifier.' });
+    }
 
-    let correctCount = 0;
-    realQuestions.forEach((q, idx) => {
-        if (userAnswers[idx] === q.answer) correctCount++;
-    });
+    if (serverStartTime && timerSignature && quizDuration) {
+        const expectedTimerSig = crypto
+            .createHmac('sha256', SECRET)
+            .update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`)
+            .digest('hex');
 
-    res.json({ success: true, score: correctCount, total: realQuestions.length });
+        if (!safeCompareHex(timerSignature, expectedTimerSig)) {
+            return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
+        }
+    }
+
+    try {
+        const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
+        const rawData = fs.readFileSync(filePath, 'utf-8');
+        const quizContent = JSON.parse(rawData);
+        const realQuestions = quizContent.questions || [];
+
+        let correctCount = 0;
+        let incorrectCount = 0;
+        const totalCount = realQuestions.length;
+        const attemptedCount = Object.keys(safeUserAnswers).length;
+        const skippedCount = totalCount - attemptedCount;
+
+        if (!isAutoSubmit && attemptedCount < totalCount) {
+            return res.status(400).json({
+                success: false,
+                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.`
+            });
+        }
+
+        usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
+
+        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
+            `<tr style="background-color: #f1f5f9; text-align: left;">` +
+            `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
+
+        realQuestions.forEach((q, index) => {
+            const studentResponse = safeUserAnswers[index.toString()] !== undefined ? safeUserAnswers[index.toString()] : safeUserAnswers[index];
+            const isAttempted = studentResponse !== undefined && studentResponse !== "";
+
+            let isCorrect = false;
+            let studentSelectionText = "Skipped";
+            let correctOptionText = "N/A";
+            let rawStatus = "Skipped";
+            let statusColor = "yellow";
+
+            if (q.type === 'descriptive') {
+                studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
+                correctOptionText = escapeHtml(q.model_answer || "Refer to marking scheme");
+                if (isAttempted) {
+                    rawStatus = "Needs Review";
+                    statusColor = "orange";
+                }
+            } else {
+                const selectedIdx = parseInt(studentResponse, 10);
+                isCorrect = isAttempted && selectedIdx === q.answer;
+                if (isCorrect) correctCount++;
+                else if (isAttempted) incorrectCount++;
+
+                studentSelectionText = isAttempted ? escapeHtml(q.options?.[selectedIdx] || "Unknown") : "Skipped";
+                correctOptionText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
+                rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
+                statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
+            }
+
+            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
+            const safeQuestionText = escapeHtml(q.question || "N/A");
+            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>` : "";
+
+            breakdownHtml += `<tr><td>${index + 1}</td><td>${safeQuestionText}${explanationHtml}</td><td>${studentSelectionText}</td><td>${correctOptionText}</td><td style="text-align: center;">${statusText}</td></tr>`;
+        });
+        breakdownHtml += `</table>`;
+
+        const cleanClassName = String(className || '').trim().slice(0, 40);
+        const cleanChapterTitle = String(chapterTitle || quizContent.title || 'Quiz').trim().slice(0, 120);
+        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName))
+            ? `${cleanClassName} - ${cleanChapterTitle}`
+            : cleanChapterTitle;
+
+        const studentName = `${firstName} ${lastName}`.trim();
+
+        const securePayload = {
+            firstName: escapeHtml(firstName),
+            lastName: escapeHtml(lastName),
+            email: escapeHtml(email),
+            className: escapeHtml(cleanClassName),
+            chapterTitle: escapeHtml(fullTitle),
+            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
+            score: correctCount,
+            total: totalCount,
+            attempted: attemptedCount,
+            skipped: skippedCount,
+            correct: correctCount,
+            incorrect: incorrectCount,
+            breakdown: breakdownHtml,
+            targetEmail: ADMIN_EMAIL,
+            secretKey: APPS_SECRET
+        };
+
+        await queueSubmissionBackup({
+            timestamp: new Date().toISOString(),
+            ...securePayload
+        });
+
+        res.json({ success: true, score: correctCount, total: totalCount });
+
+        const scriptURL = process.env.APP_SCRIPT_URL;
+        if (scriptURL) {
+            fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(securePayload)
+            }).catch(err => console.error('Background submission email error:', err));
+        }
+    } catch (error) {
+        console.error("Submission error:", error);
+        res.status(500).json({ success: false, error: "Grading failed" });
+    }
 });
 
-const PING_INTERVAL = 14 * 60 * 1000; 
+const PING_INTERVAL = 14 * 60 * 1000;
 const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
 
 setInterval(() => {
