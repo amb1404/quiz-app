@@ -8,15 +8,19 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Tell Express to trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
 app.set('trust proxy', 1);
 
+// SECURE & SAFE: Fallback keys prevent startup crashes if Render env vars are unset
 const SECRET = process.env.TIMER_SECRET || 'pioneers-prep-secure-key-2026';
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 
+// In-memory security stores with automatic garbage collection
 const pendingOtps = new Map();       
 const otpIpRateLimit = new Map();    
 const usedAuthTokens = new Map();    
 
+// --- SECURITY MIDDLEWARE & PAYLOAD LIMITS ---
 app.use(express.json({ limit: '50kb' }));
 
 app.use((req, res, next) => {
@@ -27,6 +31,7 @@ app.use((req, res, next) => {
     next();
 });
 
+// --- SECURITY HELPER FUNCTIONS ---
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -61,10 +66,10 @@ function resolveSafeQuizPath(rawId) {
     if (RESERVED_JSON_NAMES.has(cleanId.toLowerCase())) return null;
 
     const quizzesDir = path.join(__dirname, 'quizzes');
-    let filePath = path.join(quizzesDir, `${cleanId}.json`);
+    let filePath = path.join(quizzesDir, cleanId + '.json');
     if (fs.existsSync(filePath)) return filePath;
 
-    filePath = path.join(quizzesDir, `${cleanId}-questions.json`);
+    filePath = path.join(quizzesDir, cleanId + '-questions.json');
     if (fs.existsSync(filePath)) return filePath;
 
     return null;
@@ -159,7 +164,7 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
-// Single-file HTML template response with Mock Tests & Study Notes restored
+// --- MASTER BACKEND SERVER & SINGLE FILE HTML ---
 app.get('/', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -313,7 +318,7 @@ app.get('/', (req, res) => {
             showScreen('home-dashboard');
         }
 
-        // Notes Portal Logic
+        // --- Notes Portal Logic ---
         function selectNotesClass(className) {
             selectedNotesClass = className;
             const container = document.getElementById('notes-subject-container');
@@ -363,7 +368,7 @@ app.get('/', (req, res) => {
             showScreen('notes-subject-screen');
         }
 
-        // Mock Tests Logic
+        // --- Mock Tests Logic ---
         function selectClass(className) {
             selectedClassName = className;
             if (className === 'IX' || className === 'X') {
@@ -441,7 +446,7 @@ app.get('/', (req, res) => {
                 if (!res.ok) { alert('Failed to send code.'); return; }
                 
                 const wrapper = document.createElement('div');
-                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px;">';
+                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px; margin-top: 15px; margin-bottom: 15px;">';
                 document.getElementById('name-screen').insertBefore(wrapper, document.querySelector('#name-screen button'));
                 return;
             }
@@ -524,7 +529,7 @@ app.get('/', (req, res) => {
             });
             const data = await res.json();
             if (res.ok) {
-                document.getElementById('result-screen').innerHTML = \`<h2>Score: \${data.score} / \${data.total}</h2><button onclick="goHome()">Home</button>\`;
+                document.getElementById('result-screen').innerHTML = '<h2 class="screen-heading">Quiz Results</h2><div style="text-align: center; margin-top: 20px;"><p style="font-size: 18px;">Candidate: <strong>' + firstName + ' ' + lastName + '</strong></p><h1 style="color: #4285f4; font-size: 48px;">' + data.score + ' / ' + data.total + '</h1><p>Response recorded successfully.</p></div><button class="back-btn" style="margin-top: 20px; width: 100%;" onclick="goHome()">Back to Home</button>';
                 showScreen('result-screen');
             } else {
                 alert(data.error);
@@ -538,16 +543,90 @@ app.get('/', (req, res) => {
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
+// --- AUTO-DISCOVERY DESCRIPTIVE NOTES API ---
 app.get('/api/notes', (req, res) => {
-    const notesPath = path.join(__dirname, 'notes.json');
-    if (fs.existsSync(notesPath)) res.json(JSON.parse(fs.readFileSync(notesPath, 'utf8')));
-    else res.json([]);
+    const notesDir = path.join(__dirname, 'notes');
+    try {
+        if (!fs.existsSync(notesDir)) {
+            fs.mkdirSync(notesDir, { recursive: true });
+        }
+        
+        const files = fs.readdirSync(notesDir).filter(file => file.toLowerCase().endsWith('.pdf'));
+        const groupedNotes = {
+            'IX': { Physics: [], Chemistry: [], Biology: [] },
+            'X': { Physics: [], Chemistry: [], Biology: [] },
+            'XI': { Biology: [] },
+            'XII': { Biology: [] }
+        };
+
+        files.forEach(file => {
+            const lowerFile = file.toLowerCase();
+            
+            // Determine Class
+            let cls = 'XI';
+            if (lowerFile.includes('class9') || lowerFile.includes('ix')) cls = 'IX';
+            else if (lowerFile.includes('class10') || lowerFile.includes('x')) cls = 'X';
+            else if (lowerFile.includes('class11') || lowerFile.includes('xi')) cls = 'XI';
+            else if (lowerFile.includes('class12') || lowerFile.includes('xii')) cls = 'XII';
+
+            // Determine Subject
+            let subject = 'Biology';
+            if (lowerFile.includes('physics')) subject = 'Physics';
+            else if (lowerFile.includes('chemistry')) subject = 'Chemistry';
+            else if (lowerFile.includes('biology')) subject = 'Biology';
+
+            // Clean up file name into a readable title
+            const title = path.basename(file, '.pdf')
+                .replace(/[_]/g, ' ')
+                .replace(/-/g, ' ')
+                .replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '')
+                .replace(/(physics|chemistry|biology)/gi, '')
+                .trim()
+                .replace(/\b\w/g, c => c.toUpperCase()); // Capitalize words
+
+            if (groupedNotes[cls] && groupedNotes[cls][subject]) {
+                groupedNotes[cls][subject].push({
+                    name: title || file,
+                    fileName: file
+                });
+            }
+        });
+
+        // Convert grouped object format to match frontend expectations
+        const formattedNotes = [];
+        for (const [cls, subjects] of Object.entries(groupedNotes)) {
+            for (const [sub, fileList] of Object.entries(subjects)) {
+                if (fileList.length > 0) {
+                    formattedNotes.push({
+                        class: cls,
+                        subject: sub,
+                        notes: fileList
+                    });
+                }
+            }
+        }
+
+        res.json(formattedNotes);
+    } catch (err) {
+        console.error("Error reading notes directory:", err);
+        res.json([]);
+    }
 });
 
+// Secure Note Download Route for the new 'notes' folder
 app.get('/api/download-note/:fileName', (req, res) => {
-    res.download(path.join(__dirname, 'secure_notes', path.basename(req.params.fileName)));
+    const safeFileName = path.basename(req.params.fileName);
+    const filePath = path.join(__dirname, 'notes', safeFileName); 
+    
+    res.download(filePath, (err) => {
+        if (err) {
+            console.error("Note download error:", err);
+            if (!res.headersSent) res.status(404).send("Note file not found.");
+        }
+    });
 });
 
+// --- AUTO-DISCOVERY QUIZZES API ---
 app.get('/api/quizzes', (req, res) => {
     const quizzesDir = path.join(__dirname, 'quizzes');
     try {
@@ -597,7 +676,31 @@ app.post('/api/send-otp', (req, res) => {
     if (!firstName || !lastName || !email) return res.status(400).json({ success: false });
     const otp = crypto.randomInt(100000, 1000000).toString();
     pendingOtps.set(email, { otp, firstName, lastName, expiresAt: Date.now() + 300000, attempts: 0, lastSentAt: Date.now() });
+    
+    // Log OTP to server console (useful for you to test locally or via Render logs)
     console.log(`[OTP for ${email}]: ${otp}`);
+    
+    // Send email securely via App Script
+    const scriptURL = process.env.APP_SCRIPT_URL;
+    if (scriptURL) {
+        fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'otp',
+                targetEmail: email,
+                subject: 'Pioneers Prep - Verification Code',
+                secretKey: APPS_SECRET,
+                breakdown: '<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">' +
+                         '<h2>Hello ' + escapeHtml(firstName) + ' ' + escapeHtml(lastName) + ',</h2>' +
+                         '<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>' +
+                         '<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">' + otp + '</h1>' +
+                         '<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>' +
+                         '</div>'
+            })
+        }).catch(err => console.error('Background email error:', err));
+    }
+    
     res.json({ success: true });
 });
 
@@ -606,9 +709,9 @@ app.post('/api/verify-otp', (req, res) => {
     const record = pendingOtps.get(email);
     if (!record || record.otp !== otp) return res.status(400).json({ success: false, error: 'Invalid OTP' });
     pendingOtps.delete(email);
-    const tokenData = `${email}|${Date.now()}`;
+    const tokenData = email + '|' + Date.now();
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    res.json({ success: true, authToken: `${tokenData}|||${signature}` });
+    res.json({ success: true, authToken: tokenData + '|||' + signature });
 });
 
 app.post('/api/submit', async (req, res) => {
@@ -627,5 +730,18 @@ app.post('/api/submit', async (req, res) => {
 
     res.json({ success: true, score: correctCount, total: realQuestions.length });
 });
+
+const PING_INTERVAL = 14 * 60 * 1000; 
+const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
+
+setInterval(() => {
+    if (PING_URL.startsWith('https')) {
+        https.get(PING_URL, (res) => console.log(`[Keep-Awake] Secure Ping successful: ${res.statusCode} at ${new Date().toISOString()}`))
+             .on('error', (err) => console.warn(`[Keep-Awake] Ping failed: ${err.message}`));
+    } else {
+        http.get(PING_URL, (res) => console.log(`[Keep-Awake] Local Ping successful: ${res.statusCode} at ${new Date().toISOString()}`))
+             .on('error', (err) => console.warn(`[Keep-Awake] Local Ping failed: ${err.message}`));
+    }
+}, PING_INTERVAL);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
