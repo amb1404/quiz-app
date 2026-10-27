@@ -592,14 +592,30 @@ app.get('/', (req, res) => {
                         })
                         .catch(() => goHome());
                     } else {
-                        showScreen(state.activeScreen);
+                        // Re-trigger the UI render for intermediate selection screens upon refresh
+                        if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
+                            loadNeetChapters(selectedClassName, selectedNeetUnit);
+                        } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
+                            loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+                        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
+                            loadNeetUnits(selectedClassName);
+                        } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
+                            // If it was ICSE or WB
+                            if (selectedClassName === 'IX' || selectedClassName === 'X') {
+                                // Default back to subject screen or keep container if subject is known
+                                showScreen(state.activeScreen);
+                            } else {
+                                loadDynamicChapters(selectedClassName);
+                            }
+                        } else {
+                            showScreen(state.activeScreen);
+                        }
                     }
                 }
             } catch (e) {
                 console.error("Failed to restore session state", e);
             }
         }
-
         // Global Navigation Engine
         function showScreen(screenId) {
             const currentScreen = document.querySelector('.app-screen:not(.hidden)');
