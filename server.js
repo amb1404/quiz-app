@@ -22,7 +22,7 @@ const otpIpRateLimit = new Map();
 const usedAuthTokens = new Map();
 
 // --- SECURITY MIDDLEWARE & PAYLOAD LIMITS ---
-app.use(express.json({ limit: '50kb' }));
+app.use(express.json({ limit: '15mb' }));
 
 app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
@@ -67,7 +67,7 @@ function getAllJsonFiles(dir, fileList = []) {
     for (const file of files) {
         const filePath = path.join(dir, file);
         if (fs.statSync(filePath).isDirectory()) {
-            getAllJsonFiles(filePath, fileList); // Recursively search subfolders
+            getAllJsonFiles(filePath, fileList);
         } else if (file.toLowerCase().endsWith('.json')) {
             fileList.push(filePath);
         }
@@ -87,7 +87,6 @@ function resolveSafeQuizPath(rawId) {
     const target1 = cleanId + '.json';
     const target2 = cleanId + '-questions.json';
 
-    // Find the file regardless of how deep it is nested
     const matchedPath = allJsonFiles.find(filePath => {
         const fileName = path.basename(filePath);
         return fileName === target1 || fileName === target2;
@@ -206,10 +205,10 @@ app.get('/', (req, res) => {
         #home-dashboard {
             display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
         }
-        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
             background-color: rgba(255, 251, 235, 0.95);
             border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 500px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
+            width: 600px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
         }
         #result-screen { width: 90%; max-width: 800px; }
 
@@ -229,7 +228,6 @@ app.get('/', (req, res) => {
             justify-content: space-between;
         }
 
-        /* Button and Card Professional Shadow Effects */
         button, .card, .option-btn {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
             transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
@@ -257,7 +255,7 @@ app.get('/', (req, res) => {
         }
         .option-btn.selected { background-color: #e0f2fe; border-color: #4285f4; color: #1e40af; font-weight: 600; }
 
-        input[type="text"], input[type="email"], input[type="number"] {
+        input[type="text"], input[type="email"], input[type="number"], input[type="file"] {
             width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px;
             border: 1px solid #cbd5e1; margin-bottom: 20px; box-sizing: border-box;
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
@@ -270,7 +268,6 @@ app.get('/', (req, res) => {
             border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
         }
 
-        /* Quiz Header & Progress Bar */
         .quiz-header {
             display: flex;
             justify-content: space-between;
@@ -298,7 +295,6 @@ app.get('/', (req, res) => {
             transition: width 0.35s ease;
         }
 
-        /* Equal Left & Right Margin Navigation Container */
         .quiz-nav-container {
             display: flex;
             justify-content: center;
@@ -318,64 +314,13 @@ app.get('/', (req, res) => {
         }
 
         @media (max-width: 600px) {
-            body {
-                padding: 8px !important;
-            }
-            .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
-                width: 100% !important;
-                padding: 20px !important;
+            body { padding: 8px !important; }
+            .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+                width: 100% !important; padding: 20px !important;
             }
             #quiz-screen:not(.hidden) {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-height: calc(100vh - 16px) !important;
-                min-height: calc(100dvh - 16px) !important;
-                padding: 16px !important;
-                border-radius: 12px !important;
-            }
-            .quiz-header {
-                flex-wrap: nowrap !important;
-                gap: 6px !important;
-                margin-bottom: 10px !important;
-            }
-            #time-left {
-                font-size: 13.5px !important;
-                white-space: nowrap !important;
-            }
-            #quiz-stats {
-                font-size: 11.5px !important;
-                text-align: center !important;
-                white-space: nowrap !important;
-            }
-            #submit-btn {
-                padding: 8px 12px !important;
-                font-size: 12px !important;
-                white-space: nowrap !important;
-            }
-            .progress-container {
-                height: 7px !important;
-                margin-bottom: 14px !important;
-            }
-            #quiz-screen-heading {
-                font-size: 18px !important;
-                margin: 0 0 12px 0 !important;
-            }
-            #question-box {
-                font-size: 15.5px !important;
-                margin-bottom: 16px !important;
-            }
-            .option-btn {
-                padding: 13px 15px !important;
-                font-size: 14.5px !important;
-                margin-bottom: 12px !important;
-            }
-            .quiz-nav-container {
-                gap: 10px !important;
-                margin-top: 15px !important;
-            }
-            .quiz-nav-container button {
-                padding: 11px 8px !important;
-                font-size: 13px !important;
+                width: 100% !important; max-width: 100% !important;
+                min-height: calc(100vh - 16px) !important; padding: 16px !important; border-radius: 12px !important;
             }
         }
     </style>
@@ -425,6 +370,25 @@ app.get('/', (req, res) => {
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
         <div id="ix-x-chapter-container"></div>
+    </div>
+
+    <!-- NEET Multi-Step Hierarchy Screens -->
+    <div id="neet-unit-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Select Unit</h2>
+        <div id="neet-unit-container"></div>
+    </div>
+
+    <div id="neet-chapter-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Select Chapter</h2>
+        <div id="neet-chapter-container"></div>
+    </div>
+
+    <div id="neet-topic-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 style="text-align: center; color: #4285f4;">Select Topic / Test</h2>
+        <div id="neet-topic-container"></div>
     </div>
 
     <div id="name-screen" class="app-screen hidden">
@@ -478,6 +442,71 @@ app.get('/', (req, res) => {
         let selectedClassName = "";
         let activeQuizTitle = "";
         let selectedNotesClass = "";
+        let selectedNeetUnit = "";
+        let selectedNeetChapter = "";
+
+        // Complete NEET XI & XII Hierarchy Structure
+        const neetHierarchy = {
+            "XI": {
+                "Unit I: Diversity in the Living World": {
+                    "The Living World": ["The Living World - Practice Test 1"],
+                    "Biological Classification": ["Biological Classification - Practice Test 1"],
+                    "Plant Kingdom": ["Plant Kingdom - Practice Test 1"],
+                    "Animal Kingdom": ["Animal Kingdom - Practice Test 1"]
+                },
+                "Unit II: Structural Organisation in Plants and Animals": {
+                    "Morphology of Flowering Plants": ["Morphology of Flowering Plants - Practice Test 1"],
+                    "Anatomy of Flowering Plants": ["Anatomy of Flowering Plants - Practice Test 1"],
+                    "Structural Organisation in Animals": ["Structural Organisation in Animals - Practice Test 1"]
+                },
+                "Unit III: Cell: Structure and Functions": {
+                    "Cell-The Unit of Life": ["Cell-The Unit of Life - Practice Test 1"],
+                    "Biomolecules": ["Biomolecules - Practice Test 1"],
+                    "Cell Cycle and Cell Division": ["Cell Cycle and Cell Division - Practice Test 1"]
+                },
+                "Unit IV: Plant Physiology": {
+                    "Photosynthesis in Higher Plants": ["Photosynthesis in Higher Plants - Practice Test 1"],
+                    "Respiration in Plants": ["Respiration in Plants - Practice Test 1"],
+                    "Plant Growth and Development": ["Plant Growth and Development - Practice Test 1"]
+                },
+                "Unit V: Human Physiology": {
+                    "Breathing and Exchange of Gases": ["Breathing and Exchange of Gases - Practice Test 1"],
+                    "Body Fluids and Circulation": ["Body Fluids and Circulation - Practice Test 1"],
+                    "Excretory Products and their Elimination": ["Excretory Products and their Elimination - Practice Test 1"],
+                    "Locomotion and Movement": ["Locomotion and Movement - Practice Test 1"],
+                    "Neural Control and Coordination": ["Neural Control and Coordination - Practice Test 1"],
+                    "Chemical Coordination and Integration": ["Chemical Coordination and Integration - Practice Test 1"]
+                }
+            },
+            "XII": {
+                "Unit VI: Reproduction": {
+                    "Reproduction in Organisms": ["Reproduction in Organisms - Practice Test 1"],
+                    "Sexual Reproduction in Flowering Plants": ["Sexual Reproduction in Flowering Plants - Practice Test 1"],
+                    "Human Reproduction": ["Human Reproduction - Practice Test 1"],
+                    "Reproductive Health": ["Reproductive Health - Practice Test 1"]
+                },
+                "Unit VII: Genetics and Evolution": {
+                    "Principles of Inheritance and Variation": ["Principles of Inheritance and Variation - Practice Test 1"],
+                    "Molecular Basis of Inheritance": ["Molecular Basis of Inheritance - Practice Test 1"],
+                    "Evolution": ["Evolution - Practice Test 1"]
+                },
+                "Unit VIII: Biology in Human Welfare": {
+                    "Human Health and Disease": ["Human Health and Disease - Practice Test 1"],
+                    "Strategies for Enhancement in Food Production": ["Strategies for Enhancement in Food Production - Practice Test 1"],
+                    "Microbes in Human Welfare": ["Microbes in Human Welfare - Practice Test 1"]
+                },
+                "Unit IX: Biotechnology and its Applications": {
+                    "Biotechnology - Principles and Processes": ["Biotechnology - Principles and Processes - Practice Test 1"],
+                    "Biotechnology and its Applications": ["Biotechnology and its Applications - Practice Test 1"]
+                },
+                "Unit X: Ecology and Environment": {
+                    "Organisms and Populations": ["Organisms and Populations - Practice Test 1"],
+                    "Ecosystem": ["Ecosystem - Practice Test 1"],
+                    "Biodiversity and Conservation": ["Biodiversity and Conservation - Practice Test 1"],
+                    "Environmental Issues": ["Environmental Issues - Practice Test 1"]
+                }
+            }
+        };
 
         window.addEventListener('DOMContentLoaded', async () => {
             const firstInput = document.getElementById('first-name');
@@ -495,7 +524,81 @@ app.get('/', (req, res) => {
             } catch (e) {
                 console.error("Failed to load quizzes", e);
             }
+
+            restoreSessionState();
         });
+
+        // --- Session State Persistence (Refresh Recovery) ---
+        function saveSessionState() {
+            const activeScreen = document.querySelector('.app-screen:not(.hidden)')?.id || 'home-dashboard';
+            const state = {
+                activeScreen,
+                screenHistory,
+                selectedClassName,
+                selectedNotesClass,
+                selectedNeetUnit,
+                selectedNeetChapter,
+                currentQuizId,
+                activeQuizTitle,
+                timeRemaining,
+                quizDuration,
+                serverStartTime,
+                timerSignature,
+                studentAuthToken,
+                userAnswers: Object.fromEntries(Object.entries(userAnswers)),
+                skippedQuestions: Array.from(skippedQuestions),
+                firstName: document.getElementById('first-name')?.value || '',
+                lastName: document.getElementById('last-name')?.value || '',
+                email: document.getElementById('email-address')?.value || ''
+            };
+            sessionStorage.setItem('pioneers_prep_state', JSON.stringify(state));
+        }
+
+        function restoreSessionState() {
+            const saved = sessionStorage.getItem('pioneers_prep_state');
+            if (!saved) return;
+            try {
+                const state = JSON.parse(saved);
+                screenHistory = state.screenHistory || [];
+                selectedClassName = state.selectedClassName || '';
+                selectedNotesClass = state.selectedNotesClass || '';
+                selectedNeetUnit = state.selectedNeetUnit || '';
+                selectedNeetChapter = state.selectedNeetChapter || '';
+                currentQuizId = state.currentQuizId || '';
+                activeQuizTitle = state.activeQuizTitle || '';
+                timeRemaining = state.timeRemaining || 900;
+                quizDuration = state.quizDuration || 900;
+                serverStartTime = state.serverStartTime || 0;
+                timerSignature = state.timerSignature || '';
+                studentAuthToken = state.studentAuthToken || '';
+                userAnswers = state.userAnswers || {};
+                skippedQuestions = new Set(state.skippedQuestions || []);
+
+                if (document.getElementById('first-name')) document.getElementById('first-name').value = state.firstName || '';
+                if (document.getElementById('last-name')) document.getElementById('last-name').value = state.lastName || '';
+                if (document.getElementById('email-address')) document.getElementById('email-address').value = state.email || '';
+
+                if (state.activeScreen && state.activeScreen !== 'home-dashboard') {
+                    if (state.activeScreen === 'quiz-screen' && currentQuizId) {
+                        fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                            headers: { 'X-Requested-With': 'PioneersPrepApp', 'Authorization': 'Bearer ' + studentAuthToken }
+                        })
+                        .then(res => res.json())
+                        .then(questions => {
+                            currentQuestions = questions;
+                            showScreen('quiz-screen');
+                            renderQuestion();
+                            startTimer();
+                        })
+                        .catch(() => goHome());
+                    } else {
+                        showScreen(state.activeScreen);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to restore session state", e);
+            }
+        }
 
         // Global Navigation Engine
         function showScreen(screenId) {
@@ -505,6 +608,7 @@ app.get('/', (req, res) => {
             }
             document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
             document.getElementById(screenId).classList.remove('hidden');
+            saveSessionState();
         }
 
         function goBack() {
@@ -512,6 +616,7 @@ app.get('/', (req, res) => {
                 const previousScreenId = screenHistory.pop();
                 document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
                 document.getElementById(previousScreenId).classList.remove('hidden');
+                saveSessionState();
             } else {
                 goHome();
             }
@@ -522,6 +627,7 @@ app.get('/', (req, res) => {
             clearInterval(timerInterval);
             userAnswers = {};
             skippedQuestions = new Set();
+            sessionStorage.removeItem('pioneers_prep_state');
             const otpWrapper = document.getElementById('otp-wrapper');
             if (otpWrapper) otpWrapper.remove();
             const verifyBtn = document.getElementById('verify-start-btn');
@@ -585,6 +691,8 @@ app.get('/', (req, res) => {
             selectedClassName = className;
             if (className === 'IX' || className === 'X') {
                 showScreen('subject-select-screen');
+            } else if (className === 'XI' || className === 'XII') {
+                loadNeetUnits(className);
             } else {
                 loadDynamicChapters(className);
             }
@@ -629,6 +737,67 @@ app.get('/', (req, res) => {
                 });
             }
             showScreen('ix-x-chapter-screen');
+        }
+
+        // NEET Hierarchy Navigation
+        function loadNeetUnits(className) {
+            const container = document.getElementById('neet-unit-container');
+            container.innerHTML = '';
+            const units = neetHierarchy[className] || {};
+            
+            Object.keys(units).forEach(unitName => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = unitName;
+                card.onclick = () => {
+                    selectedNeetUnit = unitName;
+                    loadNeetChapters(className, unitName);
+                };
+                container.appendChild(card);
+            });
+            showScreen('neet-unit-screen');
+        }
+
+        function loadNeetChapters(className, unitName) {
+            const container = document.getElementById('neet-chapter-container');
+            container.innerHTML = '';
+            const chapters = neetHierarchy[className][unitName] || {};
+
+            Object.keys(chapters).forEach(chapName => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = chapName;
+                card.onclick = () => {
+                    selectedNeetChapter = chapName;
+                    loadNeetTopics(className, unitName, chapName);
+                };
+                container.appendChild(card);
+            });
+            showScreen('neet-chapter-screen');
+        }
+
+        function loadNeetTopics(className, unitName, chapName) {
+            const container = document.getElementById('neet-topic-container');
+            container.innerHTML = '';
+            const topicTitles = neetHierarchy[className][unitName][chapName] || [];
+
+            topicTitles.forEach(title => {
+                const foundQuiz = dynamicQuizzes.find(q => q.title.toLowerCase() === title.toLowerCase()) || {
+                    id: title.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                    title: title,
+                    category: 'neet',
+                    classLevel: className.toLowerCase(),
+                    subject: 'biology',
+                    duration: 900
+                };
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = title;
+                card.onclick = () => prepareQuiz(foundQuiz);
+                container.appendChild(card);
+            });
+            showScreen('neet-topic-screen');
         }
 
         function prepareQuiz(quiz) {
@@ -689,6 +858,7 @@ app.get('/', (req, res) => {
                 document.getElementById('name-screen').insertBefore(wrapper, verifyBtn);
                 verifyBtn.innerText = 'Start Quiz';
                 verifyBtn.disabled = false;
+                saveSessionState();
                 return;
             }
 
@@ -769,6 +939,7 @@ app.get('/', (req, res) => {
                 const pct = (attemptedCount / total) * 100;
                 progressBar.style.width = pct + '%';
             }
+            saveSessionState();
         }
 
         function renderQuestion() {
@@ -778,15 +949,67 @@ app.get('/', (req, res) => {
             const container = document.getElementById('options-container');
             container.innerHTML = '';
 
-            if (q.type === 'descriptive') {
-                const textarea = document.createElement('textarea');
-                textarea.placeholder = 'Type your answer here...';
-                textarea.rows = 4;
-                textarea.style.cssText = 'width: 100%; padding: 12px 14px; font-size: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; font-family: inherit; margin-bottom: 10px;';
+            // 1 & 2. Descriptive / Diagram / Fill in the Blanks Handling
+            if (q.type === 'descriptive' || q.type === 'diagram') {
+                const label = document.createElement('label');
+                label.innerText = q.type === 'diagram' ? 'Upload image of your drawn diagram/copy:' : 'Upload image of your written answer copy:';
+                label.style.cssText = 'display: block; font-weight: 600; margin-bottom: 8px; color: #334155;';
+                
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+
                 if (userAnswers[currentQuestionIndex] !== undefined) {
-                    textarea.value = userAnswers[currentQuestionIndex];
+                    const preview = document.createElement('p');
+                    preview.style.color = '#15803d';
+                    preview.innerHTML = '✅ Image uploaded successfully for this question.';
+                    container.appendChild(preview);
                 }
-                textarea.addEventListener('input', e => {
+
+                fileInput.onchange = e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const maxDim = 800;
+                            if (width > height && width > maxDim) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else if (height > maxDim) {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const base64Img = canvas.toDataURL('image/jpeg', 0.7);
+
+                            userAnswers[currentQuestionIndex] = base64Img;
+                            skippedQuestions.delete(currentQuestionIndex);
+                            updateQuizStats();
+                            alert('Image attached successfully! Click Next to proceed.');
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                container.appendChild(label);
+                container.appendChild(fileInput);
+            } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Type your answer here...';
+                if (userAnswers[currentQuestionIndex] !== undefined) {
+                    input.value = userAnswers[currentQuestionIndex];
+                }
+                input.addEventListener('input', e => {
                     const val = e.target.value.trim();
                     if (val === '') {
                         delete userAnswers[currentQuestionIndex];
@@ -796,7 +1019,7 @@ app.get('/', (req, res) => {
                     }
                     updateQuizStats();
                 });
-                container.appendChild(textarea);
+                container.appendChild(input);
             } else {
                 q.options.forEach((opt, idx) => {
                     const btn = document.createElement('button');
@@ -816,7 +1039,6 @@ app.get('/', (req, res) => {
             updateQuizStats();
         }
 
-        // Count a question as skipped ONLY when the user clicks Next without attempting it
         function nextQuestion() {
             if (userAnswers[currentQuestionIndex] === undefined) {
                 skippedQuestions.add(currentQuestionIndex);
@@ -839,8 +1061,8 @@ app.get('/', (req, res) => {
         function clearResponse() {
             delete userAnswers[currentQuestionIndex];
             document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-            const textarea = document.querySelector('#options-container textarea');
-            if (textarea) textarea.value = '';
+            const input = document.querySelector('#options-container input');
+            if (input) input.value = '';
             updateQuizStats();
         }
 
@@ -850,6 +1072,7 @@ app.get('/', (req, res) => {
                 let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
                 let s = (timeRemaining % 60).toString().padStart(2, '0');
                 document.getElementById('time-left').innerText = 'Time Left: ' + m + ':' + s;
+                saveSessionState();
             };
             updateDisplay();
             timerInterval = setInterval(() => {
@@ -904,6 +1127,7 @@ app.get('/', (req, res) => {
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
+                    sessionStorage.removeItem('pioneers_prep_state');
                     document.getElementById('result-screen').innerHTML =
                         '<button class="back-btn" onclick="goHome()">Back to Home</button>' +
                         '<h2 style="text-align: center; color: #4285f4; margin-top: 0;">Quiz Results</h2>' +
@@ -1022,7 +1246,6 @@ app.get('/api/quizzes', (req, res) => {
     try {
         if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
         
-        // Scan the entire folder recursively
         const allFiles = getAllJsonFiles(quizzesDir);
         const allQuizzes = [];
 
@@ -1061,7 +1284,11 @@ app.get('/api/quiz/:id', (req, res) => {
     if (!filePath) return res.status(404).json({ error: "Not found" });
 
     const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    res.json((quizContent.questions || []).map(q => ({ type: q.type || 'mcq', question: q.question, options: q.options || [] })));
+    res.json((quizContent.questions || []).map(q => ({
+        type: q.type || 'mcq',
+        question: q.question,
+        options: q.options || []
+    })));
 });
 
 app.post('/api/start-quiz', (req, res) => {
@@ -1201,13 +1428,27 @@ app.post('/api/submit', async (req, res) => {
             let rawStatus = "Skipped";
             let statusColor = "yellow";
 
-            if (q.type === 'descriptive') {
-                studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
+            if (q.type === 'descriptive' || q.type === 'diagram') {
+                if (isAttempted && typeof studentResponse === 'string' && studentResponse.startsWith('data:image')) {
+                    studentSelectionText = `<img src="${studentResponse}" style="max-width: 200px; border-radius: 4px;" />`;
+                } else {
+                    studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
+                }
                 correctOptionText = escapeHtml(q.model_answer || "Refer to marking scheme");
                 if (isAttempted) {
                     rawStatus = "Needs Review";
                     statusColor = "orange";
                 }
+            } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+                studentSelectionText = isAttempted ? escapeHtml(studentResponse) : "Skipped";
+                correctOptionText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
+                const studentAnsClean = String(studentResponse || '').trim().toLowerCase();
+                const correctAnsClean = String(q.answer_text || q.model_answer || '').trim().toLowerCase();
+                isCorrect = isAttempted && studentAnsClean === correctAnsClean;
+                if (isCorrect) correctCount++;
+                else if (isAttempted) incorrectCount++;
+                rawStatus = isCorrect ? "Correct" : (isAttempted ? "Incorrect" : "Skipped");
+                statusColor = isCorrect ? "lightgreen" : (isAttempted ? "lightcoral" : "yellow");
             } else {
                 const selectedIdx = parseInt(studentResponse, 10);
                 isCorrect = isAttempted && selectedIdx === q.answer;
