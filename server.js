@@ -78,7 +78,7 @@ function getAllJsonFiles(dir, fileList = []) {
 function resolveSafeQuizPath(rawId) {
     if (!rawId || typeof rawId !== 'string') return null;
     const cleanId = path.basename(rawId.trim());
-    if (!/^[a-zA-Z0-9_-]+$/.test(cleanId)) return null;
+    if (!/^[a-zA-Z0-9_\-\s\(\)\.]+$/.test(cleanId)) return null;
     if (RESERVED_JSON_NAMES.has(cleanId.toLowerCase())) return null;
 
     const quizzesDir = path.join(__dirname, 'quizzes');
