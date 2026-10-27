@@ -60,7 +60,7 @@ const RESERVED_JSON_NAMES = new Set([
     'submissions', 'package', 'package-lock', 'quizzes', 'notes'
 ]);
 
-// --- RECURSIVE DIRECTORY SCANNER ---
+// --- RECURSIVE DIRECTORY SCANNER FOR QUIZZES ---
 function getAllJsonFiles(dir, fileList = []) {
     if (!fs.existsSync(dir)) return fileList;
     const files = fs.readdirSync(dir);
@@ -112,6 +112,29 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     const parsed = parseInt(clientFallback, 10);
     if (!isNaN(parsed) && parsed >= 60 && parsed <= 10800) return parsed;
     return 900;
+}
+
+// --- RECURSIVE DIRECTORY SCANNER & RESOLVER FOR NOTES ---
+function getAllPdfFiles(dir, fileList = []) {
+    if (!fs.existsSync(dir)) return fileList;
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+        const filePath = path.join(dir, file);
+        if (fs.statSync(filePath).isDirectory()) {
+            getAllPdfFiles(filePath, fileList);
+        } else if (file.toLowerCase().endsWith('.pdf')) {
+            fileList.push(filePath);
+        }
+    }
+    return fileList;
+}
+
+function resolveSafeNotePath(rawFileName) {
+    if (!rawFileName || typeof rawFileName !== 'string') return null;
+    const cleanName = path.basename(rawFileName.trim());
+    const notesDir = path.join(__dirname, 'notes');
+    const allPdfFiles = getAllPdfFiles(notesDir);
+    return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
 const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
@@ -1202,7 +1225,7 @@ app.get('/', (req, res) => {
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
-// --- AUTO-DISCOVERY DESCRIPTIVE NOTES API ---
+// --- AUTO-DISCOVERY DESCRIPTIVE NOTES API (RECURSIVE SUBFOLDERS) ---
 app.get('/api/notes', (req, res) => {
     const notesDir = path.join(__dirname, 'notes');
     try {
@@ -1210,7 +1233,7 @@ app.get('/api/notes', (req, res) => {
             fs.mkdirSync(notesDir, { recursive: true });
         }
         
-        const files = fs.readdirSync(notesDir).filter(file => file.toLowerCase().endsWith('.pdf'));
+        const files = getAllPdfFiles(notesDir);
         const groupedNotes = {
             'IX': { Physics: [], Chemistry: [], Biology: [] },
             'X': { Physics: [], Chemistry: [], Biology: [] },
@@ -1218,21 +1241,25 @@ app.get('/api/notes', (req, res) => {
             'XII': { Biology: [] }
         };
 
-        files.forEach(file => {
-            const lowerFile = file.toLowerCase();
-            
+        files.forEach(fullPath => {
+            const fileName = path.basename(fullPath);
+            const lowerPath = fullPath.toLowerCase().replace(/\\/g, '/');
+
+            // 1. Detect Class from folder name or file name
             let cls = 'XI';
-            if (lowerFile.includes('class9') || lowerFile.includes('ix')) cls = 'IX';
-            else if (lowerFile.includes('class10') || lowerFile.includes('x')) cls = 'X';
-            else if (lowerFile.includes('class11') || lowerFile.includes('xi')) cls = 'XI';
-            else if (lowerFile.includes('class12') || lowerFile.includes('xii')) cls = 'XII';
+            if (lowerPath.includes('/ix/') || lowerPath.includes('/class9/') || lowerPath.includes('/class 9/') || lowerPath.includes('class9') || lowerPath.includes('class_9') || lowerPath.includes('class-9')) cls = 'IX';
+            else if (lowerPath.includes('/x/') || lowerPath.includes('/class10/') || lowerPath.includes('/class 10/') || lowerPath.includes('class10') || lowerPath.includes('class_10') || lowerPath.includes('class-10')) cls = 'X';
+            else if (lowerPath.includes('/xi/') || lowerPath.includes('/class11/') || lowerPath.includes('/class 11/') || lowerPath.includes('class11') || lowerPath.includes('class_11') || lowerPath.includes('class-11')) cls = 'XI';
+            else if (lowerPath.includes('/xii/') || lowerPath.includes('/class12/') || lowerPath.includes('/class 12/') || lowerPath.includes('class12') || lowerPath.includes('class_12') || lowerPath.includes('class-12')) cls = 'XII';
 
+            // 2. Detect Subject
             let subject = 'Biology';
-            if (lowerFile.includes('physics')) subject = 'Physics';
-            else if (lowerFile.includes('chemistry')) subject = 'Chemistry';
-            else if (lowerFile.includes('biology')) subject = 'Biology';
+            if (lowerPath.includes('physics')) subject = 'Physics';
+            else if (lowerPath.includes('chemistry')) subject = 'Chemistry';
+            else if (lowerPath.includes('biology')) subject = 'Biology';
 
-            const title = path.basename(file, '.pdf')
+            // 3. Format Title
+            const title = path.basename(fileName, '.pdf')
                 .replace(/[_]/g, ' ')
                 .replace(/-/g, ' ')
                 .replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '')
@@ -1242,8 +1269,8 @@ app.get('/api/notes', (req, res) => {
 
             if (groupedNotes[cls] && groupedNotes[cls][subject]) {
                 groupedNotes[cls][subject].push({
-                    name: title || file,
-                    fileName: file
+                    name: title || fileName,
+                    fileName: fileName
                 });
             }
         });
@@ -1269,13 +1296,14 @@ app.get('/api/notes', (req, res) => {
 });
 
 app.get('/api/download-note/:fileName', (req, res) => {
-    const safeFileName = path.basename(req.params.fileName);
-    const filePath = path.join(__dirname, 'notes', safeFileName);
-    
-    res.download(filePath, (err) => {
-        if (err) {
+    const filePath = resolveSafeNotePath(req.params.fileName);
+    if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).send("Note file not found.");
+    }
+    res.download(filePath, path.basename(filePath), (err) => {
+        if (err && !res.headersSent) {
             console.error("Note download error:", err);
-            if (!res.headersSent) res.status(404).send("Note file not found.");
+            res.status(500).send("Failed to download note.");
         }
     });
 });
