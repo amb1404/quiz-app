@@ -704,25 +704,40 @@ app.get('/', (req, res) => {
             const container = document.getElementById('neet-unit-container');
             container.innerHTML = '';
             
-            const quizzes = getFilteredQuizzes('neet', className);
-            // Extract unique units directly from JSON metadata
-            const units = [...new Set(quizzes.map(q => q.unit || 'Uncategorized Topics'))];
+            // This pulls all units directly from the complete NEET syllabus tree
+            const units = neetHierarchy[className] || {};
             
-            if (units.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No units found.</p>';
-            } else {
-                units.forEach(unitName => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerText = unitName;
-                    card.onclick = () => {
-                        selectedNeetUnit = unitName;
-                        loadNeetChapters(className, unitName);
-                    };
-                    container.appendChild(card);
-                });
-            }
+            Object.keys(units).forEach(unitName => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = unitName;
+                card.onclick = () => {
+                    selectedNeetUnit = unitName;
+                    loadNeetChapters(className, unitName);
+                };
+                container.appendChild(card);
+            });
             showScreen('neet-unit-screen');
+        }
+
+        function loadNeetChapters(className, unitName) {
+            const container = document.getElementById('neet-chapter-container');
+            container.innerHTML = '';
+            
+            // Pulls all chapters for this unit from the syllabus tree
+            const chapters = neetHierarchy[className][unitName] || {};
+
+            Object.keys(chapters).forEach(chapName => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = chapName;
+                card.onclick = () => {
+                    selectedNeetChapter = chapName;
+                    loadNeetTopics(className, unitName, chapName);
+                };
+                container.appendChild(card);
+            });
+            showScreen('neet-chapter-screen');
         }
 
         function loadNeetChapters(className, unitName) {
