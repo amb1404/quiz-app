@@ -57,7 +57,7 @@ function safeCompareHex(sigA, sigB) {
 }
 
 const RESERVED_JSON_NAMES = new Set([
-    'submissions', 'package', 'package-lock', 'quizzes', 'notes'
+    'submissions', 'package', 'package-lock', 'quizzes', 'notes', 'descriptive'
 ]);
 
 // --- RECURSIVE DIRECTORY SCANNER FOR QUIZZES ---
@@ -114,7 +114,7 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     return 900;
 }
 
-// --- RECURSIVE DIRECTORY SCANNER & RESOLVER FOR NOTES ---
+// --- RECURSIVE DIRECTORY SCANNER & RESOLVER FOR PDFS ---
 function getAllPdfFiles(dir, fileList = []) {
     if (!fs.existsSync(dir)) return fileList;
     const files = fs.readdirSync(dir);
@@ -134,6 +134,14 @@ function resolveSafeNotePath(rawFileName) {
     const cleanName = path.basename(rawFileName.trim());
     const notesDir = path.join(__dirname, 'notes');
     const allPdfFiles = getAllPdfFiles(notesDir);
+    return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
+}
+
+function resolveSafeDescriptivePath(rawFileName) {
+    if (!rawFileName || typeof rawFileName !== 'string') return null;
+    const cleanName = path.basename(rawFileName.trim());
+    const descDir = path.join(__dirname, 'descriptive');
+    const allPdfFiles = getAllPdfFiles(descDir);
     return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
@@ -227,12 +235,12 @@ app.get('/', (req, res) => {
             user-select: none; -webkit-user-select: none;
         }
         #home-dashboard {
-            display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
+            display: flex; gap: 30px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
         }
-        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+        .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen, #descriptive-list-screen {
             background-color: rgba(255, 251, 235, 0.95);
             border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 600px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
+            width: 480px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
         }
         #result-screen { width: 90%; max-width: 800px; }
 
@@ -271,6 +279,17 @@ app.get('/', (req, res) => {
             border: 1px solid #cbd5e1; cursor: pointer;
         }
         .card:hover { background-color: #ffffff; border-color: #4285f4; color: #4285f4; }
+
+        .card-yellow {
+            background-color: #fef9c3 !important;
+            border-color: #fde047 !important;
+            color: #854d0e !important;
+        }
+        .card-yellow:hover {
+            background-color: #fef08a !important;
+            border-color: #eab308 !important;
+            color: #713f12 !important;
+        }
 
         .option-btn {
             display: block; width: 100%; background-color: #ffffff; color: #0f172a;
@@ -339,7 +358,7 @@ app.get('/', (req, res) => {
 
         @media (max-width: 600px) {
             body { padding: 8px !important; }
-            .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen {
+            .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen, #descriptive-list-screen {
                 width: 100% !important; padding: 20px !important;
             }
             #quiz-screen:not(.hidden) {
@@ -351,6 +370,7 @@ app.get('/', (req, res) => {
 </head>
 <body>
     <div id="home-dashboard" class="app-screen">
+        <!-- 1. Mock Tests Panel -->
         <div class="dashboard-panel">
             <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Mock Tests</h2>
             <div class="card" onclick="selectClass('IX')">Class IX</div>
@@ -361,6 +381,7 @@ app.get('/', (req, res) => {
             <div class="card" onclick="selectClass('WB XII')">WBCHSE Class XII</div>
         </div>
 
+        <!-- 2. Study Notes Panel -->
         <div class="dashboard-panel">
             <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
             <div class="card" onclick="selectNotesClass('IX')">Class IX</div>
@@ -368,8 +389,18 @@ app.get('/', (req, res) => {
             <div class="card" onclick="selectNotesClass('XI')">Class XI</div>
             <div class="card" onclick="selectNotesClass('XII')">Class XII</div>
         </div>
+
+        <!-- 3. Descriptive Questions Panel (Yellow Box) -->
+        <div class="dashboard-panel" style="background-color: rgba(254, 252, 232, 0.98); border: 2px solid #facc15;">
+            <h2 style="text-align: center; color: #ca8a04; margin-top: 0;">Descriptive Questions</h2>
+            <div class="card card-yellow" onclick="selectDescriptiveClass('IX')">Class IX</div>
+            <div class="card card-yellow" onclick="selectDescriptiveClass('X')">Class X</div>
+            <div class="card card-yellow" onclick="selectDescriptiveClass('XI')">Class XI</div>
+            <div class="card card-yellow" onclick="selectDescriptiveClass('XII')">Class XII</div>
+        </div>
     </div>
 
+    <!-- Notes Screens -->
     <div id="notes-subject-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
@@ -378,10 +409,18 @@ app.get('/', (req, res) => {
 
     <div id="notes-list-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
-        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Descriptive Notes</h2>
+        <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
         <div id="notes-list-container"></div>
     </div>
 
+    <!-- Descriptive Question Papers Screen -->
+    <div id="descriptive-list-screen" class="app-screen hidden">
+        <button class="back-btn" onclick="goBack()">Back</button>
+        <h2 id="descriptive-screen-heading" style="text-align: center; color: #ca8a04; margin-top: 0;">Descriptive Questions</h2>
+        <div id="descriptive-list-container"></div>
+    </div>
+
+    <!-- Mock Test Navigation Screens -->
     <div id="subject-select-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
@@ -415,6 +454,7 @@ app.get('/', (req, res) => {
         <div id="neet-topic-container"></div>
     </div>
 
+    <!-- Candidate Verification -->
     <div id="name-screen" class="app-screen hidden">
         <button class="back-btn" onclick="goBack()">Back</button>
         <h2 style="text-align: center; color: #4285f4;">Candidate Verification</h2>
@@ -424,6 +464,7 @@ app.get('/', (req, res) => {
         <button id="verify-start-btn" onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
     </div>
 
+    <!-- Active Quiz Screen -->
     <div id="quiz-screen" class="app-screen hidden">
         <div>
             <div class="quiz-header">
@@ -446,6 +487,7 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
+    <!-- Results Screen -->
     <div id="result-screen" class="app-screen hidden"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
@@ -464,12 +506,15 @@ app.get('/', (req, res) => {
         let timerInterval;
         let studentAuthToken = "";
         let selectedClassName = "";
+        let selectedSubjectName = "";
         let activeQuizTitle = "";
         let selectedNotesClass = "";
+        let selectedNotesSubject = "";
+        let selectedDescriptiveClass = "";
         let selectedNeetUnit = "";
         let selectedNeetChapter = "";
+        let isRestoringSession = false;
 
-        // Complete Static NEET Syllabus Structure (Permanently Listed)
         const neetHierarchy = {
             "XI": {
                 "Unit I: Diversity in the Living World": [
@@ -532,7 +577,6 @@ app.get('/', (req, res) => {
             }
         };
 
-        // Fuzzy/Normalized Matching Helper for Chapters
         function isChapterMatch(quizChap, targetChap) {
             if (!quizChap || !targetChap) return false;
             const clean = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -558,26 +602,33 @@ app.get('/', (req, res) => {
                 console.error("Failed to load quizzes", e);
             }
 
-            restoreSessionState();
+            await restoreSessionState();
         });
 
-        // --- Session State Persistence ---
+        // --- Session State Persistence Engine ---
         function saveSessionState() {
+            if (isRestoringSession) return;
             const activeScreen = document.querySelector('.app-screen:not(.hidden)')?.id || 'home-dashboard';
+            const otpInputPresent = !!document.getElementById('otp-input');
             const state = {
                 activeScreen,
                 screenHistory,
                 selectedClassName,
+                selectedSubjectName,
                 selectedNotesClass,
+                selectedNotesSubject,
+                selectedDescriptiveClass,
                 selectedNeetUnit,
                 selectedNeetChapter,
                 currentQuizId,
                 activeQuizTitle,
+                currentQuestionIndex,
                 timeRemaining,
                 quizDuration,
                 serverStartTime,
                 timerSignature,
                 studentAuthToken,
+                otpSent: otpInputPresent,
                 userAnswers: Object.fromEntries(Object.entries(userAnswers)),
                 skippedQuestions: Array.from(skippedQuestions),
                 firstName: document.getElementById('first-name')?.value || '',
@@ -587,17 +638,22 @@ app.get('/', (req, res) => {
             sessionStorage.setItem('pioneers_prep_state', JSON.stringify(state));
         }
 
-        function restoreSessionState() {
+        async function restoreSessionState() {
             const saved = sessionStorage.getItem('pioneers_prep_state');
             if (!saved) return;
             try {
+                isRestoringSession = true;
                 const state = JSON.parse(saved);
                 selectedClassName = state.selectedClassName || '';
+                selectedSubjectName = state.selectedSubjectName || '';
                 selectedNotesClass = state.selectedNotesClass || '';
+                selectedNotesSubject = state.selectedNotesSubject || '';
+                selectedDescriptiveClass = state.selectedDescriptiveClass || '';
                 selectedNeetUnit = state.selectedNeetUnit || '';
                 selectedNeetChapter = state.selectedNeetChapter || '';
                 currentQuizId = state.currentQuizId || '';
                 activeQuizTitle = state.activeQuizTitle || '';
+                currentQuestionIndex = state.currentQuestionIndex || 0;
                 timeRemaining = state.timeRemaining || 900;
                 quizDuration = state.quizDuration || 900;
                 serverStartTime = state.serverStartTime || 0;
@@ -612,57 +668,100 @@ app.get('/', (req, res) => {
 
                 if (state.activeScreen && state.activeScreen !== 'home-dashboard') {
                     if (state.activeScreen === 'quiz-screen' && currentQuizId) {
-                        fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
-                            headers: { 'X-Requested-With': 'PioneersPrepApp', 'Authorization': 'Bearer ' + studentAuthToken }
-                        })
-                        .then(res => res.json())
-                        .then(questions => {
-                            currentQuestions = questions;
+                        try {
+                            const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                                headers: { 'X-Requested-With': 'PioneersPrepApp', 'Authorization': 'Bearer ' + studentAuthToken }
+                            });
+                            if (!qRes.ok) throw new Error("Quiz fetch failed");
+                            currentQuestions = await qRes.json();
+                            
+                            // Accurate real-time timer restoration based on original server start
+                            if (serverStartTime && quizDuration) {
+                                const elapsed = Math.floor((Date.now() - serverStartTime) / 1000);
+                                timeRemaining = Math.max(0, quizDuration - elapsed);
+                            }
+
                             showScreen('quiz-screen');
                             renderQuestion();
                             startTimer();
-                        })
-                        .catch(() => goHome());
-                    } else {
-                        if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
-                            loadNeetChapters(selectedClassName, selectedNeetUnit);
-                        } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
-                            loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
-                        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
-                            loadNeetUnits(selectedClassName);
-                        } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
-                            if (selectedClassName === 'IX' || selectedClassName === 'X') {
-                                showScreen(state.activeScreen);
-                            } else {
-                                loadDynamicChapters(selectedClassName);
-                            }
-                        } else {
-                            showScreen(state.activeScreen);
+                        } catch (err) {
+                            console.error("Quiz reload error:", err);
+                            goHome();
                         }
+                    } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
+                        loadNeetUnits(selectedClassName);
+                    } else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
+                        loadNeetChapters(selectedClassName, selectedNeetUnit);
+                    } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
+                        loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+                    } else if (state.activeScreen === 'subject-select-screen') {
+                        showScreen('subject-select-screen');
+                    } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
+                        if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) {
+                            selectSubject(selectedSubjectName);
+                        } else {
+                            loadDynamicChapters(selectedClassName);
+                        }
+                    } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) {
+                        selectNotesClass(selectedNotesClass);
+                    } else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) {
+                        await selectNotesSubject(selectedNotesSubject);
+                    } else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass) {
+                        await selectDescriptiveClass(selectedDescriptiveClass);
+                    } else if (state.activeScreen === 'name-screen') {
+                        showScreen('name-screen');
+                        if (state.otpSent) {
+                            const existingOtp = document.getElementById('otp-wrapper');
+                            if (!existingOtp) {
+                                const verifyBtn = document.getElementById('verify-start-btn');
+                                const wrapper = document.createElement('div');
+                                wrapper.id = 'otp-wrapper';
+                                wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center; letter-spacing:4px; margin-top: 5px; margin-bottom: 20px;">';
+                                document.getElementById('name-screen').insertBefore(wrapper, verifyBtn);
+                                if (verifyBtn) {
+                                    verifyBtn.innerText = 'Start Quiz';
+                                    verifyBtn.disabled = false;
+                                }
+                            }
+                        }
+                    } else {
+                        showScreen(state.activeScreen);
                     }
                 }
                 screenHistory = state.screenHistory || [];
             } catch (e) {
                 console.error("Failed to restore session state", e);
+            } finally {
+                isRestoringSession = false;
+                saveSessionState();
             }
         }
 
         // Global Navigation Engine
         function showScreen(screenId) {
+            const target = document.getElementById(screenId);
+            if (!target) return;
             const currentScreen = document.querySelector('.app-screen:not(.hidden)');
-            if (currentScreen && currentScreen.id !== screenId) {
+            if (!isRestoringSession && currentScreen && currentScreen.id !== screenId) {
                 screenHistory.push(currentScreen.id);
             }
             document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
-            document.getElementById(screenId).classList.remove('hidden');
-            saveSessionState();
+            target.classList.remove('hidden');
+            if (!isRestoringSession) {
+                saveSessionState();
+            }
         }
 
         function goBack() {
             if (screenHistory.length > 0) {
                 const previousScreenId = screenHistory.pop();
                 document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
-                document.getElementById(previousScreenId).classList.remove('hidden');
+                const target = document.getElementById(previousScreenId);
+                if (target) {
+                    target.classList.remove('hidden');
+                } else {
+                    goHome();
+                }
                 saveSessionState();
             } else {
                 goHome();
@@ -686,6 +785,40 @@ app.get('/', (req, res) => {
             document.getElementById('home-dashboard').classList.remove('hidden');
         }
 
+        // --- Descriptive Questions Portal Logic ---
+        async function selectDescriptiveClass(className) {
+            selectedDescriptiveClass = className;
+            const heading = document.getElementById('descriptive-screen-heading');
+            if (heading) heading.innerText = 'Class ' + className + ' - Descriptive Papers';
+            const container = document.getElementById('descriptive-list-container');
+            container.innerHTML = '<p style="text-align:center;">Loading question papers...</p>';
+            showScreen('descriptive-list-screen');
+
+            try {
+                const res = await fetch('/api/descriptive-questions');
+                const data = await res.json();
+                container.innerHTML = '';
+                const list = (data.files && data.files[className]) ? data.files[className] : [];
+                
+                if (list.length > 0) {
+                    list.forEach(item => {
+                        const link = document.createElement('a');
+                        link.href = '/api/download-descriptive/' + encodeURIComponent(item.fileName);
+                        link.className = 'card card-yellow';
+                        link.style.textDecoration = 'none';
+                        link.style.display = 'block';
+                        link.innerText = '📝 ' + item.name;
+                        container.appendChild(link);
+                    });
+                } else {
+                    container.innerHTML = '<p style="text-align:center; color:#854d0e; font-size:16px; margin-top:20px;">No question papers available for Class ' + className + ' yet.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p style="text-align:center; color:red;">Failed to load descriptive questions.</p>';
+            }
+            saveSessionState();
+        }
+
         // --- Notes Portal Logic ---
         function selectNotesClass(className) {
             selectedNotesClass = className;
@@ -704,6 +837,7 @@ app.get('/', (req, res) => {
         }
 
         async function selectNotesSubject(subjectName) {
+            selectedNotesSubject = subjectName;
             const container = document.getElementById('notes-list-container');
             container.innerHTML = '<p style="text-align:center;">Loading notes...</p>';
             showScreen('notes-list-screen');
@@ -731,6 +865,7 @@ app.get('/', (req, res) => {
             } catch (e) {
                 container.innerHTML = '<p style="text-align:center; color:red;">Failed to load notes.</p>';
             }
+            saveSessionState();
         }
 
         // --- Mock Tests Dynamic Logic ---
@@ -753,12 +888,13 @@ app.get('/', (req, res) => {
         }
 
         function selectSubject(subjectName) {
+            selectedSubjectName = subjectName;
             const container = document.getElementById('ix-x-chapter-container');
             container.innerHTML = '';
             const matched = dynamicQuizzes.filter(q => q.category === 'icse' && q.classLevel.toLowerCase() === selectedClassName.toLowerCase() && q.subject.toLowerCase() === subjectName.toLowerCase());
             
             if (matched.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+                container.innerHTML = '<p style="text-align:center; color:#64748b; font-size:16px; margin-top:20px;">No tests found for ' + subjectName + ' yet.</p>';
             } else {
                 matched.forEach(q => {
                     const card = document.createElement('div');
@@ -780,7 +916,7 @@ app.get('/', (req, res) => {
             const matched = getFilteredQuizzes(cat, lvl);
             
             if (matched.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+                container.innerHTML = '<p style="text-align:center; color:#64748b; font-size:16px; margin-top:20px;">No tests found.</p>';
             } else {
                 matched.forEach(q => {
                     const card = document.createElement('div');
@@ -820,7 +956,7 @@ app.get('/', (req, res) => {
             const chapters = neetHierarchy[className]?.[unitName] || [];
 
             if (chapters.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No chapters found for this unit.</p>';
+                container.innerHTML = '<p style="text-align:center; color:#64748b; font-size:16px; margin-top:20px;">No chapters found for this unit.</p>';
             } else {
                 chapters.forEach(chapName => {
                     const card = document.createElement('div');
@@ -840,7 +976,6 @@ app.get('/', (req, res) => {
             const container = document.getElementById('neet-topic-container');
             container.innerHTML = '';
             
-            // Matches quizzes by JSON metadata: category, classLevel, and chapter
             const quizzes = dynamicQuizzes.filter(q => {
                 const isNeet = (q.category || '').toLowerCase() === 'neet';
                 const isLvl = (q.classLevel || '').toLowerCase() === className.toLowerCase();
@@ -1112,6 +1247,7 @@ app.get('/', (req, res) => {
             } else {
                 updateQuizStats();
             }
+            saveSessionState();
         }
 
         function prevQuestion() {
@@ -1119,6 +1255,7 @@ app.get('/', (req, res) => {
                 currentQuestionIndex--;
                 renderQuestion();
             }
+            saveSessionState();
         }
 
         function clearResponse() {
@@ -1127,6 +1264,7 @@ app.get('/', (req, res) => {
             const input = document.querySelector('#options-container input');
             if (input) input.value = '';
             updateQuizStats();
+            saveSessionState();
         }
 
         function startTimer() {
@@ -1225,7 +1363,82 @@ app.get('/', (req, res) => {
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
-// --- AUTO-DISCOVERY DESCRIPTIVE NOTES API (RECURSIVE SUBFOLDERS) ---
+// --- AUTO-DISCOVERY DESCRIPTIVE PAPERS API (RECURSIVE SUBFOLDERS, NO FILE NAMING CONVENTIONS) ---
+app.get('/api/descriptive-questions', (req, res) => {
+    const descDir = path.join(__dirname, 'descriptive');
+    try {
+        if (!fs.existsSync(descDir)) {
+            fs.mkdirSync(descDir, { recursive: true });
+        }
+        const classes = ['IX', 'X', 'XI', 'XII'];
+        classes.forEach(c => {
+            const cDir = path.join(descDir, c);
+            if (!fs.existsSync(cDir)) fs.mkdirSync(cDir, { recursive: true });
+        });
+
+        const allFiles = getAllPdfFiles(descDir);
+        const grouped = {
+            'IX': [],
+            'X': [],
+            'XI': [],
+            'XII': []
+        };
+
+        allFiles.forEach(fullPath => {
+            const fileName = path.basename(fullPath);
+            const lowerPath = fullPath.toLowerCase().replace(/\\/g, '/');
+
+            let matchedClass = null;
+            if (lowerPath.includes('/descriptive/ix/') || lowerPath.includes('/descriptive/class 9/') || lowerPath.includes('/descriptive/class9/')) {
+                matchedClass = 'IX';
+            } else if (lowerPath.includes('/descriptive/x/') || lowerPath.includes('/descriptive/class 10/') || lowerPath.includes('/descriptive/class10/')) {
+                matchedClass = 'X';
+            } else if (lowerPath.includes('/descriptive/xi/') || lowerPath.includes('/descriptive/class 11/') || lowerPath.includes('/descriptive/class11/')) {
+                matchedClass = 'XI';
+            } else if (lowerPath.includes('/descriptive/xii/') || lowerPath.includes('/descriptive/class 12/') || lowerPath.includes('/descriptive/class12/')) {
+                matchedClass = 'XII';
+            } else {
+                const parent = path.basename(path.dirname(fullPath)).toUpperCase();
+                if (['IX', 'X', 'XI', 'XII'].includes(parent)) {
+                    matchedClass = parent;
+                }
+            }
+
+            if (matchedClass && grouped[matchedClass]) {
+                const title = path.basename(fileName, '.pdf')
+                    .replace(/[_]/g, ' ')
+                    .replace(/-/g, ' ')
+                    .trim()
+                    .replace(/\b\w/g, c => c.toUpperCase());
+
+                grouped[matchedClass].push({
+                    name: title || fileName,
+                    fileName: fileName
+                });
+            }
+        });
+
+        res.json({ success: true, files: grouped });
+    } catch (err) {
+        console.error("Error reading descriptive questions:", err);
+        res.status(500).json({ success: false, files: { 'IX': [], 'X': [], 'XI': [], 'XII': [] } });
+    }
+});
+
+app.get('/api/download-descriptive/:fileName', (req, res) => {
+    const filePath = resolveSafeDescriptivePath(req.params.fileName);
+    if (!filePath || !fs.existsSync(filePath)) {
+        return res.status(404).send("Descriptive paper not found.");
+    }
+    res.download(filePath, path.basename(filePath), (err) => {
+        if (err && !res.headersSent) {
+            console.error("Descriptive download error:", err);
+            res.status(500).send("Failed to download file.");
+        }
+    });
+});
+
+// --- AUTO-DISCOVERY DESCRIPTIVE NOTES API ---
 app.get('/api/notes', (req, res) => {
     const notesDir = path.join(__dirname, 'notes');
     try {
