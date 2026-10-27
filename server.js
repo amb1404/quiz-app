@@ -86,7 +86,7 @@ function resolveSafeQuizPath(rawId) {
     
     const target1 = cleanId + '.json';
     const target2 = cleanId + '-questions.json';
-    const target3 = cleanId; // Exact match if extension is already provided
+    const target3 = cleanId;
 
     const matchedPath = allJsonFiles.find(filePath => {
         const fileName = path.basename(filePath);
@@ -446,6 +446,78 @@ app.get('/', (req, res) => {
         let selectedNeetUnit = "";
         let selectedNeetChapter = "";
 
+        // Complete Static NEET Syllabus Structure (Permanently Listed)
+        const neetHierarchy = {
+            "XI": {
+                "Unit I: Diversity in the Living World": [
+                    "The Living World",
+                    "Biological Classification",
+                    "Plant Kingdom",
+                    "Animal Kingdom"
+                ],
+                "Unit II: Structural Organisation in Plants and Animals": [
+                    "Morphology of Flowering Plants",
+                    "Anatomy of Flowering Plants",
+                    "Structural Organisation in Animals"
+                ],
+                "Unit III: Cell: Structure and Functions": [
+                    "Cell: The Unit of Life",
+                    "Biomolecules",
+                    "Cell Cycle and Cell Division"
+                ],
+                "Unit IV: Plant Physiology": [
+                    "Photosynthesis in Higher Plants",
+                    "Respiration in Plants",
+                    "Plant Growth and Development"
+                ],
+                "Unit V: Human Physiology": [
+                    "Breathing and Exchange of Gases",
+                    "Body Fluids and Circulation",
+                    "Excretory Products and their Elimination",
+                    "Locomotion and Movement",
+                    "Neural Control and Coordination",
+                    "Chemical Coordination and Integration"
+                ]
+            },
+            "XII": {
+                "Unit VI: Reproduction": [
+                    "Sexual Reproduction in Flowering Plants",
+                    "Human Reproduction",
+                    "Reproductive Health",
+                    "Reproduction in Organisms"
+                ],
+                "Unit VII: Genetics and Evolution": [
+                    "Principles of Inheritance and Variation",
+                    "Molecular Basis of Inheritance",
+                    "Evolution"
+                ],
+                "Unit VIII: Biology in Human Welfare": [
+                    "Human Health and Disease",
+                    "Microbes in Human Welfare",
+                    "Strategies for Enhancement in Food Production"
+                ],
+                "Unit IX: Biotechnology and its Applications": [
+                    "Biotechnology: Principles and Processes",
+                    "Biotechnology and its Applications"
+                ],
+                "Unit X: Ecology and Environment": [
+                    "Organisms and Populations",
+                    "Ecosystem",
+                    "Biodiversity and Conservation",
+                    "Environmental Issues"
+                ]
+            }
+        };
+
+        // Fuzzy/Normalized Matching Helper for Chapters
+        function isChapterMatch(quizChap, targetChap) {
+            if (!quizChap || !targetChap) return false;
+            const clean = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+            const c1 = clean(quizChap);
+            const c2 = clean(targetChap);
+            return c1 === c2 || c1.includes(c2) || c2.includes(c1);
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             const firstInput = document.getElementById('first-name');
             const lastInput = document.getElementById('last-name');
@@ -497,7 +569,6 @@ app.get('/', (req, res) => {
             if (!saved) return;
             try {
                 const state = JSON.parse(saved);
-                screenHistory = state.screenHistory || [];
                 selectedClassName = state.selectedClassName || '';
                 selectedNotesClass = state.selectedNotesClass || '';
                 selectedNeetUnit = state.selectedNeetUnit || '';
@@ -530,7 +601,6 @@ app.get('/', (req, res) => {
                         })
                         .catch(() => goHome());
                     } else {
-                        // Re-trigger the UI render for intermediate selection screens upon refresh
                         if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
                             loadNeetChapters(selectedClassName, selectedNeetUnit);
                         } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
@@ -548,6 +618,7 @@ app.get('/', (req, res) => {
                         }
                     }
                 }
+                screenHistory = state.screenHistory || [];
             } catch (e) {
                 console.error("Failed to restore session state", e);
             }
@@ -699,12 +770,11 @@ app.get('/', (req, res) => {
             showScreen('ix-x-chapter-screen');
         }
 
-        // METADATA-DRIVEN NEET Hierarchy Navigation
+        // --- METADATA-DRIVEN NEET Hierarchy Navigation ---
         function loadNeetUnits(className) {
             const container = document.getElementById('neet-unit-container');
             container.innerHTML = '';
             
-            // This pulls all units directly from the complete NEET syllabus tree
             const units = neetHierarchy[className] || {};
             
             Object.keys(units).forEach(unitName => {
@@ -724,32 +794,10 @@ app.get('/', (req, res) => {
             const container = document.getElementById('neet-chapter-container');
             container.innerHTML = '';
             
-            // Pulls all chapters for this unit from the syllabus tree
-            const chapters = neetHierarchy[className][unitName] || {};
-
-            Object.keys(chapters).forEach(chapName => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = chapName;
-                card.onclick = () => {
-                    selectedNeetChapter = chapName;
-                    loadNeetTopics(className, unitName, chapName);
-                };
-                container.appendChild(card);
-            });
-            showScreen('neet-chapter-screen');
-        }
-
-        function loadNeetChapters(className, unitName) {
-            const container = document.getElementById('neet-chapter-container');
-            container.innerHTML = '';
-            
-            const quizzes = getFilteredQuizzes('neet', className).filter(q => (q.unit || 'Uncategorized Topics') === unitName);
-            // Extract unique chapters
-            const chapters = [...new Set(quizzes.map(q => q.chapter || 'General'))];
+            const chapters = neetHierarchy[className]?.[unitName] || [];
 
             if (chapters.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No chapters found.</p>';
+                container.innerHTML = '<p style="text-align:center;">No chapters found for this unit.</p>';
             } else {
                 chapters.forEach(chapName => {
                     const card = document.createElement('div');
@@ -769,18 +817,21 @@ app.get('/', (req, res) => {
             const container = document.getElementById('neet-topic-container');
             container.innerHTML = '';
             
-            const quizzes = getFilteredQuizzes('neet', className).filter(q => 
-                (q.unit || 'Uncategorized Topics') === unitName && 
-                (q.chapter || 'General') === chapName
-            );
+            // Matches quizzes by JSON metadata: category, classLevel, and chapter
+            const quizzes = dynamicQuizzes.filter(q => {
+                const isNeet = (q.category || '').toLowerCase() === 'neet';
+                const isLvl = (q.classLevel || '').toLowerCase() === className.toLowerCase();
+                const chapMatch = isChapterMatch(q.chapter, chapName);
+                return isNeet && isLvl && chapMatch;
+            });
 
             if (quizzes.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+                container.innerHTML = '<p style="text-align:center; color:#64748b; font-size:16px; margin-top:20px;">No tests found for this chapter yet.</p>';
             } else {
                 quizzes.forEach(quiz => {
                     const card = document.createElement('div');
                     card.className = 'card';
-                    card.innerText = quiz.title;
+                    card.innerText = quiz.title || quiz.topic || quiz.id;
                     card.onclick = () => prepareQuiz(quiz);
                     container.appendChild(card);
                 });
@@ -1243,8 +1294,6 @@ app.get('/api/quizzes', (req, res) => {
                 const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                 const fileBaseName = path.basename(filePath, '.json');
                 
-                // Pushing metadata into array. 
-                // Using fileBaseName as a safe 'id' for the server to find it later
                 allQuizzes.push({
                     id: fileBaseName, 
                     title: content.title || fileBaseName,
