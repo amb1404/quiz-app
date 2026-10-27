@@ -1,0 +1,79 @@
+{
+  "title": "Selina Physics Chapter 1 - Force",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "physics",
+  "duration": 900,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "The turning effect of a force acting on a body about an axis is called:",
+      "options": ["Centripetal force", "Moment of force", "Centrifugal force", "Translational force"],
+      "answer": 1,
+      "explanation": "The turning effect of a force about a fixed point or axis is called the moment of force or torque."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the SI unit of moment of force?",
+      "options": ["Newton (N)", "Dyne-cm", "Newton-metre (Nm)", "Joule (J)"],
+      "answer": 2,
+      "explanation": "Moment of force is the product of force (Newton) and perpendicular distance (metre), so its SI unit is Newton-metre (Nm)."
+    },
+    {
+      "type": "mcq",
+      "question": "Two equal and opposite parallel forces, not acting along the same line, form a:",
+      "options": ["Couple", "Resultant", "Equilibrium", "Torque"],
+      "answer": 0,
+      "explanation": "A couple consists of two equal and opposite parallel forces that do not share the same line of action, producing rotation."
+    },
+    {
+      "type": "mcq",
+      "question": "For a body to be in equilibrium, the algebraic sum of moments of all forces acting on it about the axis of rotation is:",
+      "options": ["Infinite", "Zero", "Positive", "Negative"],
+      "answer": 1,
+      "explanation": "According to the principle of moments, in equilibrium, the total anticlockwise moment equals the total clockwise moment, making the algebraic sum zero."
+    },
+    {
+      "type": "mcq",
+      "question": "Where does the centre of gravity of a uniform circular ring lie?",
+      "options": ["On its circumference", "At its geometric centre", "Outside the ring", "At any point on its surface"],
+      "answer": 1,
+      "explanation": "The centre of gravity of a uniform circular ring lies exactly at its geometric centre, which is in the free space inside the ring."
+    },
+    {
+      "type": "mcq",
+      "question": "Where is the centre of gravity of a solid cone of height 'h' located from its base?",
+      "options": ["h/2", "h/3", "h/4", "h/5"],
+      "answer": 2,
+      "explanation": "The centre of gravity of a solid cone lies on its axis at a height of h/4 from its circular base."
+    },
+    {
+      "type": "mcq",
+      "question": "In uniform circular motion, which of the following quantities remains constant?",
+      "options": ["Velocity", "Acceleration", "Speed", "Displacement"],
+      "answer": 2,
+      "explanation": "In uniform circular motion, the speed remains constant, but the velocity continuously changes due to the changing direction."
+    },
+    {
+      "type": "mcq",
+      "question": "The force required to keep a body in uniform circular motion, directed towards the centre, is called:",
+      "options": ["Centrifugal force", "Gravitational force", "Frictional force", "Centripetal force"],
+      "answer": 3,
+      "explanation": "Centripetal force is the real force acting on a body moving in a circular path, directed towards the centre of the circle."
+    },
+    {
+      "type": "mcq",
+      "question": "Centrifugal force is considered a:",
+      "options": ["Real force", "Fictitious or pseudo force", "Gravitational force", "Nuclear force"],
+      "answer": 1,
+      "explanation": "Centrifugal force is a fictitious or pseudo force assumed by an observer in a rotating (accelerated) frame of reference."
+    },
+    {
+      "type": "mcq",
+      "question": "1 kgf is approximately equal to how many Newtons?",
+      "options": ["9.8 N", "10 N", "980 N", "1 N"],
+      "answer": 0,
+      "explanation": "1 kilogram-force (kgf) is the force due to gravity on a mass of 1 kg, which is approximately 9.8 Newtons."
+    }
+  ]
+}
