@@ -86,10 +86,11 @@ function resolveSafeQuizPath(rawId) {
     
     const target1 = cleanId + '.json';
     const target2 = cleanId + '-questions.json';
+    const target3 = cleanId; // Exact match if extension is already provided
 
     const matchedPath = allJsonFiles.find(filePath => {
         const fileName = path.basename(filePath);
-        return fileName === target1 || fileName === target2;
+        return fileName === target1 || fileName === target2 || fileName === target3;
     });
 
     return matchedPath || null;
@@ -212,7 +213,7 @@ app.get('/', (req, res) => {
         }
         #result-screen { width: 90%; max-width: 800px; }
 
-        /* Full-Screen Responsive Quiz Screen (Desktop & Mobile) */
+        /* Full-Screen Responsive Quiz Screen */
         #quiz-screen:not(.hidden) {
             background-color: rgba(255, 251, 235, 0.98);
             border-radius: 16px;
@@ -445,69 +446,6 @@ app.get('/', (req, res) => {
         let selectedNeetUnit = "";
         let selectedNeetChapter = "";
 
-        // Complete NEET XI & XII Hierarchy Structure
-        const neetHierarchy = {
-            "XI": {
-                "Unit I: Diversity in the Living World": {
-                    "The Living World": ["The Living World - Practice Test 1"],
-                    "Biological Classification": ["Biological Classification - Practice Test 1"],
-                    "Plant Kingdom": ["Plant Kingdom - Practice Test 1"],
-                    "Animal Kingdom": ["Animal Kingdom - Practice Test 1"]
-                },
-                "Unit II: Structural Organisation in Plants and Animals": {
-                    "Morphology of Flowering Plants": ["Morphology of Flowering Plants - Practice Test 1"],
-                    "Anatomy of Flowering Plants": ["Anatomy of Flowering Plants - Practice Test 1"],
-                    "Structural Organisation in Animals": ["Structural Organisation in Animals - Practice Test 1"]
-                },
-                "Unit III: Cell: Structure and Functions": {
-                    "Cell-The Unit of Life": ["Cell-The Unit of Life - Practice Test 1"],
-                    "Biomolecules": ["Biomolecules - Practice Test 1"],
-                    "Cell Cycle and Cell Division": ["Cell Cycle and Cell Division - Practice Test 1"]
-                },
-                "Unit IV: Plant Physiology": {
-                    "Photosynthesis in Higher Plants": ["Photosynthesis in Higher Plants - Practice Test 1"],
-                    "Respiration in Plants": ["Respiration in Plants - Practice Test 1"],
-                    "Plant Growth and Development": ["Plant Growth and Development - Practice Test 1"]
-                },
-                "Unit V: Human Physiology": {
-                    "Breathing and Exchange of Gases": ["Breathing and Exchange of Gases - Practice Test 1"],
-                    "Body Fluids and Circulation": ["Body Fluids and Circulation - Practice Test 1"],
-                    "Excretory Products and their Elimination": ["Excretory Products and their Elimination - Practice Test 1"],
-                    "Locomotion and Movement": ["Locomotion and Movement - Practice Test 1"],
-                    "Neural Control and Coordination": ["Neural Control and Coordination - Practice Test 1"],
-                    "Chemical Coordination and Integration": ["Chemical Coordination and Integration - Practice Test 1"]
-                }
-            },
-            "XII": {
-                "Unit VI: Reproduction": {
-                    "Reproduction in Organisms": ["Reproduction in Organisms - Practice Test 1"],
-                    "Sexual Reproduction in Flowering Plants": ["Sexual Reproduction in Flowering Plants - Practice Test 1"],
-                    "Human Reproduction": ["Human Reproduction - Practice Test 1"],
-                    "Reproductive Health": ["Reproductive Health - Practice Test 1"]
-                },
-                "Unit VII: Genetics and Evolution": {
-                    "Principles of Inheritance and Variation": ["Principles of Inheritance and Variation - Practice Test 1"],
-                    "Molecular Basis of Inheritance": ["Molecular Basis of Inheritance - Practice Test 1"],
-                    "Evolution": ["Evolution - Practice Test 1"]
-                },
-                "Unit VIII: Biology in Human Welfare": {
-                    "Human Health and Disease": ["Human Health and Disease - Practice Test 1"],
-                    "Strategies for Enhancement in Food Production": ["Strategies for Enhancement in Food Production - Practice Test 1"],
-                    "Microbes in Human Welfare": ["Microbes in Human Welfare - Practice Test 1"]
-                },
-                "Unit IX: Biotechnology and its Applications": {
-                    "Biotechnology - Principles and Processes": ["Biotechnology - Principles and Processes - Practice Test 1"],
-                    "Biotechnology and its Applications": ["Biotechnology and its Applications - Practice Test 1"]
-                },
-                "Unit X: Ecology and Environment": {
-                    "Organisms and Populations": ["Organisms and Populations - Practice Test 1"],
-                    "Ecosystem": ["Ecosystem - Practice Test 1"],
-                    "Biodiversity and Conservation": ["Biodiversity and Conservation - Practice Test 1"],
-                    "Environmental Issues": ["Environmental Issues - Practice Test 1"]
-                }
-            }
-        };
-
         window.addEventListener('DOMContentLoaded', async () => {
             const firstInput = document.getElementById('first-name');
             const lastInput = document.getElementById('last-name');
@@ -528,7 +466,7 @@ app.get('/', (req, res) => {
             restoreSessionState();
         });
 
-        // --- Session State Persistence (Refresh Recovery) ---
+        // --- Session State Persistence ---
         function saveSessionState() {
             const activeScreen = document.querySelector('.app-screen:not(.hidden)')?.id || 'home-dashboard';
             const state = {
@@ -600,9 +538,7 @@ app.get('/', (req, res) => {
                         } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
                             loadNeetUnits(selectedClassName);
                         } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
-                            // If it was ICSE or WB
                             if (selectedClassName === 'IX' || selectedClassName === 'X') {
-                                // Default back to subject screen or keep container if subject is known
                                 showScreen(state.activeScreen);
                             } else {
                                 loadDynamicChapters(selectedClassName);
@@ -616,6 +552,7 @@ app.get('/', (req, res) => {
                 console.error("Failed to restore session state", e);
             }
         }
+
         // Global Navigation Engine
         function showScreen(screenId) {
             const currentScreen = document.querySelector('.app-screen:not(.hidden)');
@@ -702,7 +639,14 @@ app.get('/', (req, res) => {
             }
         }
 
-        // --- Mock Tests Logic ---
+        // --- Mock Tests Dynamic Logic ---
+        function getFilteredQuizzes(cat, lvl) {
+            return dynamicQuizzes.filter(q =>
+                (q.category || '').toLowerCase() === cat.toLowerCase() &&
+                (q.classLevel || '').toLowerCase() === lvl.toLowerCase()
+            );
+        }
+
         function selectClass(className) {
             selectedClassName = className;
             if (className === 'IX' || className === 'X') {
@@ -739,7 +683,7 @@ app.get('/', (req, res) => {
             let cat = className.startsWith('WB') ? 'wb' : 'neet';
             let lvl = className.toLowerCase().replace('wb ', '');
 
-            const matched = dynamicQuizzes.filter(q => q.category === cat && q.classLevel.toLowerCase() === lvl);
+            const matched = getFilteredQuizzes(cat, lvl);
             
             if (matched.length === 0) {
                 container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
@@ -755,64 +699,77 @@ app.get('/', (req, res) => {
             showScreen('ix-x-chapter-screen');
         }
 
-        // NEET Hierarchy Navigation
+        // METADATA-DRIVEN NEET Hierarchy Navigation
         function loadNeetUnits(className) {
             const container = document.getElementById('neet-unit-container');
             container.innerHTML = '';
-            const units = neetHierarchy[className] || {};
             
-            Object.keys(units).forEach(unitName => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = unitName;
-                card.onclick = () => {
-                    selectedNeetUnit = unitName;
-                    loadNeetChapters(className, unitName);
-                };
-                container.appendChild(card);
-            });
+            const quizzes = getFilteredQuizzes('neet', className);
+            // Extract unique units directly from JSON metadata
+            const units = [...new Set(quizzes.map(q => q.unit || 'Uncategorized Topics'))];
+            
+            if (units.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No units found.</p>';
+            } else {
+                units.forEach(unitName => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerText = unitName;
+                    card.onclick = () => {
+                        selectedNeetUnit = unitName;
+                        loadNeetChapters(className, unitName);
+                    };
+                    container.appendChild(card);
+                });
+            }
             showScreen('neet-unit-screen');
         }
 
         function loadNeetChapters(className, unitName) {
             const container = document.getElementById('neet-chapter-container');
             container.innerHTML = '';
-            const chapters = neetHierarchy[className][unitName] || {};
+            
+            const quizzes = getFilteredQuizzes('neet', className).filter(q => (q.unit || 'Uncategorized Topics') === unitName);
+            // Extract unique chapters
+            const chapters = [...new Set(quizzes.map(q => q.chapter || 'General'))];
 
-            Object.keys(chapters).forEach(chapName => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = chapName;
-                card.onclick = () => {
-                    selectedNeetChapter = chapName;
-                    loadNeetTopics(className, unitName, chapName);
-                };
-                container.appendChild(card);
-            });
+            if (chapters.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No chapters found.</p>';
+            } else {
+                chapters.forEach(chapName => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerText = chapName;
+                    card.onclick = () => {
+                        selectedNeetChapter = chapName;
+                        loadNeetTopics(className, unitName, chapName);
+                    };
+                    container.appendChild(card);
+                });
+            }
             showScreen('neet-chapter-screen');
         }
 
         function loadNeetTopics(className, unitName, chapName) {
             const container = document.getElementById('neet-topic-container');
             container.innerHTML = '';
-            const topicTitles = neetHierarchy[className][unitName][chapName] || [];
+            
+            const quizzes = getFilteredQuizzes('neet', className).filter(q => 
+                (q.unit || 'Uncategorized Topics') === unitName && 
+                (q.chapter || 'General') === chapName
+            );
 
-            topicTitles.forEach(title => {
-                const foundQuiz = dynamicQuizzes.find(q => q.title.toLowerCase() === title.toLowerCase()) || {
-                    id: title.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-                    title: title,
-                    category: 'neet',
-                    classLevel: className.toLowerCase(),
-                    subject: 'biology',
-                    duration: 900
-                };
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerText = title;
-                card.onclick = () => prepareQuiz(foundQuiz);
-                container.appendChild(card);
-            });
+            if (quizzes.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+            } else {
+                quizzes.forEach(quiz => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerText = quiz.title;
+                    card.onclick = () => prepareQuiz(quiz);
+                    container.appendChild(card);
+                });
+            }
             showScreen('neet-topic-screen');
         }
 
@@ -821,8 +778,10 @@ app.get('/', (req, res) => {
             activeQuizTitle = quiz.title;
             timeRemaining = quiz.duration || 900;
             quizDuration = timeRemaining;
+            
             const otpWrapper = document.getElementById('otp-wrapper');
             if (otpWrapper) otpWrapper.remove();
+            
             const verifyBtn = document.getElementById('verify-start-btn');
             if (verifyBtn) {
                 verifyBtn.innerText = 'Verify & Start';
@@ -965,7 +924,6 @@ app.get('/', (req, res) => {
             const container = document.getElementById('options-container');
             container.innerHTML = '';
 
-            // 1 & 2. Descriptive / Diagram / Fill in the Blanks Handling
             if (q.type === 'descriptive' || q.type === 'diagram') {
                 const label = document.createElement('label');
                 label.innerText = q.type === 'diagram' ? 'Upload image of your drawn diagram/copy:' : 'Upload image of your written answer copy:';
@@ -1269,8 +1227,11 @@ app.get('/api/quizzes', (req, res) => {
             try {
                 const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                 const fileBaseName = path.basename(filePath, '.json');
+                
+                // Pushing metadata into array. 
+                // Using fileBaseName as a safe 'id' for the server to find it later
                 allQuizzes.push({
-                    id: fileBaseName,
+                    id: fileBaseName, 
                     title: content.title || fileBaseName,
                     category: content.category || 'general',
                     classLevel: content.classLevel || 'xi',
