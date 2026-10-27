@@ -1,0 +1,288 @@
+{
+  "title": "Electrolysis",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "chemistry",
+  "duration": 1800,
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "question": "Which of the following aqueous solutions contains both ions and molecules?",
+      "marks": 1,
+      "options": [
+        "Sulfuric acid",
+        "Sodium hydroxide",
+        "Acetic acid",
+        "Glucose"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Acetic acid (CH3COOH) is a weak electrolyte. It partially dissociates in an aqueous solution, meaning the solution contains mostly intact molecules along with a small number of acetate and hydronium ions."
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "question": "Solid sodium chloride does not conduct electricity because:",
+      "options": [
+        "It contains no ions",
+        "The ions are held together by strong electrostatic forces and are not free to move",
+        "It is a covalent compound",
+        "Electrons cannot flow through non-metals"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: Ionic compounds possess ions even in the solid state. However, they only conduct electricity when molten or in an aqueous solution where the rigid crystal lattice breaks down, freeing the ions to migrate."
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "question": "During the electrolysis of molten lead bromide, what observation is made at the anode?",
+      "marks": 1,
+      "options": [
+        "Silvery grey deposit of lead",
+        "Reddish-brown fumes of bromine gas",
+        "Colorless oxygen gas is evolved",
+        "A popping sound is heard"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: In molten PbBr2, the bromide ions (Br-) migrate to the anode, lose electrons (oxidation), and form bromine molecules. Bromine vapor appears as heavy reddish-brown fumes."
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "question": "Why is a silica crucible preferred over a glass crucible for the electrolysis of molten lead bromide?",
+      "marks": 1,
+      "options": [
+        "Silica acts as an active electrode",
+        "Silica is highly conductive to electricity",
+        "Silica withstands high temperatures without cracking and is largely non-reactive",
+        "Silica lowers the melting point of lead bromide"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Lead bromide melts at a high temperature (380°C). Normal glass would crack or melt at this temperature, whereas a silica crucible safely withstands it and does not react with the molten salt."
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "question": "In the electrolysis of acidulated water, the volume of hydrogen gas collected at the cathode is double the volume of oxygen collected at the anode. This proves that:",
+      "marks": 1,
+      "options": [
+        "Hydrogen is lighter than oxygen",
+        "Water contains two parts of hydrogen and one part of oxygen by volume",
+        "Hydrogen is highly soluble in water",
+        "Oxygen reacts with the anode"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: The 2:1 volume ratio directly demonstrates the stoichiometric composition of a water molecule (H2O), meaning water is composed of two volumes of hydrogen for every one volume of oxygen."
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "question": "Which of the following represents the correct reaction at the anode during the electrolysis of aqueous copper sulfate using ACTIVE copper electrodes?",
+      "marks": 1,
+      "options": [
+        "4OH⁻ - 4e⁻ → 2H₂O + O₂",
+        "Cu²⁺ + 2e⁻ → Cu",
+        "Cu - 2e⁻ → Cu²⁺",
+        "SO₄²⁻ - 2e⁻ → SO₄"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Active electrodes take part in the reaction. At the anode, the copper metal of the electrode itself oxidizes (loses electrons) to form Cu²⁺ ions in the solution, causing the anode to actively dissolve."
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "question": "If the electrolysis of aqueous copper sulfate is carried out using INERT platinum electrodes, what happens to the blue color of the electrolyte over time?",
+      "marks": 1,
+      "options": [
+        "It intensifies and becomes dark blue",
+        "It fades away and the solution becomes colorless",
+        "It changes to a reddish-brown color",
+        "It remains completely unchanged"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: The blue color is due to Cu²⁺ ions. With inert electrodes, Cu²⁺ ions are deposited at the cathode but are NOT replenished by the anode (which produces O2 instead). Thus, the concentration of Cu²⁺ drops, fading the color."
+    },
+    {
+      "id": "Q8",
+      "type": "mcq",
+      "question": "When an article (like a spoon) is to be electroplated with silver, where should the spoon be placed in the electrolytic cell?",
+      "marks": 1,
+      "options": [
+        "At the Anode",
+        "At the Cathode",
+        "In the middle of the electrolyte",
+        "It doesn't matter as long as it touches the electrolyte"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: Metal ions are positively charged (cations). During electrolysis, they migrate toward the negatively charged electrode (cathode) to gain electrons and deposit as a solid metal layer."
+    },
+    {
+      "id": "Q9",
+      "type": "mcq",
+      "question": "For the electroplating of an article with silver, sodium argentocyanide (Na[Ag(CN)₂]) is preferred over silver nitrate (AgNO₃) as the electrolyte because:",
+      "marks": 1,
+      "options": [
+        "Silver nitrate is toxic and expensive",
+        "Silver nitrate does not conduct electricity",
+        "Sodium argentocyanide dissociates slowly, ensuring a smooth, uniform, and firm deposit of silver",
+        "Sodium argentocyanide prevents the evolution of hydrogen gas"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: AgNO₃ dissociates very rapidly, leading to a fast, uneven, and powdery deposit of silver. The complex salt sodium argentocyanide yields a slow, steady supply of Ag⁺ ions, creating a smooth and durable coating."
+    },
+    {
+      "id": "Q10",
+      "type": "mcq",
+      "question": "According to the electrochemical series (preferential discharge theory), if a solution contains both Cu²⁺ and H⁺ ions, which ion will be discharged at the cathode, and why?",
+      "marks": 1,
+      "options": [
+        "H⁺, because it is lighter",
+        "H⁺, because it is lower in the electrochemical series",
+        "Cu²⁺, because it is higher in the electrochemical series",
+        "Cu²⁺, because it is lower in the electrochemical series"
+      ],
+      "answer": 3,
+      "explanation": "Discussion point: Cations located lower down in the electrochemical series gain electrons more easily. Since Copper (Cu²⁺) is below Hydrogen (H⁺) in the series, it is preferentially discharged at the cathode."
+    },
+    {
+      "id": 11,
+      "type": "mcq",
+      "question": "During the electro-refining of an impure copper block, what accumulates at the bottom of the tank beneath the anode?",
+      "marks": 1,
+      "options": [
+        "Pure copper powder",
+        "Anode mud containing valuable impurities like gold and silver",
+        "Sulfuric acid crystals",
+        "Oxygen gas bubbles"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: As the impure copper anode dissolves into the solution, the insoluble precious metal impurities (like Ag, Au, Pt) fall to the bottom. This collection is called 'anode mud'."
+    },
+    {
+      "id": 12,
+      "type": "mcq",
+      "question": "What is the primary difference between electrolytic conduction and metallic conduction?",
+      "marks": 1,
+      "options": [
+        "Metallic conduction involves the transfer of matter, while electrolytic conduction does not.",
+        "Electrolytic conduction involves the flow of electrons, while metallic involves the flow of ions.",
+        "Electrolytic conduction involves chemical decomposition of the electrolyte, while metallic conduction involves no chemical change.",
+        "Electrolytic conductors have a positive temperature coefficient of resistance, while metals have a negative one."
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Metals conduct via free electrons without any chemical alteration. Electrolytes conduct via mobile ions, resulting in a chemical decomposition (redox reactions) at the electrodes."
+    },
+    {
+      "id": 13,
+      "type": "mcq",
+      "question": "In the extraction of aluminium by the Hall-Héroult process, cryolite (Na₃AlF₆) is added to the purified alumina (Al₂O₃) primarily to:",
+      "marks": 1,
+      "options": [
+        "Increase the melting point of alumina",
+        "Act as an active electrode",
+        "Lower the fusion temperature of the mixture and enhance its electrical conductivity",
+        "Prevent the oxidation of the carbon anode"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Pure alumina melts at a staggering 2050°C and is a poor conductor. Adding cryolite drops the melting point to about 950°C and dramatically improves electrical conductivity, saving massive amounts of energy."
+    },
+    {
+      "id": 14,
+      "type": "mcq",
+      "question": "The process by which polar covalent compounds, like HCl gas, convert into ions when dissolved in water is specifically termed:",
+      "marks": 1,
+      "options": [
+        "Electrolysis",
+        "Dissociation",
+        "Ionization",
+        "Galvanization"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: 'Dissociation' is the separation of already existing ions (in ionic compounds like NaCl). 'Ionization' is the actual formation of new ions from a polar covalent compound (like HCl) when placed in a solvent like water."
+    },
+    {
+      "id": 15,
+      "type": "mcq",
+      "question": "If concentrated sodium chloride solution (brine) is electrolyzed, what are the respective products at the cathode and the anode?",
+      "marks": 1,
+      "options": [
+        "Sodium at cathode, Chlorine at anode",
+        "Hydrogen at cathode, Chlorine at anode",
+        "Hydrogen at cathode, Oxygen at anode",
+        "Sodium at cathode, Oxygen at anode"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: The solution contains Na⁺, H⁺, Cl⁻, and OH⁻. H⁺ is discharged at the cathode (it's lower than Na⁺ in the series). Due to the high concentration of Cl⁻, it overrides the series rule and is discharged at the anode over OH⁻."
+    },
+    {
+      "id": 16,
+      "type": "mcq",
+      "question": "An electrode connected to the positive terminal of a DC power supply is called the _____, and the chemical process occurring there is always _____.",
+      "marks": 1,
+      "options": [
+        "Cathode ; Reduction",
+        "Anode ; Reduction",
+        "Anode ; Oxidation",
+        "Cathode ; Oxidation"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: The electrode connected to the positive terminal is the Anode. Negatively charged anions migrate here and lose electrons. The loss of electrons is defined as Oxidation."
+    },
+    {
+      "id": 17,
+      "type": "mcq",
+      "question": "Which of the following correctly orders anions based on their increasing ease of discharge at the anode (from most difficult to easiest)?",
+      "marks": 1,
+      "options": [
+        "OH⁻ < Cl⁻ < Br⁻ < SO₄²⁻",
+        "SO₄²⁻ < NO₃⁻ < Cl⁻ < OH⁻",
+        "Cl⁻ < OH⁻ < SO₄²⁻ < NO₃⁻",
+        "OH⁻ < SO₄²⁻ < NO₃⁻ < Cl⁻"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: The standard electrochemical series for anions dictates that larger/complex ions are harder to discharge. The order of ease of discharge is Sulfate < Nitrate < Chloride < Bromide < Iodide < Hydroxide."
+    },
+    {
+      "id": 18,
+      "type": "mcq",
+      "question": "During the electrolysis of acidulated water, why is a small amount of dilute sulfuric acid added to pure distilled water?",
+      "marks": 1,
+      "options": [
+        "To provide H₂ gas directly from the acid",
+        "To neutralize the basic nature of water",
+        "To increase the concentration of ions, making the water a good conductor of electricity",
+        "To lower the boiling point of the water"
+      ],
+      "answer": 2,
+      "explanation": "Discussion point: Pure distilled water is almost entirely covalent (unionized) and thus a non-electrolyte. Adding a few drops of acid introduces mobile H⁺ and SO₄²⁻ ions, completing the circuit."
+    },
+    {
+      "id": 19,
+      "type": "mcq",
+      "question": "In the process of electroplating, the electrolyte used must essentially contain:",
+      "marks": 1,
+      "options": [
+        "Ions of the metal being plated onto the article",
+        "Ions of the metal the article is made of",
+        "Only strong acids",
+        "A mixture of inert gases"
+      ],
+      "answer": 0,
+      "explanation": "Discussion point: For electroplating, the electrolyte must be an aqueous solution of a salt of the plating metal. This ensures a steady supply of the correct metallic ions to be reduced and deposited at the cathode."
+    },
+    {
+      "id": 20,
+      "type": "mcq",
+      "question": "What are 'spectator ions' in the context of an electrolytic cell?",
+      "marks": 1,
+      "options": [
+        "Ions that are discharged immediately when the circuit is closed",
+        "Ions that exist in the solution but do not take part in the electrode reactions",
+        "Ions that move exclusively toward the anode",
+        "Ions that form the solid precipitate at the cathode"
+      ],
+      "answer": 1,
+      "explanation": "Discussion point: Spectator ions are present in the electrolyte but are not preferentially discharged at the electrodes. For example, during the electrolysis of dilute NaCl, Na+ and Cl- act as spectator ions while H+ and OH- are discharged."
+    }
+  ]
+}
