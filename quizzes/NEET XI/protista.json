@@ -1,0 +1,138 @@
+{
+  "title": "Kingdom Protista",
+  "category": "neet",
+  "classLevel": "xi",
+  "subject": "biology",
+  "unit": "Diversity in Living World",
+  "chapter": "Biological Classification",
+  "topic": "Kingdom Protista",
+  "duration": 900,
+  "questions": [
+    {
+      "id": 1,
+      "type": "mcq",
+      "question": "Which of the following statements is incorrect regarding chrysophytes?",
+      "options": [
+        "They include diatoms and golden algae (desmids).",
+        "Their cell walls are embedded with silica, making them indestructible.",
+        "They are actively motile and swim against water currents using flagella.",
+        "They are chief producers in the oceans."
+      ],
+      "answer": 2,
+      "explanation": "Chrysophytes are microscopic and float passively in water currents (plankton), rather than swimming actively against them."
+    },
+    {
+      "id": 2,
+      "type": "mcq",
+      "question": "Diatomaceous earth is formed due to the accumulation of cell wall deposits of diatoms over billions of years. Which of the following is not a use of this soil?",
+      "options": [
+        "Polishing",
+        "Filtration of oils and syrups",
+        "Biogas production",
+        "Insulation material"
+      ],
+      "answer": 2,
+      "explanation": "Due to its gritty nature, diatomaceous earth is used in polishing, filtration of oils and syrups, and as an acoustic/thermal insulator. It is not used for biogas production."
+    },
+    {
+      "id": 3,
+      "type": "mcq",
+      "question": "Match Column I (Protistan group) with Column II (Characteristic feature) and select the correct option:\n\nColumn I\na. Dinoflagellates\nb. Euglenoids\nc. Slime moulds\nd. Protozoans\n\nColumn II\n1. Protein-rich layer called pellicle\n2. Flagella lie longitudinally and transversely\n3. Saprophytic protists with spore-bearing fruiting bodies\n4. All heterotrophs, living as predators or parasites",
+      "options": [
+        "a-2, b-1, c-3, d-4",
+        "a-1, b-2, c-4, d-3",
+        "a-2, b-3, c-1, d-4",
+        "a-4, b-1, c-2, d-3"
+      ],
+      "answer": 0,
+      "explanation": "Dinoflagellates have two flagella (longitudinal and transverse); euglenoids possess a pellicle; slime moulds are saprophytic with fruiting bodies; all protozoans are heterotrophs."
+    },
+    {
+      "id": 4,
+      "type": "mcq",
+      "question": "Red tides in warm coastal waters are frequently caused by the explosive multiplication of which organism, leading to toxin-mediated fish mortality?",
+      "options": [
+        "Desmids",
+        "Gonyaulax",
+        "Paramoecium",
+        "Euglena"
+      ],
+      "answer": 1,
+      "explanation": "Gonyaulax is a red dinoflagellate that multiplies rapidly to cause red tides, releasing toxins that can kill marine animals like fishes."
+    },
+    {
+      "id": 5,
+      "type": "mcq",
+      "question": "Under favorable conditions, slime moulds form an aggregation called ________, which can grow and spread over several feet, whereas under unfavorable conditions, they differentiate to form ________.",
+      "options": [
+        "Mycelium, zoospores",
+        "Plasmodium, fruiting bodies bearing spores",
+        "Pseudopodia, cysts",
+        "Akinete, endospores"
+      ],
+      "answer": 1,
+      "explanation": "Under favorable conditions, slime moulds form a multinucleate aggregation called a plasmodium. Under unfavorable conditions, it differentiates and forms fruiting bodies bearing true-walled spores."
+    },
+    {
+      "id": 6,
+      "type": "mcq",
+      "question": "Which of the following groups of protozoans is correctly matched with its example and locomotory structure?",
+      "options": [
+        "Amoeboid protozoan — Trypanosoma — Flagella",
+        "Flagellated protozoan — Entamoeba — Pseudopodia",
+        "Ciliated protozoan — Paramoecium — Cilia",
+        "Sporozoan — Plasmodium — Flagella"
+      ],
+      "answer": 2,
+      "explanation": "Paramoecium is a ciliated protozoan moving via cilia. Trypanosoma is flagellated, Entamoeba is amoeboid, and Plasmodium (sporozoan) lacks locomotory structures in its mature stage."
+    },
+    {
+      "id": 7,
+      "question": "A student studying microscopic pond water observes a unicellular eukaryote that lacks a cell wall, possesses a protein-rich pellicle making its body flexible, and exhibits mixotrophic nutrition. The organism is most likely a/an:",
+      "options": [
+        "Diatom",
+        "Dinoflagellate",
+        "Euglenoid",
+        "Amoeba"
+      ],
+      "answer": 2,
+      "explanation": "Euglenoids lack a cell wall, have a flexible pellicle, and are mixotrophic (photosynthetic in sunlight, heterotrophic in dark)."
+    },
+    {
+      "id": 8,
+      "question": "Which of the following structures/organs is used by ciliated protozoans like Paramoecium to steer food-laden water into the cell?",
+      "options": [
+        "Contractile vacuole",
+        "Cytostome/Gullet",
+        "Pseudopodia",
+        "Pellicle"
+      ],
+      "answer": 1,
+      "explanation": "Ciliated protozoans have a cavity called a gullet that opens to the cell surface, into which the coordinated beating of cilia steers food-laden water."
+    },
+    {
+      "id": 9,
+      "question": "Consider the following features:\n1. Presence of silica shells\n2. Mostly marine and photosynthetic\n3. Protein-rich pellicle\n4. Spores with true walls highly resistant to adverse conditions\n\nWhich of the above features are characteristic of Dinoflagellates and Slime moulds respectively?",
+      "options": [
+        "1 and 4",
+        "2 and 4",
+        "2 and 3",
+        "3 and 1"
+      ],
+      "answer": 1,
+      "explanation": "Dinoflagellates are mostly marine and photosynthetic (feature 2). Slime mould spores possess true walls and are extremely resistant (feature 4). Feature 1 belongs to diatoms/marine amoeboids, and feature 3 belongs to euglenoids."
+    },
+    {
+      "id": 10,
+      "question": "Why are the boundaries of Kingdom Protista not well-defined in biological classification systems?",
+      "options": [
+        "Because all protists are microscopic and difficult to study.",
+        "Because it bridges prokaryotes and eukaryotes.",
+        "Because its unicellular eukaryotic members show phylogenetic links with plants, animals, and fungi.",
+        "Because protists can switch between multicellular and unicellular phases at will."
+      ],
+      "answer": 2,
+      "explanation": "Kingdom Protista groups single-celled eukaryotes, but various groups show close evolutionary affinities with higher plants, animals, and fungi, making boundary lines blurred."
+    }
+  ]
+}
