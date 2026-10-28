@@ -408,7 +408,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// FIXED: Using clean exact string paths without any path-to-regexp regex parsing conflicts
+// Primary page routes
 app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
@@ -1103,10 +1103,10 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
     }
 });
 
-// Catch-all route to handle all sub-routes cleanly without path-to-regexp regex parsing errors
-app.get('*', (req, res) => {
+// Express 4 & 5 compatible RegExp catch-all route (bypasses path-to-regexp string parser)
+app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
-    
+
     const p = req.path.toLowerCase();
     if (p.includes('mock-tests') || p.includes('test-portal')) {
         return serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests');
@@ -1117,7 +1117,7 @@ app.get('*', (req, res) => {
     if (p.includes('descriptive')) {
         return serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers');
     }
-    
+
     res.redirect(302, '/');
 });
 
