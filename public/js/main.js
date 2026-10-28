@@ -14,9 +14,7 @@ const LayoutEngine = {
             <div class="nav-container">
                 <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
                     <span class="brand-title">PIONEERS PREP</span>
-                    <span class="brand-subtitle">Guided by Aniruddha Banerjee, ith an experience of 8+ years in coaching.</span>
-                    <span class="welcome-quote">We equip secondary and higher secondary science students for academic excellence with specialized online tutoring, comprehensive exam oriented study notes, and secure mock examination portals.
-                    Step into your journey toward academic excellence—where complex science turns into clear understanding, and preparation turns into top ranks.</span>
+                    <span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee<strong>, with an experience of 8+ years in coaching.</span>
                 </a>
                 <nav class="site-nav" aria-label="Main Navigation">
                     <a href="/" class="nav-link ${isHome ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
