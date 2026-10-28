@@ -1,0 +1,133 @@
+<!-- public/test-portal.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Online Mock Tests for NEET, ICSE & WBCHSE | Pioneers Prep</title>
+    <meta name="description" content="Take timed chapter-wise online mock tests for NEET Class XI & XII Biology, ICSE Class IX & X Physics, Chemistry, Biology, and WBCHSE on Pioneers Prep.">
+    <meta name="author" content="Aniruddha Banerjee">
+    <link rel="canonical" href="https://pioneersprep.in/test-portal.html">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="nav-container">
+            <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
+                <span class="brand-title">PIONEERS PREP</span>
+                <span class="brand-subtitle">Guided by Aniruddha Banerjee</span>
+            </a>
+            <nav class="site-nav" aria-label="Main Navigation">
+                <a href="/" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" class="nav-link active" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" class="nav-link nav-link-yellow" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="site-main">
+        <section class="page-intro">
+            <h1>Online Mock Tests Portal</h1>
+            <p>Select your class or examination stream below to start a timed, verified evaluation with automated scorecards.</p>
+        </section>
+
+        <div id="home-dashboard" class="app-screen">
+            <div class="dashboard-panel" style="width: 580px;">
+                <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Examination Class</h2>
+                <div class="card" onclick="selectClass('IX')">Class IX (Physics, Chemistry, Biology)</div>
+                <div class="card" onclick="selectClass('X')">Class X (Physics, Chemistry, Biology)</div>
+                <div class="card" onclick="selectClass('XI')">NEET Class XI Biology (Unit-wise)</div>
+                <div class="card" onclick="selectClass('XII')">NEET Class XII Biology (Unit-wise)</div>
+                <div class="card" onclick="selectClass('WB XI')">WBCHSE Class XI (Biology)</div>
+                <div class="card" onclick="selectClass('WB XII')">WBCHSE Class XII (Biology)</div>
+            </div>
+        </div>
+
+        <div id="subject-select-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
+            <div class="card" onclick="selectSubject('Physics')">Physics</div>
+            <div class="card" onclick="selectSubject('Chemistry')">Chemistry</div>
+            <div class="card" onclick="selectSubject('Biology')">Biology</div>
+        </div>
+
+        <div id="ix-x-chapter-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
+            <div id="ix-x-chapter-container"></div>
+        </div>
+
+        <div id="neet-unit-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Unit</h2>
+            <div id="neet-unit-container"></div>
+        </div>
+
+        <div id="neet-chapter-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Chapter</h2>
+            <div id="neet-chapter-container"></div>
+        </div>
+
+        <div id="neet-topic-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Topic / Test</h2>
+            <div id="neet-topic-container"></div>
+        </div>
+
+        <div id="name-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Candidate Verification</h2>
+            <input type="text" id="first-name" placeholder="FIRST NAME">
+            <input type="text" id="last-name" placeholder="LAST NAME">
+            <input type="email" id="email-address" placeholder="Email Address">
+            <button id="verify-start-btn" onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
+        </div>
+
+        <div id="quiz-screen" class="app-screen hidden">
+            <div>
+                <div class="quiz-header">
+                    <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+                    <span id="quiz-stats" style="font-size: 15px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
+                    <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar-fill"></div>
+                </div>
+                <h2 id="quiz-screen-heading" style="color: #4285f4; text-align: center; margin-top: 0; margin-bottom: 20px;"></h2>
+                <div id="question-box" style="font-size: 19px; font-weight: 600; margin-bottom: 25px; line-height: 1.5;"></div>
+                <div id="options-container"></div>
+            </div>
+
+            <div class="quiz-nav-container">
+                <button onclick="prevQuestion()">Previous</button>
+                <button onclick="clearResponse()">Clear Response</button>
+                <button onclick="nextQuestion()">Next</button>
+            </div>
+        </div>
+
+        <div id="result-screen" class="app-screen hidden"></div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div>
+                <strong style="color: #ffffff; font-size: 16px;">Pioneers Prep</strong> — Mentored by <strong>Aniruddha Banerjee</strong><br>
+                <span>Online Mock Tests, Study Notes & Descriptive Worksheets for NEET, ICSE & WBCHSE.</span>
+            </div>
+            <div class="footer-links">
+                <a href="/" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>const CURRENT_ROUTE = '/test-portal.html';</script>
+    <script src="/js/main.js"></script>
+    <script src="/js/quiz.js"></script>
+</body>
+</html>
