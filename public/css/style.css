@@ -1,0 +1,266 @@
+/* public/css/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary: #1e3a8a;
+    --primary-hover: #1e40af;
+    --secondary: #10b981;
+    --secondary-hover: #059669;
+    --accent: #ca8a04;
+    --accent-hover: #a16207;
+    --bg-dark: #0f172a;
+    --border: #cbd5e1;
+    --card-normal: #e8f5e9;
+    --card-yellow: #fef9c3;
+    --card-yellow-border: #fde047;
+    --card-yellow-hover: #fef08a;
+    --card-yellow-border-hover: #eab308;
+    --card-yellow-text: #854d0e;
+    --card-yellow-text-hover: #713f12;
+}
+
+.hidden { display: none !important; }
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0; padding: 0; width: 100%; min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: #0f172a;
+    display: flex; flex-direction: column;
+    user-select: none; -webkit-user-select: none;
+}
+
+.site-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    position: sticky; top: 0; z-index: 1000;
+    width: 100%;
+}
+
+.nav-container {
+    max-width: 1280px; margin: 0 auto; padding: 14px 24px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
+}
+
+.brand-logo {
+    text-decoration: none; display: flex; flex-direction: column;
+}
+
+.brand-title {
+    font-size: 22px; font-weight: 700; color: var(--primary); letter-spacing: 0.5px; line-height: 1.2;
+}
+
+.brand-subtitle {
+    font-size: 12px; font-weight: 500; color: #475569;
+}
+
+.site-nav {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+
+.nav-link {
+    text-decoration: none; color: #334155; font-size: 15px; font-weight: 600;
+    padding: 8px 16px; border-radius: 8px; transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: #f1f5f9; color: #2563eb;
+}
+
+.nav-link.active {
+    background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;
+}
+
+.nav-link-yellow.active {
+    background-color: var(--card-yellow); color: var(--card-yellow-text); border: 1px solid var(--card-yellow-border);
+}
+
+.site-main {
+    flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 30px 20px;
+}
+
+body.exam-mode .site-header,
+body.exam-mode .site-footer,
+body.exam-mode .page-intro {
+    display: none !important;
+}
+
+body.exam-mode .site-main {
+    padding: 10px; max-width: 100%;
+}
+
+.page-intro {
+    text-align: center; max-width: 850px; margin: 0 auto 30px auto;
+}
+
+.page-intro h1 {
+    font-size: 28px; color: var(--primary); margin: 0 0 8px 0;
+}
+
+.page-intro p {
+    font-size: 15.5px; color: #475569; margin: 0; line-height: 1.6;
+}
+
+#home-dashboard {
+    display: flex; gap: 30px; justify-content: center; align-items: flex-start; flex-wrap: wrap; width: 100%;
+}
+
+.dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen, #descriptive-list-screen {
+    background-color: rgba(255, 251, 235, 0.95);
+    border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    width: 480px; max-width: 100%; box-sizing: border-box; margin: 0 auto;
+}
+
+#result-screen { width: 90%; max-width: 800px; }
+
+#quiz-screen:not(.hidden) {
+    background-color: rgba(255, 251, 235, 0.98);
+    border-radius: 16px;
+    padding: 35px 45px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    width: 96%;
+    max-width: 1200px;
+    min-height: calc(100vh - 40px);
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+button, .card, .option-btn {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important;
+}
+
+button:hover, .card:hover, .option-btn:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px) !important;
+}
+
+button:active, .card:active, .option-btn:active {
+    transform: translateY(0) !important;
+}
+
+.card {
+    display: block; text-decoration: none; color: #0f172a;
+    background-color: var(--card-normal); font-size: 18px; font-weight: bold;
+    text-align: center; padding: 20px; margin-bottom: 15px; border-radius: 8px;
+    border: 1px solid var(--border); cursor: pointer;
+}
+
+.card:hover { background-color: #ffffff; border-color: #4285f4; color: #4285f4; }
+
+.card-yellow {
+    background-color: var(--card-yellow) !important;
+    border-color: var(--card-yellow-border) !important;
+    color: var(--card-yellow-text) !important;
+}
+
+.card-yellow:hover {
+    background-color: var(--card-yellow-hover) !important;
+    border-color: var(--card-yellow-border-hover) !important;
+    color: var(--card-yellow-text-hover) !important;
+}
+
+.option-btn {
+    display: block; width: 100%; background-color: #ffffff; color: #0f172a;
+    font-size: 17px; font-weight: 500; padding: 16px 20px; margin-bottom: 15px; border-radius: 8px;
+    border: 1px solid var(--border); cursor: pointer; text-align: left;
+}
+
+.option-btn.selected { background-color: #e0f2fe; border-color: #4285f4; color: #1e40af; font-weight: 600; }
+
+input[type="text"], input[type="email"], input[type="number"], input[type="file"] {
+    width: 100%; padding: 14px 18px; font-size: 16px; border-radius: 8px;
+    border: 1px solid var(--border); margin-bottom: 20px; box-sizing: border-box;
+}
+
+#first-name, #last-name { text-transform: uppercase; }
+#email-address { text-transform: lowercase; }
+
+.back-btn, button:not(.option-btn) {
+    background-color: #4f46e5; color: white; border: none; padding: 12px 24px;
+    border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 20px;
+}
+
+.quiz-header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 15px; margin-bottom: 16px; flex-wrap: wrap;
+}
+
+#submit-btn {
+    background-color: #ef4444 !important; margin-bottom: 0 !important;
+}
+
+.progress-container {
+    width: 100%; height: 10px; background-color: #e2e8f0;
+    border-radius: 6px; margin-bottom: 24px; overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #4285f4, #2563eb);
+    width: 0%; transition: width 0.35s ease;
+}
+
+.quiz-nav-container {
+    display: flex; justify-content: center; align-items: center;
+    gap: 20px; width: 100%; margin-top: 25px; padding-top: 15px;
+}
+
+.quiz-nav-container button {
+    flex: 1; max-width: 240px; margin-bottom: 0 !important;
+    text-align: center; padding: 14px 18px;
+}
+
+.seo-info-section {
+    margin-top: 50px; background: rgba(255, 255, 255, 0.85);
+    border-radius: 12px; padding: 30px; border: 1px solid var(--border);
+    width: 100%;
+}
+
+.seo-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 20px;
+}
+
+.seo-card {
+    background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0;
+}
+
+.seo-card h3 { margin-top: 0; color: var(--primary); font-size: 17px; }
+.seo-card p { color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 0; }
+
+.site-footer {
+    background-color: var(--bg-dark); color: #cbd5e1; padding: 35px 24px; margin-top: 50px;
+    font-size: 14px;
+}
+
+.footer-inner {
+    max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 20px;
+}
+
+.footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+.footer-links a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: #ffffff; }
+
+@media (max-width: 600px) {
+    .nav-container { padding: 12px 14px; justify-content: center; text-align: center; }
+    .brand-logo { align-items: center; width: 100%; }
+    .site-nav { justify-content: center; width: 100%; gap: 6px; }
+    .nav-link { font-size: 13px; padding: 6px 11px; }
+    .site-main { padding: 16px 10px; }
+    .page-intro h1 { font-size: 22px; }
+    .page-intro p { font-size: 14px; }
+    .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen, #descriptive-list-screen {
+        width: 100% !important; padding: 20px !important;
+    }
+    #quiz-screen:not(.hidden) {
+        width: 100% !important; max-width: 100% !important;
+        min-height: calc(100vh - 16px) !important; padding: 16px !important; border-radius: 12px !important;
+    }
+    .footer-inner { flex-direction: column; text-align: center; }
+    .footer-links { justify-content: center; }
+}
