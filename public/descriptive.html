@@ -1,0 +1,71 @@
+<!-- public/descriptive.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Descriptive Question Papers & Worksheets | Pioneers Prep</title>
+    <meta name="description" content="Download descriptive question papers and chapter practice worksheets prepared by Aniruddha Banerjee on Pioneers Prep.">
+    <meta name="author" content="Aniruddha Banerjee">
+    <link rel="canonical" href="https://pioneersprep.in/descriptive.html">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="nav-container">
+            <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
+                <span class="brand-title">PIONEERS PREP</span>
+                <span class="brand-subtitle">Guided by Aniruddha Banerjee</span>
+            </a>
+            <nav class="site-nav" aria-label="Main Navigation">
+                <a href="/" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" class="nav-link nav-link-yellow active" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="site-main">
+        <section class="page-intro">
+            <h1>Descriptive Question Papers</h1>
+            <p>View and download full-length descriptive examinations and chapter worksheets curated by <strong>Aniruddha Banerjee</strong>.</p>
+        </section>
+
+        <div id="home-dashboard" class="app-screen">
+            <div class="dashboard-panel" style="width: 580px; background-color: rgba(254, 252, 232, 0.98); border: 2px solid #facc15;">
+                <h2 style="text-align: center; color: #ca8a04; margin-top: 0;">Select Class for Descriptive Papers</h2>
+                <div class="card card-yellow" onclick="selectDescriptiveClass('IX')">Class IX Question Papers</div>
+                <div class="card card-yellow" onclick="selectDescriptiveClass('X')">Class X Question Papers</div>
+                <div class="card card-yellow" onclick="selectDescriptiveClass('XI')">Class XI Question Papers</div>
+                <div class="card card-yellow" onclick="selectDescriptiveClass('XII')">Class XII Question Papers</div>
+            </div>
+        </div>
+
+        <div id="descriptive-list-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 id="descriptive-screen-heading" style="text-align: center; color: #ca8a04; margin-top: 0;">Available Question Papers</h2>
+            <div id="descriptive-list-container"></div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div>
+                <strong style="color: #ffffff; font-size: 16px;">Pioneers Prep</strong> — Mentored by <strong>Aniruddha Banerjee</strong><br>
+                <span>Online Mock Tests, Study Notes & Descriptive Worksheets for NEET, ICSE & WBCHSE.</span>
+            </div>
+            <div class="footer-links">
+                <a href="/" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>const CURRENT_ROUTE = '/descriptive.html';</script>
+    <script src="/js/main.js"></script>
+    <script src="/js/quiz.js"></script>
+</body>
+</html>
