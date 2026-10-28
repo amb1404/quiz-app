@@ -12,25 +12,42 @@ const SITE_URL = 'https://pioneersprep.in';
 
 const APP_VERSION = Date.now();
 
-app.set('trust proxy', 1);
-
 // ============================================================================
-// 1. DETERMINISTIC & HARDENED CRYPTOGRAPHIC SECRETS
+// 1. HARDENED PROXY CONFIGURATION & CRYPTOGRAPHIC SECRETS
 // ============================================================================
-const SECRET = process.env.TIMER_SECRET || crypto
-    .createHash('sha256')
-    .update(`${process.env.APP_SCRIPT_URL || SITE_URL}-pioneers-prep-master-hmac-key`)
-    .digest('hex');
+const TRUST_PROXY_DEPTH = process.env.TRUST_PROXY !== undefined
+    ? (isNaN(Number(process.env.TRUST_PROXY)) ? process.env.TRUST_PROXY : Number(process.env.TRUST_PROXY))
+    : 1;
+app.set('trust proxy', TRUST_PROXY_DEPTH);
 
+function loadOrGenerateMasterSecret() {
+    if (process.env.TIMER_SECRET && process.env.TIMER_SECRET.trim().length >= 32) {
+        return process.env.TIMER_SECRET.trim();
+    }
+    const secretFilePath = path.join(__dirname, '.runtime_secret');
+    try {
+        if (fs.existsSync(secretFilePath)) {
+            const existing = fs.readFileSync(secretFilePath, 'utf8').trim();
+            if (existing.length >= 64) return existing;
+        }
+        const generated = crypto.randomBytes(64).toString('hex');
+        fs.writeFileSync(secretFilePath, generated, { mode: 0o600 });
+        return generated;
+    } catch {
+        return crypto.randomBytes(64).toString('hex');
+    }
+}
+
+const SECRET = loadOrGenerateMasterSecret();
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 const ADMIN_EMAIL = process.env.TARGET_EMAIL || 'anibanerjee699@gmail.com';
 
 if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
-    console.warn('[Security Notice] For maximum production security, set TIMER_SECRET and APPS_SCRIPT_SECRET in your Render Environment Variables.');
+    console.warn('[Security Notice] Using auto-generated high-entropy runtime secret. Set TIMER_SECRET and APPS_SCRIPT_SECRET in Render Environment Variables for multi-instance persistence.');
 }
 
 // ============================================================================
-// 2. BOUNDED IN-MEMORY STORES & RATE LIMITERS
+// 2. BOUNDED IN-MEMORY STORES, ATOMIC LOCKS & HARDENED IP RATE LIMITERS
 // ============================================================================
 const MAX_MAP_SIZE = 5000;
 const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
@@ -41,6 +58,7 @@ const otpIpRateLimit = new Map();
 const verifyIpRateLimit = new Map();
 const submitIpRateLimit = new Map();
 const usedAuthTokens = new Map();
+const inFlightSubmissions = new Set();
 const activeExamSessions = new Map();
 const verifiedClientIps = new Map();
 
@@ -50,6 +68,23 @@ function setBoundedMap(map, key, value) {
         if (oldestKey !== undefined) map.delete(oldestKey);
     }
     map.set(key, value);
+}
+
+function getClientIp(req) {
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (typeof cfIp === 'string' && cfIp.trim()) {
+        return cfIp.trim().slice(0, 64);
+    }
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.trim()) {
+        const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+        if (ips.length > 0) {
+            const trustedIndex = Math.max(0, ips.length - (Number(TRUST_PROXY_DEPTH) || 1));
+            return ips[trustedIndex].slice(0, 64);
+        }
+    }
+    const rawIp = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
+    return String(rawIp).trim().slice(0, 64);
 }
 
 function checkIpRateLimit(map, ip, maxRequests, windowMs) {
@@ -75,10 +110,45 @@ const fsCache = {
 };
 
 // ============================================================================
-// 3. PRE-AUTH PAYLOAD GUARD & SECURITY HEADERS
+// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS
 // ============================================================================
-const defaultJsonParser = express.json({ limit: '50kb' });
-const submitJsonParser = express.json({ limit: '15mb' });
+function verifyJsonComplexity(req, res, buf) {
+    if (!buf || buf.length === 0) return;
+    let depth = 0;
+    let maxDepth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < buf.length; i++) {
+        const byte = buf[i];
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (byte === 0x5c) { // '\'
+            escaped = true;
+            continue;
+        }
+        if (byte === 0x22) { // '"'
+            inString = !inString;
+            continue;
+        }
+        if (!inString) {
+            if (byte === 0x7b || byte === 0x5b) { // '{' or '['
+                depth++;
+                if (depth > maxDepth) maxDepth = depth;
+                if (maxDepth > 12) {
+                    throw new Error('JSON nesting depth exceeded security limit.');
+                }
+            } else if (byte === 0x7d || byte === 0x5d) { // '}' or ']'
+                depth--;
+            }
+        }
+    }
+}
+
+const defaultJsonParser = express.json({ limit: '50kb', verify: verifyJsonComplexity });
+const submitJsonParser = express.json({ limit: '15mb', verify: verifyJsonComplexity });
 
 app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
@@ -92,22 +162,33 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
     if (req.path === '/api/submit') return next();
-    return defaultJsonParser(req, res, next);
+    return defaultJsonParser(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, error: 'Malformed or oversized JSON payload.' });
+        next();
+    });
 });
 
 function preSubmitSecurityGuard(req, res, next) {
-    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     if (!checkIpRateLimit(submitIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
         return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
     }
 
-    const headerToken = req.get('Authorization')?.replace('Bearer ', '');
+    const headerToken = req.get('Authorization')?.replace('Bearer ', '').trim();
     if (headerToken) {
         const preCheck = verifyAuthToken(headerToken, null, true);
         if (!preCheck.valid) {
             return res.status(403).json({ success: false, error: preCheck.error });
         }
+        if (inFlightSubmissions.has(preCheck.signature)) {
+            return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+        }
+        inFlightSubmissions.add(preCheck.signature);
         req.preVerifiedAuth = preCheck;
+
+        res.on('close', () => {
+            inFlightSubmissions.delete(preCheck.signature);
+        });
         return next();
     }
 
@@ -258,12 +339,16 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             init = init || {};
                             var headers = new Headers(init.headers || {});
                             if (!headers.has('Authorization')) {
-                                var raw = sessionStorage.getItem('pioneers_prep_state');
-                                if (raw) {
-                                    var st = JSON.parse(raw);
-                                    if (st && st.studentAuthToken) {
-                                        headers.set('Authorization', 'Bearer ' + st.studentAuthToken);
+                                var token = (typeof studentAuthToken === 'string' && studentAuthToken) ? studentAuthToken : '';
+                                if (!token) {
+                                    var raw = sessionStorage.getItem('pioneers_prep_state');
+                                    if (raw) {
+                                        var st = JSON.parse(raw);
+                                        if (st && st.studentAuthToken) token = st.studentAuthToken;
                                     }
+                                }
+                                if (token) {
+                                    headers.set('Authorization', 'Bearer ' + token);
                                 }
                             }
                             init.headers = headers;
@@ -335,7 +420,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 }
 
                 setTimeout(function() {
-                    // Do not strip ?class=... query parameters while quiz.js is asynchronously fetching /api/quizzes
                     if (window.location.search && window.location.search.indexOf('class=') !== -1) {
                         return;
                     }
@@ -469,9 +553,49 @@ function safeCompareStrings(strA, strB) {
     return crypto.timingSafeEqual(bufA, bufB);
 }
 
+const MAX_BASE64_IMAGE_LENGTH = 2 * 1024 * 1024; // 2MB per diagram limit
+
 function isSafeBase64Image(str) {
     if (typeof str !== 'string') return false;
-    return /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(str.trim());
+    const trimmed = str.trim();
+    if (trimmed.length === 0 || trimmed.length > MAX_BASE64_IMAGE_LENGTH) return false;
+
+    const match = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(trimmed);
+    if (!match) return false;
+
+    const mimeSubtype = match[1].toLowerCase();
+    const b64Payload = match[2];
+    if (b64Payload.length < 32 || b64Payload.length % 4 !== 0) return false;
+
+    try {
+        const headerBytes = Buffer.from(b64Payload.slice(0, 32), 'base64');
+        if (headerBytes.length < 12) return false;
+
+        // Verify binary magic bytes match declared MIME type
+        if (mimeSubtype === 'jpeg' || mimeSubtype === 'jpg') {
+            return headerBytes[0] === 0xFF && headerBytes[1] === 0xD8 && headerBytes[2] === 0xFF;
+        }
+        if (mimeSubtype === 'png') {
+            return (
+                headerBytes[0] === 0x89 &&
+                headerBytes[1] === 0x50 &&
+                headerBytes[2] === 0x4E &&
+                headerBytes[3] === 0x47 &&
+                headerBytes[4] === 0x0D &&
+                headerBytes[5] === 0x0A &&
+                headerBytes[6] === 0x1A &&
+                headerBytes[7] === 0x0A
+            );
+        }
+        if (mimeSubtype === 'webp') {
+            const isRiff = headerBytes[0] === 0x52 && headerBytes[1] === 0x49 && headerBytes[2] === 0x46 && headerBytes[3] === 0x46;
+            const isWebp = headerBytes[8] === 0x57 && headerBytes[9] === 0x45 && headerBytes[10] === 0x42 && headerBytes[11] === 0x50;
+            return isRiff && isWebp;
+        }
+        return false;
+    } catch {
+        return false;
+    }
 }
 
 function getDeterministicPermutation(length, seedString) {
@@ -923,7 +1047,7 @@ app.post('/api/start-quiz', (req, res) => {
 });
 
 app.post('/api/send-otp', (req, res) => {
-    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     const now = Date.now();
 
     if (!checkIpRateLimit(otpIpRateLimit, clientIp, 10, 15 * 60 * 1000)) {
@@ -965,7 +1089,7 @@ app.post('/api/send-otp', (req, res) => {
 });
 
 app.post('/api/verify-otp', (req, res) => {
-    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const clientIp = getClientIp(req);
     if (!checkIpRateLimit(verifyIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
         return res.status(429).json({ success: false, error: 'Too many verification attempts. Please wait 15 minutes.' });
     }
@@ -998,12 +1122,29 @@ app.post('/api/verify-otp', (req, res) => {
     res.json({ success: true, authToken: `${tokenData}|||${signature}` });
 });
 
-app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, res) => {
+app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
+    submitJsonParser(req, res, (err) => {
+        if (err) {
+            if (req.preVerifiedAuth?.signature) inFlightSubmissions.delete(req.preVerifiedAuth.signature);
+            return res.status(400).json({ success: false, error: 'Invalid or oversized submission payload.' });
+        }
+        next();
+    });
+}, async (req, res) => {
     const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : 'no-email';
     const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
     const authCheck = verifyAuthToken(authToken || req.get('Authorization')?.replace('Bearer ', ''), rawEmail, true);
-    if (!authCheck.valid) return res.status(403).json({ success: false, error: authCheck.error });
+    if (!authCheck.valid) {
+        if (req.preVerifiedAuth?.signature) inFlightSubmissions.delete(req.preVerifiedAuth.signature);
+        return res.status(403).json({ success: false, error: authCheck.error });
+    }
+
+    // Atomic replay protection: immediately lock token before processing
+    if (usedAuthTokens.has(authCheck.signature)) {
+        inFlightSubmissions.delete(authCheck.signature);
+        return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
+    }
 
     const firstName = authCheck.firstName || (req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN');
     const lastName = authCheck.lastName || (req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME');
@@ -1011,10 +1152,14 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
 
     const cleanQuizId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanQuizId);
-    if (!filePath) return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
+    if (!filePath) {
+        inFlightSubmissions.delete(authCheck.signature);
+        return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
+    }
 
     const lockedSession = activeExamSessions.get(authCheck.signature);
     if (lockedSession && lockedSession.quizId !== cleanQuizId) {
+        inFlightSubmissions.delete(authCheck.signature);
         return res.status(400).json({ success: false, error: 'Quiz ID mismatch with active exam session.' });
     }
 
@@ -1022,18 +1167,25 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
     const effectiveDuration = lockedSession ? lockedSession.duration : Number(quizDuration);
 
     if (!effectiveStartTime || !timerSignature || !effectiveDuration) {
+        inFlightSubmissions.delete(authCheck.signature);
         return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
     }
 
     const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${effectiveDuration}:${effectiveStartTime}`).digest('hex');
     if (!safeCompareHex(timerSignature, expectedTimerSig)) {
+        inFlightSubmissions.delete(authCheck.signature);
         return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
     }
 
     const elapsedSeconds = (Date.now() - effectiveStartTime) / 1000;
     if (elapsedSeconds < 0 || elapsedSeconds > effectiveDuration + 120) {
+        inFlightSubmissions.delete(authCheck.signature);
         return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
     }
+
+    // Permanently consume token and session before grading/IO
+    setBoundedMap(usedAuthTokens, authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
+    activeExamSessions.delete(authCheck.signature);
 
     try {
         const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
@@ -1042,9 +1194,6 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
 
         let correctCount = 0, incorrectCount = 0, attemptedCount = 0;
         const totalCount = realQuestions.length;
-
-        setBoundedMap(usedAuthTokens, authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
-        activeExamSessions.delete(authCheck.signature);
 
         const qOrder = getDeterministicPermutation(totalCount, `${authCheck.signature}:${cleanQuizId}:q`);
         const origToClientIndex = new Array(totalCount);
@@ -1064,11 +1213,11 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
 
             if (q.type === 'descriptive' || q.type === 'diagram') {
                 if (attempted && isSafeBase64Image(response)) selText = `<img src="${response.trim()}" style="max-width:200px;border-radius:4px;" />`;
-                else selText = attempted ? escapeHtml(response) : "Skipped";
+                else selText = attempted ? escapeHtml(String(response).slice(0, 2000)) : "Skipped";
                 corrText = escapeHtml(q.model_answer || "Refer to marking scheme");
                 if (attempted) { rawStatus = "Needs Review"; statusColor = "orange"; }
             } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
-                selText = attempted ? escapeHtml(response) : "Skipped";
+                selText = attempted ? escapeHtml(String(response).slice(0, 500)) : "Skipped";
                 corrText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
                 isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
                 if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
@@ -1114,6 +1263,8 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
         if (scriptURL) fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
     } catch (err) {
         res.status(500).json({ success: false, error: 'Grading failed.' });
+    } finally {
+        inFlightSubmissions.delete(authCheck.signature);
     }
 });
 
