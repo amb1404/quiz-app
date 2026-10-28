@@ -408,11 +408,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// FIXED: Using Express-compatible wildcard syntax ((.*)) instead of (*)
+// FIXED: Using valid Express string path patterns to support sub-routes cleanly without path-to-regexp regex parsing errors
 app.get(['/', '/index.html'], (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
-app.get(['/mock-tests', '/mock-tests/(.*)', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
-app.get(['/study-notes', '/study-notes/(.*)', '/notes', '/notes/(.*)', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
-app.get(['/descriptive-papers', '/descriptive-papers/(.*)', '/descriptive', '/descriptive/(.*)', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get(['/mock-tests', '/mock-tests*', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
+app.get(['/study-notes', '/study-notes*', '/notes', '/notes*', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get(['/descriptive-papers', '/descriptive-papers*', '/descriptive', '/descriptive*', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
