@@ -14,7 +14,7 @@ const LayoutEngine = {
             <div class="nav-container">
                 <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
                     <span class="brand-title">PIONEERS PREP</span>
-                    <span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee<strong>, with an experience of 8+ years in coaching.</span>
+                    <span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee</strong>, with an experience of 8+ years in coaching.</span>
                 </a>
                 <nav class="site-nav" aria-label="Main Navigation">
                     <a href="/" class="nav-link ${isHome ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
