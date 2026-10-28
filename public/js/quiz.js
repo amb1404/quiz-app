@@ -653,3 +653,115 @@ async function submitQuiz(isAuto = false) {
         if (submitBtn) { submitBtn.innerText = 'Submit Quiz'; submitBtn.disabled = false; }
     }
 }
+// ============================================================================
+// MOBILE QUIZ SCREEN OPTIMIZER
+// ============================================================================
+// This module ensures the actual quiz screen is touch-friendly on mobile, 
+// while keeping the desktop view completely untouched.
+
+(function optimizeMobileQuiz() {
+    // 1. Detect if the user is on a mobile device
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (!isMobile) return; // Do absolutely nothing on desktop
+
+    // 2. EDITABLE MOBILE STYLES: You can modify paddings, font sizes, and layout here anytime
+    const mobileQuizStyles = `
+        /* Soften the quiz container for mobile screens */
+        #quiz-screen:not(.hidden) {
+            padding: 20px 15px !important;
+            border-radius: 0 !important;
+            min-height: 100vh !important;
+            box-shadow: none !important;
+        }
+        
+        /* Make the question text larger and easier to read */
+        #question-box {
+            font-size: 18px !important;
+            line-height: 1.6 !important;
+            margin-bottom: 24px !important;
+        }
+
+        /* Enlarge option buttons for touch-friendliness */
+        .option-btn {
+            padding: 16px 18px !important;
+            font-size: 16px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
+        }
+
+        /* Stack navigation buttons vertically on mobile */
+        .quiz-nav-container {
+            flex-direction: column !important;
+            gap: 12px !important;
+            margin-top: 30px !important;
+        }
+        .quiz-nav-container button {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 14px !important;
+            font-size: 16px !important;
+        }
+
+        /* Stack the header (Timer, Stats, Submit) */
+        .quiz-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+        }
+        #submit-btn {
+            width: 100% !important;
+            padding: 12px !important;
+        }
+    `;
+
+    let styleElement = null;
+    let originalViewport = null;
+
+    // 3. Monitor the screen for when the quiz starts and ends
+    const observer = new MutationObserver(() => {
+        const quizScreen = document.getElementById('quiz-screen');
+        if (!quizScreen) return;
+
+        const isQuizActive = !quizScreen.classList.contains('hidden');
+        const metaViewport = document.querySelector('meta[name="viewport"]');
+
+        if (isQuizActive) {
+            // A. Quiz Started: Switch to responsive mobile view
+            if (metaViewport && metaViewport.getAttribute('content') === 'width=1280') {
+                originalViewport = 'width=1280';
+                metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            }
+            
+            // B. Inject the custom editable CSS from above
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = 'mobile-quiz-custom-styles';
+                styleElement.innerHTML = mobileQuizStyles;
+                document.head.appendChild(styleElement);
+            }
+        } else {
+            // A. Quiz Ended: Revert to forced 1280px Desktop view for results/dashboard
+            if (metaViewport && originalViewport) {
+                metaViewport.setAttribute('content', originalViewport);
+            }
+            
+            // B. Remove the custom mobile CSS
+            if (styleElement) {
+                styleElement.remove();
+                styleElement = null;
+            }
+        }
+    });
+
+    // 4. Attach the observer to run automatically
+    window.addEventListener('DOMContentLoaded', () => {
+        observer.observe(document.body, { 
+            childList: true, 
+            subtree: true, 
+            attributes: true, 
+            attributeFilter: ['class'] 
+        });
+    });
+})();
