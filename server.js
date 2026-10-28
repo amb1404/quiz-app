@@ -124,9 +124,6 @@ function preSubmitSecurityGuard(req, res, next) {
 function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
 
-    // SERVER-SIDE DIRECT URL PASTE GUARD:
-    // When someone types or pastes a URL directly into the browser bar,
-    // the browser sends Sec-Fetch-Site: 'none' and no same-origin Referer.
     if (!isHome) {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
         const referer = req.get('Referer') || '';
@@ -146,7 +143,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         const isNotes = canonicalBaseRoute === '/study-notes';
         const isDesc = canonicalBaseRoute === '/descriptive-papers';
 
-        // Clean, extensionless navigation links
         const headerHTML = `
             <div class="nav-container">
                 <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
@@ -197,9 +193,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             </div>
         `;
 
-        // Pre-script executed in <head> BEFORE main.js and quiz.js load:
-        // 1. Enforces client-side direct-paste protection
-        // 2. Normalizes URL to canonical base route so main.js/quiz.js initialize cleanly
         const headRouteGuardScript = `<base href="/">
         <script>
             (function() {
@@ -226,14 +219,12 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         }
                         sessionStorage.removeItem('pioneers_nav_ok');
                         sessionStorage.setItem('pioneers_active_route', baseRoute);
-                        // Ensure pathname is normalized to canonical baseRoute while quiz.js initializes
                         if (window.location.pathname !== baseRoute) {
                             history.replaceState({ app: 'pioneers' }, document.title, baseRoute + window.location.search);
                         }
                     }
                 } catch (e) {}
 
-                // Stamp navigation token whenever user interacts with links/buttons inside the site
                 function authorizeInternalNav() {
                     try { sessionStorage.setItem('pioneers_nav_ok', Date.now().toString()); } catch (e) {}
                 }
@@ -246,7 +237,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         </script>`;
 
         const clientIntegrationScript = `<script>
-            // --- Part 0: Automatic Authorization Header & Route Normalizer ---
             (function() {
                 if (typeof MainNav !== 'undefined') {
                     MainNav.normalizeRoute = function(route) {
@@ -283,7 +273,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 };
             })();
 
-            // --- Part 1: Anti-Flicker Screen Restoration ---
             try {
                 var s = sessionStorage.getItem('pioneers_prep_state');
                 if (s) {
@@ -311,7 +300,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 }
             } catch(e) {}
 
-            // --- Part 2: Clean Hierarchical URLs & Browser Back Button Sync ---
             window.addEventListener('DOMContentLoaded', function() {
                 var baseRoute = '${canonicalBaseRoute}';
                 var backEventTriggered = false;
@@ -337,7 +325,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     return baseRoute + slug;
                 }
 
-                // Strip any ?class= query parameters or .html extensions once quiz.js has read them
                 setTimeout(function() {
                     var activeEl = document.querySelector('.app-screen:not(.hidden)');
                     var initialUrl = getCleanUrlForScreen(activeEl ? activeEl.id : 'home-dashboard');
@@ -393,9 +380,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         </script>`;
 
         let dynamicHtml = data
-            // Inject head route guard & <base href="/"> immediately inside <head>
             .replace(/<head>/i, `<head>\n${headRouteGuardScript}`)
-            // Rewrite any physical .html links inside the page to clean extensionless routes
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
             .replace(/(['"\s=])\/?descriptive\.html/gi, '$1/descriptive-papers')
@@ -404,7 +389,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"\s*><\/script>/i,
-                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min\.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
+                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
             .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
@@ -423,13 +408,12 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// Clean extensionless & hierarchical routes
+// FIXED: Using Express-compatible wildcard syntax ((.*)) instead of (*)
 app.get(['/', '/index.html'], (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
-app.get(['/mock-tests', '/mock-tests/*', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
-app.get(['/study-notes', '/study-notes/*', '/notes', '/notes/*', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
-app.get(['/descriptive-papers', '/descriptive-papers/*', '/descriptive', '/descriptive/*', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get(['/mock-tests', '/mock-tests/(.*)', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
+app.get(['/study-notes', '/study-notes/(.*)', '/notes', '/notes/(.*)', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get(['/descriptive-papers', '/descriptive-papers/(.*)', '/descriptive', '/descriptive/(.*)', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 
-// Serve static assets (CSS, JS, images) with redirect=false and extensions disabled so .html is never exposed by express.static
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ============================================================================
@@ -1113,7 +1097,6 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
     }
 });
 
-// Fallback catch-all: any unrecognized or manually typed deep URL redirects straight to Home
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
     res.redirect(302, '/');
