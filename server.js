@@ -162,7 +162,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             <div class="footer-profile-container">
                 <div class="footer-brand-info">
                     <h3>Pioneers Prep</h3>
-                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
+                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver highly specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
                 </div>
                 <div class="footer-contact">
                     <h4>Educator Profile & Contact</h4>
@@ -408,11 +408,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// FIXED: Using valid Express string path patterns to support sub-routes cleanly without path-to-regexp regex parsing errors
+// FIXED: Using clean exact string paths and letting the trailing wildcard (*) be handled cleanly by Express string matching
 app.get(['/', '/index.html'], (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
-app.get(['/mock-tests', '/mock-tests*', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
-app.get(['/study-notes', '/study-notes*', '/notes', '/notes*', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
-app.get(['/descriptive-papers', '/descriptive-papers*', '/descriptive', '/descriptive*', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get(['/mock-tests', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
+app.get(['/study-notes', '/notes', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get(['/descriptive-papers', '/descriptive', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
