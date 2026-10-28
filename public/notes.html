@@ -1,0 +1,77 @@
+<!-- public/notes.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Study Notes for Class IX, X, XI & XII (PDF) | Pioneers Prep</title>
+    <meta name="description" content="Download chapter-wise Physics, Chemistry, and Biology PDF study notes prepared by Aniruddha Banerjee on Pioneers Prep.">
+    <meta name="author" content="Aniruddha Banerjee">
+    <link rel="canonical" href="https://pioneersprep.in/notes.html">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="nav-container">
+            <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
+                <span class="brand-title">PIONEERS PREP</span>
+                <span class="brand-subtitle">Guided by Aniruddha Banerjee</span>
+            </a>
+            <nav class="site-nav" aria-label="Main Navigation">
+                <a href="/" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" class="nav-link" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" class="nav-link active" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" class="nav-link nav-link-yellow" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="site-main">
+        <section class="page-intro">
+            <h1>Downloadable PDF Study Notes</h1>
+            <p>Access chapter-wise Physics, Chemistry, and Biology revision notes prepared by <strong>Aniruddha Banerjee</strong>.</p>
+        </section>
+
+        <div id="home-dashboard" class="app-screen">
+            <div class="dashboard-panel" style="width: 580px;">
+                <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Class for Study Notes</h2>
+                <div class="card" onclick="selectNotesClass('IX')">Class IX Study Notes</div>
+                <div class="card" onclick="selectNotesClass('X')">Class X Study Notes</div>
+                <div class="card" onclick="selectNotesClass('XI')">Class XI Study Notes</div>
+                <div class="card" onclick="selectNotesClass('XII')">Class XII Study Notes</div>
+            </div>
+        </div>
+
+        <div id="notes-subject-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
+            <div id="notes-subject-container"></div>
+        </div>
+
+        <div id="notes-list-screen" class="app-screen hidden">
+            <button class="back-btn" onclick="goBack()">Back</button>
+            <h2 style="text-align: center; color: #10b981; margin-top: 0;">Available Notes</h2>
+            <div id="notes-list-container"></div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div>
+                <strong style="color: #ffffff; font-size: 16px;">Pioneers Prep</strong> — Mentored by <strong>Aniruddha Banerjee</strong><br>
+                <span>Online Mock Tests, Study Notes & Descriptive Worksheets for NEET, ICSE & WBCHSE.</span>
+            </div>
+            <div class="footer-links">
+                <a href="/" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
+                <a href="/test-portal.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
+                <a href="/notes.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
+                <a href="/descriptive.html" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>const CURRENT_ROUTE = '/notes.html';</script>
+    <script src="/js/main.js"></script>
+    <script src="/js/quiz.js"></script>
+</body>
+</html>
