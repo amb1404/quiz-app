@@ -162,7 +162,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             <div class="footer-profile-container">
                 <div class="footer-brand-info">
                     <h3>Pioneers Prep</h3>
-                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver highly specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
+                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
                 </div>
                 <div class="footer-contact">
                     <h4>Educator Profile & Contact</h4>
@@ -408,11 +408,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// FIXED: Using clean exact string paths and letting the trailing wildcard (*) be handled cleanly by Express string matching
-app.get(['/', '/index.html'], (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
-app.get(['/mock-tests', '/test-portal.html'], (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
-app.get(['/study-notes', '/notes', '/notes.html'], (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
-app.get(['/descriptive-papers', '/descriptive', '/descriptive.html'], (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+// FIXED: Using clean exact string paths without any path-to-regexp regex parsing conflicts
+app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
+app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
+app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
+app.get('/test-portal.html', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
+app.get('/study-notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get('/notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get('/notes.html', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get('/descriptive-papers', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get('/descriptive', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get('/descriptive.html', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
@@ -1097,8 +1103,21 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
     }
 });
 
+// Catch-all route to handle all sub-routes cleanly without path-to-regexp regex parsing errors
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
+    
+    const p = req.path.toLowerCase();
+    if (p.includes('mock-tests') || p.includes('test-portal')) {
+        return serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests');
+    }
+    if (p.includes('study-notes') || p.includes('notes')) {
+        return serveDynamicHtml(req, res, 'notes.html', '/study-notes');
+    }
+    if (p.includes('descriptive')) {
+        return serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers');
+    }
+    
     res.redirect(302, '/');
 });
 
