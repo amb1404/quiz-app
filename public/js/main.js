@@ -30,7 +30,7 @@ const LayoutEngine = {
             <div class="footer-profile-container">
                 <div class="footer-brand-info">
                     <h3>Pioneers Prep</h3>
-                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>, with an experience of 8+ years in coaching o. We deliver industry-grade online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
+                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>, with an experience of 8+ years in coaching. We deliver industry-grade online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
                 </div>
                 
                 <div class="footer-contact">
