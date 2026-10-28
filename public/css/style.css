@@ -1,4 +1,3 @@
-/* public/css/style.css */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
@@ -31,6 +30,7 @@ html, body {
     user-select: none; -webkit-user-select: none;
 }
 
+/* --- HEADER & NAVIGATION --- */
 .site-header {
     background-color: #ffffff;
     border-bottom: 1px solid #cbd5e1;
@@ -77,6 +77,7 @@ html, body {
     background-color: var(--card-yellow); color: var(--card-yellow-text); border: 1px solid var(--card-yellow-border);
 }
 
+/* --- MAIN CONTENT & EXAM MODE --- */
 .site-main {
     flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 30px 20px;
 }
@@ -232,7 +233,7 @@ input[type="text"], input[type="email"], input[type="number"], input[type="file"
 .seo-card h3 { margin-top: 0; color: var(--primary); font-size: 17px; }
 .seo-card p { color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 0; }
 
-/* --- ENHANCED FOOTER WITH PROFILE SECTION --- */
+/* --- TWO-TIER PROFESSIONAL FOOTER --- */
 .site-footer {
     background-color: var(--bg-dark);
     color: #cbd5e1;
@@ -307,7 +308,6 @@ input[type="text"], input[type="email"], input[type="number"], input[type="file"
     flex-shrink: 0;
 }
 
-/* Sub-footer / Bottom bar */
 .footer-bottom {
     max-width: 1280px;
     margin: 0 auto;
@@ -348,4 +348,21 @@ input[type="text"], input[type="email"], input[type="number"], input[type="file"
     .footer-profile-container { flex-direction: column; gap: 30px; }
     .footer-bottom { flex-direction: column; text-align: center; }
     .footer-links { justify-content: center; margin-top: 10px; }
+}
+
+@media (max-width: 600px) {
+    .nav-container { padding: 12px 14px; justify-content: center; text-align: center; }
+    .brand-logo { align-items: center; width: 100%; }
+    .site-nav { justify-content: center; width: 100%; gap: 6px; }
+    .nav-link { font-size: 13px; padding: 6px 11px; }
+    .site-main { padding: 16px 10px; }
+    .page-intro h1 { font-size: 22px; }
+    .page-intro p { font-size: 14px; }
+    .dashboard-panel, #subject-select-screen, #ix-x-chapter-screen, #neet-unit-screen, #neet-chapter-screen, #neet-topic-screen, #name-screen, #result-screen, #notes-subject-screen, #notes-list-screen, #descriptive-list-screen {
+        width: 100% !important; padding: 20px !important;
+    }
+    #quiz-screen:not(.hidden) {
+        width: 100% !important; max-width: 100% !important;
+        min-height: calc(100vh - 16px) !important; padding: 16px !important; border-radius: 12px !important;
+    }
 }
