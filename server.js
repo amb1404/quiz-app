@@ -113,7 +113,33 @@ function serveDynamicHtml(req, res, fileName) {
             </div>
         `;
 
-        const antiFlickerScript = `<script>try{var s=sessionStorage.getItem('pioneers_prep_state');if(s){var st=JSON.parse(s);var a=st.activeScreen;if(a&&a!=='home-dashboard'){var d=(a==='quiz-screen')?'flex !important; flex-direction:column !important;':'block !important;';var stl=document.createElement('style');stl.innerHTML='.app-screen{display:none !important;}#'+a+'{display:'+d+'}';document.head.appendChild(stl);}}}catch(e){}</script>`;
+        // FIXED: Safely removes the anti-flicker style after page load so `quiz.js` can hide the screen properly on submit
+        const antiFlickerScript = `<script>
+        try {
+            var s = sessionStorage.getItem('pioneers_prep_state');
+            if (s) {
+                var st = JSON.parse(s);
+                var a = st.activeScreen;
+                if (a === 'result-screen') {
+                    // Prevent loading into a blank result screen on refresh
+                    sessionStorage.removeItem('pioneers_prep_state');
+                } else if (a && a !== 'home-dashboard') {
+                    var d = (a === 'quiz-screen') ? 'flex !important; flex-direction:column !important;' : 'block !important;';
+                    var stl = document.createElement('style');
+                    stl.id = 'anti-flicker-style';
+                    stl.innerHTML = '.app-screen{display:none !important;}#' + a + '{display:' + d + '}';
+                    document.head.appendChild(stl);
+                    
+                    window.addEventListener('load', function() {
+                        setTimeout(function() {
+                            var fs = document.getElementById('anti-flicker-style');
+                            if (fs) fs.remove();
+                        }, 50);
+                    });
+                }
+            }
+        } catch(e) {}
+        </script>`;
 
         let dynamicHtml = data
             .replace('</head>', `${antiFlickerScript}\n</head>`)
