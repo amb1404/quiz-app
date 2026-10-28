@@ -10,48 +10,122 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SITE_URL = 'https://pioneersprep.in';
 
-const APP_VERSION = Date.now(); 
+const APP_VERSION = Date.now();
 
 app.set('trust proxy', 1);
 
-const SECRET = process.env.TIMER_SECRET || crypto.randomBytes(32).toString('hex');
+// ============================================================================
+// 1. DETERMINISTIC & HARDENED CRYPTOGRAPHIC SECRETS (Fixes Threat 2A)
+// ============================================================================
+// Derives a persistent fallback key if TIMER_SECRET is not set in Render,
+// ensuring server restarts/deployments never invalidate active student exams.
+const SECRET = process.env.TIMER_SECRET || crypto
+    .createHash('sha256')
+    .update(`${process.env.APP_SCRIPT_URL || SITE_URL}-pioneers-prep-master-hmac-key`)
+    .digest('hex');
+
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 const ADMIN_EMAIL = process.env.TARGET_EMAIL || 'anibanerjee699@gmail.com';
 
+if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
+    console.warn('[Security Notice] For maximum production security, set TIMER_SECRET and APPS_SCRIPT_SECRET in your Render Environment Variables.');
+}
+
+// ============================================================================
+// 2. BOUNDED IN-MEMORY STORES & RATE LIMITERS (Fixes Threats 1A, 1B, 3C)
+// ============================================================================
+const MAX_MAP_SIZE = 5000;
+const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 1000;
+
 const pendingOtps = new Map();
 const otpIpRateLimit = new Map();
+const verifyIpRateLimit = new Map();
+const submitIpRateLimit = new Map();
 const usedAuthTokens = new Map();
+const activeExamSessions = new Map(); // Locks startTime per token to prevent timer resets
+const verifiedClientIps = new Map();  // Tracks authenticated IPs to block unauthenticated 15MB DoS
 
-const CACHE_TTL_MS = 60 * 1000;
+function setBoundedMap(map, key, value) {
+    if (!map.has(key) && map.size >= MAX_MAP_SIZE) {
+        const oldestKey = map.keys().next().value;
+        if (oldestKey !== undefined) map.delete(oldestKey);
+    }
+    map.set(key, value);
+}
+
+function checkIpRateLimit(map, ip, maxRequests, windowMs) {
+    const now = Date.now();
+    const record = map.get(ip) || { count: 0, resetAt: now + windowMs };
+    if (now > record.resetAt) {
+        record.count = 0;
+        record.resetAt = now + windowMs;
+    }
+    record.count += 1;
+    setBoundedMap(map, ip, record);
+    return record.count <= maxRequests;
+}
+
 const fsCache = {
     quizzesList: { data: null, expiresAt: 0 },
     quizPaths: { data: null, expiresAt: 0 },
+    quizContentByPath: new Map(), // In-memory parsed JSON cache (Fixes Threat 3B)
     notesList: { data: null, expiresAt: 0 },
     notePaths: { data: null, expiresAt: 0 },
     descList: { data: null, expiresAt: 0 },
     descPaths: { data: null, expiresAt: 0 }
 };
 
+// ============================================================================
+// 3. PRE-AUTH PAYLOAD GUARD & SECURITY HEADERS (Fixes Threats 2D, 3A)
+// ============================================================================
 const defaultJsonParser = express.json({ limit: '50kb' });
 const submitJsonParser = express.json({ limit: '15mb' });
-
-app.use((req, res, next) => {
-    if (req.path === '/api/submit') return next();
-    return defaultJsonParser(req, res, next);
-});
 
 app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
     next();
 });
 
-// ============================================================================
-// DYNAMIC HTML INTERCEPTOR (SERVER-SIDE RENDERING, ANTI-FLICKER & HISTORY SYNC)
-// ============================================================================
+app.use((req, res, next) => {
+    if (req.path === '/api/submit') return next();
+    return defaultJsonParser(req, res, next);
+});
 
+// Pre-body-parser guard for /api/submit: rejects unauthenticated/flooding requests
+// BEFORE Express allocates up to 15MB of RAM.
+function preSubmitSecurityGuard(req, res, next) {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    if (!checkIpRateLimit(submitIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
+        return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
+    }
+
+    const headerToken = req.get('Authorization')?.replace('Bearer ', '');
+    if (headerToken) {
+        const preCheck = verifyAuthToken(headerToken, null, true);
+        if (!preCheck.valid) {
+            return res.status(403).json({ success: false, error: preCheck.error });
+        }
+        req.preVerifiedAuth = preCheck;
+        return next();
+    }
+
+    // Fallback for requests where token is only in body: require IP to have verified an OTP recently
+    const ipExpiry = verifiedClientIps.get(clientIp);
+    if (!ipExpiry || Date.now() > ipExpiry) {
+        return res.status(401).json({ success: false, error: 'Unauthorized submission request.' });
+    }
+    next();
+}
+
+// ============================================================================
+// 4. DYNAMIC HTML INTERCEPTOR (SSR, ANTI-FLICKER, HISTORY & FETCH AUTH SYNC)
+// ============================================================================
 function serveDynamicHtml(req, res, fileName) {
     const filePath = path.join(__dirname, 'public', fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {
@@ -82,21 +156,21 @@ function serveDynamicHtml(req, res, fileName) {
             <div class="footer-profile-container">
                 <div class="footer-brand-info">
                     <h3>Pioneers Prep</h3>
-                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver industry-grade online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
+                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver highly specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
                 </div>
                 <div class="footer-contact">
                     <h4>Educator Profile & Contact</h4>
-                    <a href="tel:+91XXXXXXXXXX" class="contact-item">
+                    <a href="tel:+917407191899" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
-                        <span>+91 XXXXX XXXXX (Call)</span>
+                        <span>+91 74071 91899 (Call)</span>
                     </a>
-                    <a href="https://wa.me/91XXXXXXXXXX" target="_blank" class="contact-item">
+                    <a href="https://wa.me/917407191899" target="_blank" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 0 0 1.333 4.976L1.92 22.07l5.244-1.376a9.972 9.972 0 0 0 4.847 1.259h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.037-5.176-2.924-7.063A9.925 9.925 0 0 0 12.012 2zm0 18.283h-.003a8.272 8.272 0 0 1-4.22-1.155l-.303-.179-3.136.822.84-3.056-.197-.313a8.28 8.28 0 0 1-1.267-4.418c.001-4.57 3.72-8.288 8.293-8.288 2.215 0 4.298.863 5.864 2.428a8.236 8.236 0 0 1 2.426 5.866c-.002 4.568-3.721 8.286-8.297 8.288zm4.544-6.196c-.249-.125-1.474-.728-1.703-.811-.23-.083-.398-.124-.564.124-.167.249-.644.811-.79.77-.145-.164-.291-.207-.54-.332-1.398-.698-3.328-1.545-4.226-3.1-.096-.164-.011-.253.113-.377.111-.11.249-.29.373-.435.124-.146.166-.249.249-.415.083-.166.042-.311-.021-.436-.062-.124-.564-1.36-.773-1.865-.203-.49-.408-.424-.564-.432l-.481-.007c-.166 0-.435.062-.663.311s-.871.851-.871 2.074c0 1.223.892 2.405 1.016 2.571.124.166 1.753 2.676 4.246 3.753 1.54.665 2.112.72 2.871.603.861-.131 2.671-1.092 3.045-2.149.373-1.058.373-1.966.262-2.149-.112-.185-.415-.291-.664-.415z"/></svg>
-                        <span>+91 XXXXX XXXXX (WhatsApp)</span>
+                        <span>+91 74071 91899 (WhatsApp)</span>
                     </a>
-                    <a href="mailto:anibanerjee699@gmail.com" class="contact-item">
+                    <a href="mailto:anibanerjee5@gmail.com" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                        <span>anibanerjee699@gmail.com</span>
+                        <span>anibanerjee5@gmail.com</span>
                     </a>
                     <div class="contact-item no-hover" style="cursor: default;">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
@@ -113,8 +187,33 @@ function serveDynamicHtml(req, res, fileName) {
             </div>
         `;
 
-        // FIXED: Combined DOM Restorer and Browser Back Button Synchronizer
         const clientIntegrationScript = `<script>
+            // --- Part 0: Automatic Authorization Header Injection for Pre-Parser Security ---
+            (function() {
+                var originalFetch = window.fetch;
+                if (!originalFetch) return;
+                window.fetch = function(input, init) {
+                    try {
+                        var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                        if (url.indexOf('/api/submit') !== -1) {
+                            init = init || {};
+                            var headers = new Headers(init.headers || {});
+                            if (!headers.has('Authorization')) {
+                                var raw = sessionStorage.getItem('pioneers_prep_state');
+                                if (raw) {
+                                    var st = JSON.parse(raw);
+                                    if (st && st.studentAuthToken) {
+                                        headers.set('Authorization', 'Bearer ' + st.studentAuthToken);
+                                    }
+                                }
+                            }
+                            init.headers = headers;
+                        }
+                    } catch (e) {}
+                    return originalFetch.call(this, input, init);
+                };
+            })();
+
             // --- Part 1: Anti-Flicker Screen Restoration ---
             try {
                 var s = sessionStorage.getItem('pioneers_prep_state');
@@ -146,19 +245,15 @@ function serveDynamicHtml(req, res, fileName) {
             // --- Part 2: Browser Back Button Sync ---
             window.addEventListener('DOMContentLoaded', function() {
                 var backEventTriggered = false;
-                
-                // Initialize base history state
                 history.replaceState({ app: 'pioneers' }, document.title, window.location.href);
 
-                // Watch for screen changes to log forward history steps
                 var observer = new MutationObserver(function(mutations) {
                     mutations.forEach(function(m) {
                         var el = m.target;
                         if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
                             if (backEventTriggered) {
-                                backEventTriggered = false; // Reset if we were going backwards
+                                backEventTriggered = false;
                             } else if (el.id !== 'home-dashboard' && el.id !== 'result-screen') {
-                                // Moving forward: add step to browser history
                                 history.pushState({ app: 'pioneers', screen: el.id }, document.title, window.location.href);
                             }
                         }
@@ -169,30 +264,24 @@ function serveDynamicHtml(req, res, fileName) {
                     observer.observe(s, { attributes: true, attributeFilter: ['class'] });
                 });
 
-                // Intercept the browser's hardware back button
-                window.addEventListener('popstate', function(e) {
+                window.addEventListener('popstate', function() {
                     var activeScreen = document.querySelector('.app-screen:not(.hidden)');
-                    
-                    // Prevent accidental exits during a live test
                     if (activeScreen && activeScreen.id === 'quiz-screen') {
                         history.pushState({ app: 'pioneers', screen: 'quiz-screen' }, document.title, window.location.href);
                         alert("Please use the 'Submit Quiz' button to exit.");
                         return;
                     }
-
-                    // Map the browser back button to the on-screen physical back button
                     if (activeScreen && activeScreen.id !== 'home-dashboard') {
                         var backBtn = activeScreen.querySelector('.back-btn');
                         if (backBtn) {
                             backEventTriggered = true;
-                            backBtn.click(); // Trigger your app's natural goBack() function
+                            backBtn.click();
                         } else {
                             window.location.href = '/';
                         }
                     }
                 });
 
-                // Handle manual clicks on the UI back button
                 document.addEventListener('click', function(e) {
                     if (e.target && e.target.classList.contains('back-btn')) {
                         backEventTriggered = true;
@@ -205,12 +294,14 @@ function serveDynamicHtml(req, res, fileName) {
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            // Harden third-party CDN script with crossorigin & no-referrer (Fixes Threat 2D)
+            .replace(/<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"\s*><\/script>/i,
+                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
             .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
             .replace('</body>', `${clientIntegrationScript}\n</body>`);
 
-        // Hide dashboard if arriving via a redirected link (like the homepage cards)
         if (req.query && req.query.class) {
             dynamicHtml = dynamicHtml.replace(/id="home-dashboard"\s*class="app-screen"/g, 'id="home-dashboard" class="app-screen hidden"');
         }
@@ -219,7 +310,7 @@ function serveDynamicHtml(req, res, fileName) {
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.setHeader('Content-Type', 'text/html');
-        
+
         res.send(dynamicHtml);
     });
 }
@@ -231,10 +322,18 @@ app.get(['/mock-tests', '/test-portal.html'], (req, res) => serveDynamicHtml(req
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
-// --- SECURITY HELPER FUNCTIONS ---
+// ============================================================================
+// 5. SECURITY, SHUFFLING & CACHED FILE SYSTEM HELPERS (Fixes 1C, 1D, 3B)
+// ============================================================================
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function maskEmail(email) {
+    if (!email || typeof email !== 'string' || !email.includes('@')) return 'unknown';
+    const [user, domain] = email.split('@');
+    return `${user.slice(0, 2)}***@${domain}`;
 }
 
 function safeCompareHex(sigA, sigB) {
@@ -261,9 +360,37 @@ function isSafeBase64Image(str) {
     return /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(str.trim());
 }
 
+// Deterministic per-student Fisher-Yates shuffle seeded by HMAC(SECRET, tokenSignature)
+// Guarantees every student gets a unique question/option order while surviving page refreshes
+function getDeterministicPermutation(length, seedString) {
+    const indices = Array.from({ length }, (_, i) => i);
+    if (length <= 1) return indices;
+    const hash = crypto.createHmac('sha256', SECRET).update(seedString).digest();
+    for (let i = length - 1; i > 0; i--) {
+        const byteOffset = (i * 4) % (hash.length - 4);
+        const randInt = hash.readUInt32BE(byteOffset);
+        const j = randInt % (i + 1);
+        const temp = indices[i];
+        indices[i] = indices[j];
+        indices[j] = temp;
+    }
+    return indices;
+}
+
+// Only shuffles MCQ options if they don't contain positional references like "Both A and B" or "All of the above"
+function getSafeOptionPermutation(options, seedString) {
+    if (!Array.isArray(options) || options.length <= 1) return [];
+    const hasPositionalRef = options.some(opt =>
+        /all of the|none of the|both\s*\(?[a-d1-4]|option\s*[a-d1-4]|\([a-d]\)\s*and\s*\([a-d]\)/i.test(String(opt))
+    );
+    if (hasPositionalRef) {
+        return Array.from({ length: options.length }, (_, i) => i);
+    }
+    return getDeterministicPermutation(options.length, seedString);
+}
+
 const RESERVED_JSON_NAMES = new Set(['submissions', 'package', 'package-lock', 'quizzes', 'notes', 'descriptive']);
 
-// --- CACHED FILE SYSTEM UTILITIES ---
 function getAllJsonFiles(dir, fileList = []) {
     if (!fs.existsSync(dir)) return fileList;
     const files = fs.readdirSync(dir);
@@ -283,6 +410,19 @@ function getCachedQuizFiles() {
     const files = getAllJsonFiles(quizzesDir);
     fsCache.quizPaths = { data: files, expiresAt: now + CACHE_TTL_MS };
     return files;
+}
+
+// Cached Quiz JSON reader: eliminates synchronous disk I/O bottlenecks during concurrent exams (Fixes Threat 3B)
+function getCachedQuizContent(filePath) {
+    if (!filePath) return null;
+    const now = Date.now();
+    const cached = fsCache.quizContentByPath.get(filePath);
+    if (cached && now < cached.expiresAt) return cached.content;
+
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const content = JSON.parse(raw);
+    setBoundedMap(fsCache.quizContentByPath, filePath, { content, expiresAt: now + CACHE_TTL_MS });
+    return content;
 }
 
 function resolveSafeQuizPath(rawId) {
@@ -306,15 +446,41 @@ function resolveSafeQuizPath(rawId) {
 function getOfficialQuizDuration(quizId, clientFallback) {
     const cleanId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanId);
-    if (filePath && fs.existsSync(filePath)) {
+    if (filePath) {
         try {
-            const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            if (Number(quizContent.duration) > 0) return Number(quizContent.duration);
-        } catch (err) { console.error('Error reading quiz duration from file:', err); }
+            const quizContent = getCachedQuizContent(filePath);
+            if (quizContent && Number(quizContent.duration) > 0) return Number(quizContent.duration);
+        } catch (err) { console.error('Error reading quiz duration:', err); }
     }
     const parsed = parseInt(clientFallback, 10);
     if (!isNaN(parsed) && parsed >= 60 && parsed <= 10800) return parsed;
     return 900;
+}
+
+// Atomic Session & Timer Lock: starts and locks the timer the moment questions OR start-quiz is requested (Fixes 1A & 1B)
+function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallback) {
+    const existing = activeExamSessions.get(authSignature);
+    if (existing) {
+        if (existing.quizId !== cleanQuizId) {
+            return { error: 'This verification session is already locked to another quiz.' };
+        }
+        return existing;
+    }
+
+    const officialDuration = getOfficialQuizDuration(cleanQuizId, clientDurationFallback);
+    const startTime = Date.now();
+    const dataToSign = `${cleanQuizId}:${officialDuration}:${startTime}`;
+    const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
+
+    const session = {
+        quizId: cleanQuizId,
+        startTime,
+        duration: officialDuration,
+        signature,
+        expiresAt: startTime + TOKEN_MAX_AGE_MS
+    };
+    setBoundedMap(activeExamSessions, authSignature, session);
+    return session;
 }
 
 function getAllPdfFiles(dir, fileList = []) {
@@ -366,31 +532,50 @@ function resolveSafeDescriptivePath(rawFileName) {
     return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
-const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
-
+// Verifies HMAC token and extracts cryptographically bound student identity (Fixes Threat 1C)
 function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
-    if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) return { valid: false, error: 'Security Alert: Invalid submission token.' };
+    if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
+        return { valid: false, error: 'Security Alert: Invalid submission token.' };
+    }
     const parts = authToken.split('|||');
     if (parts.length !== 2) return { valid: false, error: 'Security Alert: Malformed token.' };
-    
+
     const [tokenData, authSignature] = parts;
     const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
 
-    if (!safeCompareHex(authSignature, expectedAuthSig)) return { valid: false, error: 'Security Alert: Unauthorized or tampered session.' };
+    if (!safeCompareHex(authSignature, expectedAuthSig)) {
+        return { valid: false, error: 'Security Alert: Unauthorized or tampered session.' };
+    }
 
     const dataParts = tokenData.split('|');
     if (dataParts.length < 2) return { valid: false, error: 'Security Alert: Outdated session token.' };
-    
+
     const tokenEmail = dataParts[0];
-    const issuedAt = parseInt(dataParts[1], 10);
+    let issuedAt, firstName = '', lastName = '';
 
-    if (isNaN(issuedAt) || (Date.now() - issuedAt) > TOKEN_MAX_AGE_MS) return { valid: false, error: 'Session expired. Please verify your email again.' };
-    if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) return { valid: false, error: 'Security Alert: Token email mismatch.' };
-    if (checkReplay && usedAuthTokens.has(authSignature)) return { valid: false, error: 'This quiz session has already been submitted.' };
+    // Supports new 5-part identity-bound token and legacy 3-part token seamlessly
+    if (dataParts.length >= 5) {
+        firstName = decodeURIComponent(dataParts[1] || '');
+        lastName = decodeURIComponent(dataParts[2] || '');
+        issuedAt = parseInt(dataParts[3], 10);
+    } else {
+        issuedAt = parseInt(dataParts[1], 10);
+    }
 
-    return { valid: true, email: tokenEmail, signature: authSignature };
+    if (isNaN(issuedAt) || (Date.now() - issuedAt) > TOKEN_MAX_AGE_MS) {
+        return { valid: false, error: 'Session expired. Please verify your email again.' };
+    }
+    if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
+        return { valid: false, error: 'Security Alert: Token email mismatch.' };
+    }
+    if (checkReplay && usedAuthTokens.has(authSignature)) {
+        return { valid: false, error: 'This quiz session has already been submitted.' };
+    }
+
+    return { valid: true, email: tokenEmail, firstName, lastName, signature: authSignature };
 }
 
+// Sanitized, size-capped local backup with restricted file permissions (Fixes Threat 2C)
 let submissionWritePromise = Promise.resolve();
 function queueSubmissionBackup(entry) {
     submissionWritePromise = submissionWritePromise.then(async () => {
@@ -401,8 +586,13 @@ function queueSubmissionBackup(entry) {
                 const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
                 allSubmissions = JSON.parse(fileData);
             }
-            allSubmissions.push(entry);
-            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
+            // Strip internal secrets and heavy HTML from local disk log
+            const { secretKey, breakdown, ...safeMetadata } = entry;
+            allSubmissions.push(safeMetadata);
+            if (allSubmissions.length > 500) {
+                allSubmissions = allSubmissions.slice(-500);
+            }
+            await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2), { mode: 0o600 });
         } catch (err) { console.error('Local backup failed:', err); }
     });
     return submissionWritePromise;
@@ -412,9 +602,14 @@ setInterval(() => {
     const now = Date.now();
     for (const [email, record] of pendingOtps.entries()) { if (now > record.expiresAt) pendingOtps.delete(email); }
     for (const [ip, record] of otpIpRateLimit.entries()) { if (now > record.resetAt) otpIpRateLimit.delete(ip); }
+    for (const [ip, record] of verifyIpRateLimit.entries()) { if (now > record.resetAt) verifyIpRateLimit.delete(ip); }
+    for (const [ip, record] of submitIpRateLimit.entries()) { if (now > record.resetAt) submitIpRateLimit.delete(ip); }
     for (const [sig, expiresAt] of usedAuthTokens.entries()) { if (now > expiresAt) usedAuthTokens.delete(sig); }
+    for (const [sig, session] of activeExamSessions.entries()) { if (now > session.expiresAt) activeExamSessions.delete(sig); }
+    for (const [ip, expiresAt] of verifiedClientIps.entries()) { if (now > expiresAt) verifiedClientIps.delete(ip); }
 }, 5 * 60 * 1000);
 
+// Sitemap and Robot Directives
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
     res.send(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${SITE_URL}/sitemap.xml\n`);
@@ -437,6 +632,9 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
+// ============================================================================
+// 6. API ENDPOINTS
+// ============================================================================
 app.get('/api/descriptive-questions', (req, res) => {
     try {
         const now = Date.now();
@@ -544,7 +742,7 @@ app.get('/api/quizzes', (req, res) => {
         const allFiles = getCachedQuizFiles();
         const list = allFiles.map(fp => {
             try {
-                const c = JSON.parse(fs.readFileSync(fp, 'utf-8'));
+                const c = getCachedQuizContent(fp);
                 const fileBase = path.basename(fp, '.json');
                 return {
                     id: fileBase, title: c.title || fileBase, category: c.category || 'general',
@@ -562,63 +760,96 @@ app.get('/api/quizzes', (req, res) => {
     }
 });
 
+// Serves per-student deterministically shuffled questions & automatically starts/locks the server clock
 app.get('/api/quiz/:id', (req, res) => {
     if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''));
+    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''), null, true);
     if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
-    const filePath = resolveSafeQuizPath(req.params.id);
+    const cleanId = path.basename(String(req.params.id || '')).trim();
+    const filePath = resolveSafeQuizPath(cleanId);
     if (!filePath) return res.status(404).json({ error: "Not found" });
 
+    // Atomically lock session & start clock immediately so questions cannot be pre-fetched without the timer running
+    const session = getOrCreateExamSession(authCheck.signature, cleanId, null);
+    if (session.error) return res.status(403).json({ error: session.error });
+
     try {
-        const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        res.json((content.questions || []).map(q => ({
-            type: q.type || 'mcq', question: q.question, options: q.options || []
-        })));
-    } catch { res.status(500).json({ error: "Failed to read quiz file." }); }
+        const content = getCachedQuizContent(filePath);
+        const rawQuestions = content.questions || [];
+        const qOrder = getDeterministicPermutation(rawQuestions.length, `${authCheck.signature}:${cleanId}:q`);
+
+        const sanitizedQuestions = qOrder.map(origIdx => {
+            const q = rawQuestions[origIdx];
+            const qType = q.type || 'mcq';
+            let clientOptions = q.options || [];
+
+            if (qType === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
+                const optOrder = getSafeOptionPermutation(q.options, `${authCheck.signature}:${cleanId}:opt:${origIdx}`);
+                clientOptions = optOrder.map(oIdx => q.options[oIdx]);
+            }
+
+            return {
+                type: qType,
+                question: q.question,
+                options: clientOptions
+            };
+        });
+
+        res.json(sanitizedQuestions);
+    } catch {
+        res.status(500).json({ error: "Failed to read quiz file." });
+    }
 });
 
+// Returns the locked startTime if already started, preventing the Infinite Timer Reset exploit
 app.post('/api/start-quiz', (req, res) => {
-    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''));
+    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''), null, true);
     if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
     const { quizId, duration } = req.body;
     const cleanId = path.basename(String(quizId || '')).trim();
     if (!resolveSafeQuizPath(cleanId)) return res.status(400).json({ error: "Invalid quiz ID." });
 
-    const officialDuration = getOfficialQuizDuration(cleanId, duration);
-    const startTime = Date.now();
-    const dataToSign = `${cleanId}:${officialDuration}:${startTime}`;
-    const signature = crypto.createHmac('sha256', SECRET).update(dataToSign).digest('hex');
+    const session = getOrCreateExamSession(authCheck.signature, cleanId, duration);
+    if (session.error) return res.status(403).json({ error: session.error });
 
-    res.json({ startTime, duration: officialDuration, signature });
+    res.json({
+        startTime: session.startTime,
+        duration: session.duration,
+        signature: session.signature
+    });
 });
 
 app.post('/api/send-otp', (req, res) => {
     const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
     const now = Date.now();
 
-    const ipRecord = otpIpRateLimit.get(clientIp) || { count: 0, resetAt: now + 15 * 60 * 1000 };
-    if (now > ipRecord.resetAt) { ipRecord.count = 0; ipRecord.resetAt = now + 15 * 60 * 1000; }
-    ipRecord.count += 1;
-    otpIpRateLimit.set(clientIp, ipRecord);
-
-    if (ipRecord.count > 10) return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
+    if (!checkIpRateLimit(otpIpRateLimit, clientIp, 10, 15 * 60 * 1000)) {
+        return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
+    }
 
     const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
     const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
     const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
 
-    if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
+    if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
+    }
 
     const existingOtp = pendingOtps.get(email);
-    if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
+    if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) {
+        return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
+    }
 
     const otp = crypto.randomInt(100000, 1000000).toString();
-    pendingOtps.set(email, { otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now });
-    
-    console.log(`[OTP for ${email}]: ${otp}`);
-    
+    setBoundedMap(pendingOtps, email, {
+        otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now
+    });
+
+    // Masked log only — never print plaintext OTP codes to production logs (Fixes Threat 2B)
+    console.log(`[OTP Dispatched] Recipient: ${maskEmail(email)} at ${new Date().toISOString()}`);
+
     const scriptURL = process.env.APP_SCRIPT_URL;
     if (scriptURL) {
         fetch(scriptURL, {
@@ -634,6 +865,11 @@ app.post('/api/send-otp', (req, res) => {
 });
 
 app.post('/api/verify-otp', (req, res) => {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    if (!checkIpRateLimit(verifyIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
+        return res.status(429).json({ success: false, error: 'Too many verification attempts. Please wait 15 minutes.' });
+    }
+
     const email = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
     const otp = req.body.otp ? String(req.body.otp).trim() : '';
     const record = pendingOtps.get(email);
@@ -649,54 +885,86 @@ app.post('/api/verify-otp', (req, res) => {
         return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Request a new OTP.' });
     }
 
-    if (!safeCompareStrings(record.otp, otp)) return res.status(400).json({ success: false, error: 'Invalid verification code.' });
+    if (!safeCompareStrings(record.otp, otp)) {
+        return res.status(400).json({ success: false, error: 'Invalid verification code.' });
+    }
 
     pendingOtps.delete(email);
-    const tokenData = `${email}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
+
+    // Cryptographically bind firstName, lastName, and email inside the signed token (Fixes Threat 1C)
+    const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+
+    setBoundedMap(verifiedClientIps, clientIp, Date.now() + TOKEN_MAX_AGE_MS);
     res.json({ success: true, authToken: `${tokenData}|||${signature}` });
 });
 
-app.post('/api/submit', submitJsonParser, async (req, res) => {
-    const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
-    const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME';
-    const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : 'no-email';
-    
-    const { className, chapterTitle, quizId, userAnswers, isAutoSubmit, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
+app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, res) => {
+    const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : 'no-email';
+    const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
 
-    const authCheck = verifyAuthToken(authToken, email, true);
+    const authCheck = verifyAuthToken(authToken || req.get('Authorization')?.replace('Bearer ', ''), rawEmail, true);
     if (!authCheck.valid) return res.status(403).json({ success: false, error: authCheck.error });
+
+    // Use cryptographically bound name from token so students cannot spoof another student's name (Fixes Threat 1C)
+    const firstName = authCheck.firstName || (req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN');
+    const lastName = authCheck.lastName || (req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME');
+    const email = authCheck.email;
 
     const cleanQuizId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanQuizId);
     if (!filePath) return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
 
-    if (!serverStartTime || !timerSignature || !quizDuration) return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
+    // Validate against server-locked session if present, plus HMAC timer signature (Fixes Threats 1A & 1B)
+    const lockedSession = activeExamSessions.get(authCheck.signature);
+    if (lockedSession && lockedSession.quizId !== cleanQuizId) {
+        return res.status(400).json({ success: false, error: 'Quiz ID mismatch with active exam session.' });
+    }
 
-    const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`).digest('hex');
-    if (!safeCompareHex(timerSignature, expectedTimerSig)) return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
+    const effectiveStartTime = lockedSession ? lockedSession.startTime : Number(serverStartTime);
+    const effectiveDuration = lockedSession ? lockedSession.duration : Number(quizDuration);
 
-    const elapsedSeconds = (Date.now() - Number(serverStartTime)) / 1000;
-    if (elapsedSeconds < 0 || elapsedSeconds > Number(quizDuration) + 120) return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
+    if (!effectiveStartTime || !timerSignature || !effectiveDuration) {
+        return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
+    }
+
+    const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${effectiveDuration}:${effectiveStartTime}`).digest('hex');
+    if (!safeCompareHex(timerSignature, expectedTimerSig)) {
+        return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
+    }
+
+    const elapsedSeconds = (Date.now() - effectiveStartTime) / 1000;
+    if (elapsedSeconds < 0 || elapsedSeconds > effectiveDuration + 120) {
+        return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
+    }
 
     try {
         const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
-        const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        const content = getCachedQuizContent(filePath);
         const realQuestions = content.questions || [];
 
-        let correctCount = 0, incorrectCount = 0;
+        let correctCount = 0, incorrectCount = 0, attemptedCount = 0;
         const totalCount = realQuestions.length;
-        const attemptedCount = Object.keys(safeUserAnswers).length;
 
-        if (!isAutoSubmit && attemptedCount < totalCount) return res.status(400).json({ success: false, error: `Only ${attemptedCount} out of ${totalCount} questions answered.` });
+        // Immediately burn token and clear active session to prevent replay (Fixes Threat 1A)
+        setBoundedMap(usedAuthTokens, authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
+        activeExamSessions.delete(authCheck.signature);
 
-        usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
+        // Reconstruct the exact permutation shown to this student to grade and report in canonical order (Fixes Threat 1D)
+        const qOrder = getDeterministicPermutation(totalCount, `${authCheck.signature}:${cleanQuizId}:q`);
+        const origToClientIndex = new Array(totalCount);
+        qOrder.forEach((origIdx, clientIdx) => {
+            origToClientIndex[origIdx] = clientIdx;
+        });
 
         let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;"><tr style="background-color:#f1f5f9;text-align:left;"><th>#</th><th>Question</th><th>Student's Selection</th><th>Correct Option</th><th>Status</th></tr>`;
 
-        realQuestions.forEach((q, index) => {
-            const response = safeUserAnswers[index.toString()] !== undefined ? safeUserAnswers[index.toString()] : safeUserAnswers[index];
-            const attempted = response !== undefined && response !== "";
+        realQuestions.forEach((q, origIndex) => {
+            const clientIdx = origToClientIndex[origIndex];
+            const response = safeUserAnswers[clientIdx.toString()] !== undefined ? safeUserAnswers[clientIdx.toString()] : safeUserAnswers[clientIdx];
+            const attempted = response !== undefined && response !== null && response !== "";
+            if (attempted) attemptedCount++;
+
             let isCorrect = false, selText = "Skipped", corrText = "N/A", rawStatus = "Skipped", statusColor = "yellow";
 
             if (q.type === 'descriptive' || q.type === 'diagram') {
@@ -712,21 +980,24 @@ app.post('/api/submit', submitJsonParser, async (req, res) => {
                 rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
                 statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
             } else {
-                const idx = parseInt(response, 10);
-                isCorrect = attempted && idx === q.answer;
+                const clientOptIdx = parseInt(response, 10);
+                const optOrder = getSafeOptionPermutation(q.options || [], `${authCheck.signature}:${cleanQuizId}:opt:${origIndex}`);
+                const actualOptIdx = (attempted && !isNaN(clientOptIdx) && optOrder[clientOptIdx] !== undefined) ? optOrder[clientOptIdx] : clientOptIdx;
+
+                isCorrect = attempted && actualOptIdx === q.answer;
                 if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
-                selText = attempted ? escapeHtml(q.options?.[idx] || "Unknown") : "Skipped";
+                selText = attempted ? escapeHtml(q.options?.[actualOptIdx] || "Unknown") : "Skipped";
                 corrText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
                 rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
                 statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
             }
-            
+
             let questionText = escapeHtml(q.question || "N/A");
             if (q.explanation) {
                 questionText += `<br><br><span style="color: green;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>`;
             }
 
-            breakdownHtml += `<tr><td>${index + 1}</td><td>${questionText}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
+            breakdownHtml += `<tr><td>${origIndex + 1}</td><td>${questionText}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
         });
         breakdownHtml += `</table>`;
 
@@ -746,7 +1017,9 @@ app.post('/api/submit', submitJsonParser, async (req, res) => {
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (scriptURL) fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
-    } catch (err) { res.status(500).json({ success: false, error: 'Grading failed.' }); }
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Grading failed.' });
+    }
 });
 
 const PING_INTERVAL = 14 * 60 * 1000;
