@@ -53,7 +53,17 @@ app.use((req, res, next) => {
 });
 
 // Serve static website files from public/
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static website files with automatic cache-busting
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filePath) => {
+        // Forces mobile browsers to immediately apply updates to JS, CSS, and HTML files
+        if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 // --- SECURITY HELPER FUNCTIONS ---
 function escapeHtml(str) {
