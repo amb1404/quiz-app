@@ -10,20 +10,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SITE_URL = 'https://pioneersprep.in';
 
-// Trust Cloudflare / Render reverse proxy headers for accurate IP rate-limiting
+// Generates a unique version ID every time the server restarts (e.g., on a new GitHub push)
+const APP_VERSION = Date.now(); 
+
 app.set('trust proxy', 1);
 
-// FIX 4: Cryptographically random fallback secret prevents token forgery if env var is unset
 const SECRET = process.env.TIMER_SECRET || crypto.randomBytes(32).toString('hex');
 const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
 const ADMIN_EMAIL = process.env.TARGET_EMAIL || 'anibanerjee699@gmail.com';
 
-// In-memory security stores with automatic garbage collection
 const pendingOtps = new Map();
 const otpIpRateLimit = new Map();
 const usedAuthTokens = new Map();
 
-// FIX 7: In-memory cache to avoid blocking synchronous disk reads on every request
 const CACHE_TTL_MS = 60 * 1000;
 const fsCache = {
     quizzesList: { data: null, expiresAt: 0 },
@@ -34,7 +33,6 @@ const fsCache = {
     descPaths: { data: null, expiresAt: 0 }
 };
 
-// FIX 5: Strict 50kb global JSON payload limit (15mb is applied only on /api/submit)
 const defaultJsonParser = express.json({ limit: '50kb' });
 const submitJsonParser = express.json({ limit: '15mb' });
 
@@ -52,28 +50,48 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static website files from public/
-// Serve static website files with automatic cache-busting
-app.use(express.static(path.join(__dirname, 'public'), {
-    setHeaders: (res, filePath) => {
-        // Forces mobile browsers to immediately apply updates to JS, CSS, and HTML files
-        if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
-        }
-    }
-}));
+
+// ============================================================================
+// DYNAMIC HTML INTERCEPTOR (AUTO CACHE-BUSTING)
+// ============================================================================
+
+// Intercepts HTML requests to inject the APP_VERSION dynamically without touching physical files
+function serveDynamicHtml(res, fileName) {
+    const filePath = path.join(__dirname, 'public', fileName);
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) return res.status(500).send("Page not found");
+
+        // Automatically inject the version tag into JS and CSS links in memory
+        let dynamicHtml = data
+            .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`);
+
+        // Tell the browser never to cache the HTML page itself
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'text/html');
+        
+        res.send(dynamicHtml);
+    });
+}
+
+// Map all expected routes to the dynamic HTML interceptor BEFORE express.static
+app.get('/', (req, res) => serveDynamicHtml(res, 'index.html'));
+app.get(['/notes', '/study-notes', '/notes.html'], (req, res) => serveDynamicHtml(res, 'notes.html'));
+app.get(['/descriptive', '/descriptive-papers', '/descriptive.html'], (req, res) => serveDynamicHtml(res, 'descriptive.html'));
+app.get(['/mock-tests', '/test-portal.html'], (req, res) => serveDynamicHtml(res, 'test-portal.html'));
+
+
+// Serve static website files (CSS, JS, PDFs) allowing HTML to be handled by the routes above
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
 
 // --- SECURITY HELPER FUNCTIONS ---
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function safeCompareHex(sigA, sigB) {
@@ -84,9 +102,7 @@ function safeCompareHex(sigA, sigB) {
         const bufB = Buffer.from(sigB, 'hex');
         if (bufA.length !== bufB.length || bufA.length === 0) return false;
         return crypto.timingSafeEqual(bufA, bufB);
-    } catch {
-        return false;
-    }
+    } catch { return false; }
 }
 
 function safeCompareStrings(strA, strB) {
@@ -97,15 +113,12 @@ function safeCompareStrings(strA, strB) {
     return crypto.timingSafeEqual(bufA, bufB);
 }
 
-// FIX 1: Strict validation for base64 raster images (blocks XSS attribute breakout)
 function isSafeBase64Image(str) {
     if (typeof str !== 'string') return false;
     return /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(str.trim());
 }
 
-const RESERVED_JSON_NAMES = new Set([
-    'submissions', 'package', 'package-lock', 'quizzes', 'notes', 'descriptive'
-]);
+const RESERVED_JSON_NAMES = new Set(['submissions', 'package', 'package-lock', 'quizzes', 'notes', 'descriptive']);
 
 // --- CACHED FILE SYSTEM UTILITIES ---
 function getAllJsonFiles(dir, fileList = []) {
@@ -113,20 +126,15 @@ function getAllJsonFiles(dir, fileList = []) {
     const files = fs.readdirSync(dir);
     for (const file of files) {
         const filePath = path.join(dir, file);
-        if (fs.statSync(filePath).isDirectory()) {
-            getAllJsonFiles(filePath, fileList);
-        } else if (file.toLowerCase().endsWith('.json')) {
-            fileList.push(filePath);
-        }
+        if (fs.statSync(filePath).isDirectory()) getAllJsonFiles(filePath, fileList);
+        else if (file.toLowerCase().endsWith('.json')) fileList.push(filePath);
     }
     return fileList;
 }
 
 function getCachedQuizFiles() {
     const now = Date.now();
-    if (fsCache.quizPaths.data && now < fsCache.quizPaths.expiresAt) {
-        return fsCache.quizPaths.data;
-    }
+    if (fsCache.quizPaths.data && now < fsCache.quizPaths.expiresAt) return fsCache.quizPaths.data;
     const quizzesDir = path.join(__dirname, 'quizzes');
     if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
     const files = getAllJsonFiles(quizzesDir);
@@ -149,7 +157,6 @@ function resolveSafeQuizPath(rawId) {
         const fileName = path.basename(filePath);
         return fileName === target1 || fileName === target2 || fileName === target3;
     });
-
     return matchedPath || null;
 }
 
@@ -159,12 +166,8 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     if (filePath && fs.existsSync(filePath)) {
         try {
             const quizContent = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            if (Number(quizContent.duration) > 0) {
-                return Number(quizContent.duration);
-            }
-        } catch (err) {
-            console.error('Error reading quiz duration from file:', err);
-        }
+            if (Number(quizContent.duration) > 0) return Number(quizContent.duration);
+        } catch (err) { console.error('Error reading quiz duration from file:', err); }
     }
     const parsed = parseInt(clientFallback, 10);
     if (!isNaN(parsed) && parsed >= 60 && parsed <= 10800) return parsed;
@@ -176,20 +179,15 @@ function getAllPdfFiles(dir, fileList = []) {
     const files = fs.readdirSync(dir);
     for (const file of files) {
         const filePath = path.join(dir, file);
-        if (fs.statSync(filePath).isDirectory()) {
-            getAllPdfFiles(filePath, fileList);
-        } else if (file.toLowerCase().endsWith('.pdf')) {
-            fileList.push(filePath);
-        }
+        if (fs.statSync(filePath).isDirectory()) getAllPdfFiles(filePath, fileList);
+        else if (file.toLowerCase().endsWith('.pdf')) fileList.push(filePath);
     }
     return fileList;
 }
 
 function getCachedNoteFiles() {
     const now = Date.now();
-    if (fsCache.notePaths.data && now < fsCache.notePaths.expiresAt) {
-        return fsCache.notePaths.data;
-    }
+    if (fsCache.notePaths.data && now < fsCache.notePaths.expiresAt) return fsCache.notePaths.data;
     const notesDir = path.join(__dirname, 'notes');
     if (!fs.existsSync(notesDir)) fs.mkdirSync(notesDir, { recursive: true });
     const files = getAllPdfFiles(notesDir);
@@ -199,9 +197,7 @@ function getCachedNoteFiles() {
 
 function getCachedDescFiles() {
     const now = Date.now();
-    if (fsCache.descPaths.data && now < fsCache.descPaths.expiresAt) {
-        return fsCache.descPaths.data;
-    }
+    if (fsCache.descPaths.data && now < fsCache.descPaths.expiresAt) return fsCache.descPaths.data;
     const descDir = path.join(__dirname, 'descriptive');
     if (!fs.existsSync(descDir)) fs.mkdirSync(descDir, { recursive: true });
     ['IX', 'X', 'XI', 'XII'].forEach(c => {
@@ -230,38 +226,24 @@ function resolveSafeDescriptivePath(rawFileName) {
 const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 
 function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
-    if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
-        return { valid: false, error: 'Security Alert: Invalid submission token.' };
-    }
+    if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) return { valid: false, error: 'Security Alert: Invalid submission token.' };
     const parts = authToken.split('|||');
-    if (parts.length !== 2) {
-        return { valid: false, error: 'Security Alert: Malformed token.' };
-    }
+    if (parts.length !== 2) return { valid: false, error: 'Security Alert: Malformed token.' };
+    
     const [tokenData, authSignature] = parts;
     const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
 
-    if (!safeCompareHex(authSignature, expectedAuthSig)) {
-        return { valid: false, error: 'Security Alert: Unauthorized or tampered session.' };
-    }
+    if (!safeCompareHex(authSignature, expectedAuthSig)) return { valid: false, error: 'Security Alert: Unauthorized or tampered session.' };
 
     const dataParts = tokenData.split('|');
-    if (dataParts.length < 2) {
-        return { valid: false, error: 'Security Alert: Outdated session token.' };
-    }
+    if (dataParts.length < 2) return { valid: false, error: 'Security Alert: Outdated session token.' };
+    
     const tokenEmail = dataParts[0];
     const issuedAt = parseInt(dataParts[1], 10);
 
-    if (isNaN(issuedAt) || (Date.now() - issuedAt) > TOKEN_MAX_AGE_MS) {
-        return { valid: false, error: 'Session expired. Please verify your email again.' };
-    }
-
-    if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
-        return { valid: false, error: 'Security Alert: Token email mismatch.' };
-    }
-
-    if (checkReplay && usedAuthTokens.has(authSignature)) {
-        return { valid: false, error: 'This quiz session has already been submitted.' };
-    }
+    if (isNaN(issuedAt) || (Date.now() - issuedAt) > TOKEN_MAX_AGE_MS) return { valid: false, error: 'Session expired. Please verify your email again.' };
+    if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) return { valid: false, error: 'Security Alert: Token email mismatch.' };
+    if (checkReplay && usedAuthTokens.has(authSignature)) return { valid: false, error: 'This quiz session has already been submitted.' };
 
     return { valid: true, email: tokenEmail, signature: authSignature };
 }
@@ -278,40 +260,17 @@ function queueSubmissionBackup(entry) {
             }
             allSubmissions.push(entry);
             await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2));
-        } catch (err) {
-            console.error('Local backup failed:', err);
-        }
+        } catch (err) { console.error('Local backup failed:', err); }
     });
     return submissionWritePromise;
 }
 
-// Memory Garbage Collection Loop
 setInterval(() => {
     const now = Date.now();
-    for (const [email, record] of pendingOtps.entries()) {
-        if (now > record.expiresAt) pendingOtps.delete(email);
-    }
-    for (const [ip, record] of otpIpRateLimit.entries()) {
-        if (now > record.resetAt) otpIpRateLimit.delete(ip);
-    }
-    for (const [sig, expiresAt] of usedAuthTokens.entries()) {
-        if (now > expiresAt) usedAuthTokens.delete(sig);
-    }
+    for (const [email, record] of pendingOtps.entries()) { if (now > record.expiresAt) pendingOtps.delete(email); }
+    for (const [ip, record] of otpIpRateLimit.entries()) { if (now > record.resetAt) otpIpRateLimit.delete(ip); }
+    for (const [sig, expiresAt] of usedAuthTokens.entries()) { if (now > expiresAt) usedAuthTokens.delete(sig); }
 }, 5 * 60 * 1000);
-
-// --- MULTI-PAGE WEBSITE ROUTES ---
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-app.get(['/notes', '/study-notes'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'notes.html'));
-});
-app.get(['/descriptive', '/descriptive-papers'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'descriptive.html'));
-});
-app.get('/mock-tests', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'test-portal.html'));
-});
 
 // Sitemap and Robot Directives
 app.get('/robots.txt', (req, res) => {
@@ -340,9 +299,7 @@ app.get('/ping', (req, res) => res.status(200).send('Awake'));
 app.get('/api/descriptive-questions', (req, res) => {
     try {
         const now = Date.now();
-        if (fsCache.descList.data && now < fsCache.descList.expiresAt) {
-            return res.json({ success: true, files: fsCache.descList.data });
-        }
+        if (fsCache.descList.data && now < fsCache.descList.expiresAt) return res.json({ success: true, files: fsCache.descList.data });
 
         const allFiles = getCachedDescFiles();
         const grouped = { 'IX': [], 'X': [], 'XI': [], 'XII': [] };
@@ -351,10 +308,10 @@ app.get('/api/descriptive-questions', (req, res) => {
             const fileName = path.basename(fullPath);
             const lowerPath = fullPath.toLowerCase().replace(/\\/g, '/');
             let mClass = null;
-            if (lowerPath.includes('/descriptive/ix/') || lowerPath.includes('/descriptive/class 9/') || lowerPath.includes('/descriptive/class9/')) mClass = 'IX';
-            else if (lowerPath.includes('/descriptive/x/') || lowerPath.includes('/descriptive/class 10/') || lowerPath.includes('/descriptive/class10/')) mClass = 'X';
-            else if (lowerPath.includes('/descriptive/xi/') || lowerPath.includes('/descriptive/class 11/') || lowerPath.includes('/descriptive/class11/')) mClass = 'XI';
-            else if (lowerPath.includes('/descriptive/xii/') || lowerPath.includes('/descriptive/class 12/') || lowerPath.includes('/descriptive/class12/')) mClass = 'XII';
+            if (lowerPath.includes('/descriptive/ix/') || lowerPath.includes('/class 9/') || lowerPath.includes('/class9/')) mClass = 'IX';
+            else if (lowerPath.includes('/descriptive/x/') || lowerPath.includes('/class 10/') || lowerPath.includes('/class10/')) mClass = 'X';
+            else if (lowerPath.includes('/descriptive/xi/') || lowerPath.includes('/class 11/') || lowerPath.includes('/class11/')) mClass = 'XI';
+            else if (lowerPath.includes('/descriptive/xii/') || lowerPath.includes('/class 12/') || lowerPath.includes('/class12/')) mClass = 'XII';
             else {
                 const parent = path.basename(path.dirname(fullPath)).toUpperCase();
                 if (['IX', 'X', 'XI', 'XII'].includes(parent)) mClass = parent;
@@ -387,9 +344,7 @@ app.get('/api/download-descriptive/:fileName', (req, res) => {
 app.get('/api/notes', (req, res) => {
     try {
         const now = Date.now();
-        if (fsCache.notesList.data && now < fsCache.notesList.expiresAt) {
-            return res.json(fsCache.notesList.data);
-        }
+        if (fsCache.notesList.data && now < fsCache.notesList.expiresAt) return res.json(fsCache.notesList.data);
 
         const files = getCachedNoteFiles();
         const grouped = {
@@ -403,30 +358,18 @@ app.get('/api/notes', (req, res) => {
             const fileName = path.basename(fullPath);
             const lowerPath = fullPath.toLowerCase().replace(/\\/g, '/');
             let cls = 'XI';
-            if (lowerPath.includes('/ix/') || lowerPath.includes('/class9/') || lowerPath.includes('/class 9/') || lowerPath.includes('class9') || lowerPath.includes('class_9') || lowerPath.includes('class-9')) cls = 'IX';
-            else if (lowerPath.includes('/x/') || lowerPath.includes('/class10/') || lowerPath.includes('/class 10/') || lowerPath.includes('class10') || lowerPath.includes('class_10') || lowerPath.includes('class-10')) cls = 'X';
-            else if (lowerPath.includes('/xi/') || lowerPath.includes('/class11/') || lowerPath.includes('/class 11/') || lowerPath.includes('class11') || lowerPath.includes('class_11') || lowerPath.includes('class-11')) cls = 'XI';
-            else if (lowerPath.includes('/xii/') || lowerPath.includes('/class12/') || lowerPath.includes('/class 12/') || lowerPath.includes('class12') || lowerPath.includes('class_12') || lowerPath.includes('class-12')) cls = 'XII';
+            if (lowerPath.includes('/ix/') || lowerPath.includes('class9') || lowerPath.includes('class_9') || lowerPath.includes('class-9')) cls = 'IX';
+            else if (lowerPath.includes('/x/') || lowerPath.includes('class10') || lowerPath.includes('class_10') || lowerPath.includes('class-10')) cls = 'X';
+            else if (lowerPath.includes('/xi/') || lowerPath.includes('class11') || lowerPath.includes('class_11') || lowerPath.includes('class-11')) cls = 'XI';
+            else if (lowerPath.includes('/xii/') || lowerPath.includes('class12') || lowerPath.includes('class_12') || lowerPath.includes('class-12')) cls = 'XII';
 
             let subject = 'Biology';
             if (lowerPath.includes('physics')) subject = 'Physics';
             else if (lowerPath.includes('chemistry')) subject = 'Chemistry';
-            else if (lowerPath.includes('biology')) subject = 'Biology';
 
-            const title = path.basename(fileName, '.pdf')
-                .replace(/[_]/g, ' ')
-                .replace(/-/g, ' ')
-                .replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '')
-                .replace(/(physics|chemistry|biology)/gi, '')
-                .trim()
-                .replace(/\b\w/g, c => c.toUpperCase());
+            const title = path.basename(fileName, '.pdf').replace(/[_]/g, ' ').replace(/-/g, ' ').replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '').replace(/(physics|chemistry|biology)/gi, '').trim().replace(/\b\w/g, c => c.toUpperCase());
 
-            if (grouped[cls] && grouped[cls][subject]) {
-                grouped[cls][subject].push({
-                    name: title || fileName,
-                    fileName
-                });
-            }
+            if (grouped[cls] && grouped[cls][subject]) grouped[cls][subject].push({ name: title || fileName, fileName });
         });
 
         const formatted = [];
@@ -455,9 +398,7 @@ app.get('/api/download-note/:fileName', (req, res) => {
 app.get('/api/quizzes', (req, res) => {
     try {
         const now = Date.now();
-        if (fsCache.quizzesList.data && now < fsCache.quizzesList.expiresAt) {
-            return res.json({ success: true, quizzes: fsCache.quizzesList.data });
-        }
+        if (fsCache.quizzesList.data && now < fsCache.quizzesList.expiresAt) return res.json({ success: true, quizzes: fsCache.quizzesList.data });
 
         const allFiles = getCachedQuizFiles();
         const list = allFiles.map(fp => {
@@ -465,20 +406,12 @@ app.get('/api/quizzes', (req, res) => {
                 const c = JSON.parse(fs.readFileSync(fp, 'utf-8'));
                 const fileBase = path.basename(fp, '.json');
                 return {
-                    id: fileBase,
-                    title: c.title || fileBase,
-                    category: c.category || 'general',
-                    classLevel: c.classLevel || 'xi',
-                    subject: c.subject || 'general',
-                    unit: c.unit || '',
-                    chapter: c.chapter || '',
-                    topic: c.topic || '',
-                    duration: c.duration || 900,
+                    id: fileBase, title: c.title || fileBase, category: c.category || 'general',
+                    classLevel: c.classLevel || 'xi', subject: c.subject || 'general', unit: c.unit || '',
+                    chapter: c.chapter || '', topic: c.topic || '', duration: c.duration || 900,
                     totalQuestions: c.questions ? c.questions.length : 0
                 };
-            } catch {
-                return null;
-            }
+            } catch { return null; }
         }).filter(Boolean);
 
         fsCache.quizzesList = { data: list, expiresAt: now + CACHE_TTL_MS };
@@ -499,13 +432,9 @@ app.get('/api/quiz/:id', (req, res) => {
     try {
         const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         res.json((content.questions || []).map(q => ({
-            type: q.type || 'mcq',
-            question: q.question,
-            options: q.options || []
+            type: q.type || 'mcq', question: q.question, options: q.options || []
         })));
-    } catch {
-        res.status(500).json({ error: "Failed to read quiz file." });
-    }
+    } catch { res.status(500).json({ error: "Failed to read quiz file." }); }
 });
 
 app.post('/api/start-quiz', (req, res) => {
@@ -524,47 +453,28 @@ app.post('/api/start-quiz', (req, res) => {
     res.json({ startTime, duration: officialDuration, signature });
 });
 
-// FIX 2: Per-IP rate limiting and per-email cooldown on /api/send-otp
 app.post('/api/send-otp', (req, res) => {
     const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
     const now = Date.now();
 
-    // Enforce IP rate limit: Max 10 OTP requests per 15 minutes
     const ipRecord = otpIpRateLimit.get(clientIp) || { count: 0, resetAt: now + 15 * 60 * 1000 };
-    if (now > ipRecord.resetAt) {
-        ipRecord.count = 0;
-        ipRecord.resetAt = now + 15 * 60 * 1000;
-    }
+    if (now > ipRecord.resetAt) { ipRecord.count = 0; ipRecord.resetAt = now + 15 * 60 * 1000; }
     ipRecord.count += 1;
     otpIpRateLimit.set(clientIp, ipRecord);
 
-    if (ipRecord.count > 10) {
-        return res.status(429).json({ success: false, error: 'Too many OTP requests from this network. Please wait 15 minutes.' });
-    }
+    if (ipRecord.count > 10) return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
 
     const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
     const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
     const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
 
-    if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email are required.' });
-    }
+    if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
 
-    // Enforce 60-second resend cooldown per email address
     const existingOtp = pendingOtps.get(email);
-    if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) {
-        return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
-    }
+    if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
 
     const otp = crypto.randomInt(100000, 1000000).toString();
-    pendingOtps.set(email, {
-        otp,
-        firstName,
-        lastName,
-        expiresAt: now + 5 * 60 * 1000,
-        attempts: 0,
-        lastSentAt: now
-    });
+    pendingOtps.set(email, { otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now });
     
     console.log(`[OTP for ${email}]: ${otp}`);
     
@@ -574,23 +484,14 @@ app.post('/api/send-otp', (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                type: 'otp',
-                targetEmail: email,
-                subject: 'Pioneers Prep - Verification Code',
-                secretKey: APPS_SECRET,
-                breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">` +
-                           `<h2>Hello ${escapeHtml(firstName)} ${escapeHtml(lastName)},</h2>` +
-                           `<p>Your verification code to start the mock test on <b>Pioneers Prep</b> is:</p>` +
-                           `<h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1>` +
-                           `<p>This code is valid for 5 minutes. Do not share this code with anyone.</p>` +
-                           `</div>`
+                type: 'otp', targetEmail: email, subject: 'Pioneers Prep - Verification Code', secretKey: APPS_SECRET,
+                breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;"><h2>Hello ${escapeHtml(firstName)} ${escapeHtml(lastName)},</h2><p>Your verification code is:</p><h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1><p>Code is valid for 5 minutes. Do not share this with anyone.</p></div>`
             })
-        }).catch(err => console.error('Background OTP email error:', err));
+        }).catch(err => console.error('OTP email error:', err));
     }
     res.json({ success: true });
 });
 
-// FIX 2: Immediate expiration check, 5-attempt brute-force lockout & timing-safe OTP check
 app.post('/api/verify-otp', (req, res) => {
     const email = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
     const otp = req.body.otp ? String(req.body.otp).trim() : '';
@@ -598,27 +499,23 @@ app.post('/api/verify-otp', (req, res) => {
 
     if (!record || Date.now() > record.expiresAt) {
         pendingOtps.delete(email);
-        return res.status(400).json({ success: false, error: 'Verification code expired or not found. Please request a new OTP.' });
+        return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
     }
 
     record.attempts = (record.attempts || 0) + 1;
     if (record.attempts > 5) {
         pendingOtps.delete(email);
-        return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Please request a new OTP.' });
+        return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Request a new OTP.' });
     }
 
-    if (!safeCompareStrings(record.otp, otp)) {
-        return res.status(400).json({ success: false, error: 'Invalid verification code entered.' });
-    }
+    if (!safeCompareStrings(record.otp, otp)) return res.status(400).json({ success: false, error: 'Invalid verification code.' });
 
     pendingOtps.delete(email);
-    const nonce = crypto.randomBytes(8).toString('hex');
-    const tokenData = `${email}|${Date.now()}|${nonce}`;
+    const tokenData = `${email}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
     res.json({ success: true, authToken: `${tokenData}|||${signature}` });
 });
 
-// FIX 1, 3, 5: Scoped 15mb parser, mandatory timer signature & elapsed duration enforcement, safe base64 image validation
 app.post('/api/submit', submitJsonParser, async (req, res) => {
     const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN';
     const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME';
@@ -631,51 +528,30 @@ app.post('/api/submit', submitJsonParser, async (req, res) => {
 
     const cleanQuizId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanQuizId);
-    if (!filePath) return res.status(400).json({ success: false, error: 'Security Alert: Invalid quiz identifier.' });
+    if (!filePath) return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
 
-    // FIX 3: Mandatory timer verification and server-side elapsed time check
-    if (!serverStartTime || !timerSignature || !quizDuration) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Missing quiz timer credentials.' });
-    }
+    if (!serverStartTime || !timerSignature || !quizDuration) return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
 
-    const expectedTimerSig = crypto
-        .createHmac('sha256', SECRET)
-        .update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`)
-        .digest('hex');
-
-    if (!safeCompareHex(timerSignature, expectedTimerSig)) {
-        return res.status(400).json({ success: false, error: 'Security Alert: Tampered timer token detected.' });
-    }
+    const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${quizDuration}:${serverStartTime}`).digest('hex');
+    if (!safeCompareHex(timerSignature, expectedTimerSig)) return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
 
     const elapsedSeconds = (Date.now() - Number(serverStartTime)) / 1000;
-    const allowedSeconds = Number(quizDuration) + 120; // 120s grace period for network latency
-    if (elapsedSeconds < 0 || elapsedSeconds > allowedSeconds) {
-        return res.status(400).json({ success: false, error: 'Submission rejected: Quiz time limit exceeded.' });
-    }
+    if (elapsedSeconds < 0 || elapsedSeconds > Number(quizDuration) + 120) return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
 
     try {
         const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
         const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         const realQuestions = content.questions || [];
 
-        let correctCount = 0;
-        let incorrectCount = 0;
+        let correctCount = 0, incorrectCount = 0;
         const totalCount = realQuestions.length;
         const attemptedCount = Object.keys(safeUserAnswers).length;
-        const skippedCount = totalCount - attemptedCount;
 
-        if (!isAutoSubmit && attemptedCount < totalCount) {
-            return res.status(400).json({
-                success: false,
-                error: `Submission rejected. Only ${attemptedCount} out of ${totalCount} questions were answered.`
-            });
-        }
+        if (!isAutoSubmit && attemptedCount < totalCount) return res.status(400).json({ success: false, error: `Only ${attemptedCount} out of ${totalCount} questions answered.` });
 
         usedAuthTokens.set(authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
 
-        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 16px;">` +
-            `<tr style="background-color: #f1f5f9; text-align: left;">` +
-            `<th style="width: 5%;">#</th><th style="width: 40%;">Question</th><th style="width: 25%;">Student's Selection</th><th style="width: 20%;">Correct Option</th><th style="width: 10%; text-align: center;">Status</th></tr>`;
+        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;"><tr style="background-color:#f1f5f9;text-align:left;"><th>#</th><th>Question</th><th>Selection</th><th>Correct</th><th>Status</th></tr>`;
 
         realQuestions.forEach((q, index) => {
             const response = safeUserAnswers[index.toString()] !== undefined ? safeUserAnswers[index.toString()] : safeUserAnswers[index];
@@ -683,93 +559,54 @@ app.post('/api/submit', submitJsonParser, async (req, res) => {
             let isCorrect = false, selText = "Skipped", corrText = "N/A", rawStatus = "Skipped", statusColor = "yellow";
 
             if (q.type === 'descriptive' || q.type === 'diagram') {
-                // FIX 1: Strict regex check on base64 image before embedding into <img> src
-                if (attempted && isSafeBase64Image(response)) {
-                    selText = `<img src="${response.trim()}" style="max-width: 200px; border-radius: 4px;" />`;
-                } else {
-                    selText = attempted ? escapeHtml(response) : "Skipped";
-                }
+                if (attempted && isSafeBase64Image(response)) selText = `<img src="${response.trim()}" style="max-width:200px;border-radius:4px;" />`;
+                else selText = attempted ? escapeHtml(response) : "Skipped";
                 corrText = escapeHtml(q.model_answer || "Refer to marking scheme");
-                if (attempted) {
-                    rawStatus = "Needs Review";
-                    statusColor = "orange";
-                }
+                if (attempted) { rawStatus = "Needs Review"; statusColor = "orange"; }
             } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
                 selText = attempted ? escapeHtml(response) : "Skipped";
                 corrText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
                 isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
-                if (isCorrect) correctCount++;
-                else if (attempted) incorrectCount++;
+                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
                 rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
                 statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
             } else {
                 const idx = parseInt(response, 10);
                 isCorrect = attempted && idx === q.answer;
-                if (isCorrect) correctCount++;
-                else if (attempted) incorrectCount++;
+                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
                 selText = attempted ? escapeHtml(q.options?.[idx] || "Unknown") : "Skipped";
                 corrText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
                 rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
                 statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
             }
-
-            const statusText = `<span style="background-color: ${statusColor}; color: black; font-weight: bold; padding: 4px 8px; border-radius: 4px;">${rawStatus}</span>`;
-            const safeQuestionText = escapeHtml(q.question || "N/A");
-            const explanationHtml = q.explanation ? `<br><br><span style="font-size: 14px; color: #15803d; line-height: 1.4; display: block;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>` : "";
-
-            breakdownHtml += `<tr><td>${index + 1}</td><td>${safeQuestionText}${explanationHtml}</td><td>${selText}</td><td>${corrText}</td><td style="text-align: center;">${statusText}</td></tr>`;
+            breakdownHtml += `<tr><td>${index + 1}</td><td>${escapeHtml(q.question || "N/A")}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
         });
         breakdownHtml += `</table>`;
 
         const cleanClassName = String(className || '').trim().slice(0, 40);
         const cleanChapterTitle = String(chapterTitle || content.title || 'Quiz').trim().slice(0, 120);
-        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName))
-            ? `${cleanClassName} - ${cleanChapterTitle}`
-            : cleanChapterTitle;
-        const studentName = `${firstName} ${lastName}`.trim();
-
+        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName)) ? `${cleanClassName} - ${cleanChapterTitle}` : cleanChapterTitle;
         const payload = {
-            firstName: escapeHtml(firstName),
-            lastName: escapeHtml(lastName),
-            email: escapeHtml(email),
-            className: escapeHtml(cleanClassName),
-            chapterTitle: escapeHtml(fullTitle),
-            subject: `New Quiz Submission - ${fullTitle} - ${studentName}`,
-            score: correctCount,
-            total: totalCount,
-            attempted: attemptedCount,
-            skipped: skippedCount,
-            correct: correctCount,
-            incorrect: incorrectCount,
-            breakdown: breakdownHtml,
-            targetEmail: ADMIN_EMAIL,
-            secretKey: APPS_SECRET
+            firstName: escapeHtml(firstName), lastName: escapeHtml(lastName), email: escapeHtml(email),
+            className: escapeHtml(cleanClassName), chapterTitle: escapeHtml(fullTitle),
+            subject: `New Quiz Submission - ${fullTitle} - ${firstName} ${lastName}`.trim(),
+            score: correctCount, total: totalCount, attempted: attemptedCount, skipped: totalCount - attemptedCount,
+            correct: correctCount, incorrect: incorrectCount, breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
         };
 
         await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
         res.json({ success: true, score: correctCount, total: totalCount });
 
         const scriptURL = process.env.APP_SCRIPT_URL;
-        if (scriptURL) {
-            fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).catch(err => console.error('Background submission email error:', err));
-        }
-    } catch (err) {
-        console.error('Submission error:', err);
-        res.status(500).json({ success: false, error: 'Grading failed.' });
-    }
+        if (scriptURL) fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
+    } catch (err) { res.status(500).json({ success: false, error: 'Grading failed.' }); }
 });
 
 const PING_INTERVAL = 14 * 60 * 1000;
 const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
-
 setInterval(() => {
     const handler = PING_URL.startsWith('https') ? https : http;
-    handler.get(PING_URL, (res) => console.log(`[Keep-Awake] Ping Status: ${res.statusCode} at ${new Date().toISOString()}`))
-           .on('error', (err) => console.warn(`[Keep-Awake] Ping failed: ${err.message}`));
+    handler.get(PING_URL, (res) => console.log(`[Keep-Awake] Ping Status: ${res.statusCode} at ${new Date().toISOString()}`)).on('error', (err) => console.warn(`[Keep-Awake] Ping failed: ${err.message}`));
 }, PING_INTERVAL);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
