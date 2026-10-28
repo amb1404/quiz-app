@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const SITE_URL = 'https://pioneersprep.in';
 
-// Generates a unique version ID every time the server restarts (e.g., on a new GitHub push)
+// Generates a unique version ID every time the server restarts
 const APP_VERSION = Date.now(); 
 
 app.set('trust proxy', 1);
@@ -50,24 +50,23 @@ app.use((req, res, next) => {
     next();
 });
 
-
 // ============================================================================
-// DYNAMIC HTML INTERCEPTOR (AUTO CACHE-BUSTING)
+// DYNAMIC HTML INTERCEPTOR (AUTO CACHE-BUSTING & FORCED DESKTOP VIEW)
 // ============================================================================
 
-// Intercepts HTML requests to inject the APP_VERSION dynamically without touching physical files
 function serveDynamicHtml(res, fileName) {
     const filePath = path.join(__dirname, 'public', fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) return res.status(500).send("Page not found");
 
-        // Automatically inject the version tag into JS and CSS links in memory
         let dynamicHtml = data
+            // 1. Inject cache-busting version tags
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
-            .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`);
+            .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            // 2. Override responsive viewport to force Desktop view (1280px) on Mobile
+            .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">');
 
-        // Tell the browser never to cache the HTML page itself
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
@@ -83,10 +82,8 @@ app.get(['/notes', '/study-notes', '/notes.html'], (req, res) => serveDynamicHtm
 app.get(['/descriptive', '/descriptive-papers', '/descriptive.html'], (req, res) => serveDynamicHtml(res, 'descriptive.html'));
 app.get(['/mock-tests', '/test-portal.html'], (req, res) => serveDynamicHtml(res, 'test-portal.html'));
 
-
 // Serve static website files (CSS, JS, PDFs) allowing HTML to be handled by the routes above
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
-
 
 // --- SECURITY HELPER FUNCTIONS ---
 function escapeHtml(str) {
