@@ -307,13 +307,22 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var screenSlugMap = {
                     'home-dashboard': '',
                     'subject-screen': '/select-subject',
+                    'subject-select-screen': '/select-subject',
+                    'ix-x-chapter-screen': '/select-chapter',
                     'unit-screen': '/select-unit',
+                    'neet-unit-screen': '/select-unit',
                     'chapter-screen': '/select-chapter',
+                    'neet-chapter-screen': '/select-chapter',
                     'topic-screen': '/select-topic',
+                    'neet-topic-screen': '/select-topic',
                     'user-info-screen': '/candidate-verification',
+                    'name-screen': '/candidate-verification',
                     'quiz-screen': '/live-assessment',
                     'result-screen': '/scorecard',
-                    'notes-display-screen': '/study-materials'
+                    'notes-display-screen': '/study-materials',
+                    'notes-subject-screen': '/select-subject',
+                    'notes-list-screen': '/study-materials',
+                    'descriptive-list-screen': '/question-papers'
                 };
 
                 function getCleanUrlForScreen(screenId) {
@@ -326,9 +335,14 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 }
 
                 setTimeout(function() {
+                    // Do not strip ?class=... query parameters while quiz.js is asynchronously fetching /api/quizzes
+                    if (window.location.search && window.location.search.indexOf('class=') !== -1) {
+                        return;
+                    }
                     var activeEl = document.querySelector('.app-screen:not(.hidden)');
-                    var initialUrl = getCleanUrlForScreen(activeEl ? activeEl.id : 'home-dashboard');
-                    history.replaceState({ app: 'pioneers', screen: activeEl ? activeEl.id : 'home-dashboard' }, document.title, initialUrl);
+                    if (!activeEl) return;
+                    var initialUrl = getCleanUrlForScreen(activeEl.id);
+                    history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, initialUrl);
                 }, 0);
 
                 var observer = new MutationObserver(function(mutations) {
@@ -372,10 +386,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 });
 
                 document.addEventListener('click', function(e) {
-                    if (e.target && e.target.classList.contains('back-btn')) {
+                    if (e.target && e.target.classList && e.target.classList.contains('back-btn')) {
                         backEventTriggered = true;
                     }
-                });
+                }, true);
             });
         </script>`;
 
