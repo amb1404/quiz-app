@@ -119,20 +119,18 @@ function preSubmitSecurityGuard(req, res, next) {
 }
 
 // ============================================================================
-// 4. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, SMART ENTRY GUARD, SSR & ANTI-FLICKER)
+// 4. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, ENTRY GUARD, SSR & ANTI-FLICKER)
 // ============================================================================
 function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
 
-    // Smart entry guard: Allow requests with query parameters (like ?class=...) or valid referers,
-    // but block pure direct URL pastes into fresh browser tabs for sub-pages.
-    if (!isHome && Object.keys(req.query).length === 0) {
+    if (!isHome) {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
         const referer = req.get('Referer') || '';
         const host = req.get('Host') || '';
         const hasSameOriginReferer = Boolean(referer && host && referer.includes(host));
 
-        if (secFetchSite === 'none' || (secFetchSite === 'cross-site' && !hasSameOriginReferer)) {
+        if (secFetchSite === 'none' || secFetchSite === 'cross-site' || !hasSameOriginReferer) {
             return res.redirect(302, '/');
         }
     }
@@ -211,10 +209,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         sessionStorage.setItem('pioneers_active_route', '/');
                         sessionStorage.removeItem('pioneers_nav_ok');
                         if (window.location.pathname !== '/') {
-                            history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
+                            history.replaceState({ app: 'pioneers' }, document.title, '/');
                         }
                     } else {
-                        if (!isRecentClick && !isReload && window.location.search === '') {
+                        if (!isRecentClick && !isReload) {
                             sessionStorage.removeItem('pioneers_prep_state');
                             window.location.replace('/');
                             return;
@@ -330,7 +328,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 setTimeout(function() {
                     var activeEl = document.querySelector('.app-screen:not(.hidden)');
                     var initialUrl = getCleanUrlForScreen(activeEl ? activeEl.id : 'home-dashboard');
-                    history.replaceState({ app: 'pioneers', screen: activeEl ? activeEl.id : 'home-dashboard' }, document.title, initialUrl + window.location.search);
+                    history.replaceState({ app: 'pioneers', screen: activeEl ? activeEl.id : 'home-dashboard' }, document.title, initialUrl);
                 }, 0);
 
                 var observer = new MutationObserver(function(mutations) {
@@ -410,7 +408,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     });
 }
 
-// Exact route definitions compatible with all Node/Express versions
+// Primary page routes
 app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
@@ -1105,7 +1103,8 @@ app.post('/api/submit', preSubmitSecurityGuard, submitJsonParser, async (req, re
     }
 });
 
-app.get('*', (req, res) => {
+// Express 4 & 5 compatible RegExp catch-all route (bypasses path-to-regexp string parser)
+app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
     const p = req.path.toLowerCase();
