@@ -15,6 +15,8 @@ const SITE_URL = 'https://pioneersprep.in';
 
 const APP_VERSION = Date.now();
 
+app.set('trust proxy', 1);
+
 // ============================================================================
 // 1. HARDENED PROXY CONFIGURATION & CRYPTOGRAPHIC SECRETS
 // ============================================================================
@@ -291,29 +293,23 @@ class StateStore {
 
 const stateStore = new StateStore();
 
-function setBoundedMap(map, key, value) {
-    if (!map.has(key) && map.size >= MAX_MAP_SIZE) {
-        const oldestKey = map.keys().next().value;
-        if (oldestKey !== undefined) map.delete(oldestKey);
-    }
-    map.set(key, value);
-}
-
 function getClientIp(req) {
     const cfIp = req.headers['cf-connecting-ip'];
-    if (typeof cfIp === 'string' && cfIp.trim()) {
-        return cfIp.trim().slice(0, 64);
-    }
+    if (typeof cfIp === 'string' && cfIp.trim()) return cfIp.trim().slice(0, 64);
     const xff = req.headers['x-forwarded-for'];
     if (typeof xff === 'string' && xff.trim()) {
         const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-        if (ips.length > 0) {
-            const trustedIndex = Math.max(0, ips.length - (Number(TRUST_PROXY_DEPTH) || 1));
-            return ips[trustedIndex].slice(0, 64);
-        }
+        if (ips.length > 0) return ips[Math.max(0, ips.length - (Number(TRUST_PROXY_DEPTH) || 1))].slice(0, 64);
     }
     const rawIp = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
     return String(rawIp).trim().slice(0, 64);
+}
+
+// Generate a unique fingerprint based on IP and User Agent to bind the token
+function getClientFingerprint(req) {
+    const ip = getClientIp(req);
+    const ua = req.headers['user-agent'] || 'unknown';
+    return crypto.createHash('sha256').update(`${ip}:${ua}`).digest('hex').slice(0, 16);
 }
 
 const fsCache = {
@@ -331,32 +327,17 @@ const fsCache = {
 // ============================================================================
 function verifyJsonComplexity(req, res, buf) {
     if (!buf || buf.length === 0) return;
-    let depth = 0;
-    let maxDepth = 0;
-    let inString = false;
-    let escaped = false;
-
+    let depth = 0, maxDepth = 0, inString = false, escaped = false;
     for (let i = 0; i < buf.length; i++) {
         const byte = buf[i];
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-        if (byte === 0x5c) {
-            escaped = true;
-            continue;
-        }
-        if (byte === 0x22) {
-            inString = !inString;
-            continue;
-        }
+        if (escaped) { escaped = false; continue; }
+        if (byte === 0x5c) { escaped = true; continue; }
+        if (byte === 0x22) { inString = !inString; continue; }
         if (!inString) {
             if (byte === 0x7b || byte === 0x5b) {
                 depth++;
                 if (depth > maxDepth) maxDepth = depth;
-                if (maxDepth > 12) {
-                    throw new Error('JSON nesting depth exceeded security limit.');
-                }
+                if (maxDepth > 12) throw new Error('JSON nesting depth exceeded security limit.');
             } else if (byte === 0x7d || byte === 0x5d) {
                 depth--;
             }
@@ -443,7 +424,7 @@ async function preSubmitSecurityGuard(req, res, next) {
 
         const token = extractAuthToken(req);
         if (token) {
-            const preCheck = await verifyAuthToken(token, null, true);
+            const preCheck = await verifyAuthToken(req, token, null, true);
             if (!preCheck.valid) {
                 return res.status(403).json({ success: false, error: preCheck.error });
             }
@@ -672,29 +653,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         }
                         return;
                     }
-
-                    var legacyExpr = target.getAttribute('data-csp-action');
-                    if (!legacyExpr) return;
-                    if (legacyExpr.indexOf("sessionStorage.removeItem('pioneers_prep_state')") !== -1) {
-                        try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
-                        return;
-                    }
-                    var fnMatch = /^([a-zA-Z0-9_]+)\\((.*)\\)$/.exec(legacyExpr.trim());
-                    if (!fnMatch) return;
-                    var fnName = fnMatch[1];
-                    var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
-                    if (fnName === 'selectClass' && typeof selectClass === 'function') selectClass(rawArg);
-                    else if (fnName === 'selectSubject' && typeof selectSubject === 'function') selectSubject(rawArg);
-                    else if (fnName === 'selectNotesClass' && typeof selectNotesClass === 'function') selectNotesClass(rawArg);
-                    else if (fnName === 'selectDescriptiveClass' && typeof selectDescriptiveClass === 'function') selectDescriptiveClass(rawArg);
-                    else if (fnName === 'selectDescriptiveSubject' && typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(rawArg);
-                    else if (fnName === 'goBack' && typeof goBack === 'function') goBack();
-                    else if (fnName === 'goHome' && typeof goHome === 'function') goHome();
-                    else if (fnName === 'startQuiz' && typeof startQuiz === 'function') startQuiz();
-                    else if (fnName === 'submitQuiz' && typeof submitQuiz === 'function') submitQuiz(rawArg === 'true');
-                    else if (fnName === 'prevQuestion' && typeof prevQuestion === 'function') prevQuestion();
-                    else if (fnName === 'clearResponse' && typeof clearResponse === 'function') clearResponse();
-                    else if (fnName === 'nextQuestion' && typeof nextQuestion === 'function') nextQuestion();
                 });
             })();
 
@@ -761,9 +719,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 }
 
                 setTimeout(function() {
-                    if (window.location.search && window.location.search.indexOf('class=') !== -1) {
-                        return;
-                    }
+                    if (window.location.search && window.location.search.indexOf('class=') !== -1) return;
                     var activeEl = document.querySelector('.app-screen:not(.hidden)');
                     if (!activeEl) return;
                     var initialUrl = getCleanUrlForScreen(activeEl.id);
@@ -1111,7 +1067,7 @@ function resolveSafeDescriptivePath(rawFileName) {
     return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
-async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
+async function verifyAuthToken(req, authToken, expectedEmail = null, checkReplay = false) {
     if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
         return { valid: false, error: 'Security Alert: Invalid submission token.' };
     }
@@ -1129,9 +1085,14 @@ async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = fa
     if (dataParts.length < 2) return { valid: false, error: 'Security Alert: Outdated session token.' };
 
     const tokenEmail = dataParts[0];
-    let issuedAt, firstName = '', lastName = '';
+    let issuedAt, firstName = '', lastName = '', tokenClientHash = '';
 
-    if (dataParts.length >= 5) {
+    if (dataParts.length >= 6) {
+        firstName = decodeURIComponent(dataParts[1] || '');
+        lastName = decodeURIComponent(dataParts[2] || '');
+        issuedAt = parseInt(dataParts[3], 10);
+        tokenClientHash = dataParts[4];
+    } else if (dataParts.length >= 5) {
         firstName = decodeURIComponent(dataParts[1] || '');
         lastName = decodeURIComponent(dataParts[2] || '');
         issuedAt = parseInt(dataParts[3], 10);
@@ -1145,6 +1106,15 @@ async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = fa
     if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
         return { valid: false, error: 'Security Alert: Token email mismatch.' };
     }
+    
+    // Strong Cryptographic Device Binding - Rejects tokens hijacked by scripts
+    if (tokenClientHash) {
+        const currentHash = getClientFingerprint(req);
+        if (currentHash !== tokenClientHash) {
+            return { valid: false, error: 'Security Alert: Device or network identity changed.' };
+        }
+    }
+
     if (checkReplay) {
         const isUsed = await stateStore.get(`auth:used:${authSignature}`);
         if (isUsed) {
@@ -1201,7 +1171,7 @@ app.get('/ping', (req, res) => res.status(200).send('Awake'));
 // ============================================================================
 // 7. API ENDPOINTS
 // ============================================================================
-app.get('/api/descriptive-questions', (req, res) => {
+app.get('/api/descriptive-questions', async (req, res) => {
     try {
         const now = Date.now();
         if (fsCache.descList.data && now < fsCache.descList.expiresAt) return res.json(fsCache.descList.data);
@@ -1247,7 +1217,11 @@ app.get('/api/descriptive-questions', (req, res) => {
     }
 });
 
-app.get('/api/download-descriptive/:fileName', (req, res) => {
+app.get('/api/download-descriptive/:fileName', async (req, res) => {
+    const clientIp = getClientIp(req);
+    const allowed = await stateStore.checkRateLimit('content_download', clientIp, 15, 60 * 60);
+    if (!allowed) return res.status(429).send("Download limit exceeded. Try again in an hour.");
+
     const filePath = resolveSafeDescriptivePath(req.params.fileName);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Descriptive paper not found.");
     res.download(filePath, path.basename(filePath), (err) => {
@@ -1301,7 +1275,11 @@ app.get('/api/notes', (req, res) => {
     }
 });
 
-app.get('/api/download-note/:fileName', (req, res) => {
+app.get('/api/download-note/:fileName', async (req, res) => {
+    const clientIp = getClientIp(req);
+    const allowed = await stateStore.checkRateLimit('content_download', clientIp, 15, 60 * 60);
+    if (!allowed) return res.status(429).send("Download limit exceeded. Try again in an hour.");
+
     const filePath = resolveSafeNotePath(req.params.fileName);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Note file not found.");
     res.download(filePath, path.basename(filePath), (err) => {
@@ -1338,8 +1316,12 @@ app.get('/api/quizzes', (req, res) => {
 app.get('/api/quiz/:id', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        const authCheck = await verifyAuthToken(req, extractAuthToken(req), null, true);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+
+        const clientIp = getClientIp(req);
+        const allowed = await stateStore.checkRateLimit('content_download', clientIp, 15, 60 * 60);
+        if (!allowed) return res.status(429).json({ error: "Exam request limit exceeded." });
 
         const cleanId = path.basename(String(req.params.id || '')).trim();
         const filePath = resolveSafeQuizPath(cleanId);
@@ -1369,7 +1351,10 @@ app.get('/api/quiz/:id', async (req, res) => {
             };
         });
 
-        res.json(sanitizedQuestions);
+        // Network Payload Obfuscation - Converts JSON to base64 and reverses it, hiding it from the naked eye in DevTools
+        const jsonString = JSON.stringify(sanitizedQuestions);
+        const obfuscated = Buffer.from(encodeURIComponent(jsonString)).toString('base64').split('').reverse().join('');
+        res.json({ securePayload: obfuscated });
     } catch {
         res.status(500).json({ error: "Failed to read quiz file." });
     }
@@ -1377,7 +1362,7 @@ app.get('/api/quiz/:id', async (req, res) => {
 
 app.post('/api/start-quiz', async (req, res) => {
     try {
-        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        const authCheck = await verifyAuthToken(req, extractAuthToken(req), null, true);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
         const { quizId, duration } = req.body;
@@ -1487,7 +1472,8 @@ app.post('/api/verify-otp', async (req, res) => {
 
         await stateStore.del(otpKey);
 
-        const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
+        const clientHash = getClientFingerprint(req);
+        const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${clientHash}|${crypto.randomBytes(8).toString('hex')}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         const authToken = `${tokenData}|||${signature}`;
 
@@ -1501,7 +1487,7 @@ app.post('/api/verify-otp', async (req, res) => {
             path: '/'
         });
 
-        res.json({ success: true });
+        res.json({ success: true, authToken: `${tokenData}|||${signature}` });
     } catch {
         res.status(500).json({ success: false, error: 'OTP verification failed.' });
     }
@@ -1522,7 +1508,7 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration } = req.body;
 
     const tokenToVerify = extractAuthToken(req);
-    const authCheck = await verifyAuthToken(tokenToVerify, rawEmail, true);
+    const authCheck = await verifyAuthToken(req, tokenToVerify, rawEmail, true);
     if (!authCheck.valid) {
         if (req.preVerifiedAuth?.signature) await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
         return res.status(403).json({ success: false, error: authCheck.error });
