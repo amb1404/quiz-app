@@ -58,7 +58,6 @@ const TOKEN_MAX_AGE_SEC = Math.ceil(TOKEN_MAX_AGE_MS / 1000);
 const CACHE_TTL_MS = 60 * 1000;
 const AUTH_COOKIE_NAME = 'pioneers_auth_token';
 
-// Native zero-dependency RESP2 client for redis:// and rediss:// URLs
 class NativeRedisClient {
     constructor(redisUrl) {
         this.url = new URL(redisUrl);
@@ -372,7 +371,6 @@ app.use((req, res, next) => {
     const nonce = crypto.randomBytes(16).toString('base64');
     res.locals.cspNonce = nonce;
 
-    // Strict CSP: 'unsafe-inline' is completely eradicated from script-src
     const cspPolicy = [
         "default-src 'self'",
         `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net`,
@@ -517,17 +515,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 </div>
                 <div class="footer-contact">
                     <h4>Educator Profile & Contact</h4>
-                    <a href="tel:+917407191899" class="contact-item">
+                    <a href="tel:+91XXXXXXXXXX" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
-                        <span>+91 74071 91899 (Call)</span>
+                        <span>+91 XXXXX XXXXX (Call)</span>
                     </a>
-                    <a href="https://wa.me/917407191899" target="_blank" class="contact-item">
+                    <a href="https://wa.me/91XXXXXXXXXX" target="_blank" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 0 0 1.333 4.976L1.92 22.07l5.244-1.376a9.972 9.972 0 0 0 4.847 1.259h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.037-5.176-2.924-7.063A9.925 9.925 0 0 0 12.012 2zm0 18.283h-.003a8.272 8.272 0 0 1-4.22-1.155l-.303-.179-3.136.822.84-3.056-.197-.313a8.28 8.28 0 0 1-1.267-4.418c.001-4.57 3.72-8.288 8.293-8.288 2.215 0 4.298.863 5.864 2.428a8.236 8.236 0 0 1 2.426 5.866c-.002 4.568-3.721 8.286-8.297 8.288zm4.544-6.196c-.249-.125-1.474-.728-1.703-.811-.23-.083-.398-.124-.564.124-.167.249-.644.811-.79.77-.145-.164-.291-.207-.54-.332-1.398-.698-3.328-1.545-4.226-3.1-.096-.164-.011-.253.113-.377.111-.11.249-.29.373-.435.124-.146.166-.249.249-.415.083-.166.042-.311-.021-.436-.062-.124-.564-1.36-.773-1.865-.203-.49-.408-.424-.564-.432l-.481-.007c-.166 0-.435.062-.663.311s-.871.851-.871 2.074c0 1.223.892 2.405 1.016 2.571.124.166 1.753 2.676 4.246 3.753 1.54.665 2.112.72 2.871.603.861-.131 2.671-1.092 3.045-2.149.373-1.058.373-1.966.262-2.149-.112-.185-.415-.291-.664-.415z"/></svg>
-                        <span>+91 74071 91899 (WhatsApp)</span>
+                        <span>+91 XXXXX XXXXX (WhatsApp)</span>
                     </a>
-                    <a href="mailto:anibanerjee5@gmail.com" class="contact-item">
+                    <a href="mailto:anibanerjee699@gmail.com" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                        <span>anibanerjee5@gmail.com</span>
+                        <span>anibanerjee699@gmail.com</span>
                     </a>
                     <div class="contact-item no-hover" style="cursor: default;">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
@@ -600,7 +598,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 }
 
-                // Prevent any auth token from ever being persisted to sessionStorage
                 try {
                     var origSetItem = sessionStorage.setItem;
                     sessionStorage.setItem = function(key, val) {
@@ -617,7 +614,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 } catch (e) {}
 
-                // Ensure all API requests automatically send credentials
                 var originalFetch = window.fetch;
                 if (originalFetch) {
                     window.fetch = function(input, init) {
@@ -640,7 +636,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 }
 
-                // Central CSP-safe Event Delegation for all data-action and legacy data-csp-action elements
                 document.addEventListener('click', function(e) {
                     var target = e.target ? e.target.closest('[data-action], [data-csp-action]') : null;
                     if (!target) return;
@@ -658,6 +653,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             selectNotesClass(arg);
                         } else if (action === 'select-descriptive-class' && typeof selectDescriptiveClass === 'function') {
                             selectDescriptiveClass(arg);
+                        } else if (action === 'select-descriptive-subject' && typeof selectDescriptiveSubject === 'function') {
+                            selectDescriptiveSubject(arg);
                         } else if (action === 'go-back' && typeof goBack === 'function') {
                             goBack();
                         } else if (action === 'go-home' && typeof goHome === 'function') {
@@ -690,6 +687,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     else if (fnName === 'selectSubject' && typeof selectSubject === 'function') selectSubject(rawArg);
                     else if (fnName === 'selectNotesClass' && typeof selectNotesClass === 'function') selectNotesClass(rawArg);
                     else if (fnName === 'selectDescriptiveClass' && typeof selectDescriptiveClass === 'function') selectDescriptiveClass(rawArg);
+                    else if (fnName === 'selectDescriptiveSubject' && typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(rawArg);
                     else if (fnName === 'goBack' && typeof goBack === 'function') goBack();
                     else if (fnName === 'goHome' && typeof goHome === 'function') goHome();
                     else if (fnName === 'startQuiz' && typeof startQuiz === 'function') startQuiz();
@@ -749,6 +747,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     'notes-display-screen': '/study-materials',
                     'notes-subject-screen': '/select-subject',
                     'notes-list-screen': '/study-materials',
+                    'descriptive-subject-screen': '/select-subject',
                     'descriptive-list-screen': '/question-papers'
                 };
 
@@ -820,9 +819,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         </script>`;
 
         let dynamicHtml = data
-            // Automatically convert any remaining inline onclick="..." into CSP-safe data-csp-action="..."
             .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
-            // Add cryptographic nonce to all existing <script> tags
             .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
             .replace(/<head>/i, `<head>\n${headRouteGuardScript}`)
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
@@ -1202,42 +1199,51 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
 // ============================================================================
-// 6. API ENDPOINTS
+// 7. API ENDPOINTS
 // ============================================================================
 app.get('/api/descriptive-questions', (req, res) => {
     try {
         const now = Date.now();
-        if (fsCache.descList.data && now < fsCache.descList.expiresAt) return res.json({ success: true, files: fsCache.descList.data });
+        if (fsCache.descList.data && now < fsCache.descList.expiresAt) return res.json(fsCache.descList.data);
 
-        const allFiles = getCachedDescFiles();
-        const grouped = { 'IX': [], 'X': [], 'XI': [], 'XII': [] };
+        const files = getCachedDescFiles();
+        const grouped = {
+            'IX': { Physics: [], Chemistry: [], Biology: [] },
+            'X': { Physics: [], Chemistry: [], Biology: [] },
+            'XI': { Biology: [] },
+            'XII': { Biology: [] }
+        };
 
-        allFiles.forEach(fullPath => {
+        files.forEach(fullPath => {
             const fileName = path.basename(fullPath);
             const lowerPath = fullPath.toLowerCase().replace(/\\/g, '/');
-            let mClass = null;
-            if (lowerPath.includes('/descriptive/ix/') || lowerPath.includes('/class 9/') || lowerPath.includes('/class9/')) mClass = 'IX';
-            else if (lowerPath.includes('/descriptive/x/') || lowerPath.includes('/class 10/') || lowerPath.includes('/class10/')) mClass = 'X';
-            else if (lowerPath.includes('/descriptive/xi/') || lowerPath.includes('/class 11/') || lowerPath.includes('/class11/')) mClass = 'XI';
-            else if (lowerPath.includes('/descriptive/xii/') || lowerPath.includes('/class 12/') || lowerPath.includes('/class12/')) mClass = 'XII';
-            else {
-                const parent = path.basename(path.dirname(fullPath)).toUpperCase();
-                if (['IX', 'X', 'XI', 'XII'].includes(parent)) mClass = parent;
-            }
+            let cls = 'XI';
+            if (lowerPath.includes('/ix/') || lowerPath.includes('class9') || lowerPath.includes('class_9') || lowerPath.includes('class-9')) cls = 'IX';
+            else if (lowerPath.includes('/x/') || lowerPath.includes('class10') || lowerPath.includes('class_10') || lowerPath.includes('class-10')) cls = 'X';
+            else if (lowerPath.includes('/xi/') || lowerPath.includes('class11') || lowerPath.includes('class_11') || lowerPath.includes('class-11')) cls = 'XI';
+            else if (lowerPath.includes('/xii/') || lowerPath.includes('class12') || lowerPath.includes('class_12') || lowerPath.includes('class-12')) cls = 'XII';
 
-            if (mClass && grouped[mClass]) {
-                grouped[mClass].push({
-                    name: path.basename(fileName, '.pdf').replace(/[_]/g, ' ').replace(/-/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase()),
-                    fileName
-                });
-            }
+            let subject = 'Biology';
+            if (lowerPath.includes('physics')) subject = 'Physics';
+            else if (lowerPath.includes('chemistry')) subject = 'Chemistry';
+
+            const title = path.basename(fileName, '.pdf').replace(/[_]/g, ' ').replace(/-/g, ' ').replace(/class\s*(9|10|11|12|ix|x|xi|xii)/gi, '').replace(/(physics|chemistry|biology)/gi, '').trim().replace(/\b\w/g, c => c.toUpperCase());
+
+            if (grouped[cls] && grouped[cls][subject]) grouped[cls][subject].push({ name: title || fileName, fileName });
         });
 
-        fsCache.descList = { data: grouped, expiresAt: now + CACHE_TTL_MS };
-        res.json({ success: true, files: grouped });
+        const formatted = [];
+        for (const [cls, subjects] of Object.entries(grouped)) {
+            for (const [sub, list] of Object.entries(subjects)) {
+                if (list.length > 0) formatted.push({ class: cls, subject: sub, papers: list });
+            }
+        }
+
+        fsCache.descList = { data: formatted, expiresAt: now + CACHE_TTL_MS };
+        res.json(formatted);
     } catch (err) {
         console.error('Error reading descriptive questions:', err);
-        res.status(500).json({ success: false, files: { 'IX': [], 'X': [], 'XI': [], 'XII': [] } });
+        res.status(500).json([]);
     }
 });
 
@@ -1569,7 +1575,6 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
     }
 
-    // Atomically mark token as consumed in Redis before grading/IO
     const markedUnused = await stateStore.setNx(`auth:used:${authCheck.signature}`, '1', TOKEN_MAX_AGE_SEC);
     if (!markedUnused) {
         await stateStore.del(lockKey);
@@ -1668,7 +1673,6 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     }
 });
 
-// Express 4 & 5 compatible RegExp catch-all route
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
