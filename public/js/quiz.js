@@ -10,6 +10,7 @@ let timeRemaining = 900;
 let quizDuration = 900;
 let serverStartTime = 0;
 let timerSignature = "";
+let quizCipherKey = ""; // New: Dynamic key for decrypting the JSON payload
 let timerInterval;
 let selectedClassName = "";
 let selectedSubjectName = "";
@@ -22,20 +23,33 @@ let selectedNeetUnit = "";
 let selectedNeetChapter = "";
 let isRestoringSession = false;
 
-// Anti-Scraping DOM Lockdowns
-document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('keydown', e => {
-    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J'))) {
-        e.preventDefault();
-    }
-});
-
 function escapeClientHtml(str) {
     if (str === null || str === undefined) return '';
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;
 }
+
+// ANTI-SCRAPING: Client-Side XOR Decipher
+function xorDecipher(b64Str, key) {
+    const raw = atob(b64Str);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+    const k = new TextEncoder().encode(key);
+    for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
+    return new TextDecoder().decode(buf);
+}
+
+// DOM PROTECTION: Disable Right-Click and Copy Shortcuts during exams
+document.addEventListener('contextmenu', e => {
+    if (document.body.classList.contains('exam-mode')) e.preventDefault();
+});
+document.addEventListener('keydown', e => {
+    if (document.body.classList.contains('exam-mode')) {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault();
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'p' || e.key === 'P')) e.preventDefault();
+    }
+});
 
 const neetHierarchy = {
     "XI": {
@@ -66,7 +80,7 @@ function updateState() {
         CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex,
         timeRemaining, quizDuration, serverStartTime, timerSignature,
         userAnswers, skippedQuestions, screenHistory,
-        { selectedClassName, selectedSubjectName, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedDescriptiveSubject, selectedNeetUnit, selectedNeetChapter }
+        { selectedClassName, selectedSubjectName, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedDescriptiveSubject, selectedNeetUnit, selectedNeetChapter, quizCipherKey }
     );
 }
 
@@ -87,7 +101,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json();
             if (data.success) dynamicQuizzes = data.quizzes;
         } catch (e) {
-            console.error("Failed to load quizzes");
+            console.error("Failed to load quizzes", e);
         }
     }
 
@@ -123,6 +137,7 @@ async function restoreSessionState(state) {
         quizDuration = state.quizDuration || 900;
         serverStartTime = state.serverStartTime || 0;
         timerSignature = state.timerSignature || '';
+        quizCipherKey = state.quizCipherKey || '';
         userAnswers = state.userAnswers || {};
         skippedQuestions = new Set(state.skippedQuestions || []);
 
@@ -139,13 +154,13 @@ async function restoreSessionState(state) {
                 headers: { 'X-Requested-With': 'PioneersPrepApp' }
             });
             if (qRes.ok) {
-                const data = await qRes.json();
-                if (data.securePayload) {
-                    const deobfuscated = decodeURIComponent(atob(data.securePayload.split('').reverse().join('')));
-                    currentQuestions = JSON.parse(deobfuscated);
+                const encryptedData = await qRes.json();
+                if (encryptedData.payload && quizCipherKey) {
+                    currentQuestions = JSON.parse(xorDecipher(encryptedData.payload, quizCipherKey));
                 } else {
-                    currentQuestions = data;
+                    currentQuestions = encryptedData; // Fallback in case decipher fails
                 }
+                
                 if (serverStartTime && quizDuration) {
                     timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
                 }
@@ -498,26 +513,20 @@ async function startQuiz() {
     timerSignature = startData.signature;
     quizDuration = startData.duration || timeRemaining;
     timeRemaining = quizDuration;
+    quizCipherKey = startData.cipherKey || ''; 
 
-    // Secure payload fetch with deobfuscation
     const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'PioneersPrepApp' }
     });
+    const encryptedData = await qRes.json();
     
-    if (qRes.ok) {
-        const qData = await qRes.json();
-        if (qData.securePayload) {
-            const deobfuscated = decodeURIComponent(atob(qData.securePayload.split('').reverse().join('')));
-            currentQuestions = JSON.parse(deobfuscated);
-        } else {
-            currentQuestions = qData;
-        }
+    if (encryptedData.payload && quizCipherKey) {
+        currentQuestions = JSON.parse(xorDecipher(encryptedData.payload, quizCipherKey));
     } else {
-        alert("Failed to load secure quiz payload.");
-        return;
+        currentQuestions = encryptedData;
     }
-    
+
     currentQuestionIndex = 0; userAnswers = {}; skippedQuestions = new Set(); screenHistory = [];
 
     showScreen('quiz-screen');
@@ -556,3 +565,239 @@ function renderQuestion() {
         if (userAnswers[currentQuestionIndex] !== undefined) {
             const preview = document.createElement('p');
             preview.style.color = '#15803d';
+            preview.textContent = '✅ Image uploaded successfully for this question.';
+            container.appendChild(preview);
+        }
+
+        fileInput.addEventListener('change', e => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width, height = img.height;
+                    const maxDim = 800;
+                    if (width > height && width > maxDim) { height = Math.round((height * maxDim) / width); width = maxDim; }
+                    else if (height > maxDim) { width = Math.round((width * maxDim) / height); height = maxDim; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    userAnswers[currentQuestionIndex] = canvas.toDataURL('image/jpeg', 0.7);
+                    skippedQuestions.delete(currentQuestionIndex);
+                    updateQuizStats();
+                    alert('Image attached successfully! Click Next to proceed.');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+        container.appendChild(label); container.appendChild(fileInput);
+    } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+        const input = document.createElement('input');
+        input.type = 'text'; input.placeholder = 'Type your answer here...';
+        if (userAnswers[currentQuestionIndex] !== undefined) input.value = userAnswers[currentQuestionIndex];
+        input.addEventListener('input', e => {
+            const v = e.target.value.trim();
+            if (v === '') delete userAnswers[currentQuestionIndex];
+            else { userAnswers[currentQuestionIndex] = v; skippedQuestions.delete(currentQuestionIndex); }
+            updateQuizStats();
+        });
+        container.appendChild(input);
+    } else {
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `option-btn${userAnswers[currentQuestionIndex] === idx ? ' selected' : ''}`;
+            btn.innerText = opt;
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                userAnswers[currentQuestionIndex] = idx;
+                skippedQuestions.delete(currentQuestionIndex);
+                updateQuizStats();
+            });
+            container.appendChild(btn);
+        });
+    }
+    updateQuizStats();
+}
+
+function nextQuestion() {
+    if (userAnswers[currentQuestionIndex] === undefined) skippedQuestions.add(currentQuestionIndex);
+    if (currentQuestionIndex < currentQuestions.length - 1) { currentQuestionIndex++; renderQuestion(); }
+    else { updateQuizStats(); }
+    updateState();
+}
+
+function prevQuestion() {
+    if (currentQuestionIndex > 0) { currentQuestionIndex--; renderQuestion(); }
+    updateState();
+}
+
+function clearResponse() {
+    delete userAnswers[currentQuestionIndex];
+    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+    const input = document.querySelector('#options-container input');
+    if (input) input.value = '';
+    updateQuizStats();
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    const update = () => {
+        let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+        let s = (timeRemaining % 60).toString().padStart(2, '0');
+        document.getElementById('time-left').innerText = `Time Left: ${m}:${s}`;
+        updateState();
+    };
+    update();
+    timerInterval = setInterval(() => {
+        if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(true); return; }
+        timeRemaining--; update();
+    }, 1000);
+}
+
+async function submitQuiz(isAuto = false) {
+    const answeredCount = Object.keys(userAnswers).length;
+    const total = currentQuestions.length;
+    if (!isAuto && answeredCount < total) {
+        alert(`Please answer all questions before submitting. You have answered ${answeredCount} out of ${total}.`);
+        return;
+    }
+
+    clearInterval(timerInterval);
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) { submitBtn.innerText = 'Submitting...'; submitBtn.disabled = true; }
+
+    const first = document.getElementById('first-name').value.trim().toUpperCase();
+    const last = document.getElementById('last-name').value.trim().toUpperCase();
+    const email = document.getElementById('email-address').value.trim().toLowerCase();
+
+    try {
+        const res = await fetch('/api/submit', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                firstName: first, lastName: last, email,
+                className: selectedClassName, chapterTitle: activeQuizTitle, quizId: currentQuizId,
+                userAnswers, serverStartTime, timerSignature, quizDuration, isAutoSubmit: isAuto
+            })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            sessionStorage.removeItem('pioneers_prep_state');
+            const safeCandidate = escapeClientHtml(`${first} ${last}`);
+            const safeScore = escapeClientHtml(data.score);
+            const safeTotal = escapeClientHtml(data.total);
+            document.getElementById('result-screen').innerHTML =
+                `<button class="back-btn" data-action="go-home">Back to Portal</button>` +
+                `<h2 style="text-align:center;color:#4285f4;margin-top:0;">Quiz Results</h2>` +
+                `<div style="text-align:center;margin-top:20px;">` +
+                `<p style="font-size:18px;color:#333;">Candidate: <strong>${safeCandidate}</strong></p>` +
+                `<h1 style="color:#4285f4;font-size:48px;margin:10px 0;">${safeScore} / ${safeTotal}</h1>` +
+                `<p style="font-size:16px;color:#64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p>` +
+                `</div>`;
+            screenHistory = [];
+            showScreen('result-screen');
+            if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        } else {
+            alert(data.error || 'Submission failed.');
+            goHome();
+        }
+    } catch {
+        alert('Network error while submitting quiz.');
+    } finally {
+        if (submitBtn) { submitBtn.innerText = 'Submit Quiz'; submitBtn.disabled = false; }
+    }
+}
+
+// ============================================================================
+// MOBILE QUIZ SCREEN OPTIMIZER
+// ============================================================================
+(function optimizeMobileQuiz() {
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (!isMobile) return;
+
+    const mobileQuizStyles = `
+        #quiz-screen:not(.hidden) {
+            padding: 20px 15px !important;
+            border-radius: 0 !important;
+            min-height: 100vh !important;
+            box-shadow: none !important;
+        }
+        #question-box {
+            font-size: 18px !important;
+            line-height: 1.6 !important;
+            margin-bottom: 24px !important;
+        }
+        .option-btn {
+            padding: 16px 18px !important;
+            font-size: 16px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
+        }
+        .quiz-nav-container {
+            flex-direction: column !important;
+            gap: 12px !important;
+            margin-top: 30px !important;
+        }
+        .quiz-nav-container button {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 14px !important;
+            font-size: 16px !important;
+        }
+        .quiz-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+        }
+        #submit-btn {
+            width: 100% !important;
+            padding: 12px !important;
+        }
+    `;
+
+    let styleElement = null;
+    let originalViewport = null;
+
+    const observer = new MutationObserver(() => {
+        const quizScreen = document.getElementById('quiz-screen');
+        if (!quizScreen) return;
+
+        const isQuizActive = !quizScreen.classList.contains('hidden');
+        const metaViewport = document.querySelector('meta[name="viewport"]');
+
+        if (isQuizActive) {
+            if (metaViewport && metaViewport.getAttribute('content') === 'width=1280') {
+                originalViewport = 'width=1280';
+                metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            }
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = 'mobile-quiz-custom-styles';
+                styleElement.innerHTML = mobileQuizStyles;
+                document.head.appendChild(styleElement);
+            }
+        } else {
+            if (metaViewport && originalViewport) {
+                metaViewport.setAttribute('content', originalViewport);
+            }
+            if (styleElement) {
+                styleElement.remove();
+                styleElement = null;
+            }
+        }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    });
+})();
