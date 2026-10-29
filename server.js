@@ -5,6 +5,9 @@ const path = require('path');
 const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
+const net = require('net');
+const tls = require('tls');
+const { URL } = require('url');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,21 +50,247 @@ if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
 }
 
 // ============================================================================
-// 2. BOUNDED IN-MEMORY STORES, ATOMIC LOCKS & HARDENED IP RATE LIMITERS
+// 2. REDIS DISTRIBUTED STATE ENGINE (WITH ZERO-DEPENDENCY RESP & REST CLIENTS)
 // ============================================================================
 const MAX_MAP_SIZE = 5000;
 const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+const TOKEN_MAX_AGE_SEC = Math.ceil(TOKEN_MAX_AGE_MS / 1000);
 const CACHE_TTL_MS = 60 * 1000;
 const AUTH_COOKIE_NAME = 'pioneers_auth_token';
 
-const pendingOtps = new Map();
-const otpIpRateLimit = new Map();
-const verifyIpRateLimit = new Map();
-const submitIpRateLimit = new Map();
-const usedAuthTokens = new Map();
-const inFlightSubmissions = new Set();
-const activeExamSessions = new Map();
-const verifiedClientIps = new Map();
+// Native zero-dependency RESP2 client for redis:// and rediss:// URLs
+class NativeRedisClient {
+    constructor(redisUrl) {
+        this.url = new URL(redisUrl);
+        this.isTls = this.url.protocol === 'rediss:';
+        this.host = this.url.hostname || '127.0.0.1';
+        this.port = Number(this.url.port) || 6379;
+        this.username = this.url.username ? decodeURIComponent(this.url.username) : '';
+        this.password = this.url.password ? decodeURIComponent(this.url.password) : '';
+        this.db = this.url.pathname && this.url.pathname.length > 1 ? Number(this.url.pathname.slice(1)) : 0;
+        this.socket = null;
+        this.connected = false;
+        this.queue = [];
+        this.buffer = Buffer.alloc(0);
+        this.connect();
+    }
+
+    connect() {
+        const opts = { host: this.host, port: this.port, rejectUnauthorized: false };
+        this.socket = this.isTls ? tls.connect(opts) : net.createConnection(opts);
+
+        this.socket.on('connect', () => {
+            this.connected = true;
+            if (this.password) {
+                const authArgs = this.username ? ['AUTH', this.username, this.password] : ['AUTH', this.password];
+                this.sendRaw(authArgs).catch(err => console.error('[Redis Auth Error]:', err.message));
+            }
+            if (this.db > 0) {
+                this.sendRaw(['SELECT', String(this.db)]).catch(() => {});
+            }
+        });
+
+        this.socket.on('data', (chunk) => {
+            this.buffer = Buffer.concat([this.buffer, chunk]);
+            this.processBuffer();
+        });
+
+        this.socket.on('error', (err) => {
+            this.connected = false;
+            while (this.queue.length > 0) {
+                this.queue.shift().reject(err);
+            }
+        });
+
+        this.socket.on('close', () => {
+            this.connected = false;
+            setTimeout(() => this.connect(), 3000);
+        });
+    }
+
+    encodeCommand(args) {
+        let str = `*${args.length}\r\n`;
+        for (const arg of args) {
+            const val = String(arg);
+            str += `$${Buffer.byteLength(val, 'utf8')}\r\n${val}\r\n`;
+        }
+        return str;
+    }
+
+    parseResp(buf, offset = 0) {
+        if (offset >= buf.length) return null;
+        const type = String.fromCharCode(buf[offset]);
+        const lineEnd = buf.indexOf('\r\n', offset);
+        if (lineEnd === -1) return null;
+        const line = buf.slice(offset + 1, lineEnd).toString('utf8');
+
+        if (type === '+') return { value: line, nextOffset: lineEnd + 2 };
+        if (type === '-') return { error: new Error(line), nextOffset: lineEnd + 2 };
+        if (type === ':') return { value: parseInt(line, 10), nextOffset: lineEnd + 2 };
+        if (type === '$') {
+            const len = parseInt(line, 10);
+            if (len === -1) return { value: null, nextOffset: lineEnd + 2 };
+            const start = lineEnd + 2;
+            const end = start + len;
+            if (end + 2 > buf.length) return null;
+            return { value: buf.slice(start, end).toString('utf8'), nextOffset: end + 2 };
+        }
+        if (type === '*') {
+            const count = parseInt(line, 10);
+            if (count === -1) return { value: null, nextOffset: lineEnd + 2 };
+            const arr = [];
+            let cur = lineEnd + 2;
+            for (let i = 0; i < count; i++) {
+                const parsed = this.parseResp(buf, cur);
+                if (!parsed) return null;
+                arr.push(parsed.value);
+                cur = parsed.nextOffset;
+            }
+            return { value: arr, nextOffset: cur };
+        }
+        return null;
+    }
+
+    processBuffer() {
+        while (this.queue.length > 0) {
+            const parsed = this.parseResp(this.buffer, 0);
+            if (!parsed) break;
+            this.buffer = this.buffer.slice(parsed.nextOffset);
+            const req = this.queue.shift();
+            if (parsed.error) req.reject(parsed.error);
+            else req.resolve(parsed.value);
+        }
+    }
+
+    sendRaw(args) {
+        return new Promise((resolve, reject) => {
+            if (!this.socket || !this.connected) {
+                return reject(new Error('Redis socket not connected'));
+            }
+            this.queue.push({ resolve, reject });
+            this.socket.write(this.encodeCommand(args));
+        });
+    }
+}
+
+class StateStore {
+    constructor() {
+        this.upstashUrl = process.env.UPSTASH_REDIS_REST_URL ? process.env.UPSTASH_REDIS_REST_URL.replace(/\/$/, '') : '';
+        this.upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+        this.redisClient = null;
+        this.fallbackMap = new Map();
+
+        if (this.upstashUrl && this.upstashToken) {
+            console.log('[StateStore] Connected to Upstash Redis REST API.');
+        } else if (process.env.REDIS_URL) {
+            try {
+                this.redisClient = new NativeRedisClient(process.env.REDIS_URL);
+                console.log('[StateStore] Initialized native Redis RESP client via REDIS_URL.');
+            } catch (e) {
+                console.warn('[StateStore] Failed to parse REDIS_URL, using fallback memory store:', e.message);
+            }
+        } else {
+            console.warn('[StateStore Notice] Set REDIS_URL or UPSTASH_REDIS_REST_URL in Render Environment Variables for persistent multi-instance state.');
+        }
+    }
+
+    setFallback(key, value, ttlSec) {
+        if (!this.fallbackMap.has(key) && this.fallbackMap.size >= MAX_MAP_SIZE) {
+            const oldestKey = this.fallbackMap.keys().next().value;
+            if (oldestKey !== undefined) this.fallbackMap.delete(oldestKey);
+        }
+        this.fallbackMap.set(key, {
+            value,
+            expiresAt: Date.now() + (ttlSec * 1000)
+        });
+    }
+
+    getFallback(key) {
+        const entry = this.fallbackMap.get(key);
+        if (!entry) return null;
+        if (Date.now() > entry.expiresAt) {
+            this.fallbackMap.delete(key);
+            return null;
+        }
+        return entry.value;
+    }
+
+    async execCommand(args) {
+        if (this.upstashUrl && this.upstashToken) {
+            const res = await fetch(this.upstashUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.upstashToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(args)
+            });
+            if (!res.ok) throw new Error(`Upstash HTTP ${res.status}`);
+            const data = await res.json();
+            return data.result;
+        }
+        if (this.redisClient && this.redisClient.connected) {
+            return await this.redisClient.sendRaw(args);
+        }
+        throw new Error('No external Redis active');
+    }
+
+    async get(key) {
+        try {
+            const val = await this.execCommand(['GET', key]);
+            return val;
+        } catch {
+            return this.getFallback(key);
+        }
+    }
+
+    async set(key, value, ttlSec) {
+        const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+        this.setFallback(key, strVal, ttlSec);
+        try {
+            await this.execCommand(['SET', key, strVal, 'EX', String(ttlSec)]);
+        } catch {}
+    }
+
+    async setNx(key, value, ttlSec) {
+        try {
+            const res = await this.execCommand(['SET', key, String(value), 'EX', String(ttlSec), 'NX']);
+            return res === 'OK';
+        } catch {
+            const existing = this.getFallback(key);
+            if (existing !== null) return false;
+            this.setFallback(key, String(value), ttlSec);
+            return true;
+        }
+    }
+
+    async del(key) {
+        this.fallbackMap.delete(key);
+        try {
+            await this.execCommand(['DEL', key]);
+        } catch {}
+    }
+
+    async checkRateLimit(bucket, ip, maxRequests, windowSec) {
+        const key = `rl:${bucket}:${ip}`;
+        try {
+            const count = Number(await this.execCommand(['INCR', key]));
+            if (count === 1) {
+                await this.execCommand(['EXPIRE', key, String(windowSec)]);
+            }
+            return count <= maxRequests;
+        } catch {
+            const existing = this.getFallback(key);
+            const count = existing ? Number(existing) + 1 : 1;
+            const entry = this.fallbackMap.get(key);
+            const remainingSec = entry ? Math.max(1, Math.ceil((entry.expiresAt - Date.now()) / 1000)) : windowSec;
+            this.setFallback(key, String(count), remainingSec);
+            return count <= maxRequests;
+        }
+    }
+}
+
+const stateStore = new StateStore();
 
 function setBoundedMap(map, key, value) {
     if (!map.has(key) && map.size >= MAX_MAP_SIZE) {
@@ -88,18 +317,6 @@ function getClientIp(req) {
     return String(rawIp).trim().slice(0, 64);
 }
 
-function checkIpRateLimit(map, ip, maxRequests, windowMs) {
-    const now = Date.now();
-    const record = map.get(ip) || { count: 0, resetAt: now + windowMs };
-    if (now > record.resetAt) {
-        record.count = 0;
-        record.resetAt = now + windowMs;
-    }
-    record.count += 1;
-    setBoundedMap(map, ip, record);
-    return record.count <= maxRequests;
-}
-
 const fsCache = {
     quizzesList: { data: null, expiresAt: 0 },
     quizPaths: { data: null, expiresAt: 0 },
@@ -111,7 +328,7 @@ const fsCache = {
 };
 
 // ============================================================================
-// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS (CSP & HSTS)
+// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & STRICT NONCE CSP HEADERS
 // ============================================================================
 function verifyJsonComplexity(req, res, buf) {
     if (!buf || buf.length === 0) return;
@@ -151,21 +368,25 @@ function verifyJsonComplexity(req, res, buf) {
 const defaultJsonParser = express.json({ limit: '50kb', verify: verifyJsonComplexity });
 const submitJsonParser = express.json({ limit: '15mb', verify: verifyJsonComplexity });
 
-const CSP_POLICY = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob:",
-    "worker-src 'self' blob:",
-    "connect-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "form-action 'self'"
-].join('; ');
-
 app.use((req, res, next) => {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+
+    // Strict CSP: 'unsafe-inline' is completely eradicated from script-src
+    const cspPolicy = [
+        "default-src 'self'",
+        `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net`,
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob:",
+        "worker-src 'self' blob:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+        "form-action 'self'"
+    ].join('; ');
+
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -173,7 +394,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
-    res.setHeader('Content-Security-Policy', CSP_POLICY);
+    res.setHeader('Content-Security-Policy', cspPolicy);
     next();
 });
 
@@ -214,42 +435,45 @@ function extractAuthToken(req) {
     return null;
 }
 
-function preSubmitSecurityGuard(req, res, next) {
-    const clientIp = getClientIp(req);
-    if (!checkIpRateLimit(submitIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
-        return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
-    }
-
-    const token = extractAuthToken(req);
-    if (token) {
-        const preCheck = verifyAuthToken(token, null, true);
-        if (!preCheck.valid) {
-            return res.status(403).json({ success: false, error: preCheck.error });
+async function preSubmitSecurityGuard(req, res, next) {
+    try {
+        const clientIp = getClientIp(req);
+        const allowed = await stateStore.checkRateLimit('submit', clientIp, 15, 15 * 60);
+        if (!allowed) {
+            return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
         }
-        if (inFlightSubmissions.has(preCheck.signature)) {
-            return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+
+        const token = extractAuthToken(req);
+        if (token) {
+            const preCheck = await verifyAuthToken(token, null, true);
+            if (!preCheck.valid) {
+                return res.status(403).json({ success: false, error: preCheck.error });
+            }
+            const lockKey = `sub:lock:${preCheck.signature}`;
+            const acquired = await stateStore.setNx(lockKey, '1', 60);
+            if (!acquired) {
+                return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+            }
+            req.preVerifiedAuth = preCheck;
+            return next();
         }
-        inFlightSubmissions.add(preCheck.signature);
-        req.preVerifiedAuth = preCheck;
 
-        res.on('close', () => {
-            inFlightSubmissions.delete(preCheck.signature);
-        });
-        return next();
+        const ipVerified = await stateStore.get(`ip:verified:${clientIp}`);
+        if (!ipVerified) {
+            return res.status(401).json({ success: false, error: 'Unauthorized submission request.' });
+        }
+        next();
+    } catch (err) {
+        return res.status(500).json({ success: false, error: 'Security verification failed.' });
     }
-
-    const ipExpiry = verifiedClientIps.get(clientIp);
-    if (!ipExpiry || Date.now() > ipExpiry) {
-        return res.status(401).json({ success: false, error: 'Unauthorized submission request.' });
-    }
-    next();
 }
 
 // ============================================================================
-// 4. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, ENTRY GUARD, SSR & ANTI-FLICKER)
+// 4. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, NONCE INJECTION & EVENT DELEGATION)
 // ============================================================================
 function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
+    const nonce = res.locals.cspNonce;
 
     if (!isHome) {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
@@ -272,15 +496,15 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
         const headerHTML = `
             <div class="nav-container">
-                <a href="/" class="brand-logo" onclick="sessionStorage.removeItem('pioneers_prep_state')">
+                <a href="/" class="brand-logo" data-action="clear-session">
                     <span class="brand-title">PIONEERS PREP</span>
                     <span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee</strong>, with an experience of 8+ years in coaching.</span>
                 </a>
                 <nav class="site-nav" aria-label="Main Navigation">
-                    <a href="/" class="nav-link ${isHome ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Home</a>
-                    <a href="/mock-tests" class="nav-link ${isTests ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Mock Tests</a>
-                    <a href="/study-notes" class="nav-link ${isNotes ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Study Notes</a>
-                    <a href="/descriptive-papers" class="nav-link nav-link-yellow ${isDesc ? 'active' : ''}" onclick="sessionStorage.removeItem('pioneers_prep_state')">Descriptive Papers</a>
+                    <a href="/" class="nav-link ${isHome ? 'active' : ''}" data-action="clear-session">Home</a>
+                    <a href="/mock-tests" class="nav-link ${isTests ? 'active' : ''}" data-action="clear-session">Mock Tests</a>
+                    <a href="/study-notes" class="nav-link ${isNotes ? 'active' : ''}" data-action="clear-session">Study Notes</a>
+                    <a href="/descriptive-papers" class="nav-link nav-link-yellow ${isDesc ? 'active' : ''}" data-action="clear-session">Descriptive Papers</a>
                 </nav>
             </div>
         `;
@@ -321,7 +545,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         `;
 
         const headRouteGuardScript = `<base href="/">
-        <script>
+        <script nonce="${nonce}">
             (function() {
                 var baseRoute = '${canonicalBaseRoute}';
                 var isHome = (baseRoute === '/');
@@ -363,7 +587,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             })();
         </script>`;
 
-        const clientIntegrationScript = `<script>
+        const clientIntegrationScript = `<script nonce="${nonce}">
             (function() {
                 if (typeof MainNav !== 'undefined') {
                     MainNav.normalizeRoute = function(route) {
@@ -415,6 +639,65 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return originalFetch.call(this, input, init);
                     };
                 }
+
+                // Central CSP-safe Event Delegation for all data-action and legacy data-csp-action elements
+                document.addEventListener('click', function(e) {
+                    var target = e.target ? e.target.closest('[data-action], [data-csp-action]') : null;
+                    if (!target) return;
+
+                    var action = target.getAttribute('data-action');
+                    var arg = target.getAttribute('data-arg');
+                    if (action) {
+                        if (action === 'clear-session') {
+                            try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
+                        } else if (action === 'select-class' && typeof selectClass === 'function') {
+                            selectClass(arg);
+                        } else if (action === 'select-subject' && typeof selectSubject === 'function') {
+                            selectSubject(arg);
+                        } else if (action === 'select-notes-class' && typeof selectNotesClass === 'function') {
+                            selectNotesClass(arg);
+                        } else if (action === 'select-descriptive-class' && typeof selectDescriptiveClass === 'function') {
+                            selectDescriptiveClass(arg);
+                        } else if (action === 'go-back' && typeof goBack === 'function') {
+                            goBack();
+                        } else if (action === 'go-home' && typeof goHome === 'function') {
+                            goHome();
+                        } else if (action === 'start-quiz' && typeof startQuiz === 'function') {
+                            startQuiz();
+                        } else if (action === 'submit-quiz' && typeof submitQuiz === 'function') {
+                            submitQuiz(false);
+                        } else if (action === 'prev-question' && typeof prevQuestion === 'function') {
+                            prevQuestion();
+                        } else if (action === 'clear-response' && typeof clearResponse === 'function') {
+                            clearResponse();
+                        } else if (action === 'next-question' && typeof nextQuestion === 'function') {
+                            nextQuestion();
+                        }
+                        return;
+                    }
+
+                    var legacyExpr = target.getAttribute('data-csp-action');
+                    if (!legacyExpr) return;
+                    if (legacyExpr.indexOf("sessionStorage.removeItem('pioneers_prep_state')") !== -1) {
+                        try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
+                        return;
+                    }
+                    var fnMatch = /^([a-zA-Z0-9_]+)\\((.*)\\)$/.exec(legacyExpr.trim());
+                    if (!fnMatch) return;
+                    var fnName = fnMatch[1];
+                    var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
+                    if (fnName === 'selectClass' && typeof selectClass === 'function') selectClass(rawArg);
+                    else if (fnName === 'selectSubject' && typeof selectSubject === 'function') selectSubject(rawArg);
+                    else if (fnName === 'selectNotesClass' && typeof selectNotesClass === 'function') selectNotesClass(rawArg);
+                    else if (fnName === 'selectDescriptiveClass' && typeof selectDescriptiveClass === 'function') selectDescriptiveClass(rawArg);
+                    else if (fnName === 'goBack' && typeof goBack === 'function') goBack();
+                    else if (fnName === 'goHome' && typeof goHome === 'function') goHome();
+                    else if (fnName === 'startQuiz' && typeof startQuiz === 'function') startQuiz();
+                    else if (fnName === 'submitQuiz' && typeof submitQuiz === 'function') submitQuiz(rawArg === 'true');
+                    else if (fnName === 'prevQuestion' && typeof prevQuestion === 'function') prevQuestion();
+                    else if (fnName === 'clearResponse' && typeof clearResponse === 'function') clearResponse();
+                    else if (fnName === 'nextQuestion' && typeof nextQuestion === 'function') nextQuestion();
+                });
             })();
 
             try {
@@ -537,6 +820,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         </script>`;
 
         let dynamicHtml = data
+            // Automatically convert any remaining inline onclick="..." into CSP-safe data-csp-action="..."
+            .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
+            // Add cryptographic nonce to all existing <script> tags
+            .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
             .replace(/<head>/i, `<head>\n${headRouteGuardScript}`)
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
@@ -545,8 +832,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
-            .replace(/<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
-                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
+            .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
+                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
             .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
@@ -749,13 +1036,17 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     return 900;
 }
 
-function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallback) {
-    const existing = activeExamSessions.get(authSignature);
-    if (existing) {
-        if (existing.quizId !== cleanQuizId) {
-            return { error: 'This verification session is already locked to another quiz.' };
-        }
-        return existing;
+async function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallback) {
+    const sessionKey = `exam:session:${authSignature}`;
+    const rawExisting = await stateStore.get(sessionKey);
+    if (rawExisting) {
+        try {
+            const existing = typeof rawExisting === 'string' ? JSON.parse(rawExisting) : rawExisting;
+            if (existing.quizId !== cleanQuizId) {
+                return { error: 'This verification session is already locked to another quiz.' };
+            }
+            return existing;
+        } catch {}
     }
 
     const officialDuration = getOfficialQuizDuration(cleanQuizId, clientDurationFallback);
@@ -770,7 +1061,7 @@ function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallba
         signature,
         expiresAt: startTime + TOKEN_MAX_AGE_MS
     };
-    setBoundedMap(activeExamSessions, authSignature, session);
+    await stateStore.set(sessionKey, session, TOKEN_MAX_AGE_SEC);
     return session;
 }
 
@@ -823,7 +1114,7 @@ function resolveSafeDescriptivePath(rawFileName) {
     return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
-function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
+async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
         return { valid: false, error: 'Security Alert: Invalid submission token.' };
     }
@@ -857,8 +1148,11 @@ function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
         return { valid: false, error: 'Security Alert: Token email mismatch.' };
     }
-    if (checkReplay && usedAuthTokens.has(authSignature)) {
-        return { valid: false, error: 'This quiz session has already been submitted.' };
+    if (checkReplay) {
+        const isUsed = await stateStore.get(`auth:used:${authSignature}`);
+        if (isUsed) {
+            return { valid: false, error: 'This quiz session has already been submitted.' };
+        }
     }
 
     return { valid: true, email: tokenEmail, firstName, lastName, signature: authSignature };
@@ -884,17 +1178,6 @@ function queueSubmissionBackup(entry) {
     });
     return submissionWritePromise;
 }
-
-setInterval(() => {
-    const now = Date.now();
-    for (const [email, record] of pendingOtps.entries()) { if (now > record.expiresAt) pendingOtps.delete(email); }
-    for (const [ip, record] of otpIpRateLimit.entries()) { if (now > record.resetAt) otpIpRateLimit.delete(ip); }
-    for (const [ip, record] of verifyIpRateLimit.entries()) { if (now > record.resetAt) verifyIpRateLimit.delete(ip); }
-    for (const [ip, record] of submitIpRateLimit.entries()) { if (now > record.resetAt) submitIpRateLimit.delete(ip); }
-    for (const [sig, expiresAt] of usedAuthTokens.entries()) { if (now > expiresAt) usedAuthTokens.delete(sig); }
-    for (const [sig, session] of activeExamSessions.entries()) { if (now > session.expiresAt) activeExamSessions.delete(sig); }
-    for (const [ip, expiresAt] of verifiedClientIps.entries()) { if (now > expiresAt) verifiedClientIps.delete(ip); }
-}, 5 * 60 * 1000);
 
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
@@ -1046,19 +1329,19 @@ app.get('/api/quizzes', (req, res) => {
     }
 });
 
-app.get('/api/quiz/:id', (req, res) => {
-    if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-    const authCheck = verifyAuthToken(extractAuthToken(req), null, true);
-    if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
-
-    const cleanId = path.basename(String(req.params.id || '')).trim();
-    const filePath = resolveSafeQuizPath(cleanId);
-    if (!filePath) return res.status(404).json({ error: "Not found" });
-
-    const session = getOrCreateExamSession(authCheck.signature, cleanId, null);
-    if (session.error) return res.status(403).json({ error: session.error });
-
+app.get('/api/quiz/:id', async (req, res) => {
     try {
+        if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
+        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+
+        const cleanId = path.basename(String(req.params.id || '')).trim();
+        const filePath = resolveSafeQuizPath(cleanId);
+        if (!filePath) return res.status(404).json({ error: "Not found" });
+
+        const session = await getOrCreateExamSession(authCheck.signature, cleanId, null);
+        if (session.error) return res.status(403).json({ error: session.error });
+
         const content = getCachedQuizContent(filePath);
         const rawQuestions = content.questions || [];
         const qOrder = getDeterministicPermutation(rawQuestions.length, `${authCheck.signature}:${cleanId}:q`);
@@ -1086,114 +1369,144 @@ app.get('/api/quiz/:id', (req, res) => {
     }
 });
 
-app.post('/api/start-quiz', (req, res) => {
-    const authCheck = verifyAuthToken(extractAuthToken(req), null, true);
-    if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+app.post('/api/start-quiz', async (req, res) => {
+    try {
+        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
-    const { quizId, duration } = req.body;
-    const cleanId = path.basename(String(quizId || '')).trim();
-    if (!resolveSafeQuizPath(cleanId)) return res.status(400).json({ error: "Invalid quiz ID." });
+        const { quizId, duration } = req.body;
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!resolveSafeQuizPath(cleanId)) return res.status(400).json({ error: "Invalid quiz ID." });
 
-    const session = getOrCreateExamSession(authCheck.signature, cleanId, duration);
-    if (session.error) return res.status(403).json({ error: session.error });
+        const session = await getOrCreateExamSession(authCheck.signature, cleanId, duration);
+        if (session.error) return res.status(403).json({ error: session.error });
 
-    res.json({
-        startTime: session.startTime,
-        duration: session.duration,
-        signature: session.signature
-    });
+        res.json({
+            startTime: session.startTime,
+            duration: session.duration,
+            signature: session.signature
+        });
+    } catch {
+        res.status(500).json({ error: "Failed to start quiz session." });
+    }
 });
 
-app.post('/api/send-otp', (req, res) => {
-    const clientIp = getClientIp(req);
-    const now = Date.now();
+app.post('/api/send-otp', async (req, res) => {
+    try {
+        const clientIp = getClientIp(req);
+        const now = Date.now();
 
-    if (!checkIpRateLimit(otpIpRateLimit, clientIp, 10, 15 * 60 * 1000)) {
-        return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
+        const allowed = await stateStore.checkRateLimit('otp', clientIp, 10, 15 * 60);
+        if (!allowed) {
+            return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
+        }
+
+        const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
+        const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
+        const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
+
+        if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
+        }
+
+        const otpKey = `otp:pending:${email}`;
+        const rawExistingOtp = await stateStore.get(otpKey);
+        if (rawExistingOtp) {
+            try {
+                const existingOtp = typeof rawExistingOtp === 'string' ? JSON.parse(rawExistingOtp) : rawExistingOtp;
+                if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) {
+                    return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
+                }
+            } catch {}
+        }
+
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        await stateStore.set(otpKey, {
+            otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now
+        }, 5 * 60);
+
+        console.log(`[OTP Dispatched] Recipient: ${maskEmail(email)} at ${new Date().toISOString()}`);
+
+        const scriptURL = process.env.APP_SCRIPT_URL;
+        if (scriptURL && APPS_SECRET) {
+            fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'otp', targetEmail: email, subject: 'Pioneers Prep - Verification Code', secretKey: APPS_SECRET,
+                    breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;"><h2>Hello ${escapeHtml(firstName)} ${escapeHtml(lastName)},</h2><p>Your verification code is:</p><h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1><p>Code is valid for 5 minutes. Do not share this with anyone.</p></div>`
+                })
+            }).catch(err => console.error('OTP email error:', err));
+        }
+        res.json({ success: true });
+    } catch {
+        res.status(500).json({ success: false, error: 'Failed to process OTP request.' });
     }
-
-    const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
-    const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
-    const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
-
-    if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
-    }
-
-    const existingOtp = pendingOtps.get(email);
-    if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) {
-        return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
-    }
-
-    const otp = crypto.randomInt(100000, 1000000).toString();
-    setBoundedMap(pendingOtps, email, {
-        otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now
-    });
-
-    console.log(`[OTP Dispatched] Recipient: ${maskEmail(email)} at ${new Date().toISOString()}`);
-
-    const scriptURL = process.env.APP_SCRIPT_URL;
-    if (scriptURL && APPS_SECRET) {
-        fetch(scriptURL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'otp', targetEmail: email, subject: 'Pioneers Prep - Verification Code', secretKey: APPS_SECRET,
-                breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;"><h2>Hello ${escapeHtml(firstName)} ${escapeHtml(lastName)},</h2><p>Your verification code is:</p><h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1><p>Code is valid for 5 minutes. Do not share this with anyone.</p></div>`
-            })
-        }).catch(err => console.error('OTP email error:', err));
-    }
-    res.json({ success: true });
 });
 
-app.post('/api/verify-otp', (req, res) => {
-    const clientIp = getClientIp(req);
-    if (!checkIpRateLimit(verifyIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
-        return res.status(429).json({ success: false, error: 'Too many verification attempts. Please wait 15 minutes.' });
+app.post('/api/verify-otp', async (req, res) => {
+    try {
+        const clientIp = getClientIp(req);
+        const allowed = await stateStore.checkRateLimit('verify', clientIp, 15, 15 * 60);
+        if (!allowed) {
+            return res.status(429).json({ success: false, error: 'Too many verification attempts. Please wait 15 minutes.' });
+        }
+
+        const email = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
+        const otp = req.body.otp ? String(req.body.otp).trim() : '';
+        const otpKey = `otp:pending:${email}`;
+        const rawRecord = await stateStore.get(otpKey);
+
+        if (!rawRecord) {
+            return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
+        }
+
+        const record = typeof rawRecord === 'string' ? JSON.parse(rawRecord) : rawRecord;
+        if (!record || Date.now() > record.expiresAt) {
+            await stateStore.del(otpKey);
+            return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
+        }
+
+        record.attempts = (record.attempts || 0) + 1;
+        if (record.attempts > 5) {
+            await stateStore.del(otpKey);
+            return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Request a new OTP.' });
+        }
+
+        if (!safeCompareStrings(record.otp, otp)) {
+            const remainingSec = Math.max(1, Math.ceil((record.expiresAt - Date.now()) / 1000));
+            await stateStore.set(otpKey, record, remainingSec);
+            return res.status(400).json({ success: false, error: 'Invalid verification code.' });
+        }
+
+        await stateStore.del(otpKey);
+
+        const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        const authToken = `${tokenData}|||${signature}`;
+
+        await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
+
+        res.cookie(AUTH_COOKIE_NAME, authToken, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            maxAge: TOKEN_MAX_AGE_MS,
+            path: '/'
+        });
+
+        res.json({ success: true });
+    } catch {
+        res.status(500).json({ success: false, error: 'OTP verification failed.' });
     }
-
-    const email = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
-    const otp = req.body.otp ? String(req.body.otp).trim() : '';
-    const record = pendingOtps.get(email);
-
-    if (!record || Date.now() > record.expiresAt) {
-        pendingOtps.delete(email);
-        return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
-    }
-
-    record.attempts = (record.attempts || 0) + 1;
-    if (record.attempts > 5) {
-        pendingOtps.delete(email);
-        return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Request a new OTP.' });
-    }
-
-    if (!safeCompareStrings(record.otp, otp)) {
-        return res.status(400).json({ success: false, error: 'Invalid verification code.' });
-    }
-
-    pendingOtps.delete(email);
-
-    const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
-    const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-    const authToken = `${tokenData}|||${signature}`;
-
-    setBoundedMap(verifiedClientIps, clientIp, Date.now() + TOKEN_MAX_AGE_MS);
-
-    res.cookie(AUTH_COOKIE_NAME, authToken, {
-        httpOnly: true,
-        secure: isSecureConnection(req),
-        sameSite: 'strict',
-        maxAge: TOKEN_MAX_AGE_MS,
-        path: '/'
-    });
-
-    res.json({ success: true });
 });
 
 app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
-    submitJsonParser(req, res, (err) => {
+    submitJsonParser(req, res, async (err) => {
         if (err) {
-            if (req.preVerifiedAuth?.signature) inFlightSubmissions.delete(req.preVerifiedAuth.signature);
+            if (req.preVerifiedAuth?.signature) {
+                await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
+            }
             return res.status(400).json({ success: false, error: 'Invalid or oversized submission payload.' });
         }
         next();
@@ -1203,15 +1516,18 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration } = req.body;
 
     const tokenToVerify = extractAuthToken(req);
-    const authCheck = verifyAuthToken(tokenToVerify, rawEmail, true);
+    const authCheck = await verifyAuthToken(tokenToVerify, rawEmail, true);
     if (!authCheck.valid) {
-        if (req.preVerifiedAuth?.signature) inFlightSubmissions.delete(req.preVerifiedAuth.signature);
+        if (req.preVerifiedAuth?.signature) await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
         return res.status(403).json({ success: false, error: authCheck.error });
     }
 
-    if (usedAuthTokens.has(authCheck.signature)) {
-        inFlightSubmissions.delete(authCheck.signature);
-        return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
+    const lockKey = `sub:lock:${authCheck.signature}`;
+    if (!req.preVerifiedAuth) {
+        const acquired = await stateStore.setNx(lockKey, '1', 60);
+        if (!acquired) {
+            return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+        }
     }
 
     const firstName = authCheck.firstName || (req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN');
@@ -1221,13 +1537,15 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     const cleanQuizId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanQuizId);
     if (!filePath) {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
     }
 
-    const lockedSession = activeExamSessions.get(authCheck.signature);
+    const sessionKey = `exam:session:${authCheck.signature}`;
+    const rawLockedSession = await stateStore.get(sessionKey);
+    const lockedSession = rawLockedSession ? (typeof rawLockedSession === 'string' ? JSON.parse(rawLockedSession) : rawLockedSession) : null;
     if (lockedSession && lockedSession.quizId !== cleanQuizId) {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Quiz ID mismatch with active exam session.' });
     }
 
@@ -1235,24 +1553,29 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     const effectiveDuration = lockedSession ? lockedSession.duration : Number(quizDuration);
 
     if (!effectiveStartTime || !timerSignature || !effectiveDuration) {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
     }
 
     const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${effectiveDuration}:${effectiveStartTime}`).digest('hex');
     if (!safeCompareHex(timerSignature, expectedTimerSig)) {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
     }
 
     const elapsedSeconds = (Date.now() - effectiveStartTime) / 1000;
     if (elapsedSeconds < 0 || elapsedSeconds > effectiveDuration + 120) {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
     }
 
-    setBoundedMap(usedAuthTokens, authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
-    activeExamSessions.delete(authCheck.signature);
+    // Atomically mark token as consumed in Redis before grading/IO
+    const markedUnused = await stateStore.setNx(`auth:used:${authCheck.signature}`, '1', TOKEN_MAX_AGE_SEC);
+    if (!markedUnused) {
+        await stateStore.del(lockKey);
+        return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
+    }
+    await stateStore.del(sessionKey);
 
     try {
         const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
@@ -1341,11 +1664,11 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     } catch (err) {
         res.status(500).json({ success: false, error: 'Grading failed.' });
     } finally {
-        inFlightSubmissions.delete(authCheck.signature);
+        await stateStore.del(lockKey);
     }
 });
 
-// Express 4 & 5 compatible RegExp catch-all route (bypasses path-to-regexp string parser)
+// Express 4 & 5 compatible RegExp catch-all route
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
