@@ -17,6 +17,7 @@ let activeQuizTitle = "";
 let selectedNotesClass = "";
 let selectedNotesSubject = "";
 let selectedDescriptiveClass = "";
+let selectedDescriptiveSubject = "";
 let selectedNeetUnit = "";
 let selectedNeetChapter = "";
 let isRestoringSession = false;
@@ -57,7 +58,7 @@ function updateState() {
         CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex,
         timeRemaining, quizDuration, serverStartTime, timerSignature,
         userAnswers, skippedQuestions, screenHistory,
-        { selectedClassName, selectedSubjectName, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedNeetUnit, selectedNeetChapter }
+        { selectedClassName, selectedSubjectName, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedDescriptiveSubject, selectedNeetUnit, selectedNeetChapter }
     );
 }
 
@@ -92,7 +93,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         window.history.replaceState({}, document.title, window.location.pathname);
         if (normalizedRoute === '/test-portal.html') selectClass(queryClass);
         else if (normalizedRoute === '/notes.html') selectNotesClass(queryClass);
-        else if (normalizedRoute === '/descriptive.html') await selectDescriptiveClass(queryClass);
+        else if (normalizedRoute === '/descriptive.html') selectDescriptiveClass(queryClass);
     }
 });
 
@@ -104,6 +105,7 @@ async function restoreSessionState(state) {
         selectedNotesClass = state.selectedNotesClass || '';
         selectedNotesSubject = state.selectedNotesSubject || '';
         selectedDescriptiveClass = state.selectedDescriptiveClass || '';
+        selectedDescriptiveSubject = state.selectedDescriptiveSubject || '';
         selectedNeetUnit = state.selectedNeetUnit || '';
         selectedNeetChapter = state.selectedNeetChapter || '';
         currentQuizId = state.currentQuizId || '';
@@ -148,7 +150,8 @@ async function restoreSessionState(state) {
             else loadDynamicChapters(selectedClassName);
         } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) selectNotesClass(selectedNotesClass);
         else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) await selectNotesSubject(selectedNotesSubject);
-        else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass) await selectDescriptiveClass(selectedDescriptiveClass);
+        else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) selectDescriptiveClass(selectedDescriptiveClass);
+        else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) await selectDescriptiveSubject(selectedDescriptiveSubject);
         else if (state.activeScreen === 'name-screen') {
             showScreen('name-screen');
             if (state.otpSent) showOtpWrapper();
@@ -211,21 +214,38 @@ function goHome() {
     document.getElementById('home-dashboard')?.classList.remove('hidden');
 }
 
-async function selectDescriptiveClass(cName) {
+function selectDescriptiveClass(cName) {
     selectedDescriptiveClass = cName;
+    const container = document.getElementById('descriptive-subject-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const subjects = (cName === 'IX' || cName === 'X') ? ['Physics', 'Chemistry', 'Biology'] : ['Biology'];
+    subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'card card-yellow';
+        card.innerText = sub;
+        card.addEventListener('click', () => selectDescriptiveSubject(sub));
+        container.appendChild(card);
+    });
+    showScreen('descriptive-subject-screen');
+}
+
+async function selectDescriptiveSubject(subject) {
+    selectedDescriptiveSubject = subject;
     const heading = document.getElementById('descriptive-screen-heading');
-    if (heading) heading.innerText = `Class ${cName} - Descriptive Papers`;
+    if (heading) heading.innerText = `Class ${selectedDescriptiveClass} ${subject} Papers`;
     const container = document.getElementById('descriptive-list-container');
+    if (!container) return;
     container.innerHTML = '<p style="text-align:center;">Loading question papers...</p>';
     showScreen('descriptive-list-screen');
 
     try {
         const res = await fetch('/api/descriptive-questions');
-        const data = await res.json();
+        const list = await res.json();
+        const matched = list.find(n => n.class === selectedDescriptiveClass && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
-        const list = data.files?.[cName] || [];
-        if (list.length > 0) {
-            list.forEach(item => {
+        if (matched?.papers?.length > 0) {
+            matched.papers.forEach(item => {
                 const link = document.createElement('a');
                 link.href = '/api/download-descriptive/' + encodeURIComponent(item.fileName);
                 link.className = 'card card-yellow';
@@ -233,7 +253,7 @@ async function selectDescriptiveClass(cName) {
                 container.appendChild(link);
             });
         } else {
-            container.innerHTML = `<p style="text-align:center; color:#854d0e;">No question papers available for Class ${escapeClientHtml(cName)} yet.</p>`;
+            container.innerHTML = `<p style="text-align:center; color:#854d0e;">No question papers available for ${escapeClientHtml(subject)} yet.</p>`;
         }
     } catch {
         container.innerHTML = '<p style="text-align:center; color:red;">Failed to load papers.</p>';
