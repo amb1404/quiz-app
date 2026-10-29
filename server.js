@@ -52,6 +52,7 @@ if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
 const MAX_MAP_SIZE = 5000;
 const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 const CACHE_TTL_MS = 60 * 1000;
+const AUTH_COOKIE_NAME = 'pioneers_auth_token';
 
 const pendingOtps = new Map();
 const otpIpRateLimit = new Map();
@@ -110,7 +111,7 @@ const fsCache = {
 };
 
 // ============================================================================
-// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS
+// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS (CSP)
 // ============================================================================
 function verifyJsonComplexity(req, res, buf) {
     if (!buf || buf.length === 0) return;
@@ -125,22 +126,22 @@ function verifyJsonComplexity(req, res, buf) {
             escaped = false;
             continue;
         }
-        if (byte === 0x5c) { // '\'
+        if (byte === 0x5c) {
             escaped = true;
             continue;
         }
-        if (byte === 0x22) { // '"'
+        if (byte === 0x22) {
             inString = !inString;
             continue;
         }
         if (!inString) {
-            if (byte === 0x7b || byte === 0x5b) { // '{' or '['
+            if (byte === 0x7b || byte === 0x5b) {
                 depth++;
                 if (depth > maxDepth) maxDepth = depth;
                 if (maxDepth > 12) {
                     throw new Error('JSON nesting depth exceeded security limit.');
                 }
-            } else if (byte === 0x7d || byte === 0x5d) { // '}' or ']'
+            } else if (byte === 0x7d || byte === 0x5d) {
                 depth--;
             }
         }
@@ -150,6 +151,20 @@ function verifyJsonComplexity(req, res, buf) {
 const defaultJsonParser = express.json({ limit: '50kb', verify: verifyJsonComplexity });
 const submitJsonParser = express.json({ limit: '15mb', verify: verifyJsonComplexity });
 
+const CSP_POLICY = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob:",
+    "worker-src 'self' blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'"
+].join('; ');
+
 app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -157,6 +172,7 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
     res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+    res.setHeader('Content-Security-Policy', CSP_POLICY);
     next();
 });
 
@@ -168,15 +184,44 @@ app.use((req, res, next) => {
     });
 });
 
+function isSecureConnection(req) {
+    return Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production');
+}
+
+function extractAuthToken(req) {
+    const cookieHeader = req.headers['cookie'];
+    if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
+        const pairs = cookieHeader.split(';');
+        for (let i = 0; i < pairs.length; i++) {
+            const pair = pairs[i].trim();
+            if (pair.startsWith(AUTH_COOKIE_NAME + '=')) {
+                const rawVal = pair.slice(AUTH_COOKIE_NAME.length + 1);
+                try {
+                    const decoded = decodeURIComponent(rawVal).trim();
+                    if (decoded.includes('|||')) return decoded;
+                } catch {
+                    if (rawVal.includes('|||')) return rawVal;
+                }
+            }
+        }
+    }
+
+    const headerToken = req.get('Authorization')?.replace('Bearer ', '').trim();
+    if (headerToken && headerToken.includes('|||')) {
+        return headerToken;
+    }
+    return null;
+}
+
 function preSubmitSecurityGuard(req, res, next) {
     const clientIp = getClientIp(req);
     if (!checkIpRateLimit(submitIpRateLimit, clientIp, 15, 15 * 60 * 1000)) {
         return res.status(429).json({ success: false, error: 'Too many submission attempts. Please wait.' });
     }
 
-    const headerToken = req.get('Authorization')?.replace('Bearer ', '').trim();
-    if (headerToken) {
-        const preCheck = verifyAuthToken(headerToken, null, true);
+    const token = extractAuthToken(req);
+    if (token) {
+        const preCheck = verifyAuthToken(token, null, true);
         if (!preCheck.valid) {
             return res.status(403).json({ success: false, error: preCheck.error });
         }
@@ -255,9 +300,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 0 0 1.333 4.976L1.92 22.07l5.244-1.376a9.972 9.972 0 0 0 4.847 1.259h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.037-5.176-2.924-7.063A9.925 9.925 0 0 0 12.012 2zm0 18.283h-.003a8.272 8.272 0 0 1-4.22-1.155l-.303-.179-3.136.822.84-3.056-.197-.313a8.28 8.28 0 0 1-1.267-4.418c.001-4.57 3.72-8.288 8.293-8.288 2.215 0 4.298.863 5.864 2.428a8.236 8.236 0 0 1 2.426 5.866c-.002 4.568-3.721 8.286-8.297 8.288zm4.544-6.196c-.249-.125-1.474-.728-1.703-.811-.23-.083-.398-.124-.564.124-.167.249-.644.811-.79.77-.145-.164-.291-.207-.54-.332-1.398-.698-3.328-1.545-4.226-3.1-.096-.164-.011-.253.113-.377.111-.11.249-.29.373-.435.124-.146.166-.249.249-.415.083-.166.042-.311-.021-.436-.062-.124-.564-1.36-.773-1.865-.203-.49-.408-.424-.564-.432l-.481-.007c-.166 0-.435.062-.663.311s-.871.851-.871 2.074c0 1.223.892 2.405 1.016 2.571.124.166 1.753 2.676 4.246 3.753 1.54.665 2.112.72 2.871.603.861-.131 2.671-1.092 3.045-2.149.373-1.058.373-1.966.262-2.149-.112-.185-.415-.291-.664-.415z"/></svg>
                         <span>+91 XXXXX XXXXX (WhatsApp)</span>
                     </a>
-                    <a href="mailto:anibanerjee5@gmail.com" class="contact-item">
+                    <a href="mailto:anibanerjee699@gmail.com" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                        <span>anibanerjee5@gmail.com</span>
+                        <span>anibanerjee699@gmail.com</span>
                     </a>
                     <div class="contact-item no-hover" style="cursor: default;">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
@@ -330,32 +375,45 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 }
 
-                var originalFetch = window.fetch;
-                if (!originalFetch) return;
-                window.fetch = function(input, init) {
-                    try {
-                        var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
-                        if (url.indexOf('/api/submit') !== -1) {
-                            init = init || {};
-                            var headers = new Headers(init.headers || {});
-                            if (!headers.has('Authorization')) {
-                                var token = (typeof studentAuthToken === 'string' && studentAuthToken) ? studentAuthToken : '';
-                                if (!token) {
-                                    var raw = sessionStorage.getItem('pioneers_prep_state');
-                                    if (raw) {
-                                        var st = JSON.parse(raw);
-                                        if (st && st.studentAuthToken) token = st.studentAuthToken;
-                                    }
+                // Prevent any auth token from ever being persisted to sessionStorage
+                try {
+                    var origSetItem = sessionStorage.setItem;
+                    sessionStorage.setItem = function(key, val) {
+                        if (key === 'pioneers_prep_state' && typeof val === 'string') {
+                            try {
+                                var parsed = JSON.parse(val);
+                                if (parsed && 'studentAuthToken' in parsed) {
+                                    delete parsed.studentAuthToken;
+                                    val = JSON.stringify(parsed);
                                 }
-                                if (token) {
-                                    headers.set('Authorization', 'Bearer ' + token);
+                            } catch (e) {}
+                        }
+                        return origSetItem.call(this, key, val);
+                    };
+                } catch (e) {}
+
+                // Ensure all API requests automatically send the HttpOnly cookie
+                var originalFetch = window.fetch;
+                if (originalFetch) {
+                    window.fetch = function(input, init) {
+                        try {
+                            var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                            if (url.indexOf('/api/') !== -1) {
+                                init = init || {};
+                                init.credentials = 'same-origin';
+                                if (init.headers) {
+                                    var h = new Headers(init.headers);
+                                    var authVal = h.get('Authorization');
+                                    if (authVal && authVal.indexOf('|||') === -1) {
+                                        h.delete('Authorization');
+                                    }
+                                    init.headers = h;
                                 }
                             }
-                            init.headers = headers;
-                        }
-                    } catch (e) {}
-                    return originalFetch.call(this, input, init);
-                };
+                        } catch (e) {}
+                        return originalFetch.call(this, input, init);
+                    };
+                }
             })();
 
             try {
@@ -571,7 +629,6 @@ function isSafeBase64Image(str) {
         const headerBytes = Buffer.from(b64Payload.slice(0, 32), 'base64');
         if (headerBytes.length < 12) return false;
 
-        // Verify binary magic bytes match declared MIME type
         if (mimeSubtype === 'jpeg' || mimeSubtype === 'jpg') {
             return headerBytes[0] === 0xFF && headerBytes[1] === 0xD8 && headerBytes[2] === 0xFF;
         }
@@ -990,7 +1047,7 @@ app.get('/api/quizzes', (req, res) => {
 
 app.get('/api/quiz/:id', (req, res) => {
     if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''), null, true);
+    const authCheck = verifyAuthToken(extractAuthToken(req), null, true);
     if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
     const cleanId = path.basename(String(req.params.id || '')).trim();
@@ -1029,7 +1086,7 @@ app.get('/api/quiz/:id', (req, res) => {
 });
 
 app.post('/api/start-quiz', (req, res) => {
-    const authCheck = verifyAuthToken(req.get('Authorization')?.replace('Bearer ', ''), null, true);
+    const authCheck = verifyAuthToken(extractAuthToken(req), null, true);
     if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
     const { quizId, duration } = req.body;
@@ -1117,9 +1174,19 @@ app.post('/api/verify-otp', (req, res) => {
 
     const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
     const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+    const authToken = `${tokenData}|||${signature}`;
 
     setBoundedMap(verifiedClientIps, clientIp, Date.now() + TOKEN_MAX_AGE_MS);
-    res.json({ success: true, authToken: `${tokenData}|||${signature}` });
+
+    res.cookie(AUTH_COOKIE_NAME, authToken, {
+        httpOnly: true,
+        secure: isSecureConnection(req),
+        sameSite: 'strict',
+        maxAge: TOKEN_MAX_AGE_MS,
+        path: '/'
+    });
+
+    res.json({ success: true });
 });
 
 app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
@@ -1132,15 +1199,15 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     });
 }, async (req, res) => {
     const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : 'no-email';
-    const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration, authToken } = req.body;
+    const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration } = req.body;
 
-    const authCheck = verifyAuthToken(authToken || req.get('Authorization')?.replace('Bearer ', ''), rawEmail, true);
+    const tokenToVerify = extractAuthToken(req);
+    const authCheck = verifyAuthToken(tokenToVerify, rawEmail, true);
     if (!authCheck.valid) {
         if (req.preVerifiedAuth?.signature) inFlightSubmissions.delete(req.preVerifiedAuth.signature);
         return res.status(403).json({ success: false, error: authCheck.error });
     }
 
-    // Atomic replay protection: immediately lock token before processing
     if (usedAuthTokens.has(authCheck.signature)) {
         inFlightSubmissions.delete(authCheck.signature);
         return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
@@ -1183,7 +1250,6 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
     }
 
-    // Permanently consume token and session before grading/IO
     setBoundedMap(usedAuthTokens, authCheck.signature, Date.now() + TOKEN_MAX_AGE_MS);
     activeExamSessions.delete(authCheck.signature);
 
@@ -1257,6 +1323,14 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         };
 
         await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
+
+        res.clearCookie(AUTH_COOKIE_NAME, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            path: '/'
+        });
+
         res.json({ success: true, score: correctCount, total: totalCount });
 
         const scriptURL = process.env.APP_SCRIPT_URL;
