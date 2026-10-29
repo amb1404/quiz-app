@@ -21,21 +21,21 @@
         <div id="home-dashboard" class="app-screen">
             <div class="dashboard-panel" style="width: 580px;">
                 <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Class for Study Notes</h2>
-                <div class="card" onclick="selectNotesClass('IX')">Class IX Study Notes</div>
-                <div class="card" onclick="selectNotesClass('X')">Class X Study Notes</div>
-                <div class="card" onclick="selectNotesClass('XI')">Class XI Study Notes</div>
-                <div class="card" onclick="selectNotesClass('XII')">Class XII Study Notes</div>
+                <div class="card" data-action="select-notes-class" data-arg="IX">Class IX Study Notes</div>
+                <div class="card" data-action="select-notes-class" data-arg="X">Class X Study Notes</div>
+                <div class="card" data-action="select-notes-class" data-arg="XI">Class XI Study Notes</div>
+                <div class="card" data-action="select-notes-class" data-arg="XII">Class XII Study Notes</div>
             </div>
         </div>
 
         <div id="notes-subject-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #10b981; margin-top: 0;">Select Subject</h2>
             <div id="notes-subject-container"></div>
         </div>
 
         <div id="notes-list-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #10b981; margin-top: 0;">Available Notes</h2>
             <div id="notes-list-container"></div>
         </div>
