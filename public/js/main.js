@@ -1,7 +1,7 @@
 // public/js/main.js
 
-// Note: Visual layout (header/footer) is now injected server-side by server.js to prevent rendering flicker.
-// This file now exclusively manages Session State tracking and Exam Mode persistence.
+// Note: Visual layout (header/footer) is injected server-side by server.js to prevent rendering flicker.
+// Authentication tokens are handled via HttpOnly cookies and are never stored in sessionStorage.
 
 const MainNav = {
     normalizeRoute(route) {
@@ -12,7 +12,7 @@ const MainNav = {
         return route;
     },
 
-    saveSessionState(CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex, timeRemaining, quizDuration, serverStartTime, timerSignature, studentAuthToken, userAnswers, skippedQuestions, screenHistory, options = {}) {
+    saveSessionState(CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex, timeRemaining, quizDuration, serverStartTime, timerSignature, userAnswers, skippedQuestions, screenHistory, options = {}) {
         const activeScreen = document.querySelector('.app-screen:not(.hidden)')?.id || 'home-dashboard';
         const state = {
             route: this.normalizeRoute(CURRENT_ROUTE),
@@ -25,7 +25,6 @@ const MainNav = {
             quizDuration,
             serverStartTime,
             timerSignature,
-            studentAuthToken,
             otpSent: !!document.getElementById('otp-input'),
             userAnswers: Object.fromEntries(Object.entries(userAnswers)),
             skippedQuestions: Array.from(skippedQuestions),
