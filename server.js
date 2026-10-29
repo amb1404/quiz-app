@@ -39,11 +39,11 @@ function loadOrGenerateMasterSecret() {
 }
 
 const SECRET = loadOrGenerateMasterSecret();
-const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || 'pioneers-prep-script-secure-2026';
+const APPS_SECRET = process.env.APPS_SCRIPT_SECRET || '';
 const ADMIN_EMAIL = process.env.TARGET_EMAIL || 'anibanerjee699@gmail.com';
 
 if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
-    console.warn('[Security Notice] Using auto-generated high-entropy runtime secret. Set TIMER_SECRET and APPS_SCRIPT_SECRET in Render Environment Variables for multi-instance persistence.');
+    console.warn('[Security Notice] Missing TIMER_SECRET or APPS_SCRIPT_SECRET in environment variables. Ensure both are set in Render dashboard.');
 }
 
 // ============================================================================
@@ -111,7 +111,7 @@ const fsCache = {
 };
 
 // ============================================================================
-// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS (CSP)
+// 3. PRE-AUTH PAYLOAD GUARD, JSON DoS PROTECTION & SECURITY HEADERS (CSP & HSTS)
 // ============================================================================
 function verifyJsonComplexity(req, res, buf) {
     if (!buf || buf.length === 0) return;
@@ -166,6 +166,7 @@ const CSP_POLICY = [
 ].join('; ');
 
 app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -392,7 +393,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 } catch (e) {}
 
-                // Ensure all API requests automatically send the HttpOnly cookie
+                // Ensure all API requests automatically send credentials
                 var originalFetch = window.fetch;
                 if (originalFetch) {
                     window.fetch = function(input, init) {
@@ -544,8 +545,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
-            .replace(/<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"\s*><\/script>/i,
-                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
+            .replace(/<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
+                '<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>')
             .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
@@ -611,7 +612,7 @@ function safeCompareStrings(strA, strB) {
     return crypto.timingSafeEqual(bufA, bufB);
 }
 
-const MAX_BASE64_IMAGE_LENGTH = 2 * 1024 * 1024; // 2MB per diagram limit
+const MAX_BASE64_IMAGE_LENGTH = 2 * 1024 * 1024;
 
 function isSafeBase64Image(str) {
     if (typeof str !== 'string') return false;
@@ -1132,7 +1133,7 @@ app.post('/api/send-otp', (req, res) => {
     console.log(`[OTP Dispatched] Recipient: ${maskEmail(email)} at ${new Date().toISOString()}`);
 
     const scriptURL = process.env.APP_SCRIPT_URL;
-    if (scriptURL) {
+    if (scriptURL && APPS_SECRET) {
         fetch(scriptURL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1334,7 +1335,9 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         res.json({ success: true, score: correctCount, total: totalCount });
 
         const scriptURL = process.env.APP_SCRIPT_URL;
-        if (scriptURL) fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
+        if (scriptURL && APPS_SECRET) {
+            fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
+        }
     } catch (err) {
         res.status(500).json({ success: false, error: 'Grading failed.' });
     } finally {
