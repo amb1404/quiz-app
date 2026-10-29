@@ -21,15 +21,15 @@
         <div id="home-dashboard" class="app-screen">
             <div class="dashboard-panel" style="width: 580px; background-color: rgba(254, 252, 232, 0.98); border: 2px solid #facc15;">
                 <h2 style="text-align: center; color: #ca8a04; margin-top: 0;">Select Class for Descriptive Papers</h2>
-                <div class="card card-yellow" onclick="selectDescriptiveClass('IX')">Class IX Question Papers</div>
-                <div class="card card-yellow" onclick="selectDescriptiveClass('X')">Class X Question Papers</div>
-                <div class="card card-yellow" onclick="selectDescriptiveClass('XI')">Class XI Question Papers</div>
-                <div class="card card-yellow" onclick="selectDescriptiveClass('XII')">Class XII Question Papers</div>
+                <div class="card card-yellow" data-action="select-descriptive-class" data-arg="IX">Class IX Question Papers</div>
+                <div class="card card-yellow" data-action="select-descriptive-class" data-arg="X">Class X Question Papers</div>
+                <div class="card card-yellow" data-action="select-descriptive-class" data-arg="XI">Class XI Question Papers</div>
+                <div class="card card-yellow" data-action="select-descriptive-class" data-arg="XII">Class XII Question Papers</div>
             </div>
         </div>
 
         <div id="descriptive-list-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 id="descriptive-screen-heading" style="text-align: center; color: #ca8a04; margin-top: 0;">Available Question Papers</h2>
             <div id="descriptive-list-container"></div>
         </div>
