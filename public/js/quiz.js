@@ -250,7 +250,7 @@ function selectNotesClass(cName) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerText = sub;
-        card.onclick = () => selectNotesSubject(sub);
+        card.addEventListener('click', () => selectNotesSubject(sub));
         container.appendChild(card);
     });
     showScreen('notes-subject-screen');
@@ -303,7 +303,7 @@ function selectSubject(sub) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = q.title;
-            card.onclick = () => prepareQuiz(q);
+            card.addEventListener('click', () => prepareQuiz(q));
             container.appendChild(card);
         });
     }
@@ -321,7 +321,7 @@ function loadDynamicChapters(cName) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = q.title;
-            card.onclick = () => prepareQuiz(q);
+            card.addEventListener('click', () => prepareQuiz(q));
             container.appendChild(card);
         });
     }
@@ -336,7 +336,7 @@ function loadNeetUnits(cName) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerText = uName;
-        card.onclick = () => { selectedNeetUnit = uName; loadNeetChapters(cName, uName); };
+        card.addEventListener('click', () => { selectedNeetUnit = uName; loadNeetChapters(cName, uName); });
         container.appendChild(card);
     });
     showScreen('neet-unit-screen');
@@ -353,7 +353,7 @@ function loadNeetChapters(cName, uName) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = chap;
-            card.onclick = () => { selectedNeetChapter = chap; loadNeetTopics(cName, uName, chap); };
+            card.addEventListener('click', () => { selectedNeetChapter = chap; loadNeetTopics(cName, uName, chap); });
             container.appendChild(card);
         });
     }
@@ -371,7 +371,7 @@ function loadNeetTopics(cName, uName, chap) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = q.title || q.topic || q.id;
-            card.onclick = () => prepareQuiz(q);
+            card.addEventListener('click', () => prepareQuiz(q));
             container.appendChild(card);
         });
     }
@@ -512,7 +512,7 @@ function renderQuestion() {
             container.appendChild(preview);
         }
 
-        fileInput.onchange = e => {
+        fileInput.addEventListener('change', e => {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = event => {
@@ -533,7 +533,7 @@ function renderQuestion() {
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
-        };
+        });
         container.appendChild(label); container.appendChild(fileInput);
     } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
         const input = document.createElement('input');
@@ -551,13 +551,13 @@ function renderQuestion() {
             const btn = document.createElement('button');
             btn.className = `option-btn${userAnswers[currentQuestionIndex] === idx ? ' selected' : ''}`;
             btn.innerText = opt;
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 userAnswers[currentQuestionIndex] = idx;
                 skippedQuestions.delete(currentQuestionIndex);
                 updateQuizStats();
-            };
+            });
             container.appendChild(btn);
         });
     }
@@ -633,7 +633,7 @@ async function submitQuiz(isAuto = false) {
             const safeScore = escapeClientHtml(data.score);
             const safeTotal = escapeClientHtml(data.total);
             document.getElementById('result-screen').innerHTML =
-                `<button class="back-btn" onclick="goHome()">Back to Portal</button>` +
+                `<button class="back-btn" data-action="go-home">Back to Portal</button>` +
                 `<h2 style="text-align:center;color:#4285f4;margin-top:0;">Quiz Results</h2>` +
                 `<div style="text-align:center;margin-top:20px;">` +
                 `<p style="font-size:18px;color:#333;">Candidate: <strong>${safeCandidate}</strong></p>` +
