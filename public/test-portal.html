@@ -21,54 +21,54 @@
         <div id="home-dashboard" class="app-screen">
             <div class="dashboard-panel" style="width: 580px;">
                 <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Examination Class</h2>
-                <div class="card" onclick="selectClass('IX')">Class IX (Physics, Chemistry, Biology)</div>
-                <div class="card" onclick="selectClass('X')">Class X (Physics, Chemistry, Biology)</div>
-                <div class="card" onclick="selectClass('XI')">NEET Class XI Biology (Unit-wise)</div>
-                <div class="card" onclick="selectClass('XII')">NEET Class XII Biology (Unit-wise)</div>
-                <div class="card" onclick="selectClass('WB XI')">WBCHSE Class XI (Biology)</div>
-                <div class="card" onclick="selectClass('WB XII')">WBCHSE Class XII (Biology)</div>
+                <div class="card" data-action="select-class" data-arg="IX">Class IX (Physics, Chemistry, Biology)</div>
+                <div class="card" data-action="select-class" data-arg="X">Class X (Physics, Chemistry, Biology)</div>
+                <div class="card" data-action="select-class" data-arg="XI">NEET Class XI Biology (Unit-wise)</div>
+                <div class="card" data-action="select-class" data-arg="XII">NEET Class XII Biology (Unit-wise)</div>
+                <div class="card" data-action="select-class" data-arg="WB XI">WBCHSE Class XI (Biology)</div>
+                <div class="card" data-action="select-class" data-arg="WB XII">WBCHSE Class XII (Biology)</div>
             </div>
         </div>
 
         <div id="subject-select-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
-            <div class="card" onclick="selectSubject('Physics')">Physics</div>
-            <div class="card" onclick="selectSubject('Chemistry')">Chemistry</div>
-            <div class="card" onclick="selectSubject('Biology')">Biology</div>
+            <div class="card" data-action="select-subject" data-arg="Physics">Physics</div>
+            <div class="card" data-action="select-subject" data-arg="Chemistry">Chemistry</div>
+            <div class="card" data-action="select-subject" data-arg="Biology">Biology</div>
         </div>
 
         <div id="ix-x-chapter-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
             <div id="ix-x-chapter-container"></div>
         </div>
 
         <div id="neet-unit-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Select Unit</h2>
             <div id="neet-unit-container"></div>
         </div>
 
         <div id="neet-chapter-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Select Chapter</h2>
             <div id="neet-chapter-container"></div>
         </div>
 
         <div id="neet-topic-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Select Topic / Test</h2>
             <div id="neet-topic-container"></div>
         </div>
 
         <div id="name-screen" class="app-screen hidden">
-            <button class="back-btn" onclick="goBack()">Back</button>
+            <button class="back-btn" data-action="go-back">Back</button>
             <h2 style="text-align: center; color: #4285f4;">Candidate Verification</h2>
             <input type="text" id="first-name" placeholder="FIRST NAME">
             <input type="text" id="last-name" placeholder="LAST NAME">
             <input type="email" id="email-address" placeholder="Email Address">
-            <button id="verify-start-btn" onclick="startQuiz()" style="width: 100%;">Verify & Start</button>
+            <button id="verify-start-btn" data-action="start-quiz" style="width: 100%;">Verify & Start</button>
         </div>
 
         <div id="quiz-screen" class="app-screen hidden">
@@ -76,7 +76,7 @@
                 <div class="quiz-header">
                     <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
                     <span id="quiz-stats" style="font-size: 15px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
-                    <button id="submit-btn" onclick="submitQuiz(false)">Submit Quiz</button>
+                    <button id="submit-btn" data-action="submit-quiz">Submit Quiz</button>
                 </div>
                 <div class="progress-container">
                     <div id="progress-bar" class="progress-bar-fill"></div>
@@ -87,9 +87,9 @@
             </div>
 
             <div class="quiz-nav-container">
-                <button onclick="prevQuestion()">Previous</button>
-                <button onclick="clearResponse()">Clear Response</button>
-                <button onclick="nextQuestion()">Next</button>
+                <button data-action="prev-question">Previous</button>
+                <button data-action="clear-response">Clear Response</button>
+                <button data-action="next-question">Next</button>
             </div>
         </div>
 
