@@ -323,21 +323,362 @@ function extractAuthToken(req) {
 }
 
 // ============================================================================
-// 5. DYNAMIC HTML INTERCEPTOR 
+// ============================================================================
+// 5. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, NONCE INJECTION & EVENT DELEGATION)
 // ============================================================================
 function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
-    if (!isHome) {
-        const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase(), referer = req.get('Referer') || '', host = req.get('Host') || '';
-        if (secFetchSite === 'none' || secFetchSite === 'cross-site' || !Boolean(referer && host && referer.includes(host))) return res.redirect(302, '/');
-    }
-    fs.readFile(path.join(__dirname, 'public', fileName), 'utf8', (err, data) => {
-        if (err) return res.status(500).send("Page not found");
-        const headerHTML = `<div class="nav-container"><a href="/" class="brand-logo" data-action="clear-session"><span class="brand-title">PIONEERS PREP</span><span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee</strong></span></a><nav class="site-nav" aria-label="Main Navigation"><a href="/" class="nav-link ${isHome ? 'active' : ''}" data-action="clear-session">Home</a><a href="/mock-tests" class="nav-link ${canonicalBaseRoute === '/mock-tests' ? 'active' : ''}" data-action="clear-session">Mock Tests</a><a href="/study-notes" class="nav-link ${canonicalBaseRoute === '/study-notes' ? 'active' : ''}" data-action="clear-session">Study Notes</a><a href="/descriptive-papers" class="nav-link nav-link-yellow ${canonicalBaseRoute === '/descriptive-papers' ? 'active' : ''}" data-action="clear-session">Descriptive Papers</a></nav></div>`;
-        const footerHTML = `<div class="footer-profile-container"><div class="footer-brand-info"><h3>Pioneers Prep</h3><p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver specialized online tutoring, custom study notes, and secure mock examination portals.</p></div><div class="footer-contact"><h4>Educator Profile & Contact</h4><a href="mailto:anibanerjee699@gmail.com" class="contact-item"><span>anibanerjee699@gmail.com</span></a></div></div><div class="footer-bottom"><div class="footer-bottom-text"><strong>Pioneers Prep</strong> — Mentored by Aniruddha Banerjee</div></div>`;
 
-        let dynamicHtml = data.replace(/<head>/i, `<head>\n<base href="/">\n<script nonce="${nonce}" src="https://checkout.razorpay.com/v1/checkout.js"></script>\n`)
+    if (!isHome) {
+        const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
+        const referer = req.get('Referer') || '';
+        const host = req.get('Host') || '';
+        const hasSameOriginReferer = Boolean(referer && host && referer.includes(host));
+
+        if (secFetchSite === 'none' || secFetchSite === 'cross-site' || !hasSameOriginReferer) {
+            return res.redirect(302, '/');
+        }
+    }
+
+    const filePath = path.join(__dirname, 'public', fileName);
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) return res.status(500).send("Page not found");
+
+        const isTests = canonicalBaseRoute === '/mock-tests';
+        const isNotes = canonicalBaseRoute === '/study-notes';
+        const isDesc = canonicalBaseRoute === '/descriptive-papers';
+
+        const headerHTML = `
+            <div class="nav-container">
+                <a href="/" class="brand-logo" data-action="clear-session">
+                    <span class="brand-title">PIONEERS PREP</span>
+                    <span class="brand-subtitle">Guided by <strong>Aniruddha Banerjee</strong>, with an experience of 8+ years in coaching.</span>
+                </a>
+                <nav class="site-nav" aria-label="Main Navigation">
+                    <a href="/" class="nav-link ${isHome ? 'active' : ''}" data-action="clear-session">Home</a>
+                    <a href="/mock-tests" class="nav-link ${isTests ? 'active' : ''}" data-action="clear-session">Mock Tests</a>
+                    <a href="/study-notes" class="nav-link ${isNotes ? 'active' : ''}" data-action="clear-session">Study Notes</a>
+                    <a href="/descriptive-papers" class="nav-link nav-link-yellow ${isDesc ? 'active' : ''}" data-action="clear-session">Descriptive Papers</a>
+                </nav>
+            </div>
+        `;
+
+        const footerHTML = `
+            <div class="footer-profile-container">
+                <div class="footer-brand-info">
+                    <h3>Pioneers Prep</h3>
+                    <p>Founded and managed by <strong>Aniruddha Banerjee</strong>. We deliver specialized online tutoring, custom study notes, and secure mock examination portals for secondary and higher secondary science students.</p>
+                </div>
+                <div class="footer-contact">
+                    <h4>Educator Profile & Contact</h4>
+                    <a href="tel:+91XXXXXXXXXX" class="contact-item">
+                        <svg class="contact-icon" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                        <span>+91 XXXXX XXXXX (Call)</span>
+                    </a>
+                    <a href="https://wa.me/91XXXXXXXXXX" target="_blank" class="contact-item">
+                        <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 0 0 1.333 4.976L1.92 22.07l5.244-1.376a9.972 9.972 0 0 0 4.847 1.259h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.037-5.176-2.924-7.063A9.925 9.925 0 0 0 12.012 2zm0 18.283h-.003a8.272 8.272 0 0 1-4.22-1.155l-.303-.179-3.136.822.84-3.056-.197-.313a8.28 8.28 0 0 1-1.267-4.418c.001-4.57 3.72-8.288 8.293-8.288 2.215 0 4.298.863 5.864 2.428a8.236 8.236 0 0 1 2.426 5.866c-.002 4.568-3.721 8.286-8.297 8.288zm4.544-6.196c-.249-.125-1.474-.728-1.703-.811-.23-.083-.398-.124-.564.124-.167.249-.644.811-.79.77-.145-.164-.291-.207-.54-.332-1.398-.698-3.328-1.545-4.226-3.1-.096-.164-.011-.253.113-.377.111-.11.249-.29.373-.435.124-.146.166-.249.249-.415.083-.166.042-.311-.021-.436-.062-.124-.564-1.36-.773-1.865-.203-.49-.408-.424-.564-.432l-.481-.007c-.166 0-.435.062-.663.311s-.871.851-.871 2.074c0 1.223.892 2.405 1.016 2.571.124.166 1.753 2.676 4.246 3.753 1.54.665 2.112.72 2.871.603.861-.131 2.671-1.092 3.045-2.149.373-1.058.373-1.966.262-2.149-.112-.185-.415-.291-.664-.415z"/></svg>
+                        <span>+91 XXXXX XXXXX (WhatsApp)</span>
+                    </a>
+                    <a href="mailto:anibanerjee699@gmail.com" class="contact-item">
+                        <svg class="contact-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                        <span>anibanerjee699@gmail.com</span>
+                    </a>
+                    <div class="contact-item no-hover" style="cursor: default;">
+                        <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>Berhampore, Murshidabad, West Bengal</span>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-bottom-text">
+                    <strong style="font-size: 15px;">Pioneers Prep</strong> — Mentored by <strong>Aniruddha Banerjee</strong><br>
+                    Online Mock Tests, Study Notes & Descriptive Worksheets for NEET, ICSE & WBCHSE.
+                </div>
+                <div class="footer-links"><a href="/sitemap.xml">Sitemap</a></div>
+            </div>
+        `;
+
+        const headRouteGuardScript = `<base href="/">
+        <script nonce="${nonce}">
+            (function() {
+                var baseRoute = '${canonicalBaseRoute}';
+                var isHome = (baseRoute === '/');
+                try {
+                    var navEntries = window.performance && window.performance.getEntriesByType ? window.performance.getEntriesByType('navigation') : [];
+                    var navType = (navEntries && navEntries[0]) ? navEntries[0].type : 'navigate';
+                    var clickStamp = parseInt(sessionStorage.getItem('pioneers_nav_ok') || '0', 10);
+                    var isRecentClick = (Date.now() - clickStamp) < 15000;
+                    var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
+
+                    if (isHome) {
+                        sessionStorage.setItem('pioneers_active_route', '/');
+                        sessionStorage.removeItem('pioneers_nav_ok');
+                        if (window.location.pathname !== '/') {
+                            history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
+                        }
+                    } else {
+                        if (!isRecentClick && !isReload && window.location.search === '') {
+                            sessionStorage.removeItem('pioneers_prep_state');
+                            window.location.replace('/');
+                            return;
+                        }
+                        sessionStorage.removeItem('pioneers_nav_ok');
+                        sessionStorage.setItem('pioneers_active_route', baseRoute);
+                        if (window.location.pathname !== baseRoute) {
+                            history.replaceState({ app: 'pioneers' }, document.title, baseRoute + window.location.search);
+                        }
+                    }
+                } catch (e) {}
+
+                function authorizeInternalNav() {
+                    try { sessionStorage.setItem('pioneers_nav_ok', Date.now().toString()); } catch (e) {}
+                }
+                window.addEventListener('mousedown', authorizeInternalNav, true);
+                window.addEventListener('touchstart', authorizeInternalNav, true);
+                window.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') authorizeInternalNav();
+                }, true);
+            })();
+        </script>`;
+
+        const clientIntegrationScript = `<script nonce="${nonce}">
+            (function() {
+                if (typeof MainNav !== 'undefined') {
+                    MainNav.normalizeRoute = function(route) {
+                        if (!route) return '/';
+                        var r = String(route).toLowerCase();
+                        if (r.indexOf('/mock-tests') === 0 || r.indexOf('test-portal') !== -1) return '/test-portal.html';
+                        if (r.indexOf('/study-notes') === 0 || r.indexOf('/notes') === 0) return '/notes.html';
+                        if (r.indexOf('/descriptive') === 0) return '/descriptive.html';
+                        return '/';
+                    };
+                }
+
+                try {
+                    var origSetItem = sessionStorage.setItem;
+                    sessionStorage.setItem = function(key, val) {
+                        if (key === 'pioneers_prep_state' && typeof val === 'string') {
+                            try {
+                                var parsed = JSON.parse(val);
+                                if (parsed && 'studentAuthToken' in parsed) {
+                                    delete parsed.studentAuthToken;
+                                    val = JSON.stringify(parsed);
+                                }
+                            } catch (e) {}
+                        }
+                        return origSetItem.call(this, key, val);
+                    };
+                } catch (e) {}
+
+                var originalFetch = window.fetch;
+                if (originalFetch) {
+                    window.fetch = function(input, init) {
+                        try {
+                            var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                            if (url.indexOf('/api/') !== -1) {
+                                init = init || {};
+                                init.credentials = 'same-origin';
+                                if (init.headers) {
+                                    var h = new Headers(init.headers);
+                                    var authVal = h.get('Authorization');
+                                    if (authVal && authVal.indexOf('|||') === -1) {
+                                        h.delete('Authorization');
+                                    }
+                                    init.headers = h;
+                                }
+                            }
+                        } catch (e) {}
+                        return originalFetch.call(this, input, init);
+                    };
+                }
+
+                document.addEventListener('click', function(e) {
+                    var target = e.target ? e.target.closest('[data-action], [data-csp-action]') : null;
+                    if (!target) return;
+
+                    var action = target.getAttribute('data-action');
+                    var arg = target.getAttribute('data-arg');
+                    if (action) {
+                        if (action === 'clear-session') {
+                            try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
+                        } else if (action === 'select-class' && typeof selectClass === 'function') {
+                            selectClass(arg);
+                        } else if (action === 'select-subject' && typeof selectSubject === 'function') {
+                            selectSubject(arg);
+                        } else if (action === 'select-notes-class' && typeof selectNotesClass === 'function') {
+                            selectNotesClass(arg);
+                        } else if (action === 'select-descriptive-class' && typeof selectDescriptiveClass === 'function') {
+                            selectDescriptiveClass(arg);
+                        } else if (action === 'select-descriptive-subject' && typeof selectDescriptiveSubject === 'function') {
+                            selectDescriptiveSubject(arg);
+                        } else if (action === 'go-back' && typeof goBack === 'function') {
+                            goBack();
+                        } else if (action === 'go-home' && typeof goHome === 'function') {
+                            goHome();
+                        } else if (action === 'start-quiz' && typeof startQuiz === 'function') {
+                            startQuiz();
+                        } else if (action === 'submit-quiz' && typeof submitQuiz === 'function') {
+                            submitQuiz(false);
+                        } else if (action === 'prev-question' && typeof prevQuestion === 'function') {
+                            prevQuestion();
+                        } else if (action === 'clear-response' && typeof clearResponse === 'function') {
+                            clearResponse();
+                        } else if (action === 'next-question' && typeof nextQuestion === 'function') {
+                            nextQuestion();
+                        }
+                        return;
+                    }
+
+                    var legacyExpr = target.getAttribute('data-csp-action');
+                    if (!legacyExpr) return;
+                    if (legacyExpr.indexOf("sessionStorage.removeItem('pioneers_prep_state')") !== -1) {
+                        try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
+                        return;
+                    }
+                    var fnMatch = /^([a-zA-Z0-9_]+)\\((.*)\\)$/.exec(legacyExpr.trim());
+                    if (!fnMatch) return;
+                    var fnName = fnMatch[1];
+                    var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
+                    if (fnName === 'selectClass' && typeof selectClass === 'function') selectClass(rawArg);
+                    else if (fnName === 'selectSubject' && typeof selectSubject === 'function') selectSubject(rawArg);
+                    else if (fnName === 'selectNotesClass' && typeof selectNotesClass === 'function') selectNotesClass(rawArg);
+                    else if (fnName === 'selectDescriptiveClass' && typeof selectDescriptiveClass === 'function') selectDescriptiveClass(rawArg);
+                    else if (fnName === 'selectDescriptiveSubject' && typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(rawArg);
+                    else if (fnName === 'goBack' && typeof goBack === 'function') goBack();
+                    else if (fnName === 'goHome' && typeof goHome === 'function') goHome();
+                    else if (fnName === 'startQuiz' && typeof startQuiz === 'function') startQuiz();
+                    else if (fnName === 'submitQuiz' && typeof submitQuiz === 'function') submitQuiz(rawArg === 'true');
+                    else if (fnName === 'prevQuestion' && typeof prevQuestion === 'function') prevQuestion();
+                    else if (fnName === 'clearResponse' && typeof clearResponse === 'function') clearResponse();
+                    else if (fnName === 'nextQuestion' && typeof nextQuestion === 'function') nextQuestion();
+                });
+            })();
+
+            try {
+                var s = sessionStorage.getItem('pioneers_prep_state');
+                if (s) {
+                    var st = JSON.parse(s);
+                    var a = st.activeScreen;
+                    if (a === 'result-screen') {
+                        sessionStorage.removeItem('pioneers_prep_state');
+                    } else if (a && a !== 'home-dashboard') {
+                        var screens = document.querySelectorAll('.app-screen');
+                        var found = false;
+                        for (var i = 0; i < screens.length; i++) {
+                            if (screens[i].id === a) {
+                                screens[i].classList.remove('hidden');
+                                found = true;
+                            } else {
+                                screens[i].classList.add('hidden');
+                            }
+                        }
+                        if (a === 'quiz-screen') document.body.classList.add('exam-mode');
+                        if (!found) {
+                            var home = document.getElementById('home-dashboard');
+                            if (home) home.classList.remove('hidden');
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            window.addEventListener('DOMContentLoaded', function() {
+                var baseRoute = '${canonicalBaseRoute}';
+                var backEventTriggered = false;
+
+                var screenSlugMap = {
+                    'home-dashboard': '',
+                    'subject-screen': '/select-subject',
+                    'subject-select-screen': '/select-subject',
+                    'ix-x-chapter-screen': '/select-chapter',
+                    'unit-screen': '/select-unit',
+                    'neet-unit-screen': '/select-unit',
+                    'chapter-screen': '/select-chapter',
+                    'neet-chapter-screen': '/select-chapter',
+                    'topic-screen': '/select-topic',
+                    'neet-topic-screen': '/select-topic',
+                    'user-info-screen': '/candidate-verification',
+                    'name-screen': '/candidate-verification',
+                    'quiz-screen': '/live-assessment',
+                    'result-screen': '/scorecard',
+                    'notes-display-screen': '/study-materials',
+                    'notes-subject-screen': '/select-subject',
+                    'notes-list-screen': '/study-materials',
+                    'descriptive-subject-screen': '/select-subject',
+                    'descriptive-list-screen': '/question-papers'
+                };
+
+                function getCleanUrlForScreen(screenId) {
+                    if (baseRoute === '/') return '/';
+                    var slug = screenSlugMap[screenId];
+                    if (slug === undefined) {
+                        slug = screenId ? '/' + screenId.replace(/-screen$/i, '') : '';
+                    }
+                    return baseRoute + slug;
+                }
+
+                setTimeout(function() {
+                    if (window.location.search && window.location.search.indexOf('class=') !== -1) {
+                        return;
+                    }
+                    var activeEl = document.querySelector('.app-screen:not(.hidden)');
+                    if (!activeEl) return;
+                    var initialUrl = getCleanUrlForScreen(activeEl.id);
+                    history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, initialUrl);
+                }, 0);
+
+                var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(m) {
+                        var el = m.target;
+                        if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
+                            var targetUrl = getCleanUrlForScreen(el.id);
+                            if (backEventTriggered) {
+                                backEventTriggered = false;
+                                history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                            } else if (el.id !== 'home-dashboard' && el.id !== 'result-screen') {
+                                history.pushState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                            } else {
+                                history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                            }
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.app-screen').forEach(function(s) {
+                    observer.observe(s, { attributes: true, attributeFilter: ['class'] });
+                });
+
+                window.addEventListener('popstate', function() {
+                    var activeScreen = document.querySelector('.app-screen:not(.hidden)');
+                    if (activeScreen && activeScreen.id === 'quiz-screen') {
+                        history.pushState({ app: 'pioneers', screen: 'quiz-screen' }, document.title, getCleanUrlForScreen('quiz-screen'));
+                        alert("Please use the 'Submit Quiz' button to exit.");
+                        return;
+                    }
+                    if (activeScreen && activeScreen.id !== 'home-dashboard') {
+                        var backBtn = activeScreen.querySelector('.back-btn');
+                        if (backBtn) {
+                            backEventTriggered = true;
+                            backBtn.click();
+                        } else {
+                            sessionStorage.setItem('pioneers_nav_ok', Date.now().toString());
+                            window.location.href = '/';
+                        }
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (e.target && e.target.classList && e.target.classList.contains('back-btn')) {
+                        backEventTriggered = true;
+                    }
+                }, true);
+            });
+        </script>`;
+
+        let dynamicHtml = data
+            .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
+            .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
+            .replace(/<head>/i, `<head>\n${headRouteGuardScript}\n<script nonce="${nonce}" src="https://checkout.razorpay.com/v1/checkout.js"></script>\n`)
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
             .replace(/(['"\s=])\/?descriptive\.html/gi, '$1/descriptive-papers')
@@ -345,24 +686,38 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
+                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
+            .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
-            .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`);
+            .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
+            .replace('</body>', `${clientIntegrationScript}\n</body>`);
 
-        if (req.query && req.query.class) dynamicHtml = dynamicHtml.replace(/id="home-dashboard"\s*class="app-screen"/g, 'id="home-dashboard" class="app-screen hidden"');
+        if (req.query && req.query.class) {
+            dynamicHtml = dynamicHtml.replace(/id="home-dashboard"\s*class="app-screen"/g, 'id="home-dashboard" class="app-screen hidden"');
+        }
 
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.setHeader('Content-Type', 'text/html');
+
         res.send(dynamicHtml);
     });
 }
 
+// Primary page routes
 app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/test-portal.html', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/study-notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
 app.get('/notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
+app.get('/notes.html', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
 app.get('/descriptive-papers', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get('/descriptive', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+app.get('/descriptive.html', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ============================================================================
