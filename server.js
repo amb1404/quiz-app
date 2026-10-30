@@ -696,7 +696,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 }
 
                 document.addEventListener('click', function(e) {
-                    var target = e.target ? e.target.closest('[data-action], [data-csp-action]') : null;
+                    var target = e.target ? e.target.closest('[data-action], [data-csp-action], .card, button, a') : null;
                     if (!target) return;
 
                     var action = target.getAttribute('data-action');
@@ -731,6 +731,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         }
                         return;
                     }
+
+                    // Fallback button/card text matching for dynamic elements
+                    var txt = (target.innerText || '').trim();
+                    if (txt.includes('Class IX (Physics')) { selectClass('IX'); return; }
+                    if (txt.includes('Class X (Physics')) { selectClass('X'); return; }
+                    if (txt.includes('NEET Class XI')) { selectClass('XI'); return; }
+                    if (txt.includes('NEET Class XII')) { selectClass('XII'); return; }
+                    if (txt.includes('Next') && typeof nextQuestion === 'function') { nextQuestion(); return; }
+                    if (txt.includes('Previous') && typeof prevQuestion === 'function') { prevQuestion(); return; }
+                    if (txt.includes('Clear') && typeof clearResponse === 'function') { clearResponse(); return; }
+                    if ((txt.includes('Submit') || txt.includes('Finish')) && typeof submitQuiz === 'function') { submitQuiz(false); return; }
 
                     var legacyExpr = target.getAttribute('data-csp-action');
                     if (!legacyExpr) return;
@@ -877,7 +888,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             });
         </script>`;
 
-       const noscriptBlock = `<noscript>
+        const noscriptBlock = `<noscript>
             <style>
                 body { background-color: #f1f5f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
                 .app-screen, .site-header, .site-footer, .nav-container { display: none !important; }
