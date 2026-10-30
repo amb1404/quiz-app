@@ -10,7 +10,7 @@ let timeRemaining = 900;
 let quizDuration = 900;
 let serverStartTime = 0;
 let timerSignature = "";
-let quizCipherKey = ""; 
+let quizCipherKey = "";
 let timerInterval;
 let selectedClassName = "";
 let selectedSubjectName = "";
@@ -23,7 +23,7 @@ let selectedNeetUnit = "";
 let selectedNeetChapter = "";
 let isRestoringSession = false;
 
-// Variables for Premium PDF Interception
+// Variables for Premium/Ultra PDF Interception
 let activePremiumPdf = null;
 let activePremiumType = null;
 
@@ -105,7 +105,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json();
             if (data.success) dynamicQuizzes = data.quizzes;
         } catch (e) {
-            console.error("Failed to load quizzes");
+            console.error("Failed to load quizzes", e);
         }
     }
 
@@ -164,7 +164,7 @@ async function restoreSessionState(state) {
                 } else {
                     currentQuestions = encryptedData;
                 }
-                
+
                 if (serverStartTime && quizDuration) {
                     timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
                 }
@@ -250,11 +250,11 @@ function goHome() {
 }
 
 // ----------------------------------------------------------------------------
-// UNIVERSAL CONTENT CARD RENDERER
+// UNIVERSAL CONTENT CARD RENDERER (SUPPORTS COMING SOON, PRO & ULTRA TIERS)
 // ----------------------------------------------------------------------------
 function createContentCard(item, type, container) {
     const card = document.createElement(item.isAvailable === false ? 'div' : 'a');
-    
+
     let icon = '';
     if (type === 'descriptive') icon = '📝 ';
     if (type === 'notes') icon = '📚 ';
@@ -267,21 +267,32 @@ function createContentCard(item, type, container) {
         card.style.cursor = 'not-allowed';
         card.style.backgroundColor = '#f8fafc';
         card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: #dc2626; font-weight: 700; margin-top: 6px; display: inline-block;">⏳ Coming Soon</span>`;
-        card.addEventListener('click', (e) => { e.preventDefault(); alert('This content is currently under preparation and will be available soon.'); });
+        card.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('This content is currently under preparation and will be available soon.');
+        });
     } else {
         card.className = type === 'quiz' ? 'card' : (type === 'descriptive' ? 'card card-yellow' : 'card');
-        
-        if (item.isPremium) {
-            card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: #b45309; font-weight: 700; margin-top: 6px; display: inline-block;">🔒 Premium (₹${item.price || 49})</span>`;
+
+        if (item.isPremium || item.isUltra) {
+            const badgeColor = item.isUltra ? '#9333ea' : '#b45309';
+            const badgeLabel = item.isUltra ? 'Exclusive' : 'Premium';
+            card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: ${badgeColor}; font-weight: 700; margin-top: 6px; display: inline-block;">🔒 ${badgeLabel} (₹${item.price || 49})</span>`;
         } else {
             card.innerText = title;
         }
-        
+
         if (type === 'quiz') {
-            card.addEventListener('click', (e) => { e.preventDefault(); prepareQuiz(item); });
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                prepareQuiz(item);
+            });
         } else {
-            if (item.isPremium) {
-                card.addEventListener('click', (e) => { e.preventDefault(); preparePremiumPdf(item, type); });
+            if (item.isPremium || item.isUltra) {
+                card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    preparePremiumPdf(item, type);
+                });
             } else {
                 card.href = (type === 'notes' ? '/api/download-note/' : '/api/download-descriptive/') + encodeURIComponent(item.fileName);
             }
@@ -451,8 +462,10 @@ function prepareQuiz(quiz) {
     activeQuizTitle = quiz.title;
     timeRemaining = quiz.duration || 900;
     quizDuration = timeRemaining;
-    
-    document.getElementById('name-screen').querySelector('h2').innerText = "Candidate Verification";
+
+    const h2 = document.getElementById('name-screen')?.querySelector('h2');
+    if (h2) h2.innerText = "Candidate Verification";
+
     const optW = document.getElementById('otp-wrapper');
     if (optW) optW.remove();
     const vBtn = document.getElementById('verify-start-btn');
@@ -461,11 +474,13 @@ function prepareQuiz(quiz) {
 }
 
 function preparePremiumPdf(item, type) {
-    currentQuizId = ""; 
+    currentQuizId = "";
     activePremiumPdf = item;
     activePremiumType = type;
 
-    document.getElementById('name-screen').querySelector('h2').innerText = "Premium Access Verification";
+    const h2 = document.getElementById('name-screen')?.querySelector('h2');
+    if (h2) h2.innerText = "Premium Access Verification";
+
     const optW = document.getElementById('otp-wrapper');
     if (optW) optW.remove();
     const vBtn = document.getElementById('verify-start-btn');
@@ -492,7 +507,7 @@ function showOtpWrapper() {
 async function initiateRazorpayPayment(itemId, amount, email, firstName, lastName, onSuccessCallback) {
     const vBtn = document.getElementById('verify-start-btn');
     if (vBtn) { vBtn.innerText = 'Initializing Payment...'; vBtn.disabled = true; }
-    
+
     try {
         const orderRes = await fetch('/api/create-order', {
             method: 'POST',
@@ -501,9 +516,9 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
             body: JSON.stringify({ itemId, amount })
         });
         const orderData = await orderRes.json();
-        
+
         if (!orderRes.ok) {
-            alert(orderData.error || 'Failed to create order.');
+            alert(orderData.error || 'Failed to create payment order.');
             if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
             return;
         }
@@ -541,7 +556,7 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
             theme: { color: "#ca8a04" }
         };
         const rzp = new Razorpay(options);
-        rzp.on('payment.failed', function (response){
+        rzp.on('payment.failed', function (response) {
             alert('Payment failed: ' + response.error.description);
             if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
         });
@@ -574,7 +589,7 @@ async function startQuiz() {
         const data = await res.json();
         if (!res.ok) {
             alert(data.error || 'Failed to send verification.');
-            vBtn.innerText = activePremiumPdf ? 'Verify Email' : 'Verify & Start'; 
+            vBtn.innerText = activePremiumPdf ? 'Verify Email' : 'Verify & Start';
             vBtn.disabled = false;
             return;
         }
@@ -596,12 +611,11 @@ async function startQuiz() {
     const vData = await vRes.json();
     if (!vRes.ok) {
         alert(vData.error || 'Invalid OTP');
-        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz'; 
+        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz';
         vBtn.disabled = false;
         return;
     }
 
-    // OTP Verified. Attempt access.
     if (activePremiumPdf) {
         await attemptPdfDownload(first, last, email);
     } else if (currentQuizId) {
@@ -611,8 +625,8 @@ async function startQuiz() {
 
 async function attemptQuizStart(first, last, email) {
     const vBtn = document.getElementById('verify-start-btn');
-    vBtn.innerText = 'Starting...';
-    
+    if (vBtn) vBtn.innerText = 'Starting...';
+
     const startRes = await fetch('/api/start-quiz', {
         method: 'POST',
         credentials: 'same-origin',
@@ -620,17 +634,17 @@ async function attemptQuizStart(first, last, email) {
         body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
     });
     const startData = await startRes.json();
-    
+
     if (startRes.status === 402) {
         const qz = dynamicQuizzes.find(q => q.id === currentQuizId);
         const price = qz ? qz.price : 49;
         initiateRazorpayPayment(currentQuizId, price, email, first, last, () => attemptQuizStart(first, last, email));
         return;
     }
-    
+
     if (!startRes.ok) {
         alert(startData.error || 'Verification Error.');
-        vBtn.innerText = 'Start Quiz'; vBtn.disabled = false;
+        if (vBtn) { vBtn.innerText = 'Start Quiz'; vBtn.disabled = false; }
         return;
     }
 
@@ -638,14 +652,14 @@ async function attemptQuizStart(first, last, email) {
     timerSignature = startData.signature;
     quizDuration = startData.duration || timeRemaining;
     timeRemaining = quizDuration;
-    quizCipherKey = startData.cipherKey || ''; 
+    quizCipherKey = startData.cipherKey || '';
 
     const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'PioneersPrepApp' }
     });
     const encryptedData = await qRes.json();
-    
+
     if (encryptedData.payload && quizCipherKey) {
         currentQuestions = JSON.parse(xorDecipher(encryptedData.payload, quizCipherKey));
     } else {
@@ -661,13 +675,13 @@ async function attemptQuizStart(first, last, email) {
 
 async function attemptPdfDownload(first, last, email) {
     const vBtn = document.getElementById('verify-start-btn');
-    vBtn.innerText = 'Accessing...';
-    
+    if (vBtn) vBtn.innerText = 'Accessing...';
+
     const endpoint = activePremiumType === 'notes' ? '/api/download-note/' : '/api/download-descriptive/';
     const url = endpoint + encodeURIComponent(activePremiumPdf.fileName);
-    
+
     const res = await fetch(url, { credentials: 'same-origin' });
-    
+
     if (res.status === 402) {
         initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
             window.location.href = url;
@@ -675,13 +689,13 @@ async function attemptPdfDownload(first, last, email) {
         });
         return;
     }
-    
+
     if (!res.ok) {
         alert('Failed to access file. Error ' + res.status);
-        vBtn.innerText = 'Proceed'; vBtn.disabled = false;
+        if (vBtn) { vBtn.innerText = 'Proceed'; vBtn.disabled = false; }
         return;
     }
-    
+
     window.location.href = url;
     goHome();
 }
@@ -863,18 +877,53 @@ async function submitQuiz(isAuto = false) {
     }
 }
 
+// ============================================================================
+// MOBILE QUIZ SCREEN OPTIMIZER
+// ============================================================================
 (function optimizeMobileQuiz() {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     if (!isMobile) return;
 
     const mobileQuizStyles = `
-        #quiz-screen:not(.hidden) { padding: 20px 15px !important; border-radius: 0 !important; min-height: 100vh !important; box-shadow: none !important; }
-        #question-box { font-size: 18px !important; line-height: 1.6 !important; margin-bottom: 24px !important; }
-        .option-btn { padding: 16px 18px !important; font-size: 16px !important; margin-bottom: 12px !important; border-radius: 8px !important; }
-        .quiz-nav-container { flex-direction: column !important; gap: 12px !important; margin-top: 30px !important; }
-        .quiz-nav-container button { width: 100% !important; max-width: 100% !important; padding: 14px !important; font-size: 16px !important; }
-        .quiz-header { flex-direction: column !important; align-items: center !important; text-align: center !important; gap: 12px !important; margin-bottom: 20px !important; }
-        #submit-btn { width: 100% !important; padding: 12px !important; }
+        #quiz-screen:not(.hidden) {
+            padding: 20px 15px !important;
+            border-radius: 0 !important;
+            min-height: 100vh !important;
+            box-shadow: none !important;
+        }
+        #question-box {
+            font-size: 18px !important;
+            line-height: 1.6 !important;
+            margin-bottom: 24px !important;
+        }
+        .option-btn {
+            padding: 16px 18px !important;
+            font-size: 16px !important;
+            margin-bottom: 12px !important;
+            border-radius: 8px !important;
+        }
+        .quiz-nav-container {
+            flex-direction: column !important;
+            gap: 12px !important;
+            margin-top: 30px !important;
+        }
+        .quiz-nav-container button {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 14px !important;
+            font-size: 16px !important;
+        }
+        .quiz-header {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+        }
+        #submit-btn {
+            width: 100% !important;
+            padding: 12px !important;
+        }
     `;
 
     let styleElement = null;
@@ -883,6 +932,7 @@ async function submitQuiz(isAuto = false) {
     const observer = new MutationObserver(() => {
         const quizScreen = document.getElementById('quiz-screen');
         if (!quizScreen) return;
+
         const isQuizActive = !quizScreen.classList.contains('hidden');
         const metaViewport = document.querySelector('meta[name="viewport"]');
 
@@ -898,9 +948,22 @@ async function submitQuiz(isAuto = false) {
                 document.head.appendChild(styleElement);
             }
         } else {
-            if (metaViewport && originalViewport) metaViewport.setAttribute('content', originalViewport);
-            if (styleElement) { styleElement.remove(); styleElement = null; }
+            if (metaViewport && originalViewport) {
+                metaViewport.setAttribute('content', originalViewport);
+            }
+            if (styleElement) {
+                styleElement.remove();
+                styleElement = null;
+            }
         }
     });
-    window.addEventListener('DOMContentLoaded', () => observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }));
+
+    window.addEventListener('DOMContentLoaded', () => {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    });
 })();
