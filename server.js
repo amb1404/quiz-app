@@ -2240,7 +2240,7 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         // DEAD MAN'S SWITCH: Check if admin has disappeared (closed tab/crashed)
         const adminSeenStr = await stateStore.get(`live:admin_seen:${cleanId}`);
         if (adminSeenStr && state.status === 'active') {
-            if (Date.now() - Number(adminSeenStr) > 8000) { 
+            if (Date.now() - Number(adminSeenStr) > 1000) { 
                 // 8 seconds of silence -> Auto-end test immediately
                 state.status = 'ended';
                 await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
