@@ -2,6 +2,7 @@ let liveToken = "";
 let currentQuizId = "";
 let localIndex = -1;
 let syncInterval;
+let testActive = true;
 
 document.getElementById('join-btn').addEventListener('click', async () => {
     const first = document.getElementById('live-first').value.trim().toUpperCase();
@@ -23,8 +24,26 @@ document.getElementById('join-btn').addEventListener('click', async () => {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
             startSync();
+            startHeartbeat();
         } else { alert(data.error); document.getElementById('join-btn').innerText = "Join Test"; }
     } catch (e) { alert("Network Error"); document.getElementById('join-btn').innerText = "Join Test"; }
+});
+
+function startHeartbeat() {
+    setInterval(() => {
+        if (liveToken && testActive) {
+            fetch('/api/live/student/heartbeat', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${liveToken}` }
+            }).catch(() => {});
+        }
+    }, 3000);
+}
+
+window.addEventListener('beforeunload', () => {
+    if (liveToken && testActive) {
+        navigator.sendBeacon('/api/live/student/leave', JSON.stringify({}));
+    }
 });
 
 function xorDecipher(b64Str, key) {
@@ -38,18 +57,49 @@ function xorDecipher(b64Str, key) {
 
 function startSync() {
     syncInterval = setInterval(async () => {
+        if (!testActive) return;
         try {
             const res = await fetch(`/api/live/student/sync/${currentQuizId}`, {
                 headers: { 'Authorization': `Bearer ${liveToken}` }
             });
             const data = await res.json();
             
+            if (data.status === 'ended' && data.scorecard) {
+                testActive = false;
+                clearInterval(syncInterval);
+                document.getElementById('quiz-screen').innerHTML = `
+                    <div style="max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center;">
+                        <h2 style="color: #1e3a8a; margin-top: 0;">Exam Completed — Scorecard</h2>
+                        <p style="color: #64748b;">Here is your performance summary for this live assessment.</p>
+                        <div style="display: flex; justify-content: space-around; margin: 25px 0;">
+                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
+                                <div style="font-size: 24px; font-weight: bold; color: #16a34a;">${data.scorecard.correct}</div>
+                                <div style="font-size: 13px; color: #475569;">Correct</div>
+                            </div>
+                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
+                                <div style="font-size: 24px; font-weight: bold; color: #dc2626;">${data.scorecard.incorrect}</div>
+                                <div style="font-size: 13px; color: #475569;">Incorrect</div>
+                            </div>
+                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ca8a04;">${data.scorecard.skipped}</div>
+                                <div style="font-size: 13px; color: #475569;">Skipped</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 18px; font-weight: bold; color: #0f172a; margin-top: 15px;">
+                            Final Score: ${data.scorecard.correct} / ${data.scorecard.total}
+                        </div>
+                        <a href="/" style="display: inline-block; margin-top: 25px; background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Return to Homepage</a>
+                    </div>
+                `;
+                return;
+            }
+
             if (data.status === 'active' && data.currentIndex !== localIndex) {
                 localIndex = data.currentIndex;
                 renderQuestion(data);
             }
         } catch (e) {}
-    }, 2000); // Check for new question every 2 seconds
+    }, 2000);
 }
 
 function renderQuestion(data) {
@@ -67,7 +117,6 @@ function renderQuestion(data) {
         btn.className = 'opt-btn';
         btn.innerText = opt;
         btn.onclick = () => {
-            // HARD LOCK: Disable all buttons immediately to prevent switching
             document.querySelectorAll('.opt-btn').forEach(b => {
                 b.disabled = true;
                 b.classList.add('locked');
