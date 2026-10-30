@@ -2043,7 +2043,8 @@ function getLiveMockContent(rawId) {
 app.post('/api/live/admin/start', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
-        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const cleanId = path.basename(String(quizId)).trim();
         const content = getLiveMockContent(cleanId);
@@ -2071,7 +2072,8 @@ app.post('/api/live/admin/start', async (req, res) => {
 app.post('/api/live/admin/set-index', async (req, res) => {
     try {
         const { adminKey, quizId, index } = req.body;
-        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
         
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -2089,7 +2091,8 @@ app.post('/api/live/admin/set-index', async (req, res) => {
 app.get('/api/live/admin/dashboard', async (req, res) => {
     try {
         const { adminKey, quizId } = req.query;
-        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -2189,6 +2192,7 @@ app.post('/api/live/student/submit', async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
+// ============================================================================
 // ============================================================================
 
 app.get(/.*/, (req, res) => {
