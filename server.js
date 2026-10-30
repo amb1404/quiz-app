@@ -2027,6 +2027,170 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     }
 });
 
+// ============================================================================
+// 8. SYNCHRONIZED LIVE MOCK & ADMIN DASHBOARD ENDPOINTS
+// ============================================================================
+function getLiveMockContent(rawId) {
+    const cleanId = path.basename(String(rawId)).trim().replace('.json', '');
+    const liveDir = path.join(__dirname, 'livemock');
+    if (!fs.existsSync(liveDir)) fs.mkdirSync(liveDir, { recursive: true });
+    const filePath = path.join(liveDir, cleanId + '.json');
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+// Admin: Start Quiz & Generate OTP
+app.post('/api/live/admin/start', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const cleanId = path.basename(String(quizId)).trim();
+        const content = getLiveMockContent(cleanId);
+        if (!content) return res.status(404).json({ error: 'Live Mock not found in /livemock folder.' });
+
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3); // 3 hours
+        await stateStore.set(`live:state:${cleanId}`, { currentIndex: 0, status: 'active', title: content.title }, 60 * 60 * 3);
+        await stateStore.del(`live:board:${cleanId}`); // Clear old board
+
+        if (process.env.APP_SCRIPT_URL && APPS_SECRET) {
+            fetch(process.env.APP_SCRIPT_URL, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'otp', targetEmail: ADMIN_EMAIL, subject: `LIVE QUIZ OTP - ${cleanId}`, secretKey: APPS_SECRET,
+                    breakdown: `<h2>Live Quiz OTP: ${otp}</h2><p>Share this with your students to enter ${cleanId}.</p>`
+                })
+            }).catch(() => {});
+        }
+        res.json({ success: true, otp, totalQuestions: content.questions.length });
+    } catch (err) { res.status(500).json({ error: 'Failed to start live quiz.' }); }
+});
+
+// Admin: Change Question Index
+app.post('/api/live/admin/set-index', async (req, res) => {
+    try {
+        const { adminKey, quizId, index } = req.body;
+        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        
+        const cleanId = path.basename(String(quizId)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Quiz not active.' });
+        
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        state.currentIndex = parseInt(index, 10);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+        
+        res.json({ success: true, currentIndex: state.currentIndex });
+    } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
+});
+
+// Admin: Fetch Dashboard Leaderboard
+app.get('/api/live/admin/dashboard', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.query;
+        if (adminKey !== APPS_SCRIPT_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+        const cleanId = path.basename(String(quizId)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        
+        const students = Object.keys(board).map(name => ({
+            name, data: board[name]
+        })).sort((a, b) => {
+            const timeA = a.data.answers[state?.currentIndex] ? a.data.answers[state.currentIndex].time : 0;
+            const timeB = b.data.answers[state?.currentIndex] ? b.data.answers[state.currentIndex].time : 0;
+            if (timeA === 0 && timeB !== 0) return 1;
+            if (timeB === 0 && timeA !== 0) return -1;
+            return timeA - timeB;
+        });
+
+        res.json({ success: true, state, students });
+    } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
+});
+
+// Student: Verify OTP
+app.post('/api/live/student/verify', async (req, res) => {
+    try {
+        const { firstName, lastName, quizId, otp } = req.body;
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
+        if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+        }
+
+        const fName = String(firstName).trim().toUpperCase();
+        const lName = String(lastName).trim().toUpperCase();
+        const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        if (!board[`${fName} ${lName}`]) {
+            board[`${fName} ${lName}`] = { joinedAt: Date.now(), answers: {} };
+            await stateStore.set(boardKey, board, 60 * 60 * 3);
+        }
+
+        res.json({ success: true, token: `${tokenData}|||${signature}` });
+    } catch (err) { res.status(500).json({ error: 'Verification failed.' }); }
+});
+
+// Student: Synchronized Pull
+app.get('/api/live/student/sync/:id', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const cleanId = path.basename(String(req.params.id)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.json({ status: 'waiting' });
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+
+        const content = getLiveMockContent(cleanId);
+        const q = content.questions[state.currentIndex];
+        const singleUseKey = crypto.randomBytes(12).toString('hex');
+        const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
+
+        res.json({
+            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
+            payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+        });
+    } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
+});
+
+// Student: Submit Answer
+app.post('/api/live/student/submit', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        
+        const { index, answer } = req.body;
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        
+        if (board[fullName]) {
+            board[fullName].answers[index] = { answer, time: Date.now() };
+            await stateStore.set(boardKey, board, 60 * 60 * 3);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
+});
+// ============================================================================
+
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
