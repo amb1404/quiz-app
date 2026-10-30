@@ -877,10 +877,47 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             });
         </script>`;
 
+       const noscriptBlock = `<noscript>
+            <style>
+                body { background-color: #f1f5f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
+                .app-screen, .site-header, .site-footer, .nav-container { display: none !important; }
+            </style>
+            <div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; text-align: center;">
+                <h1 style="color: #dc2626; margin-top: 0;">Security Violation</h1>
+                <p style="color: #475569; line-height: 1.6;">JavaScript must be enabled in your browser to access this secure examination portal. Please enable JavaScript and refresh the page.</p>
+            </div>
+        </noscript>`;
+
+        const antiCheatScript = `<script nonce="${nonce}">
+            (function enforceSecurity() {
+                setInterval(function() {
+                    const start = performance.now();
+                    debugger; 
+                    if (performance.now() - start > 100 && document.body.classList.contains('exam-mode')) {
+                        if (typeof submitQuiz === 'function') submitQuiz(true);
+                        window.location.replace('/');
+                    }
+                }, 1500);
+
+                window.addEventListener('resize', function() {
+                    if (document.body.classList.contains('exam-mode')) {
+                        const widthDiff = window.outerWidth - window.innerWidth;
+                        const heightDiff = window.outerHeight - window.innerHeight;
+                        if (widthDiff > 200 || heightDiff > 200) {
+                            if (typeof submitQuiz === 'function') submitQuiz(true);
+                            window.location.replace('/');
+                        }
+                    }
+                });
+                console.log = console.warn = console.error = console.info = function() {};
+            })();
+        </script>`;
+
         let dynamicHtml = data
             .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
             .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
-            .replace(/<head>/i, `<head>\n${headRouteGuardScript}`)
+            .replace(/<head>/i, `<head>\n${headRouteGuardScript}\n${antiCheatScript}`)
+            .replace(/<body[^>]*>/i, match => `${match}\n${noscriptBlock}`)
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
             .replace(/(['"\s=])\/?descriptive\.html/gi, '$1/descriptive-papers')
@@ -1593,6 +1630,7 @@ app.get('/api/quizzes', (req, res) => {
 });
 
 // Returns XOR Encrypted Questions
+// 1. Initial Quiz Verification (Returns only the total count, NO questions)
 app.get('/api/quiz/:id', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
@@ -1605,48 +1643,61 @@ app.get('/api/quiz/:id', async (req, res) => {
 
         const content = getCachedQuizContent(filePath);
         const isAvailable = content.isAvailable !== false && !cleanId.toUpperCase().startsWith('SOON_');
-        if (!isAvailable) {
-            return res.status(403).json({ error: "This test is not yet available." });
-        }
+        if (!isAvailable) return res.status(403).json({ error: "This test is not yet available." });
 
         const isUltra = content.isUltra === true || cleanId.toUpperCase().startsWith('ULTRA_');
         const isPremium = isUltra || content.isPremium === true || cleanId.toUpperCase().startsWith('PRO_');
         if (isPremium) {
             const hasAccess = await checkContentAccess(authCheck.email, cleanId, isPremium, isUltra);
-            if (!hasAccess) {
-                return res.status(402).json({ error: "Payment required to access this content." });
-            }
+            if (!hasAccess) return res.status(402).json({ error: "Payment required to access this content." });
         }
 
         const session = await getOrCreateExamSession(authCheck.signature, cleanId, null);
         if (session.error) return res.status(403).json({ error: session.error });
 
-        const rawQuestions = content.questions || [];
-        const qOrder = getDeterministicPermutation(rawQuestions.length, `${authCheck.signature}:${cleanId}:q`);
-
-        const sanitizedQuestions = qOrder.map(origIdx => {
-            const q = rawQuestions[origIdx];
-            const qType = q.type || 'mcq';
-            let clientOptions = q.options || [];
-
-            if (qType === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
-                const optOrder = getSafeOptionPermutation(q.options, `${authCheck.signature}:${cleanId}:opt:${origIdx}`);
-                clientOptions = optOrder.map(oIdx => q.options[oIdx]);
-            }
-
-            return {
-                type: qType,
-                question: q.question,
-                options: clientOptions
-            };
-        });
-
-        const payloadStr = JSON.stringify(sanitizedQuestions);
-        const encrypted = xorCipher(payloadStr, session.xorKey);
-
-        res.json({ payload: encrypted });
+        res.json({ totalQuestions: (content.questions || []).length });
     } catch {
         res.status(500).json({ error: "Failed to read quiz file." });
+    }
+});
+
+// 2. JIT Single Question Delivery (Fetches one question dynamically)
+app.get('/api/quiz/:id/question/:index', async (req, res) => {
+    try {
+        if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
+        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+
+        const cleanId = path.basename(String(req.params.id || '')).trim();
+        const index = parseInt(req.params.index, 10);
+        const filePath = resolveSafeQuizPath(cleanId);
+        
+        const sessionKey = `exam:session:${authCheck.signature}`;
+        const rawSession = await stateStore.get(sessionKey);
+        if (!rawSession) return res.status(403).json({ error: "No active session." });
+        
+        const content = getCachedQuizContent(filePath);
+        const rawQuestions = content.questions || [];
+        if (index < 0 || index >= rawQuestions.length) return res.status(400).json({ error: "Invalid index." });
+
+        const qOrder = getDeterministicPermutation(rawQuestions.length, `${authCheck.signature}:${cleanId}:q`);
+        const origIdx = qOrder[index];
+        const q = rawQuestions[origIdx];
+        const qType = q.type || 'mcq';
+        let clientOptions = q.options || [];
+
+        if (qType === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
+            const optOrder = getSafeOptionPermutation(q.options, `${authCheck.signature}:${cleanId}:opt:${origIdx}`);
+            clientOptions = optOrder.map(oIdx => q.options[oIdx]);
+        }
+
+        const sanitized = { type: qType, question: q.question, options: clientOptions };
+        const singleUseKey = crypto.randomBytes(12).toString('hex');
+        const payload = xorCipher(JSON.stringify(sanitized), singleUseKey);
+
+        res.json({ payload, key: singleUseKey });
+    } catch {
+        res.status(500).json({ error: "Failed to fetch question." });
     }
 });
 
