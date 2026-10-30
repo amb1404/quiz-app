@@ -67,10 +67,16 @@ function renderQuestion(data) {
         btn.className = 'opt-btn';
         btn.innerText = opt;
         btn.onclick = () => {
-            document.querySelectorAll('.opt-btn').forEach(b => b.classList.add('locked'));
+            // HARD LOCK: Disable all buttons immediately to prevent switching
+            document.querySelectorAll('.opt-btn').forEach(b => {
+                b.disabled = true;
+                b.classList.add('locked');
+            });
             btn.classList.add('selected');
+            
             fetch('/api/live/student/submit', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
                 body: JSON.stringify({ index: localIndex, answer: idx })
             });
         };
