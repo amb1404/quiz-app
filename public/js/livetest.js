@@ -43,11 +43,9 @@ function startHeartbeat() {
 // Ensures immediate removal from admin dash when tab is closed
 window.addEventListener('beforeunload', () => {
     if (liveToken && testActive) {
-        fetch('/api/live/student/leave', {
-            method: 'POST',
-            keepalive: true,
-            headers: { 'Authorization': `Bearer ${liveToken}` }
-        }).catch(() => {});
+        // Beacon used to tell server student left immediately
+        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+        navigator.sendBeacon('/api/live/student/leave', blob);
     }
 });
 
@@ -72,6 +70,10 @@ function startSync() {
             if (data.status === 'ended' && data.scorecard) {
                 testActive = false;
                 clearInterval(syncInterval);
+                
+                // Requirement 3 & 4: Explicit Popup followed by Scorecard
+                alert("Test was ended by admin.");
+                
                 document.getElementById('quiz-screen').innerHTML = `
                     <div style="max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center;">
                         <h2 style="color: #1e3a8a; margin-top: 0;">Exam Completed — Scorecard</h2>
