@@ -7,7 +7,7 @@
   "isAvailable": true,
   "isPremium": true,
   "isUltra": false,
-  "price": 49,
+  "price": 5,
   "questions": [
     {
       "type": "mcq",
