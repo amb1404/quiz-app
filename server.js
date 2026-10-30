@@ -499,6 +499,7 @@ app.post('/api/verify-otp', async (req, res) => {
 });
 
 // Create Razorpay Order
+// Create Razorpay Order
 app.post('/api/create-order', async (req, res) => {
     try {
         if (!razorpay) return res.status(503).json({ error: 'Payments disabled.' });
@@ -513,7 +514,7 @@ app.post('/api/create-order', async (req, res) => {
             currency: "INR",
             receipt: `rcpt_${Date.now().toString().slice(-8)}`
         });
-        res.json({ success: true, orderId: order.id, amount: order.amount });
+        res.json({ success: true, orderId: order.id, amount: order.amount, keyId: process.env.RAZORPAY_KEY_ID });
     } catch (err) { res.status(500).json({ error: 'Order creation failed.' }); }
 });
 
