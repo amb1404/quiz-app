@@ -2186,10 +2186,16 @@ app.post('/api/live/student/submit', async (req, res) => {
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
         if (board[fullName]) {
-            board[fullName].answers[index] = { answer, time: Date.now() };
-            await stateStore.set(boardKey, board, 60 * 60 * 3);
+            // SECURITY LOCK: Only accept the answer if this index is completely empty
+            if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
+                board[fullName].answers[index] = { answer, time: Date.now() };
+                await stateStore.set(boardKey, board, 60 * 60 * 3);
+                return res.json({ success: true });
+            } else {
+                return res.status(403).json({ error: 'Answer already permanently locked.' });
+            }
         }
-        res.json({ success: true });
+        res.status(400).json({ error: 'Student not found on board.' });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
