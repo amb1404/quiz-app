@@ -9,7 +9,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     quizId = document.getElementById('quiz-id').value.trim();
     if (!adminKey || !quizId) return alert("Enter Key and Quiz ID");
     
-    document.getElementById('start-btn').innerText = "Starting...";
+    const startBtn = document.getElementById('start-btn');
+    startBtn.innerText = "Starting...";
     try {
         const res = await fetch('/api/live/admin/start', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -21,10 +22,26 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             document.getElementById('otp-display').innerText = `OTP: ${data.otp}`;
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
-            document.getElementById('start-btn').innerText = "Live Active";
+            
+            // REQUIREMENT 2: Show "Live Active", make permanent & disable
+            startBtn.innerText = "Live Active";
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.7';
+            startBtn.style.cursor = 'not-allowed';
+
             startDashboardSync();
-        } else { alert(data.error); document.getElementById('start-btn').innerText = "Start Broadcast"; }
-    } catch (e) { alert("Error"); }
+        } else { 
+            alert(data.error); 
+            startBtn.innerText = "Start Broadcast"; 
+        }
+    } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
+});
+
+// REQUIREMENT 3: End test on all student browsers immediately when admin exits
+window.addEventListener('beforeunload', () => {
+    if (adminKey && quizId) {
+        navigator.sendBeacon('/api/live/admin/end', JSON.stringify({ adminKey, quizId }));
+    }
 });
 
 async function setQuestionIndex(newIndex) {
@@ -76,5 +93,5 @@ function startDashboardSync() {
                 });
             }
         } catch(e) {}
-    }, 1500); // Fetch leaderboard every 1.5 seconds
+    }, 1500);
 }
