@@ -5,7 +5,7 @@
   "subject": "biology",
   "duration": 1800,
   "isAvailable": true,
-  "isPremium": true,
+  "isPremium": false,
   "isUltra": false,
   "price": 5,
   "questions": [
