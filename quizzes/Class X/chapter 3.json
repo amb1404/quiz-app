@@ -4,6 +4,10 @@
   "classLevel": "x",
   "subject": "biology",
   "duration": 1800,
+  "isAvailable": true,
+  "isPremium": true,
+  "isUltra": false,
+  "price": 49,
   "questions": [
     {
       "type": "mcq",
