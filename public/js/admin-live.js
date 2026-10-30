@@ -23,7 +23,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
             
-            // REQUIREMENT 2: Show "Live Active", make permanent & disable
+            // Keep visually active but fully disabled
             startBtn.innerText = "Live Active";
             startBtn.disabled = true;
             startBtn.style.opacity = '0.7';
@@ -37,10 +37,15 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// REQUIREMENT 3: End test on all student browsers immediately when admin exits
+// Ends the test seamlessly for all students on admin tab close
 window.addEventListener('beforeunload', () => {
     if (adminKey && quizId) {
-        navigator.sendBeacon('/api/live/admin/end', JSON.stringify({ adminKey, quizId }));
+        fetch('/api/live/admin/end', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId })
+        }).catch(() => {});
     }
 });
 
