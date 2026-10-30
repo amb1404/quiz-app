@@ -959,6 +959,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 // Primary page routes
 app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
+app.get('/live-test', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-test'));
+app.get('/livetest.html', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-test'));
 app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/test-portal.html', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/study-notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
@@ -2043,7 +2045,6 @@ function getLiveMockContent(rawId) {
 app.post('/api/live/admin/start', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
-        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
         if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const cleanId = path.basename(String(quizId)).trim();
@@ -2072,7 +2073,6 @@ app.post('/api/live/admin/start', async (req, res) => {
 app.post('/api/live/admin/set-index', async (req, res) => {
     try {
         const { adminKey, quizId, index } = req.body;
-        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
         if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
         
         const cleanId = path.basename(String(quizId)).trim();
@@ -2091,7 +2091,6 @@ app.post('/api/live/admin/set-index', async (req, res) => {
 app.get('/api/live/admin/dashboard', async (req, res) => {
     try {
         const { adminKey, quizId } = req.query;
-        // FIXED TYPO: Changed APPS_SCRIPT_SECRET to APPS_SECRET
         if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId)).trim();
@@ -2199,12 +2198,14 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
-// ============================================================================
 
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
     const p = req.path.toLowerCase();
+    if (p.includes('live-test') || p.includes('livetest')) {
+        return serveDynamicHtml(req, res, 'livetest.html', '/live-test');
+    }
     if (p.includes('mock-tests') || p.includes('test-portal')) {
         return serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests');
     }
