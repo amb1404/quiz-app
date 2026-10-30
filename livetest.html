@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Test - Pioneers Prep</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; }
+        .live-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-transform: uppercase;}
+        .opt-btn { width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 16px; transition: 0.2s;}
+        .opt-btn.locked { opacity: 0.6; cursor: not-allowed; }
+        .opt-btn.selected { border-color: #4285f4; background-color: #eff6ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="auth-screen" class="live-container">
+        <h2 style="color: #4285f4;">Join Live Mock Test</h2>
+        <input type="text" id="live-quiz-id" placeholder="Test ID (e.g. mock1)" style="text-transform:none;">
+        <input type="text" id="live-first" placeholder="First Name">
+        <input type="text" id="live-last" placeholder="Last Name">
+        <input type="number" id="live-otp" placeholder="Enter Admin OTP">
+        <button id="join-btn" style="width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer;">Join Test</button>
+    </div>
+
+    <div id="quiz-screen" class="live-container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; color: #64748b; margin-bottom: 20px; font-weight: bold;">
+            <span id="live-status">Waiting for Admin...</span>
+            <span id="live-progress">Q: -/-</span>
+        </div>
+        <h3 id="question-text" style="font-size: 20px; color: #1e293b; margin-bottom: 25px; text-align: left;"></h3>
+        <div id="options-container" style="text-align: left;"></div>
+    </div>
+    
+    <script src="/js/livetest.js"></script>
+</body>
+</html>
