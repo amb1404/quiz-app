@@ -2054,6 +2054,9 @@ app.post('/api/live/admin/start', async (req, res) => {
         const otp = crypto.randomInt(100000, 1000000).toString();
         await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3);
         await stateStore.set(`live:state:${cleanId}`, { currentIndex: 0, status: 'active', title: content.title }, 60 * 60 * 3);
+        
+        // ADMIN HEARTBEAT INITIALIZATION
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
         await stateStore.del(`live:board:${cleanId}`);
 
         if (process.env.APP_SCRIPT_URL && APPS_SECRET) {
@@ -2104,7 +2107,7 @@ app.post('/api/live/admin/set-index', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
 
-// Admin: Fetch Dashboard Leaderboard (Auto-filters inactive/disconnected students)
+// Admin: Fetch Dashboard Leaderboard & Push Heartbeat
 app.get('/api/live/admin/dashboard', async (req, res) => {
     try {
         const { adminKey, quizId } = req.query;
@@ -2114,18 +2117,22 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
         
+        // ADMIN ONGOING HEARTBEAT
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
+        
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
         const now = Date.now();
         const activeStudents = {};
         
-        // Filter inactive visually, but DO NOT delete them from Redis state (prevents sync loss)
+        // Remove students who haven't sent a ping in the last 6 seconds
         for (const [name, data] of Object.entries(board)) {
-            if (data.lastSeen && (now - data.lastSeen < 10000)) { 
+            if (data.lastSeen && (now - data.lastSeen < 6000)) { 
                 activeStudents[name] = data;
             }
         }
+        await stateStore.set(`live:board:${cleanId}`, activeStudents, 60 * 60 * 3);
 
         const students = Object.keys(activeStudents).map(name => ({
             name, data: activeStudents[name]
@@ -2230,6 +2237,16 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         if (!stateStr) return res.json({ status: 'waiting' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
+        // DEAD MAN'S SWITCH: Check if admin has disappeared (closed tab/crashed)
+        const adminSeenStr = await stateStore.get(`live:admin_seen:${cleanId}`);
+        if (adminSeenStr && state.status === 'active') {
+            if (Date.now() - Number(adminSeenStr) > 8000) { 
+                // 8 seconds of silence -> Auto-end test immediately
+                state.status = 'ended';
+                await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+            }
+        }
+
         const content = getLiveMockContent(cleanId);
         
         // Final Scorecard Rendering Check
@@ -2248,8 +2265,6 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
                 const ansObj = studentAnswers[idx];
                 if (ansObj !== undefined && ansObj.answer !== undefined) {
                     attempted++;
-                    
-                    // Decode XOR Option Shuffling mapping for Scorecard accuracy
                     let actualOptIdx = ansObj.answer;
                     if (q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
                         const optOrder = getSafeOptionPermutation(q.options, `${signature}:${cleanId}:opt:${idx}`);
@@ -2257,10 +2272,7 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
                             actualOptIdx = optOrder[ansObj.answer];
                         }
                     }
-
-                    if (Number(actualOptIdx) === Number(q.answer)) {
-                        correct++;
-                    }
+                    if (Number(actualOptIdx) === Number(q.answer)) correct++;
                 }
             });
 
