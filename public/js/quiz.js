@@ -10,7 +10,7 @@ let timeRemaining = 900;
 let quizDuration = 900;
 let serverStartTime = 0;
 let timerSignature = "";
-let quizCipherKey = ""; // New: Dynamic key for decrypting the JSON payload
+let quizCipherKey = ""; 
 let timerInterval;
 let selectedClassName = "";
 let selectedSubjectName = "";
@@ -22,6 +22,10 @@ let selectedDescriptiveSubject = "";
 let selectedNeetUnit = "";
 let selectedNeetChapter = "";
 let isRestoringSession = false;
+
+// Variables for Premium PDF Interception
+let activePremiumPdf = null;
+let activePremiumType = null;
 
 function escapeClientHtml(str) {
     if (str === null || str === undefined) return '';
@@ -101,7 +105,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json();
             if (data.success) dynamicQuizzes = data.quizzes;
         } catch (e) {
-            console.error("Failed to load quizzes", e);
+            console.error("Failed to load quizzes");
         }
     }
 
@@ -158,7 +162,7 @@ async function restoreSessionState(state) {
                 if (encryptedData.payload && quizCipherKey) {
                     currentQuestions = JSON.parse(xorDecipher(encryptedData.payload, quizCipherKey));
                 } else {
-                    currentQuestions = encryptedData; // Fallback in case decipher fails
+                    currentQuestions = encryptedData;
                 }
                 
                 if (serverStartTime && quizDuration) {
@@ -233,6 +237,8 @@ function goHome() {
     clearInterval(timerInterval);
     userAnswers = {};
     skippedQuestions = new Set();
+    activePremiumPdf = null;
+    activePremiumType = null;
     MainNav.clearExamMode();
     sessionStorage.removeItem('pioneers_prep_state');
     const optW = document.getElementById('otp-wrapper');
@@ -241,6 +247,47 @@ function goHome() {
     if (vBtn) { vBtn.innerText = 'Verify & Start'; vBtn.disabled = false; }
     document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('home-dashboard')?.classList.remove('hidden');
+}
+
+// ----------------------------------------------------------------------------
+// UNIVERSAL CONTENT CARD RENDERER
+// ----------------------------------------------------------------------------
+function createContentCard(item, type, container) {
+    const card = document.createElement(item.isAvailable === false ? 'div' : 'a');
+    
+    let icon = '';
+    if (type === 'descriptive') icon = '📝 ';
+    if (type === 'notes') icon = '📚 ';
+
+    const title = type === 'quiz' ? (item.title || item.topic || item.id) : (icon + item.name);
+
+    if (item.isAvailable === false) {
+        card.className = type === 'quiz' ? 'card' : 'card card-yellow';
+        card.style.opacity = '0.55';
+        card.style.cursor = 'not-allowed';
+        card.style.backgroundColor = '#f8fafc';
+        card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: #dc2626; font-weight: 700; margin-top: 6px; display: inline-block;">⏳ Coming Soon</span>`;
+        card.addEventListener('click', (e) => { e.preventDefault(); alert('This content is currently under preparation and will be available soon.'); });
+    } else {
+        card.className = type === 'quiz' ? 'card' : (type === 'descriptive' ? 'card card-yellow' : 'card');
+        
+        if (item.isPremium) {
+            card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: #b45309; font-weight: 700; margin-top: 6px; display: inline-block;">🔒 Premium (₹${item.price || 49})</span>`;
+        } else {
+            card.innerText = title;
+        }
+        
+        if (type === 'quiz') {
+            card.addEventListener('click', (e) => { e.preventDefault(); prepareQuiz(item); });
+        } else {
+            if (item.isPremium) {
+                card.addEventListener('click', (e) => { e.preventDefault(); preparePremiumPdf(item, type); });
+            } else {
+                card.href = (type === 'notes' ? '/api/download-note/' : '/api/download-descriptive/') + encodeURIComponent(item.fileName);
+            }
+        }
+    }
+    container.appendChild(card);
 }
 
 function selectDescriptiveClass(cName) {
@@ -274,13 +321,7 @@ async function selectDescriptiveSubject(subject) {
         const matched = list.find(n => n.class === selectedDescriptiveClass && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
         if (matched?.papers?.length > 0) {
-            matched.papers.forEach(item => {
-                const link = document.createElement('a');
-                link.href = '/api/download-descriptive/' + encodeURIComponent(item.fileName);
-                link.className = 'card card-yellow';
-                link.innerText = '📝 ' + item.name;
-                container.appendChild(link);
-            });
+            matched.papers.forEach(item => createContentCard(item, 'descriptive', container));
         } else {
             container.innerHTML = `<p style="text-align:center; color:#854d0e;">No question papers available for ${escapeClientHtml(subject)} yet.</p>`;
         }
@@ -317,13 +358,7 @@ async function selectNotesSubject(subject) {
         const matched = list.find(n => n.class === selectedNotesClass && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
         if (matched?.notes?.length > 0) {
-            matched.notes.forEach(note => {
-                const link = document.createElement('a');
-                link.href = '/api/download-note/' + encodeURIComponent(note.fileName);
-                link.className = 'card';
-                link.innerText = '📚 ' + note.name;
-                container.appendChild(link);
-            });
+            matched.notes.forEach(note => createContentCard(note, 'notes', container));
         } else {
             container.innerHTML = '<p style="text-align:center;">No notes available for this subject yet.</p>';
         }
@@ -348,13 +383,7 @@ function selectSubject(sub) {
     if (matched.length === 0) {
         container.innerHTML = `<p style="text-align:center;">No tests found for ${escapeClientHtml(sub)} yet.</p>`;
     } else {
-        matched.forEach(q => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerText = q.title;
-            card.addEventListener('click', () => prepareQuiz(q));
-            container.appendChild(card);
-        });
+        matched.forEach(q => createContentCard(q, 'quiz', container));
     }
     showScreen('ix-x-chapter-screen');
 }
@@ -366,13 +395,7 @@ function loadDynamicChapters(cName) {
     if (matched.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
     } else {
-        matched.forEach(q => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerText = q.title;
-            card.addEventListener('click', () => prepareQuiz(q));
-            container.appendChild(card);
-        });
+        matched.forEach(q => createContentCard(q, 'quiz', container));
     }
     showScreen('ix-x-chapter-screen');
 }
@@ -416,26 +439,37 @@ function loadNeetTopics(cName, uName, chap) {
     if (matched.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
     } else {
-        matched.forEach(q => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerText = q.title || q.topic || q.id;
-            card.addEventListener('click', () => prepareQuiz(q));
-            container.appendChild(card);
-        });
+        matched.forEach(q => createContentCard(q, 'quiz', container));
     }
     showScreen('neet-topic-screen');
 }
 
 function prepareQuiz(quiz) {
+    activePremiumPdf = null;
+    activePremiumType = null;
     currentQuizId = quiz.id;
     activeQuizTitle = quiz.title;
     timeRemaining = quiz.duration || 900;
     quizDuration = timeRemaining;
+    
+    document.getElementById('name-screen').querySelector('h2').innerText = "Candidate Verification";
     const optW = document.getElementById('otp-wrapper');
     if (optW) optW.remove();
     const vBtn = document.getElementById('verify-start-btn');
     if (vBtn) { vBtn.innerText = 'Verify & Start'; vBtn.disabled = false; }
+    showScreen('name-screen');
+}
+
+function preparePremiumPdf(item, type) {
+    currentQuizId = ""; 
+    activePremiumPdf = item;
+    activePremiumType = type;
+
+    document.getElementById('name-screen').querySelector('h2').innerText = "Premium Access Verification";
+    const optW = document.getElementById('otp-wrapper');
+    if (optW) optW.remove();
+    const vBtn = document.getElementById('verify-start-btn');
+    if (vBtn) { vBtn.innerText = 'Verify Email'; vBtn.disabled = false; }
     showScreen('name-screen');
 }
 
@@ -447,11 +481,80 @@ function showOtpWrapper() {
         wrapper.id = 'otp-wrapper';
         wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center;letter-spacing:4px;margin-top:5px;margin-bottom:20px;">';
         document.getElementById('name-screen').insertBefore(wrapper, vBtn);
-        vBtn.innerText = 'Start Quiz';
+        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz';
         vBtn.disabled = false;
     }
 }
 
+// ----------------------------------------------------------------------------
+// RAZORPAY CHECKOUT ENGINE
+// ----------------------------------------------------------------------------
+async function initiateRazorpayPayment(itemId, amount, email, firstName, lastName, onSuccessCallback) {
+    const vBtn = document.getElementById('verify-start-btn');
+    if (vBtn) { vBtn.innerText = 'Initializing Payment...'; vBtn.disabled = true; }
+    
+    try {
+        const orderRes = await fetch('/api/create-order', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId, amount })
+        });
+        const orderData = await orderRes.json();
+        
+        if (!orderRes.ok) {
+            alert(orderData.error || 'Failed to create order.');
+            if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
+            return;
+        }
+
+        const options = {
+            key: orderData.keyId,
+            amount: orderData.amount,
+            currency: "INR",
+            name: "Pioneers Prep",
+            description: "Premium Content Access",
+            order_id: orderData.orderId,
+            handler: async function (response) {
+                if (vBtn) { vBtn.innerText = 'Verifying Payment...'; }
+                const verifyRes = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        itemId: itemId
+                    })
+                });
+                const verifyData = await verifyRes.json();
+                if (verifyRes.ok && verifyData.success) {
+                    alert('Payment successful! Content unlocked.');
+                    onSuccessCallback();
+                } else {
+                    alert('Payment verification failed. Please contact support.');
+                    if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
+                }
+            },
+            prefill: { name: firstName + ' ' + lastName, email: email },
+            theme: { color: "#ca8a04" }
+        };
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response){
+            alert('Payment failed: ' + response.error.description);
+            if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
+        });
+        rzp.open();
+    } catch (err) {
+        alert('Network error during payment initialization.');
+        if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// PRIMARY ACCESS FLOW (OTP -> PAYWALL -> CONTENT)
+// ----------------------------------------------------------------------------
 async function startQuiz() {
     const fEl = document.getElementById('first-name'), lEl = document.getElementById('last-name'), eEl = document.getElementById('email-address'), vBtn = document.getElementById('verify-start-btn');
     const first = fEl.value.trim().toUpperCase(), last = lEl.value.trim().toUpperCase(), email = eEl.value.trim().toLowerCase();
@@ -471,7 +574,8 @@ async function startQuiz() {
         const data = await res.json();
         if (!res.ok) {
             alert(data.error || 'Failed to send verification.');
-            vBtn.innerText = 'Verify & Start'; vBtn.disabled = false;
+            vBtn.innerText = activePremiumPdf ? 'Verify Email' : 'Verify & Start'; 
+            vBtn.disabled = false;
             return;
         }
         showOtpWrapper();
@@ -492,10 +596,23 @@ async function startQuiz() {
     const vData = await vRes.json();
     if (!vRes.ok) {
         alert(vData.error || 'Invalid OTP');
-        vBtn.innerText = 'Start Quiz'; vBtn.disabled = false;
+        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz'; 
+        vBtn.disabled = false;
         return;
     }
 
+    // OTP Verified. Attempt access.
+    if (activePremiumPdf) {
+        await attemptPdfDownload(first, last, email);
+    } else if (currentQuizId) {
+        await attemptQuizStart(first, last, email);
+    }
+}
+
+async function attemptQuizStart(first, last, email) {
+    const vBtn = document.getElementById('verify-start-btn');
+    vBtn.innerText = 'Starting...';
+    
     const startRes = await fetch('/api/start-quiz', {
         method: 'POST',
         credentials: 'same-origin',
@@ -503,6 +620,14 @@ async function startQuiz() {
         body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
     });
     const startData = await startRes.json();
+    
+    if (startRes.status === 402) {
+        const qz = dynamicQuizzes.find(q => q.id === currentQuizId);
+        const price = qz ? qz.price : 49;
+        initiateRazorpayPayment(currentQuizId, price, email, first, last, () => attemptQuizStart(first, last, email));
+        return;
+    }
+    
     if (!startRes.ok) {
         alert(startData.error || 'Verification Error.');
         vBtn.innerText = 'Start Quiz'; vBtn.disabled = false;
@@ -532,6 +657,33 @@ async function startQuiz() {
     showScreen('quiz-screen');
     renderQuestion();
     startTimer();
+}
+
+async function attemptPdfDownload(first, last, email) {
+    const vBtn = document.getElementById('verify-start-btn');
+    vBtn.innerText = 'Accessing...';
+    
+    const endpoint = activePremiumType === 'notes' ? '/api/download-note/' : '/api/download-descriptive/';
+    const url = endpoint + encodeURIComponent(activePremiumPdf.fileName);
+    
+    const res = await fetch(url, { credentials: 'same-origin' });
+    
+    if (res.status === 402) {
+        initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
+            window.location.href = url;
+            goHome();
+        });
+        return;
+    }
+    
+    if (!res.ok) {
+        alert('Failed to access file. Error ' + res.status);
+        vBtn.innerText = 'Proceed'; vBtn.disabled = false;
+        return;
+    }
+    
+    window.location.href = url;
+    goHome();
 }
 
 function updateQuizStats() {
@@ -711,53 +863,18 @@ async function submitQuiz(isAuto = false) {
     }
 }
 
-// ============================================================================
-// MOBILE QUIZ SCREEN OPTIMIZER
-// ============================================================================
 (function optimizeMobileQuiz() {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     if (!isMobile) return;
 
     const mobileQuizStyles = `
-        #quiz-screen:not(.hidden) {
-            padding: 20px 15px !important;
-            border-radius: 0 !important;
-            min-height: 100vh !important;
-            box-shadow: none !important;
-        }
-        #question-box {
-            font-size: 18px !important;
-            line-height: 1.6 !important;
-            margin-bottom: 24px !important;
-        }
-        .option-btn {
-            padding: 16px 18px !important;
-            font-size: 16px !important;
-            margin-bottom: 12px !important;
-            border-radius: 8px !important;
-        }
-        .quiz-nav-container {
-            flex-direction: column !important;
-            gap: 12px !important;
-            margin-top: 30px !important;
-        }
-        .quiz-nav-container button {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 14px !important;
-            font-size: 16px !important;
-        }
-        .quiz-header {
-            flex-direction: column !important;
-            align-items: center !important;
-            text-align: center !important;
-            gap: 12px !important;
-            margin-bottom: 20px !important;
-        }
-        #submit-btn {
-            width: 100% !important;
-            padding: 12px !important;
-        }
+        #quiz-screen:not(.hidden) { padding: 20px 15px !important; border-radius: 0 !important; min-height: 100vh !important; box-shadow: none !important; }
+        #question-box { font-size: 18px !important; line-height: 1.6 !important; margin-bottom: 24px !important; }
+        .option-btn { padding: 16px 18px !important; font-size: 16px !important; margin-bottom: 12px !important; border-radius: 8px !important; }
+        .quiz-nav-container { flex-direction: column !important; gap: 12px !important; margin-top: 30px !important; }
+        .quiz-nav-container button { width: 100% !important; max-width: 100% !important; padding: 14px !important; font-size: 16px !important; }
+        .quiz-header { flex-direction: column !important; align-items: center !important; text-align: center !important; gap: 12px !important; margin-bottom: 20px !important; }
+        #submit-btn { width: 100% !important; padding: 12px !important; }
     `;
 
     let styleElement = null;
@@ -766,7 +883,6 @@ async function submitQuiz(isAuto = false) {
     const observer = new MutationObserver(() => {
         const quizScreen = document.getElementById('quiz-screen');
         if (!quizScreen) return;
-
         const isQuizActive = !quizScreen.classList.contains('hidden');
         const metaViewport = document.querySelector('meta[name="viewport"]');
 
@@ -782,22 +898,9 @@ async function submitQuiz(isAuto = false) {
                 document.head.appendChild(styleElement);
             }
         } else {
-            if (metaViewport && originalViewport) {
-                metaViewport.setAttribute('content', originalViewport);
-            }
-            if (styleElement) {
-                styleElement.remove();
-                styleElement = null;
-            }
+            if (metaViewport && originalViewport) metaViewport.setAttribute('content', originalViewport);
+            if (styleElement) { styleElement.remove(); styleElement = null; }
         }
     });
-
-    window.addEventListener('DOMContentLoaded', () => {
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class']
-        });
-    });
+    window.addEventListener('DOMContentLoaded', () => observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }));
 })();
