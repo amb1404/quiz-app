@@ -2052,9 +2052,9 @@ app.post('/api/live/admin/start', async (req, res) => {
         if (!content) return res.status(404).json({ error: 'Live Mock not found in /livemock folder.' });
 
         const otp = crypto.randomInt(100000, 1000000).toString();
-        await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3); // 3 hours
+        await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3);
         await stateStore.set(`live:state:${cleanId}`, { currentIndex: 0, status: 'active', title: content.title }, 60 * 60 * 3);
-        await stateStore.del(`live:board:${cleanId}`); // Clear old board
+        await stateStore.del(`live:board:${cleanId}`);
 
         if (process.env.APP_SCRIPT_URL && APPS_SECRET) {
             fetch(process.env.APP_SCRIPT_URL, {
@@ -2067,6 +2067,23 @@ app.post('/api/live/admin/start', async (req, res) => {
         }
         res.json({ success: true, otp, totalQuestions: content.questions.length });
     } catch (err) { res.status(500).json({ error: 'Failed to start live quiz.' }); }
+});
+
+// Admin: End Test (Triggered on Admin Exit or Close)
+app.post('/api/live/admin/end', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (stateStr) {
+            const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+            state.status = 'ended';
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Failed to end quiz.' }); }
 });
 
 // Admin: Change Question Index
@@ -2087,7 +2104,7 @@ app.post('/api/live/admin/set-index', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
 
-// Admin: Fetch Dashboard Leaderboard
+// Admin: Fetch Dashboard Leaderboard (Auto-filters inactive/disconnected students)
 app.get('/api/live/admin/dashboard', async (req, res) => {
     try {
         const { adminKey, quizId } = req.query;
@@ -2100,8 +2117,18 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
-        const students = Object.keys(board).map(name => ({
-            name, data: board[name]
+        const now = Date.now();
+        const activeStudents = {};
+        
+        for (const [name, data] of Object.entries(board)) {
+            if (data.lastSeen && (now - data.lastSeen < 8000)) {
+                activeStudents[name] = data;
+            }
+        }
+        await stateStore.set(`live:board:${cleanId}`, activeStudents, 60 * 60 * 3);
+
+        const students = Object.keys(activeStudents).map(name => ({
+            name, data: activeStudents[name]
         })).sort((a, b) => {
             const timeA = a.data.answers[state?.currentIndex] ? a.data.answers[state.currentIndex].time : 0;
             const timeB = b.data.answers[state?.currentIndex] ? b.data.answers[state.currentIndex].time : 0;
@@ -2114,7 +2141,7 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
 });
 
-// Student: Verify OTP
+// Student: Verify OTP & Join
 app.post('/api/live/student/verify', async (req, res) => {
     try {
         const { firstName, lastName, quizId, otp } = req.body;
@@ -2133,16 +2160,62 @@ app.post('/api/live/student/verify', async (req, res) => {
         const boardKey = `live:board:${cleanId}`;
         const rawBoard = await stateStore.get(boardKey);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-        if (!board[`${fName} ${lName}`]) {
-            board[`${fName} ${lName}`] = { joinedAt: Date.now(), answers: {} };
-            await stateStore.set(boardKey, board, 60 * 60 * 3);
-        }
+        
+        board[`${fName} ${lName}`] = { joinedAt: Date.now(), lastSeen: Date.now(), answers: {} };
+        await stateStore.set(boardKey, board, 60 * 60 * 3);
 
         res.json({ success: true, token: `${tokenData}|||${signature}` });
     } catch (err) { res.status(500).json({ error: 'Verification failed.' }); }
 });
 
-// Student: Synchronized Pull
+// Student: Heartbeat Ping
+app.post('/api/live/student/heartbeat', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        const cleanId = path.basename(String(quizId)).trim();
+
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        
+        if (board[fullName]) {
+            board[fullName].lastSeen = Date.now();
+            await stateStore.set(boardKey, board, 60 * 60 * 3);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Heartbeat failed.' }); }
+});
+
+// Student: Explicit Leave / Disconnect
+app.post('/api/live/student/leave', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(200).json({ success: true });
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        const cleanId = path.basename(String(quizId)).trim();
+
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        
+        if (board[fullName]) {
+            delete board[fullName];
+            await stateStore.set(boardKey, board, 60 * 60 * 3);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Leave failed.' }); }
+});
+
+// Student: Synchronized Pull & Scorecard Evaluation
 app.get('/api/live/student/sync/:id', async (req, res) => {
     try {
         const authHeader = req.get('Authorization');
@@ -2158,6 +2231,34 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
         const content = getLiveMockContent(cleanId);
+        
+        if (state.status === 'ended') {
+            const [, , first, last] = tokenData.split('|');
+            const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+            const boardKey = `live:board:${cleanId}`;
+            const rawBoard = await stateStore.get(boardKey);
+            let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+            
+            let studentAnswers = board[fullName]?.answers || {};
+            let correct = 0, attempted = 0;
+            const total = content.questions.length;
+
+            content.questions.forEach((q, idx) => {
+                const ansObj = studentAnswers[idx];
+                if (ansObj !== undefined && ansObj.answer !== undefined) {
+                    attempted++;
+                    if (Number(ansObj.answer) === Number(q.answer)) {
+                        correct++;
+                    }
+                }
+            });
+
+            return res.json({
+                status: 'ended',
+                scorecard: { correct, incorrect: attempted - correct, skipped: total - attempted, total }
+            });
+        }
+
         const q = content.questions[state.currentIndex];
         const singleUseKey = crypto.randomBytes(12).toString('hex');
         const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
@@ -2185,7 +2286,6 @@ app.post('/api/live/student/submit', async (req, res) => {
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
         if (board[fullName]) {
-            // SECURITY LOCK: Only accept the answer if this index is completely empty
             if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
                 board[fullName].answers[index] = { answer, time: Date.now() };
                 await stateStore.set(boardKey, board, 60 * 60 * 3);
