@@ -40,6 +40,56 @@
             <p>Access timed chapter-wise mock tests, downloadable PDF study notes, and descriptive question papers for <strong>NEET (Class XI & XII)</strong>, <strong>ICSE & CBSE (Class IX & X)</strong>, <strong>ISC & CBSE (Class XI & XII)</strong>, and <strong>WBCHSE</strong>.</p>
         </section>
 
+        <!-- High-Visibility Striking Live Test Hero Banner -->
+        <style>
+            @keyframes pulseGlow {
+                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+                70% { transform: scale(1.02); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            }
+            .live-hero-banner {
+                max-width: 1050px;
+                margin: 25px auto;
+                background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
+                padding: 35px 25px;
+                border-radius: 16px;
+                text-align: center;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+                border: 2px solid rgba(96, 165, 250, 0.4);
+            }
+            .live-hero-btn {
+                display: inline-block;
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                color: #ffffff;
+                padding: 18px 40px;
+                border-radius: 10px;
+                font-weight: 800;
+                text-decoration: none;
+                font-size: 20px;
+                letter-spacing: 0.5px;
+                box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+                animation: pulseGlow 2.5s infinite ease-in-out;
+                transition: transform 0.2s, background 0.2s;
+            }
+            .live-hero-btn:hover {
+                background: linear-gradient(135deg, #fbbf24, #f59e0b);
+                transform: translateY(-2px);
+            }
+        </style>
+
+        <div class="live-hero-banner">
+            <div style="display: inline-block; background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; border: 1px solid rgba(239, 68, 68, 0.4);">
+                🔴 Live Session Active
+            </div>
+            <h2 style="color: #ffffff; margin: 0 0 10px 0; font-size: 28px; font-weight: 800;">Real-Time Interactive Examinations</h2>
+            <p style="color: #cbd5e1; margin: 0 0 25px 0; font-size: 16px; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+                Join synced examination portals featuring instant leaderboards, anti-cheat validation, and precise speed tracking.
+            </p>
+            <a href="/live-test" class="live-hero-btn">
+                Live One to One Test with In-Depth Analysis
+            </a>
+        </div>
+
         <div id="home-dashboard">
             <!-- 1. Mock Tests Panel -->
             <div class="dashboard-panel">
