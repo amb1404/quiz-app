@@ -24,12 +24,13 @@ document.getElementById('join-btn').addEventListener('click', async () => {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
             startSync();
-            startHeartbeat();
+            startHeartbeat(); // <-- This keeps the student active on the admin dashboard
         } else { alert(data.error); document.getElementById('join-btn').innerText = "Join Test"; }
     } catch (e) { alert("Network Error"); document.getElementById('join-btn').innerText = "Join Test"; }
 });
 
 function startHeartbeat() {
+    // Ping server every 3 seconds to update lastSeen timestamp
     setInterval(() => {
         if (liveToken && testActive) {
             fetch('/api/live/student/heartbeat', {
@@ -40,6 +41,7 @@ function startHeartbeat() {
     }, 3000);
 }
 
+// Notify server immediately if student closes tab or leaves
 window.addEventListener('beforeunload', () => {
     if (liveToken && testActive) {
         navigator.sendBeacon('/api/live/student/leave', JSON.stringify({}));
@@ -112,6 +114,7 @@ function renderQuestion(data) {
     const optsBox = document.getElementById('options-container');
     optsBox.innerHTML = '';
     
+    q.options.options.forEach((opt, idx) => {}); // safety guard
     q.options.forEach((opt, idx) => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
