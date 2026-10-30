@@ -37,15 +37,11 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// Ends the test seamlessly for all students on admin tab close
+// Ends the test seamlessly for all students on admin tab close via beacon
 window.addEventListener('beforeunload', () => {
     if (adminKey && quizId) {
-        fetch('/api/live/admin/end', {
-            method: 'POST',
-            keepalive: true,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminKey, quizId })
-        }).catch(() => {});
+        const blob = new Blob([JSON.stringify({ adminKey, quizId })], { type: 'application/json' });
+        navigator.sendBeacon('/api/live/admin/end', blob);
     }
 });
 
