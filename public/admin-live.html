@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Live Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: white; padding: 20px; margin: 0; }
+        .panel { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        input { padding: 10px; margin-right: 10px; border-radius: 4px; border: none; }
+        button { padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #64748b; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        .time-badge { background: #059669; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2>Live Mock Control Center</h2>
+    <div class="panel">
+        <input type="password" id="admin-key" placeholder="Admin Secret Key">
+        <input type="text" id="quiz-id" placeholder="Test ID (e.g. mock1)">
+        <button id="start-btn">Start Broadcast & Send OTP</button>
+        <span id="otp-display" style="margin-left: 15px; color: #f59e0b; font-weight: bold; font-size: 18px;"></span>
+    </div>
+
+    <div class="panel" id="control-panel" style="display: none;">
+        <h3 id="dash-title"></h3>
+        <button id="prev-btn">Previous Question</button>
+        <span id="q-counter" style="margin: 0 15px; font-size: 18px; font-weight: bold;">Q: 1</span>
+        <button id="next-btn">Next Question</button>
+    </div>
+
+    <div class="panel" id="board-panel" style="display: none;">
+        <h3>Live Submissions (Current Question)</h3>
+        <table>
+            <thead><tr><th>Student Name</th><th>Selected Option (Index)</th><th>Speed (Time)</th></tr></thead>
+            <tbody id="board-body"></tbody>
+        </table>
+    </div>
+
+    <script src="/js/admin-live.js"></script>
+</body>
+</html>
