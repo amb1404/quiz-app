@@ -2120,12 +2120,12 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const now = Date.now();
         const activeStudents = {};
         
+        // Filter inactive visually, but DO NOT delete them from Redis state (prevents sync loss)
         for (const [name, data] of Object.entries(board)) {
-            if (data.lastSeen && (now - data.lastSeen < 8000)) {
+            if (data.lastSeen && (now - data.lastSeen < 10000)) { 
                 activeStudents[name] = data;
             }
         }
-        await stateStore.set(`live:board:${cleanId}`, activeStudents, 60 * 60 * 3);
 
         const students = Object.keys(activeStudents).map(name => ({
             name, data: activeStudents[name]
@@ -2232,6 +2232,7 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
 
         const content = getLiveMockContent(cleanId);
         
+        // Final Scorecard Rendering Check
         if (state.status === 'ended') {
             const [, , first, last] = tokenData.split('|');
             const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
@@ -2247,7 +2248,17 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
                 const ansObj = studentAnswers[idx];
                 if (ansObj !== undefined && ansObj.answer !== undefined) {
                     attempted++;
-                    if (Number(ansObj.answer) === Number(q.answer)) {
+                    
+                    // Decode XOR Option Shuffling mapping for Scorecard accuracy
+                    let actualOptIdx = ansObj.answer;
+                    if (q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
+                        const optOrder = getSafeOptionPermutation(q.options, `${signature}:${cleanId}:opt:${idx}`);
+                        if (optOrder[ansObj.answer] !== undefined) {
+                            actualOptIdx = optOrder[ansObj.answer];
+                        }
+                    }
+
+                    if (Number(actualOptIdx) === Number(q.answer)) {
                         correct++;
                     }
                 }
