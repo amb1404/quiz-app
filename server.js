@@ -1279,22 +1279,29 @@ app.post('/api/create-order', async (req, res) => {
         const authCheck = await verifyAuthToken(extractAuthToken(req));
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
-        const { itemId, amount } = req.body;
-        if (!itemId || !amount || isNaN(amount) || Number(amount) < 1) {
-            return res.status(400).json({ error: 'Invalid order details.' });
+        const { itemId } = req.body;
+        if (!itemId) return res.status(400).json({ error: 'Missing item ID.' });
+
+        const cleanId = path.basename(String(itemId)).trim();
+        let actualPrice = 49; // Default fallback
+
+        // Look up the true price on the server
+        if (cleanId.toUpperCase().endsWith('.PDF')) {
+            actualPrice = parsePdfMetadata(cleanId).price || 49;
+        } else {
+            const quizPath = resolveSafeQuizPath(cleanId);
+            if (!quizPath) return res.status(404).json({ error: 'Item not found.' });
+            const content = getCachedQuizContent(quizPath);
+            actualPrice = Number(content.price) > 0 ? Number(content.price) : 49;
         }
 
         const order = await razorpay.orders.create({
-            amount: Math.round(Number(amount) * 100),
+            amount: Math.round(actualPrice * 100), // Enforce server-side price
             currency: "INR",
             receipt: `rcpt_${Date.now().toString().slice(-8)}`
         });
-        res.json({
-            success: true,
-            orderId: order.id,
-            amount: order.amount,
-            keyId: process.env.RAZORPAY_KEY_ID
-        });
+        
+        res.json({ success: true, orderId: order.id, amount: order.amount, keyId: process.env.RAZORPAY_KEY_ID });
     } catch (err) {
         console.error('Order creation error:', err);
         res.status(500).json({ error: 'Order creation failed.' });
