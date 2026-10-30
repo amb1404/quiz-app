@@ -2128,7 +2128,7 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         
         // Remove students who haven't sent a ping in the last 6 seconds
         for (const [name, data] of Object.entries(board)) {
-            if (data.lastSeen && (now - data.lastSeen < 6000)) { 
+            if (data.lastSeen && (now - data.lastSeen < 1000)) { 
                 activeStudents[name] = data;
             }
         }
