@@ -38,10 +38,15 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 });
 
 // Ends the test seamlessly for all students on admin tab close via beacon
+// End test on all student browsers immediately ONLY when admin explicitly exits tab
 window.addEventListener('beforeunload', () => {
     if (adminKey && quizId) {
-        const blob = new Blob([JSON.stringify({ adminKey, quizId })], { type: 'application/json' });
-        navigator.sendBeacon('/api/live/admin/end', blob);
+        fetch('/api/live/admin/end', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId })
+        }).catch(() => {});
     }
 });
 
