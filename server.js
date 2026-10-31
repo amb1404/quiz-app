@@ -938,7 +938,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
                 `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
-            .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=1280">')
+            .replace(/<meta name="viewport"[^>]*>/i, fileName === 'livetest.html' ? '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">' : '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
             .replace('</body>', `${clientIntegrationScript}\n</body>`);
@@ -2123,16 +2123,9 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
-        const now = Date.now();
-        const activeStudents = {};
-        
-        // Remove students who haven't sent a ping in the last 6 seconds
-        for (const [name, data] of Object.entries(board)) {
-            if (data.lastSeen && (now - data.lastSeen < 15000)) { 
-                activeStudents[name] = data;
-            }
-        }
-        await stateStore.set(`live:board:${cleanId}`, activeStudents, 60 * 60 * 3);
+        // RULE 2: Inactivity filtering removed. 
+        // Students are removed exclusively via the tab-close signal (/api/live/student/leave).
+        const activeStudents = board;
 
         const students = Object.keys(activeStudents).map(name => ({
             name, data: activeStudents[name]
@@ -2237,15 +2230,8 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         if (!stateStr) return res.json({ status: 'waiting' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
-        // DEAD MAN'S SWITCH: Check if admin has disappeared (closed tab/crashed)
-        const adminSeenStr = await stateStore.get(`live:admin_seen:${cleanId}`);
-        if (adminSeenStr && state.status === 'active') {
-            if (Date.now() - Number(adminSeenStr) > 3500) { 
-        // 3.5 seconds of silence -> Auto-end test immediately
-        state.status = 'ended';
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
-            }
-        }
+        // RULE 1: Time-based inactivity switch removed. 
+        // The test now ends ONLY when the admin explicitly closes the tab (/api/live/admin/end).
 
         const content = getLiveMockContent(cleanId);
         
