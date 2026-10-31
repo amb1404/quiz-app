@@ -135,5 +135,5 @@ function startDashboardSync() {
                 });
             }
         } catch(e) {}
-    }, 1500);
+    }, 700);
 }
