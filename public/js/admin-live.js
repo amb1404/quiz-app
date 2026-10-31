@@ -37,7 +37,6 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// Ends the test seamlessly for all students on admin tab close via beacon
 // End test on all student browsers immediately ONLY when admin explicitly exits tab
 window.addEventListener('beforeunload', () => {
     if (adminKey && quizId) {
