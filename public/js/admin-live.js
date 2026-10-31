@@ -49,25 +49,7 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-async function setQuestionIndex(newIndex) {
-    if (newIndex < 0 || newIndex >= totalQuestions) return;
-    document.getElementById('prev-btn').disabled = true;
-    document.getElementById('next-btn').disabled = true;
-    
-    await fetch('/api/live/admin/set-index', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminKey, quizId, index: newIndex })
-    });
-    
-    currentIndex = newIndex;
-    document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} / ${totalQuestions}`;
-    document.getElementById('prev-btn').disabled = false;
-    document.getElementById('next-btn').disabled = false;
-}
-
-document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
-document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
-
+// Manual End Test Button Logic
 document.getElementById('end-test-btn').addEventListener('click', async () => {
     if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
     
@@ -86,6 +68,25 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
         alert("Failed to end the test.");
     }
 });
+
+async function setQuestionIndex(newIndex) {
+    if (newIndex < 0 || newIndex >= totalQuestions) return;
+    document.getElementById('prev-btn').disabled = true;
+    document.getElementById('next-btn').disabled = true;
+    
+    await fetch('/api/live/admin/set-index', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminKey, quizId, index: newIndex })
+    });
+    
+    currentIndex = newIndex;
+    document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} / ${totalQuestions}`;
+    document.getElementById('prev-btn').disabled = false;
+    document.getElementById('next-btn').disabled = false;
+}
+
+document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
+document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
 
 function startDashboardSync() {
     dashInterval = setInterval(async () => {
