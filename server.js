@@ -970,6 +970,10 @@ app.get('/descriptive-papers', (req, res) => serveDynamicHtml(req, res, 'descrip
 app.get('/descriptive', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 app.get('/descriptive.html', (req, res) => serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers'));
 
+// Add clean routing for Admin Dashboard
+app.get('/admin-live', (req, res) => serveDynamicHtml(req, res, 'admin-live.html', '/admin-live'));
+app.get('/admin-live.html', (req, res) => serveDynamicHtml(req, res, 'admin-live.html', '/admin-live'));
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ============================================================================
