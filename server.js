@@ -2251,14 +2251,10 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
                 const ansObj = studentAnswers[idx];
                 if (ansObj !== undefined && ansObj.answer !== undefined) {
                     attempted++;
-                    let actualOptIdx = ansObj.answer;
-                    if (q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
-                        const optOrder = getSafeOptionPermutation(q.options, `${signature}:${cleanId}:opt:${idx}`);
-                        if (optOrder[ansObj.answer] !== undefined) {
-                            actualOptIdx = optOrder[ansObj.answer];
-                        }
+                    // Live test options are not shuffled, so we grade the raw index directly
+                    if (Number(ansObj.answer) === Number(q.answer)) {
+                        correct++;
                     }
-                    if (Number(actualOptIdx) === Number(q.answer)) correct++;
                 }
             });
 
