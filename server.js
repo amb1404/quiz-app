@@ -621,7 +621,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
                         }
                     } else {
-                        if (!isRecentClick && !isReload && window.location.search === '') {
+                        // Exempt Admin Dashboard and Live Test from frontend direct-navigation blocks
+                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-test');
+                        if (!isExempt && !isRecentClick && !isReload && window.location.search === '') {
                             sessionStorage.removeItem('pioneers_prep_state');
                             window.location.replace('/');
                             return;
