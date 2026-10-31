@@ -50,6 +50,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Manual End Test Button Logic
+// Manual End Test Button Logic
 document.getElementById('end-test-btn').addEventListener('click', async () => {
     if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
     
@@ -60,9 +61,25 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
             body: JSON.stringify({ adminKey, quizId })
         });
         
+        // Stop fetching the leaderboard
         clearInterval(dashInterval);
+        
+        // Hide the active test panels
         document.getElementById('control-panel').style.display = 'none';
-        document.getElementById('start-btn').innerText = "Test Ended";
+        document.getElementById('board-panel').style.display = 'none';
+        
+        // Reset the start button and clear OTP to match the initial screen
+        const startBtn = document.getElementById('start-btn');
+        startBtn.innerText = "Start Broadcast & Send OTP";
+        startBtn.disabled = false;
+        startBtn.style.opacity = '1';
+        startBtn.style.cursor = 'pointer';
+        document.getElementById('otp-display').innerText = "";
+        
+        // Clear inputs for the next session
+        document.getElementById('admin-key').value = "";
+        document.getElementById('quiz-id').value = "";
+        
         alert("Test successfully terminated. Scorecards are now being displayed to students.");
     } catch (e) {
         alert("Failed to end the test.");
