@@ -628,6 +628,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             window.location.replace('/');
                             return;
                         }
+                        
                         sessionStorage.removeItem('pioneers_nav_ok');
                         sessionStorage.setItem('pioneers_active_route', baseRoute);
                         if (window.location.pathname !== baseRoute) {
