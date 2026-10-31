@@ -1,13 +1,16 @@
 {
-  "title": "Genetics- advanced",
+  "title": "Genetics- Advanced",
   "category": "icse",
   "classLevel": "x",
   "subject": "biology",
+  "unit": "Plant Physiology",
+  "chapter": "Photosynthesis in Higher Plants",
+  "topic": "Complete Chapter Test",
   "duration": 1800,
   "isAvailable": true,
   "isPremium": false,
   "isUltra": false,
-  "price": 5,
+  "price": 0,
   "questions": [
     {
       "type": "mcq",
