@@ -17,6 +17,16 @@
 </head>
 <body>
     <h2>Live Mock Control Center</h2>
+    
+    <!-- Panel 1: Start Broadcast Inputs -->
+    <div class="panel">
+        <input type="password" id="admin-key" placeholder="Admin Secret Key">
+        <input type="text" id="quiz-id" placeholder="Test ID (e.g. mock1)">
+        <button id="start-btn">Start Broadcast & Send OTP</button>
+        <span id="otp-display" style="margin-left: 15px; color: #f59e0b; font-weight: bold; font-size: 18px;"></span>
+    </div>
+
+    <!-- Panel 2: Control Panel with End Test Button -->
     <div class="panel" id="control-panel" style="display: none;">
         <h3 id="dash-title"></h3>
         <button id="prev-btn">Previous Question</button>
@@ -25,13 +35,7 @@
         <button id="end-test-btn" style="background: #dc2626; margin-left: 30px; box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);">End Test Now</button>
     </div>
 
-    <div class="panel" id="control-panel" style="display: none;">
-        <h3 id="dash-title"></h3>
-        <button id="prev-btn">Previous Question</button>
-        <span id="q-counter" style="margin: 0 15px; font-size: 18px; font-weight: bold;">Q: 1</span>
-        <button id="next-btn">Next Question</button>
-    </div>
-
+    <!-- Panel 3: Live Submissions Board -->
     <div class="panel" id="board-panel" style="display: none;">
         <h3>Live Submissions (Current Question)</h3>
         <table>
