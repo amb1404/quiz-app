@@ -40,12 +40,14 @@ function startHeartbeat() {
     }, 3000);
 }
 
-// Ensures immediate removal from admin dash when tab is closed
+// Remove student from admin dashboard ONLY when tab is explicitly closed
 window.addEventListener('beforeunload', () => {
     if (liveToken && testActive) {
-        // Beacon used to tell server student left immediately
-        const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
-        navigator.sendBeacon('/api/live/student/leave', blob);
+        fetch('/api/live/student/leave', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Authorization': `Bearer ${liveToken}` }
+        }).catch(() => {});
     }
 });
 
