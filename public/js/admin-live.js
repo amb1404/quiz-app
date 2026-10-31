@@ -68,6 +68,25 @@ async function setQuestionIndex(newIndex) {
 document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
 document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
 
+document.getElementById('end-test-btn').addEventListener('click', async () => {
+    if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
+    
+    try {
+        await fetch('/api/live/admin/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId })
+        });
+        
+        clearInterval(dashInterval);
+        document.getElementById('control-panel').style.display = 'none';
+        document.getElementById('start-btn').innerText = "Test Ended";
+        alert("Test successfully terminated. Scorecards are now being displayed to students.");
+    } catch (e) {
+        alert("Failed to end the test.");
+    }
+});
+
 function startDashboardSync() {
     dashInterval = setInterval(async () => {
         try {
