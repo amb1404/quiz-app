@@ -531,7 +531,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
 
-    if (!isHome) {
+    // Exempt Home, Admin Dashboard, and Live Test from strict direct-navigation blocks
+    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-test') {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
         const referer = req.get('Referer') || '';
         const host = req.get('Host') || '';
