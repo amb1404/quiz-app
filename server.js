@@ -2324,6 +2324,9 @@ app.get(/.*/, (req, res) => {
     if (p.includes('descriptive')) {
         return serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers');
     }
+    if (p.includes('admin-live') || p.includes('adminlive')) {
+        return serveDynamicHtml(req, res, 'admin-live.html', '/admin-live');
+    }
 
     res.redirect(302, '/');
 });
