@@ -2303,19 +2303,25 @@ app.post('/api/live/student/submit', async (req, res) => {
         const { index, answer } = req.body;
         const cleanId = path.basename(String(quizId)).trim();
         
-        const boardKey = `live:board:${cleanId}`;
-        const rawBoard = await stateStore.get(boardKey);
-        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        let status = 'error';
         
-        if (board[fullName]) {
-            if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
-                board[fullName].answers[index] = { answer, time: Date.now() };
-                await stateStore.set(boardKey, board, 60 * 60 * 3);
-                return res.json({ success: true });
-            } else {
-                return res.status(403).json({ error: 'Answer already permanently locked.' });
+        await updateBoardSecurely(cleanId, (board) => {
+            if (board[fullName]) {
+                if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
+                    board[fullName].answers[index] = { answer, time: Date.now() };
+                    status = 'success';
+                    return board;
+                } else {
+                    status = 'locked';
+                    return null; // Don't rewrite data if already answered
+                }
             }
-        }
+            status = 'not_found';
+            return null;
+        });
+
+        if (status === 'success') return res.json({ success: true });
+        if (status === 'locked') return res.status(403).json({ error: 'Answer already permanently locked.' });
         res.status(400).json({ error: 'Student not found on board.' });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
