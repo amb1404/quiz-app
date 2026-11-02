@@ -166,7 +166,10 @@ document.getElementById('start-room-btn').addEventListener('click', async () => 
             document.getElementById('room-otp-display').innerText = `OTP: ${data.otp}`;
             
             // Show the green "Enter Workspace" button
-            document.getElementById('enter-workspace-btn').style.display = 'inline-block';
+            // Pass the Key and Room ID securely into the URL so the workspace auto-logins
+            const workspaceBtn = document.getElementById('enter-workspace-btn');
+            workspaceBtn.href = `/admin-workspace?k=${encodeURIComponent(roomAdminKey)}&r=${encodeURIComponent(roomId)}`;
+            workspaceBtn.style.display = 'inline-block';
             
             // Disable the start button so it isn't clicked twice
             startRoomBtn.innerText = "Room Active";
