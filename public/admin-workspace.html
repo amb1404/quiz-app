@@ -20,10 +20,10 @@
 <body>
     <div id="sidebar">
         <h3 style="margin-top:0;">Page Setup</h3>
-        <button onclick="setPage('portrait')">Blank Portrait</button>
-        <button onclick="setPage('landscape')">Blank Landscape</button>
+        <button id="btn-portrait">Blank Portrait</button>
+        <button id="btn-landscape">Blank Landscape</button>
         <hr style="width: 100%; border-color: #334155;">
-        <button onclick="clearCanvas()" style="background: #dc2626;">Clear Page</button>
+        <button id="btn-clear" style="background: #dc2626;">Clear Page</button>
         <div style="margin-top: auto; font-size: 12px; color: #94a3b8;">
             Auth: <input type="password" id="sync-key" placeholder="Admin Key" style="width: 100%; margin-top: 5px; padding: 5px; box-sizing: border-box;">
             Room: <input type="text" id="sync-room" placeholder="Room ID" style="width: 100%; margin-top: 5px; padding: 5px; box-sizing: border-box;">
@@ -32,9 +32,9 @@
 
     <div id="workspace">
         <div id="toolbar">
-            <button class="tool-btn active" id="btn-pen" onclick="setTool('pen')">✎ Pen</button>
-            <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">▱ Eraser</button>
-            <button class="tool-btn" id="btn-text" onclick="setTool('text')">T Text</button>
+            <button class="tool-btn active" id="btn-pen" data-tool="pen">✎ Pen</button>
+            <button class="tool-btn" id="btn-eraser" data-tool="eraser">▱ Eraser</button>
+            <button class="tool-btn" id="btn-text" data-tool="text">T Text</button>
             
             <div style="width: 1px; height: 24px; background: #cbd5e1; margin: 0 10px;"></div>
             
@@ -62,146 +62,6 @@
             <textarea id="text-input" spellcheck="false"></textarea>
         </div>
     </div>
-
-    <script>
-        const canvas = document.getElementById('board');
-        const ctx = canvas.getContext('2d');
-        const textInput = document.getElementById('text-input');
-        
-        let currentTool = 'pen';
-        let isDrawing = false;
-        let lastX = 0, lastY = 0;
-        let textPos = { x: 0, y: 0 };
-
-        // Initialize Page
-        function setPage(layout) {
-            canvas.width = layout === 'portrait' ? 800 : 1131;
-            canvas.height = layout === 'portrait' ? 1131 : 800;
-            clearCanvas();
-        }
-        
-        function clearCanvas() {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            syncToBackend();
-        }
-
-        // Tool Selection
-        function setTool(tool) {
-            currentTool = tool;
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${tool}`).classList.add('active');
-            if (tool !== 'text') finalizeText();
-        }
-
-        // Pointer Events (Natively supports XP Pen pressure and smoothing)
-        canvas.addEventListener('pointerdown', (e) => {
-            if (currentTool === 'text') {
-                finalizeText();
-                const rect = canvas.getBoundingClientRect();
-                textPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-                
-                const size = document.getElementById('size-picker').value;
-                textInput.style.left = `${e.clientX}px`;
-                textInput.style.top = `${e.clientY}px`;
-                textInput.style.fontSize = `${size * 3}px`;
-                textInput.style.color = document.getElementById('color-picker').value;
-                textInput.style.display = 'block';
-                textInput.value = '';
-                setTimeout(() => textInput.focus(), 10);
-                return;
-            }
-
-            isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            lastX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            lastY = (e.clientY - rect.top) * (canvas.height / rect.height);
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-        });
-
-        canvas.addEventListener('pointermove', (e) => {
-            if (!isDrawing || currentTool === 'text') return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-            ctx.lineWidth = document.getElementById('size-picker').value;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            if (currentTool === 'eraser') {
-                ctx.strokeStyle = '#ffffff'; // Draw white over it
-                ctx.globalCompositeOperation = 'source-over';
-            } else {
-                ctx.strokeStyle = document.getElementById('color-picker').value;
-                ctx.globalCompositeOperation = 'source-over';
-            }
-
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            lastX = x; lastY = y;
-        });
-
-        canvas.addEventListener('pointerup', () => {
-            if (isDrawing) {
-                isDrawing = false;
-                ctx.closePath();
-                syncToBackend(); // Sync after every stroke ends
-            }
-        });
-
-        // Text Baking Engine (Bakes typed text into the canvas image)
-        textInput.addEventListener('blur', finalizeText);
-        
-        function finalizeText() {
-            if (textInput.style.display === 'none' || textInput.value.trim() === '') {
-                textInput.style.display = 'none';
-                return;
-            }
-
-            const size = document.getElementById('size-picker').value * 3;
-            const isBold = document.getElementById('text-bold').checked;
-            const isItalic = document.getElementById('text-italic').checked;
-            const isHighlight = document.getElementById('text-highlight').checked;
-            
-            ctx.font = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${size}px Arial`;
-            ctx.textBaseline = 'top';
-            
-            const textWidth = ctx.measureText(textInput.value).width;
-            
-            if (isHighlight) {
-                ctx.fillStyle = document.getElementById('highlight-picker').value;
-                ctx.fillRect(textPos.x - 2, textPos.y - 2, textWidth + 4, size + 4);
-            }
-            
-            ctx.fillStyle = document.getElementById('color-picker').value;
-            ctx.fillText(textInput.value, textPos.x, textPos.y);
-            
-            textInput.style.display = 'none';
-            textInput.value = '';
-            syncToBackend();
-        }
-
-        // Sync Engine (Ultra-compressed Base64 JPEG)
-        function syncToBackend() {
-            const adminKey = document.getElementById('sync-key').value.trim();
-            const roomId = document.getElementById('sync-room').value.trim();
-            if (!adminKey || !roomId) return;
-
-            // Compress heavily to keep Redis fast and unblocked
-            const canvasData = canvas.toDataURL('image/jpeg', 0.6); 
-            
-            fetch('/api/liveroom/admin/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, roomId, canvasData })
-            }).catch(err => console.error("Sync failed:", err));
-        }
-
-        // Default Setup
-        setPage('portrait');
-    </script>
+    <script src="/js/admin-workspace.js"></script>
 </body>
 </html>
