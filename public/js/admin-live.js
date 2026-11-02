@@ -137,3 +137,48 @@ function startDashboardSync() {
         } catch(e) {}
     }, 700);
 }
+
+// ==========================================
+// LIVE ROOM (WHITEBOARD) CONTROL LOGIC
+// ==========================================
+document.getElementById('start-room-btn').addEventListener('click', async () => {
+    const roomAdminKey = document.getElementById('room-admin-key').value.trim();
+    const roomId = document.getElementById('room-id').value.trim();
+    
+    if (!roomAdminKey || !roomId) {
+        return alert("Enter Admin Key and Room ID to start the Live Room.");
+    }
+    
+    const startRoomBtn = document.getElementById('start-room-btn');
+    startRoomBtn.innerText = "Starting...";
+    
+    try {
+        const res = await fetch('/api/liveroom/admin/start', {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey: roomAdminKey, roomId: roomId })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // Display the OTP
+            document.getElementById('room-otp-display').innerText = `OTP: ${data.otp}`;
+            
+            // Show the green "Enter Workspace" button
+            document.getElementById('enter-workspace-btn').style.display = 'inline-block';
+            
+            // Disable the start button so it isn't clicked twice
+            startRoomBtn.innerText = "Room Active";
+            startRoomBtn.disabled = true;
+            startRoomBtn.style.opacity = '0.7';
+            startRoomBtn.style.cursor = 'not-allowed';
+        } else {
+            alert(data.error || "Failed to start Live Room.");
+            startRoomBtn.innerText = "Start Broadcast & Send OTP";
+        }
+    } catch (e) {
+        alert("Server error while starting the Live Room.");
+        startRoomBtn.innerText = "Start Broadcast & Send OTP";
+    }
+});
