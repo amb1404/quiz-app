@@ -6,6 +6,8 @@ let currentTool = 'pen';
 let isDrawing = false;
 let lastX = 0, lastY = 0;
 let textPos = { x: 0, y: 0 };
+let lastSyncTime = 0;
+let isSyncing = false;
 
 document.getElementById('btn-portrait').addEventListener('click', () => setPage('portrait'));
 document.getElementById('btn-landscape').addEventListener('click', () => setPage('landscape'));
@@ -78,9 +80,15 @@ canvas.addEventListener('pointermove', (e) => {
         ctx.globalCompositeOperation = 'source-over';
     }
 
-    ctx.lineTo(x, y);
+   ctx.lineTo(x, y);
     ctx.stroke();
     lastX = x; lastY = y;
+
+    // Push updates to the server mid-stroke (throttled to 350ms to prevent server crash)
+    if (Date.now() - lastSyncTime > 350) {
+        syncToBackend();
+        lastSyncTime = Date.now();
+    }
 });
 
 canvas.addEventListener('pointerup', () => {
@@ -122,18 +130,24 @@ function finalizeText() {
     syncToBackend();
 }
 
-function syncToBackend() {
+async function syncToBackend() {
+    if (isSyncing) return; // Prevent network traffic jams
+    
     const adminKey = document.getElementById('sync-key').value.trim();
     const roomId = document.getElementById('sync-room').value.trim();
     if (!adminKey || !roomId) return;
 
-    const canvasData = canvas.toDataURL('image/jpeg', 0.6); 
+    isSyncing = true;
+    // Compress heavily (0.3 instead of 0.6) for lightning-fast network transfer
+    const canvasData = canvas.toDataURL('image/jpeg', 0.3); 
     
-    fetch('/api/liveroom/admin/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminKey, roomId, canvasData })
-    }).catch(err => console.error("Sync failed:", err));
+    try {
+        await fetch('/api/liveroom/admin/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, roomId, canvasData })
+        });
+    } catch(err) { console.error("Sync failed:", err); }
+    
+    isSyncing = false;
 }
-
-setPage('portrait');
