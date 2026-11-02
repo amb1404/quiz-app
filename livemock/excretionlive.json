@@ -1,0 +1,315 @@
+{
+  "title": "ICSE Class X Biology - The Excretory System",
+  "category": "biology",
+  "classLevel": "X",
+  "subject": "Biology",
+  "unit": "Human Anatomy and Physiology",
+  "chapter": "Excretory System",
+  "duration": 1500,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "The high hydrostatic pressure necessary for ultrafiltration in the glomerulus is created because:",
+      "options": [
+        "The efferent arteriole is wider than the afferent arteriole",
+        "The afferent arteriole is wider than the efferent arteriole",
+        "The renal vein has high pressure",
+        "The Bowman's capsule exerts osmotic pressure"
+      ],
+      "answer": 1,
+      "explanation": "The afferent arteriole (bringing blood into the glomerulus) has a wider lumen than the efferent arteriole (taking blood away). This bottleneck creates a high hydrostatic pressure, forcing the liquid part of the blood into the Bowman's capsule."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following parts of a nephron lie strictly in the renal medulla?",
+      "options": [
+        "Bowman's capsule and Glomerulus",
+        "Proximal and Distal Convoluted Tubules",
+        "Loop of Henle and Collecting Duct",
+        "Malpighian corpuscle and Loop of Henle"
+      ],
+      "answer": 2,
+      "explanation": "The Malpighian corpuscle (Bowman's capsule + Glomerulus), PCT, and DCT are located in the renal cortex. The Loop of Henle dips down into the renal medulla, and the collecting ducts also run through the medulla to empty into the renal pelvis."
+    },
+    {
+      "type": "mcq",
+      "question": "When comparing the blood in the renal artery to the blood in the renal vein, the blood in the renal vein has:",
+      "options": [
+        "More oxygen and more urea",
+        "Less oxygen and less urea",
+        "More oxygen and less urea",
+        "Less oxygen and more urea"
+      ],
+      "answer": 1,
+      "explanation": "The kidneys utilize oxygen for respiration, so the renal vein carries deoxygenated blood (less oxygen). Additionally, the kidneys filter out urea, meaning the blood exiting via the renal vein has significantly less urea than the blood entering via the renal artery."
+    },
+    {
+      "type": "mcq",
+      "question": "The process of deamination, which results in the formation of urea from excess amino acids, occurs in the:",
+      "options": [
+        "Kidneys",
+        "Spleen",
+        "Liver",
+        "Pancreas"
+      ],
+      "answer": 2,
+      "explanation": "Excess amino acids cannot be stored in the body. They are broken down in the liver through a process called deamination, converting the nitrogenous part into ammonia, which is then quickly converted into less toxic urea."
+    },
+    {
+      "type": "mcq",
+      "question": "A person produces a large volume of dilute urine and frequently feels thirsty, but their urine tests negative for glucose. Which hormone is likely deficient?",
+      "options": [
+        "Insulin",
+        "Glucagon",
+        "Antidiuretic Hormone (ADH)",
+        "Aldosterone"
+      ],
+      "answer": 2,
+      "explanation": "A deficiency in ADH (Vasopressin) prevents the reabsorption of water in the Distal Convoluted Tubule and collecting ducts, leading to large volumes of dilute urine (Diabetes insipidus). Insulin deficiency leads to Diabetes mellitus (where glucose is present in urine)."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following substances is NOT a constituent of the normal glomerular filtrate?",
+      "options": [
+        "Glucose",
+        "Water",
+        "Erythrocytes (RBCs)",
+        "Urea"
+      ],
+      "answer": 2,
+      "explanation": "During ultrafiltration, the blood plasma (along with dissolved substances like glucose, urea, amino acids, and salts) is filtered out. However, large proteins and blood corpuscles (RBCs, WBCs, platelets) cannot pass through the capillary walls."
+    },
+    {
+      "type": "mcq",
+      "question": "The yellow colour of human urine is primarily due to the presence of:",
+      "options": [
+        "Bilirubin",
+        "Urochrome",
+        "Creatinine",
+        "Uric acid"
+      ],
+      "answer": 1,
+      "explanation": "Normal urine is pale yellow due to a pigment called urochrome, which is formed by the breakdown of hemoglobin from dead red blood cells."
+    },
+    {
+      "type": "mcq",
+      "question": "In which part of the uriniferous tubule does the maximum selective reabsorption of useful substances (like glucose and water) take place?",
+      "options": [
+        "Proximal Convoluted Tubule (PCT)",
+        "Loop of Henle",
+        "Distal Convoluted Tubule (DCT)",
+        "Collecting Duct"
+      ],
+      "answer": 0,
+      "explanation": "The PCT is lined with microvilli that greatly increase surface area. Almost all of the glucose, amino acids, and a significant portion of water and salts are selectively reabsorbed back into the blood here."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following is an example of an actively secreted substance during 'Tubular Secretion'?",
+      "options": [
+        "Glucose",
+        "Potassium ions (K+) and Penicillin",
+        "Red Blood Cells",
+        "Fibrinogen"
+      ],
+      "answer": 1,
+      "explanation": "Tubular secretion involves the active transfer of substances like potassium ions, hydrogen ions, creatinine, and certain drugs (like penicillin) from the peritubular capillaries into the lumen of the DCT."
+    },
+    {
+      "type": "mcq",
+      "question": "The right kidney is located slightly lower in the abdominal cavity than the left kidney because:",
+      "options": [
+        "The right kidney is heavier and larger.",
+        "It makes room for the large right lobe of the liver.",
+        "The stomach occupies the space below the left kidney.",
+        "The right renal artery is shorter than the left."
+      ],
+      "answer": 1,
+      "explanation": "The asymmetrical position of the kidneys is due to the presence of the liver, a large organ situated predominantly on the right side of the abdominal cavity just above the right kidney."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following correctly describes the structure of a Malpighian corpuscle?",
+      "options": [
+        "Glomerulus + Loop of Henle",
+        "Bowman's capsule + Proximal Convoluted Tubule",
+        "Glomerulus + Bowman's capsule",
+        "Afferent arteriole + Efferent arteriole"
+      ],
+      "answer": 2,
+      "explanation": "The Malpighian corpuscle, or renal corpuscle, is the initial filtering component of a nephron. It consists of a cup-shaped Bowman's capsule enclosing a tuft of capillaries known as the glomerulus."
+    },
+    {
+      "type": "mcq",
+      "question": "Feces (stool) removal from the human body is NOT considered true excretion because:",
+      "options": [
+        "It is removed from the anus, not the urethra.",
+        "It mostly contains undigested food which never entered the body's cells.",
+        "It contains bile pigments which are useful.",
+        "It is a liquid waste, not metabolic waste."
+      ],
+      "answer": 1,
+      "explanation": "True excretion is defined as the removal of metabolic waste products formed inside the cells of the body. Feces primarily consist of undigested roughage and food matter that passed through the alimentary canal without ever becoming part of the body's cellular metabolism (this process is called egestion)."
+    },
+    {
+      "type": "mcq",
+      "question": "A patient's urine test reveals the condition known as 'Albuminuria'. This suggests a malfunction in which part of the kidney?",
+      "options": [
+        "Loop of Henle",
+        "Glomerulus",
+        "Collecting duct",
+        "Ureter"
+      ],
+      "answer": 1,
+      "explanation": "Albumin is a large blood protein. If albumin is present in the urine (Albuminuria), it indicates that the filtering membrane in the glomerulus is damaged, allowing large proteins to leak into the filtrate."
+    },
+    {
+      "type": "mcq",
+      "question": "The notch on the concave inner margin of the kidney through which the ureter, blood vessels, and nerves enter or exit is known as the:",
+      "options": [
+        "Renal pelvis",
+        "Hilum",
+        "Medulla",
+        "Renal papilla"
+      ],
+      "answer": 1,
+      "explanation": "The hilum (or hilus) is the distinct indentation or notch on the medial, concave side of the kidney acting as a gateway for the renal artery, renal vein, nerves, and the ureter."
+    },
+    {
+      "type": "mcq",
+      "question": "The fluid used in a hemodialyzer (artificial kidney) is called dialysate. Its composition is exactly the same as blood plasma, EXCEPT that it lacks:",
+      "options": [
+        "Glucose",
+        "Nitrogenous wastes",
+        "Sodium ions",
+        "Water"
+      ],
+      "answer": 1,
+      "explanation": "To ensure that nitrogenous wastes (like urea and creatinine) diffuse out of the patient's blood into the dialysate, the dialysate must be completely devoid of these wastes, creating a strong concentration gradient. It contains glucose and salts at normal plasma levels to prevent their loss."
+    },
+    {
+      "type": "mcq",
+      "question": "Excessive consumption of tea, coffee, and alcohol increases urine output. Substances that promote diuresis (increased urine production) are called:",
+      "options": [
+        "Antidiuretics",
+        "Diuretics",
+        "Osmoregulators",
+        "Vasoconstrictors"
+      ],
+      "answer": 1,
+      "explanation": "Diuretics are substances that increase the volume of urine produced. Caffeine in tea and coffee, and alcohol inhibit the secretion of ADH, reducing water reabsorption and thus increasing urine output."
+    },
+    {
+      "type": "mcq",
+      "question": "Gout is a painful joint disease commonly caused by the accumulation and crystallization of:",
+      "options": [
+        "Urea",
+        "Calcium oxalate",
+        "Uric acid",
+        "Ammonia"
+      ],
+      "answer": 2,
+      "explanation": "When blood uric acid levels rise unusually high, uric acid crystallizes and deposits in the synovial joints (often starting in the big toe), causing severe inflammation known as gout."
+    },
+    {
+      "type": "mcq",
+      "question": "Which represents the correct pathway of urine from its formation to its expulsion?",
+      "options": [
+        "Kidney -> Urethra -> Urinary bladder -> Ureter",
+        "Kidney -> Urinary bladder -> Ureter -> Urethra",
+        "Kidney -> Ureter -> Urinary bladder -> Urethra",
+        "Kidney -> Ureter -> Urethra -> Urinary bladder"
+      ],
+      "answer": 2,
+      "explanation": "Urine produced in the kidneys travels down the ureters to be stored temporarily in the urinary bladder. From there, it is expelled outside the body through the urethra."
+    },
+    {
+      "type": "mcq",
+      "question": "The conical masses in the renal medulla whose apices project into the renal pelvis are called:",
+      "options": [
+        "Renal columns",
+        "Renal pyramids",
+        "Renal capsules",
+        "Malpighian tubules"
+      ],
+      "answer": 1,
+      "explanation": "The inner part of the kidney (medulla) is divided into several cone-shaped masses of tissue called renal pyramids. Their tips (renal papillae) point inwards towards the renal pelvis."
+    },
+    {
+      "type": "mcq",
+      "question": "Why is urine generally thicker and more concentrated in summer than in winter?",
+      "options": [
+        "Kidneys become less active in hot weather.",
+        "More water is lost as sweat, leading to increased ADH secretion.",
+        "The body produces more urea in the summer.",
+        "Blood pressure drops, reducing ultrafiltration."
+      ],
+      "answer": 1,
+      "explanation": "During summer, the body loses a significant amount of water through perspiration (sweat) to maintain body temperature. To conserve water (osmoregulation), the pituitary gland releases more ADH, making the kidneys reabsorb more water, resulting in concentrated urine."
+    },
+    {
+      "type": "mcq",
+      "question": "The act of passing urine from the urinary bladder is termed as:",
+      "options": [
+        "Defecation",
+        "Egestion",
+        "Micturition",
+        "Diuresis"
+      ],
+      "answer": 2,
+      "explanation": "Micturition is the biological term for urination. It involves the relaxation of the sphincter muscle at the base of the bladder and the contraction of the bladder's smooth muscles."
+    },
+    {
+      "type": "mcq",
+      "question": "Which part of the excretory system is an expandable, muscular sac lined with transitional epithelium?",
+      "options": [
+        "Ureter",
+        "Urethra",
+        "Urinary Bladder",
+        "Renal Pelvis"
+      ],
+      "answer": 2,
+      "explanation": "The urinary bladder is a pear-shaped, hollow, muscular organ. Its lining is highly elastic (transitional epithelium), allowing it to stretch and store urine until micturition."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following conditions is characterized by the presence of blood in the urine?",
+      "options": [
+        "Hematuria",
+        "Glycosuria",
+        "Albuminuria",
+        "Uremia"
+      ],
+      "answer": 0,
+      "explanation": "Hematuria refers to the presence of blood (Red Blood Cells) in the urine, which could indicate a urinary tract infection, kidney stones, or trauma to the urinary tract."
+    },
+    {
+      "type": "mcq",
+      "question": "The capillary network that runs parallel to the U-shaped Loop of Henle is known as:",
+      "options": [
+        "Glomerulus",
+        "Vasa recta",
+        "Peritubular capillaries",
+        "Afferent arteriole"
+      ],
+      "answer": 1,
+      "explanation": "The vasa recta are straight capillary loops that run parallel to the loop of Henle deep into the medulla. They play a crucial role in maintaining the concentration gradient required for concentrating urine."
+    },
+    {
+      "type": "mcq",
+      "question": "The primary function of the kidneys is heavily tied to maintaining the salt and water balance of the body. This specific function is called:",
+      "options": [
+        "Excretion",
+        "Ultrafiltration",
+        "Osmoregulation",
+        "Homeostasis"
+      ],
+      "answer": 2,
+      "explanation": "While homeostasis is the general term for maintaining internal balance, osmoregulation specifically refers to the regulation of osmotic pressure of body fluids by controlling water and salt concentrations, a primary function of the kidneys."
+    }
+  ]
+}
