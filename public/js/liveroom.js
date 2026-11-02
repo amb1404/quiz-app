@@ -37,5 +37,5 @@ function startRoomSync() {
                 document.getElementById('student-board').src = data.canvasData;
             }
         } catch(e) {}
-    }, 1000);
+    }, 350);
 }
