@@ -421,8 +421,7 @@ function verifyJsonComplexity(req, res, buf) {
     }
 }
 
-const defaultJsonParser = express.json({ limit: '5mb', verify: verifyJsonComplexity });
-const defaultUrlencodedParser = express.urlencoded({ extended: true, limit: '5mb' });
+const defaultJsonParser = express.json({ limit: '50kb', verify: verifyJsonComplexity });
 const submitJsonParser = express.json({ limit: '15mb', verify: verifyJsonComplexity });
 
 app.use((req, res, next) => {
@@ -434,7 +433,7 @@ app.use((req, res, next) => {
         `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net https://checkout.razorpay.com`,
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
-        "img-src 'self' data: blob: https: https://*.razorpay.com",
+        "img-src 'self' data: blob: https://*.razorpay.com",
         "worker-src 'self' blob:",
         "connect-src 'self' https://api.razorpay.com https://lumberjack-cx.razorpay.com",
         "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
@@ -459,10 +458,7 @@ app.use((req, res, next) => {
     if (req.path === '/api/submit') return next();
     return defaultJsonParser(req, res, (err) => {
         if (err) return res.status(400).json({ success: false, error: 'Malformed or oversized JSON payload.' });
-        defaultUrlencodedParser(req, res, (urlErr) => {
-            if (urlErr) return res.status(400).json({ success: false, error: 'Malformed or oversized URL-encoded payload.' });
-            next();
-        });
+        next();
     });
 });
 
@@ -1894,3 +1890,533 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     if (!authCheck.valid) {
         if (req.preVerifiedAuth?.signature) await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
         return res.status(403).json({ success: false, error: authCheck.error });
+    }
+
+    const lockKey = `sub:lock:${authCheck.signature}`;
+    if (!req.preVerifiedAuth) {
+        const acquired = await stateStore.setNx(lockKey, '1', 60);
+        if (!acquired) {
+            return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+        }
+    }
+
+    const firstName = authCheck.firstName || (req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN');
+    const lastName = authCheck.lastName || (req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME');
+    const email = authCheck.email;
+
+    const cleanQuizId = path.basename(String(quizId || '')).trim();
+    const filePath = resolveSafeQuizPath(cleanQuizId);
+    if (!filePath) {
+        await stateStore.del(lockKey);
+        return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
+    }
+
+    const sessionKey = `exam:session:${authCheck.signature}`;
+    const rawLockedSession = await stateStore.get(sessionKey);
+    const lockedSession = rawLockedSession ? (typeof rawLockedSession === 'string' ? JSON.parse(rawLockedSession) : rawLockedSession) : null;
+    if (lockedSession && lockedSession.quizId !== cleanQuizId) {
+        await stateStore.del(lockKey);
+        return res.status(400).json({ success: false, error: 'Quiz ID mismatch with active exam session.' });
+    }
+
+    const effectiveStartTime = lockedSession ? lockedSession.startTime : Number(serverStartTime);
+    const effectiveDuration = lockedSession ? lockedSession.duration : Number(quizDuration);
+
+    if (!effectiveStartTime || !timerSignature || !effectiveDuration) {
+        await stateStore.del(lockKey);
+        return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
+    }
+
+    const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${effectiveDuration}:${effectiveStartTime}`).digest('hex');
+    if (!safeCompareHex(timerSignature, expectedTimerSig)) {
+        await stateStore.del(lockKey);
+        return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
+    }
+
+    const elapsedSeconds = (Date.now() - effectiveStartTime) / 1000;
+    if (elapsedSeconds < 0 || elapsedSeconds > effectiveDuration + 120) {
+        await stateStore.del(lockKey);
+        return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
+    }
+
+    const markedUnused = await stateStore.setNx(`auth:used:${authCheck.signature}`, '1', TOKEN_MAX_AGE_SEC);
+    if (!markedUnused) {
+        await stateStore.del(lockKey);
+        return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
+    }
+    await stateStore.del(sessionKey);
+
+    try {
+        const safeUserAnswers = (userAnswers && typeof userAnswers === 'object') ? userAnswers : {};
+        const content = getCachedQuizContent(filePath);
+        const realQuestions = content.questions || [];
+
+        let correctCount = 0, incorrectCount = 0, attemptedCount = 0;
+        const totalCount = realQuestions.length;
+
+        const qOrder = getDeterministicPermutation(totalCount, `${authCheck.signature}:${cleanQuizId}:q`);
+        const origToClientIndex = new Array(totalCount);
+        qOrder.forEach((origIdx, clientIdx) => {
+            origToClientIndex[origIdx] = clientIdx;
+        });
+
+        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;"><tr style="background-color:#f1f5f9;text-align:left;"><th>#</th><th>Question</th><th>Student's Selection</th><th>Correct Option</th><th>Status</th></tr>`;
+
+        realQuestions.forEach((q, origIndex) => {
+            const clientIdx = origToClientIndex[origIndex];
+            const response = safeUserAnswers[clientIdx.toString()] !== undefined ? safeUserAnswers[clientIdx.toString()] : safeUserAnswers[clientIdx];
+            const attempted = response !== undefined && response !== null && response !== "";
+            if (attempted) attemptedCount++;
+
+            let isCorrect = false, selText = "Skipped", corrText = "N/A", rawStatus = "Skipped", statusColor = "yellow";
+
+            if (q.type === 'descriptive' || q.type === 'diagram') {
+                if (attempted && isSafeBase64Image(response)) selText = `<img src="${response.trim()}" style="max-width:200px;border-radius:4px;" />`;
+                else selText = attempted ? escapeHtml(String(response).slice(0, 2000)) : "Skipped";
+                corrText = escapeHtml(q.model_answer || "Refer to marking scheme");
+                if (attempted) { rawStatus = "Needs Review"; statusColor = "orange"; }
+            } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+                selText = attempted ? escapeHtml(String(response).slice(0, 500)) : "Skipped";
+                corrText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
+                isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
+                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
+                rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+                statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
+            } else {
+                const clientOptIdx = parseInt(response, 10);
+                const optOrder = getSafeOptionPermutation(q.options || [], `${authCheck.signature}:${cleanQuizId}:opt:${origIndex}`);
+                const actualOptIdx = (attempted && !isNaN(clientOptIdx) && optOrder[clientOptIdx] !== undefined) ? optOrder[clientOptIdx] : clientOptIdx;
+
+                isCorrect = attempted && actualOptIdx === q.answer;
+                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
+                selText = attempted ? escapeHtml(q.options?.[actualOptIdx] || "Unknown") : "Skipped";
+                corrText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
+                rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+                statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
+            }
+
+            let questionText = escapeHtml(q.question || "N/A");
+            if (q.explanation) {
+                questionText += `<br><br><span style="color: green;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>`;
+            }
+
+            breakdownHtml += `<tr><td>${origIndex + 1}</td><td>${questionText}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
+        });
+        breakdownHtml += `</table>`;
+
+        const cleanClassName = String(className || '').trim().slice(0, 40);
+        const cleanChapterTitle = String(chapterTitle || content.title || 'Quiz').trim().slice(0, 120);
+        const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName)) ? `${cleanClassName} - ${cleanChapterTitle}` : cleanChapterTitle;
+        const payload = {
+            firstName: escapeHtml(firstName), lastName: escapeHtml(lastName), email: escapeHtml(email),
+            className: escapeHtml(cleanClassName), chapterTitle: escapeHtml(fullTitle),
+            subject: `New Quiz Submission - ${fullTitle} - ${firstName} ${lastName}`.trim(),
+            score: correctCount, total: totalCount, attempted: attemptedCount, skipped: totalCount - attemptedCount,
+            correct: correctCount, incorrect: incorrectCount, breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
+        };
+
+        await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
+
+        res.clearCookie(AUTH_COOKIE_NAME, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            path: '/'
+        });
+
+        res.json({ success: true, score: correctCount, total: totalCount });
+
+        const scriptURL = process.env.APP_SCRIPT_URL;
+        if (scriptURL && APPS_SECRET) {
+            fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(err => console.error('Email error:', err));
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Grading failed.' });
+    } finally {
+        await stateStore.del(lockKey);
+    }
+});
+
+// ============================================================================
+// 8. SYNCHRONIZED LIVE MOCK & ADMIN DASHBOARD ENDPOINTS
+// ============================================================================
+function getLiveMockContent(rawId) {
+    const cleanId = path.basename(String(rawId)).trim().replace('.json', '');
+    const liveDir = path.join(__dirname, 'livemock');
+    if (!fs.existsSync(liveDir)) fs.mkdirSync(liveDir, { recursive: true });
+    const filePath = path.join(liveDir, cleanId + '.json');
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+// Admin: Start Quiz & Generate OTP
+app.post('/api/live/admin/start', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const cleanId = path.basename(String(quizId)).trim();
+        const content = getLiveMockContent(cleanId);
+        if (!content) return res.status(404).json({ error: 'Live Mock not found in /livemock folder.' });
+
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3);
+        await stateStore.set(`live:state:${cleanId}`, { currentIndex: 0, status: 'active', title: content.title }, 60 * 60 * 3);
+        
+        // ADMIN HEARTBEAT INITIALIZATION
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
+        await stateStore.del(`live:board:${cleanId}`);
+
+        if (process.env.APP_SCRIPT_URL && APPS_SECRET) {
+            fetch(process.env.APP_SCRIPT_URL, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'otp', targetEmail: ADMIN_EMAIL, subject: `LIVE QUIZ OTP - ${cleanId}`, secretKey: APPS_SECRET,
+                    breakdown: `<h2>Live Quiz OTP: ${otp}</h2><p>Share this with your students to enter ${cleanId}.</p>`
+                })
+            }).catch(() => {});
+        }
+        res.json({ success: true, otp, totalQuestions: content.questions.length });
+    } catch (err) { res.status(500).json({ error: 'Failed to start live quiz.' }); }
+});
+
+// Admin: End Test (Triggered on Admin Exit or Close)
+app.post('/api/live/admin/end', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (stateStr) {
+            const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+            state.status = 'ended';
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Failed to end quiz.' }); }
+});
+
+// Admin: Change Question Index
+app.post('/api/live/admin/set-index', async (req, res) => {
+    try {
+        const { adminKey, quizId, index } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        
+        const cleanId = path.basename(String(quizId)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Quiz not active.' });
+        
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        state.currentIndex = parseInt(index, 10);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+        
+        res.json({ success: true, currentIndex: state.currentIndex });
+    } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
+});
+
+// Admin: Fetch Dashboard Leaderboard & Push Heartbeat
+app.get('/api/live/admin/dashboard', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.query;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+        const cleanId = path.basename(String(quizId)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        
+        // ADMIN ONGOING HEARTBEAT
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
+        
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        
+        // RULE 2: Inactivity filtering removed. 
+        // Students are removed exclusively via the tab-close signal (/api/live/student/leave).
+        const activeStudents = board;
+
+        const students = Object.keys(activeStudents).map(name => ({
+            name, data: activeStudents[name]
+        })).sort((a, b) => {
+            const timeA = a.data.answers[state?.currentIndex] ? a.data.answers[state.currentIndex].time : 0;
+            const timeB = b.data.answers[state?.currentIndex] ? b.data.answers[state.currentIndex].time : 0;
+            if (timeA === 0 && timeB !== 0) return 1;
+            if (timeB === 0 && timeA !== 0) return -1;
+            return timeA - timeB;
+        });
+
+        res.json({ success: true, state, students });
+    } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
+});
+
+// === ATOMIC MUTEX LOCK FOR DATA INTEGRITY ===
+// Prevents "lost answers" caused by race conditions during simultaneous submissions
+async function updateBoardSecurely(cleanId, updateFn) {
+    const lockKey = `live:lock:${cleanId}`;
+    let acquired = false;
+    for (let i = 0; i < 50; i++) { // Safely queue simultaneous requests for up to 5 seconds
+        acquired = await stateStore.setNx(lockKey, '1', 5);
+        if (acquired) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if (!acquired) throw new Error('Data collision lock timeout');
+
+    try {
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const newBoard = updateFn(board);
+        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 3);
+    } finally {
+        await stateStore.del(lockKey);
+    }
+}
+
+// Student: Verify OTP & Join
+app.post('/api/live/student/verify', async (req, res) => {
+    try {
+        const { firstName, lastName, quizId, otp } = req.body;
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
+        if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+        }
+
+        const fName = String(firstName).trim().toUpperCase();
+        const lName = String(lastName).trim().toUpperCase();
+        const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        
+        await updateBoardSecurely(cleanId, (board) => {
+            board[`${fName} ${lName}`] = { joinedAt: Date.now(), answers: {} };
+            return board;
+        });
+
+        res.json({ success: true, token: `${tokenData}|||${signature}` });
+    } catch (err) { res.status(500).json({ error: 'Verification failed.' }); }
+});
+
+// Student: Heartbeat Ping
+app.post('/api/live/student/heartbeat', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // SECURITY FIX: Heartbeat no longer overwrites the database.
+        // This eliminates 95% of data collision risks (missing answers).
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Heartbeat failed.' }); }
+});
+
+// Student: Explicit Leave / Disconnect
+app.post('/api/live/student/leave', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(200).json({ success: true });
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        const cleanId = path.basename(String(quizId)).trim();
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (board[fullName]) {
+                delete board[fullName];
+                return board;
+            }
+            return null;
+        });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Leave failed.' }); }
+});
+
+// Student: Synchronized Pull & Scorecard Evaluation
+app.get('/api/live/student/sync/:id', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const cleanId = path.basename(String(req.params.id)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.json({ status: 'waiting' });
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+
+        // RULE 1: Time-based inactivity switch removed. 
+        // The test now ends ONLY when the admin explicitly closes the tab (/api/live/admin/end).
+
+        const content = getLiveMockContent(cleanId);
+        
+        // Final Scorecard Rendering Check
+        if (state.status === 'ended') {
+            const [, , first, last] = tokenData.split('|');
+            const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+            const boardKey = `live:board:${cleanId}`;
+            const rawBoard = await stateStore.get(boardKey);
+            let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+            
+            let studentAnswers = board[fullName]?.answers || {};
+            let correct = 0, attempted = 0;
+            const total = content.questions.length;
+
+            content.questions.forEach((q, idx) => {
+                const ansObj = studentAnswers[idx];
+                if (ansObj !== undefined && ansObj.answer !== undefined) {
+                    attempted++;
+                    // Live test options are not shuffled, so we grade the raw index directly
+                    if (Number(ansObj.answer) === Number(q.answer)) {
+                        correct++;
+                    }
+                }
+            });
+
+            return res.json({
+                status: 'ended',
+                scorecard: { correct, incorrect: attempted - correct, skipped: total - attempted, total }
+            });
+        }
+
+        const q = content.questions[state.currentIndex];
+        const singleUseKey = crypto.randomBytes(12).toString('hex');
+        const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
+
+        res.json({
+            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
+            payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+        });
+    } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
+});
+
+// Student: Submit Answer
+app.post('/api/live/student/submit', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        
+        const { index, answer } = req.body;
+        const cleanId = path.basename(String(quizId)).trim();
+        
+        let status = 'error';
+        
+        await updateBoardSecurely(cleanId, (board) => {
+            if (board[fullName]) {
+                if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
+                    board[fullName].answers[index] = { answer, time: Date.now() };
+                    status = 'success';
+                    return board;
+                } else {
+                    status = 'locked';
+                    return null; // Don't rewrite data if already answered
+                }
+            }
+            status = 'not_found';
+            return null;
+        });
+
+        if (status === 'success') return res.json({ success: true });
+        if (status === 'locked') return res.status(403).json({ error: 'Answer already permanently locked.' });
+        res.status(400).json({ error: 'Student not found on board.' });
+    } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
+});
+
+// ============================================================================
+// 9. LIVE COLLABORATIVE ROOM (WHITEBOARD)
+// ============================================================================
+app.get('/live-room', (req, res) => serveDynamicHtml(req, res, 'liveroom.html', '/live-room'));
+app.get('/admin-workspace', (req, res) => serveDynamicHtml(req, res, 'admin-workspace.html', '/admin-workspace'));
+
+// Admin: Start Room & Gen OTP
+app.post('/api/liveroom/admin/start', async (req, res) => {
+    try {
+        const { adminKey, roomId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(roomId)).trim();
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        await stateStore.set(`room:otp:${cleanId}`, otp, 60 * 60 * 3);
+        res.json({ success: true, otp });
+    } catch (err) { res.status(500).json({ error: 'Failed to start room' }); }
+});
+
+// Admin: Push Canvas Image
+app.post('/api/liveroom/admin/sync', async (req, res) => {
+    try {
+        const { adminKey, roomId, canvasData } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(roomId)).trim();
+        await stateStore.set(`room:data:${cleanId}`, canvasData, 60 * 60 * 3);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Sync failed' }); }
+});
+
+// Student: Verify OTP
+app.post('/api/liveroom/student/verify', async (req, res) => {
+    try {
+        const { firstName, lastName, roomId, otp } = req.body;
+        const cleanId = path.basename(String(roomId)).trim();
+        const activeOtp = await stateStore.get(`room:otp:${cleanId}`);
+        if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+        }
+        const fName = String(firstName).trim().toUpperCase();
+        const lName = String(lastName).trim().toUpperCase();
+        const tokenData = `ROOM|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        res.json({ success: true, token: `${tokenData}|||${signature}` });
+    } catch (err) { res.status(500).json({ error: 'Verification failed' }); }
+});
+
+// Student: Fetch Canvas Image
+app.get('/api/liveroom/student/sync/:id', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        const cleanId = path.basename(String(req.params.id)).trim();
+        const canvasData = await stateStore.get(`room:data:${cleanId}`);
+        res.json({ success: true, canvasData });
+    } catch (err) { res.status(500).json({ error: 'Sync failed' }); }
+});
+// ============================================================================
+
+app.get(/.*/, (req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
+
+    const p = req.path.toLowerCase();
+    if (p.includes('live-test') || p.includes('livetest')) {
+        return serveDynamicHtml(req, res, 'livetest.html', '/live-test');
+    }
+    if (p.includes('mock-tests') || p.includes('test-portal')) {
+        return serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests');
+    }
+    if (p.includes('study-notes') || p.includes('notes')) {
+        return serveDynamicHtml(req, res, 'notes.html', '/study-notes');
+    }
+    if (p.includes('descriptive')) {
+        return serveDynamicHtml(req, res, 'descriptive.html', '/descriptive-papers');
+    }
+    if (p.includes('admin-live') || p.includes('adminlive')) {
+        return serveDynamicHtml(req, res, 'admin-live.html', '/admin-live');
+    }
+
+    res.redirect(302, '/');
+});
+
+const PING_INTERVAL = 14 * 60 * 1000;
+const PING_URL = process.env.PING_URL || 'https://pioneersprep.in/ping';
+setInterval(() => {
+    const handler = PING_URL.startsWith('https') ? https : http;
+    handler.get(PING_URL, (res) => console.log(`[Keep-Awake] Ping Status: ${res.statusCode} at ${new Date().toISOString()}`)).on('error', (err) => console.warn(`[Keep-Awake] Ping failed: ${err.message}`));
+}, PING_INTERVAL);
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
