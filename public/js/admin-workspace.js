@@ -15,17 +15,17 @@ const penCursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/20
 const eraserCursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4" ry="4"></rect></svg>') 12 12, auto`;
 
 // Goal 1: Auto-Login via URL parameters
-window.onload = () => {
-    const params = new URLSearchParams(window.location.search);
-    const k = params.get('k');
-    const r = params.get('r');
+// Goal 1: Auto-Login via Session Storage (More reliable & secure)
+document.addEventListener('DOMContentLoaded', () => {
+    const k = sessionStorage.getItem('workspace_admin_key');
+    const r = sessionStorage.getItem('workspace_room_id');
     if (k && r) {
         document.getElementById('sync-key').value = k;
         document.getElementById('sync-room').value = r;
-        document.getElementById('auth-panel').style.display = 'none'; // Hide if auto-filled
+        document.getElementById('auth-panel').style.display = 'none'; 
     }
     setPage('portrait');
-};
+});
 
 document.getElementById('btn-portrait').addEventListener('click', () => setPage('portrait'));
 document.getElementById('btn-landscape').addEventListener('click', () => setPage('landscape'));
