@@ -531,8 +531,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
 
-    // Exempt Home, Admin Dashboard, and Live Test from strict direct-navigation blocks
-    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-test') {
+    // Exempt Home, Admin Dashboard, Live Test, and Live Room from strict direct-navigation blocks
+    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-test' && canonicalBaseRoute !== '/live-room' && canonicalBaseRoute !== '/admin-workspace') {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
         const referer = req.get('Referer') || '';
         const host = req.get('Host') || '';
@@ -621,8 +621,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
                         }
                     } else {
-                        // Exempt Admin Dashboard and Live Test from frontend direct-navigation blocks
-                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-test');
+                        // Exempt Admin, Live Test, and Live Room from frontend direct-navigation blocks
+                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-test' || baseRoute === '/live-room' || baseRoute === '/admin-workspace');
                         if (!isExempt && !isRecentClick && !isReload && window.location.search === '') {
                             sessionStorage.removeItem('pioneers_prep_state');
                             window.location.replace('/');
@@ -2325,6 +2325,67 @@ app.post('/api/live/student/submit', async (req, res) => {
         if (status === 'locked') return res.status(403).json({ error: 'Answer already permanently locked.' });
         res.status(400).json({ error: 'Student not found on board.' });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
+});
+
+// ============================================================================
+// 9. LIVE COLLABORATIVE ROOM (WHITEBOARD)
+// ============================================================================
+app.get('/live-room', (req, res) => serveDynamicHtml(req, res, 'liveroom.html', '/live-room'));
+app.get('/admin-workspace', (req, res) => serveDynamicHtml(req, res, 'admin-workspace.html', '/admin-workspace'));
+
+// Admin: Start Room & Gen OTP
+app.post('/api/liveroom/admin/start', async (req, res) => {
+    try {
+        const { adminKey, roomId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(roomId)).trim();
+        const otp = crypto.randomInt(100000, 1000000).toString();
+        await stateStore.set(`room:otp:${cleanId}`, otp, 60 * 60 * 3);
+        res.json({ success: true, otp });
+    } catch (err) { res.status(500).json({ error: 'Failed to start room' }); }
+});
+
+// Admin: Push Canvas Image
+app.post('/api/liveroom/admin/sync', async (req, res) => {
+    try {
+        const { adminKey, roomId, canvasData } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        const cleanId = path.basename(String(roomId)).trim();
+        await stateStore.set(`room:data:${cleanId}`, canvasData, 60 * 60 * 3);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Sync failed' }); }
+});
+
+// Student: Verify OTP
+app.post('/api/liveroom/student/verify', async (req, res) => {
+    try {
+        const { firstName, lastName, roomId, otp } = req.body;
+        const cleanId = path.basename(String(roomId)).trim();
+        const activeOtp = await stateStore.get(`room:otp:${cleanId}`);
+        if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
+            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+        }
+        const fName = String(firstName).trim().toUpperCase();
+        const lName = String(lastName).trim().toUpperCase();
+        const tokenData = `ROOM|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        res.json({ success: true, token: `${tokenData}|||${signature}` });
+    } catch (err) { res.status(500).json({ error: 'Verification failed' }); }
+});
+
+// Student: Fetch Canvas Image
+app.get('/api/liveroom/student/sync/:id', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(401).json({ error: 'Missing token' });
+        const [tokenData, signature] = authHeader.replace('Bearer ', '').split('|||');
+        if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        const cleanId = path.basename(String(req.params.id)).trim();
+        const canvasData = await stateStore.get(`room:data:${cleanId}`);
+        res.json({ success: true, canvasData });
+    } catch (err) { res.status(500).json({ error: 'Sync failed' }); }
 });
 // ============================================================================
 
