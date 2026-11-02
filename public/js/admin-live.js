@@ -167,8 +167,12 @@ document.getElementById('start-room-btn').addEventListener('click', async () => 
             
             // Show the green "Enter Workspace" button
             // Pass the Key and Room ID securely into the URL so the workspace auto-logins
+            // Securely store credentials in browser memory to auto-login the workspace
+            sessionStorage.setItem('workspace_admin_key', roomAdminKey);
+            sessionStorage.setItem('workspace_room_id', roomId);
+            
             const workspaceBtn = document.getElementById('enter-workspace-btn');
-            workspaceBtn.href = `/admin-workspace?k=${encodeURIComponent(roomAdminKey)}&r=${encodeURIComponent(roomId)}`;
+            workspaceBtn.href = '/admin-workspace';
             workspaceBtn.style.display = 'inline-block';
             
             // Disable the start button so it isn't clicked twice
