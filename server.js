@@ -569,6 +569,16 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     <a href="/mock-tests" class="nav-link ${isTests ? 'active' : ''}" data-action="clear-session">Mock Tests</a>
                     <a href="/study-notes" class="nav-link ${isNotes ? 'active' : ''}" data-action="clear-session">Study Notes</a>
                     <a href="/descriptive-papers" class="nav-link nav-link-yellow ${isDesc ? 'active' : ''}" data-action="clear-session">Descriptive Papers</a>
+                    
+                    <!-- Global Auth UI -->
+                    <div id="auth-ui-container" style="margin-left: 15px; padding-left: 15px; border-left: 2px solid #e2e8f0; display: flex; align-items: center;">
+                        <button id="nav-signin-btn" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">Sign In</button>
+                        <div id="nav-profile-badge" style="display: none; align-items: center; gap: 10px;">
+                            <div id="nav-avatar" style="width: 32px; height: 32px; background: #1e3a8a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px;"></div>
+                            <span id="nav-name" style="font-weight: bold; color: #1e293b; font-size: 13px;"></span>
+                            <button id="nav-logout-btn" style="background: none; border: none; color: #ef4444; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 0;">Logout</button>
+                        </div>
+                    </div>
                 </nav>
             </div>
         `;
