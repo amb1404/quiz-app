@@ -830,8 +830,8 @@ async function submitQuiz(isAuto = false) {
                 
             if (data.leaderboard && data.leaderboard.length > 0) {
                 data.leaderboard.forEach((user, idx) => {
-                    // Highlight the current user in the leaderboard
-                    const isMe = user.name === `${first} ${last.charAt(0)}.`;
+                    // Highlight the current user in the leaderboard using their full name
+                    const isMe = user.name === `${first} ${last}`.trim();
                     const rowStyle = isMe ? 'background:#dbeafe; font-weight:bold; color:#1e40af;' : 'border-bottom: 1px solid #e2e8f0;';
                     lbHtml += `<tr style="${rowStyle}">
                         <td style="padding:10px; font-weight:600;">#${idx + 1}</td>

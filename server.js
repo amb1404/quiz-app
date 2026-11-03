@@ -2063,11 +2063,8 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             }
         } catch (e) { console.error('Leaderboard read error:', e); }
 
-        // Filter historical attempts for this specific test
+        // Filter historical attempts for this specific test (current submission is already included here)
         let quizSubmissions = historical.filter(s => s.quizId === cleanQuizId);
-        
-        // Add the current student's attempt into memory for accurate ranking
-        quizSubmissions.push({ firstName: payload.firstName, lastName: payload.lastName, score: correctCount, total: totalCount });
         
         // Sort descending by score
         quizSubmissions.sort((a, b) => b.score - a.score);
@@ -2077,11 +2074,11 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         // Calculate Percentile (How many people they beat)
         const percentile = totalAttempts > 1 ? Math.round((belowCount / (totalAttempts - 1)) * 100) : 100;
         // Calculate Class Average
-        const avgScore = (quizSubmissions.reduce((acc, s) => acc + s.score, 0) / totalAttempts).toFixed(1);
+        const avgScore = totalAttempts > 0 ? (quizSubmissions.reduce((acc, s) => acc + s.score, 0) / totalAttempts).toFixed(1) : correctCount.toFixed(1);
         
-        // Extract Top 5 Scorers (Format Name: John D. for privacy)
+        // Extract Top 5 Scorers (Displaying the full last name)
         const leaderboard = quizSubmissions.slice(0, 5).map(s => ({
-            name: `${s.firstName} ${s.lastName ? s.lastName.charAt(0) + '.' : ''}`.trim(),
+            name: `${s.firstName} ${s.lastName || ''}`.trim(),
             score: s.score
         }));
 
