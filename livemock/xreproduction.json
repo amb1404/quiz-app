@@ -1,0 +1,615 @@
+{
+  "title": "ICSE Class X Biology - The Reproductive System",
+  "category": "biology",
+  "classLevel": "X",
+  "subject": "Biology",
+  "unit": "Human Anatomy and Physiology",
+  "chapter": "The Reproductive System",
+  "duration": 1800,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "question": "Which of the following is classified as a primary reproductive organ (gonad) in humans?",
+      "marks": 1,
+      "options": [
+        "Prostate gland",
+        "Fallopian tube",
+        "Testis",
+        "Seminal vesicle"
+      ],
+      "answer": 2,
+      "explanation": "Primary sex organs (gonads) are those that produce gametes and secrete sex hormones—specifically the testes in males and the ovaries in females. All other ducts and glands are accessory reproductive organs.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "question": "In human males, the testes are situated outside the abdominal cavity inside the scrotal sacs because:",
+      "marks": 1,
+      "options": [
+        "There is insufficient space in the pelvic cavity.",
+        "Sperm maturation requires a temperature 2°C to 3°C higher than normal body temperature.",
+        "Spermatogenesis requires a temperature 2°C to 3°C lower than normal internal body temperature.",
+        "It facilitates faster transport of sperms into the urethra."
+      ],
+      "answer": 2,
+      "explanation": "Spermatogenesis (sperm production) cannot occur at the normal human core body temperature of 37°C. The scrotum maintains an optimal temperature of about 34°C–35°C (2°C to 3°C lower).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "question": "If the inguinal canal fails to close after the descent of the testes in a male fetus, loops of the intestine may enter the scrotum. This abnormal condition is termed:",
+      "marks": 1,
+      "options": [
+        "Cryptorchidism",
+        "Inguinal hernia",
+        "Hydrocele",
+        "Orchitis"
+      ],
+      "answer": 1,
+      "explanation": "The testes descend through the inguinal canal during the 7th to 8th month of fetal life. If this canal fails to close properly, abdominal contents like the intestine can bulge into the scrotum, causing an inguinal hernia.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "question": "Which specific cells inside the testis provide nourishment to the developing spermatozoa?",
+      "marks": 1,
+      "options": [
+        "Interstitial cells",
+        "Leydig cells",
+        "Sertoli (Nurse) cells",
+        "Follicular cells"
+      ],
+      "answer": 2,
+      "explanation": "Sertoli cells (or nurse cells) are located within the seminiferous tubules and provide nutrition and structural support to developing germ cells during spermatogenesis.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "question": "The endocrine cells located as packing tissue between the coils of the seminiferous tubules that secrete testosterone are:",
+      "marks": 1,
+      "options": [
+        "Sertoli cells",
+        "Leydig (Interstitial) cells",
+        "Spermatogonia",
+        "Corpus luteum"
+      ],
+      "answer": 1,
+      "explanation": "Leydig cells (also called interstitial cells) lie in the connective tissue spaces between the seminiferous tubules and secrete the male sex hormone, testosterone, when stimulated by LH.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "question": "Which of the following represents the correct sequential pathway of sperms from their site of production to the exterior?",
+      "marks": 1,
+      "options": [
+        "Seminiferous tubules → Vas deferens → Epididymis → Urethra",
+        "Epididymis → Seminiferous tubules → Vas deferens → Urethra",
+        "Seminiferous tubules → Epididymis → Vas deferens → Ejaculatory duct → Urethra",
+        "Seminiferous tubules → Ureter → Vas deferens → Urethra"
+      ],
+      "answer": 2,
+      "explanation": "Sperms are produced in the seminiferous tubules, pass through the rete testis and efferent ducts into the epididymis (for storage/maturation), travel up the vas deferens, enter the ejaculatory duct, and exit via the urethra.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "question": "Sperms produced in the seminiferous tubules are initially non-motile. Where do they undergo physiological maturation and acquire motility?",
+      "marks": 1,
+      "options": [
+        "Seminal vesicles",
+        "Prostate gland",
+        "Epididymis",
+        "Vas deferens"
+      ],
+      "answer": 2,
+      "explanation": "The epididymis is a 6-meter-long coiled tube sitting over the testis where sperms are stored for a few days and undergo physiological maturation, acquiring increased motility and fertilizing capacity.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q8",
+      "type": "mcq",
+      "question": "The secretion of the seminal vesicles is rich in a specific sugar that serves as an immediate source of energy for swimming sperms. This sugar is:",
+      "marks": 1,
+      "options": [
+        "Glucose",
+        "Sucrose",
+        "Galactose",
+        "Fructose"
+      ],
+      "answer": 3,
+      "explanation": "Seminal vesicles produce a slightly alkaline fluid rich in fructose, which provides ATP energy to the mitochondria in the middle piece of the sperm.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q9",
+      "type": "mcq",
+      "question": "Which male accessory gland surrounds the base of the urinary bladder and pours an alkaline secretion into the urethra to neutralize acid in the male urethra and female vagina?",
+      "marks": 1,
+      "options": [
+        "Cowper's gland",
+        "Prostate gland",
+        "Seminal vesicle",
+        "Bartholin's gland"
+      ],
+      "answer": 1,
+      "explanation": "The prostate gland is a bilobed structure surrounding the urethra near its origin from the bladder. Its milky, alkaline secretion neutralizes the acidity of the vaginal tract, which would otherwise immobilize or kill sperms.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q10",
+      "type": "mcq",
+      "question": "The pair of ovoid pea-sized glands that open into the urethra just before it enters the penis and secrete a clear, viscous lubricating mucus are the:",
+      "marks": 1,
+      "options": [
+        "Bulbourethral (Cowper's) glands",
+        "Prostate glands",
+        "Seminal vesicles",
+        "Inguinal glands"
+      ],
+      "answer": 0,
+      "explanation": "Bulbourethral glands (Cowper's glands) secrete a clear, alkaline mucus that lubricates the tip of the penis during sexual excitation and flushes out traces of acidic urine from the urethra.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q11",
+      "type": "mcq",
+      "question": "In human males, the urethra is referred to as the urinogenital duct because:",
+      "marks": 1,
+      "options": [
+        "It connects the kidney directly to the testes.",
+        "It serves as a common passage for both urine and semen at different times.",
+        "It mixes urine and sperms together during ejaculation.",
+        "It produces both urinary enzymes and reproductive hormones."
+      ],
+      "answer": 1,
+      "explanation": "The male urethra carries urine from the bladder and semen from the ejaculatory duct to the outside, though sphincters ensure both never pass simultaneously.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q12",
+      "type": "mcq",
+      "question": "The acrosome at the anterior tip of the human sperm head is derived from the Golgi apparatus and secretes the enzyme:",
+      "marks": 1,
+      "options": [
+        "Lysozyme",
+        "Hyaluronidase",
+        "Pepsinogen",
+        "Kinase"
+      ],
+      "answer": 1,
+      "explanation": "The acrosome contains hydrolytic enzymes, chiefly hyaluronidase, which dissolves the cementing substance between the cells of the corona radiata and digests the zona pellucida to allow sperm entry into the ovum.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q13",
+      "type": "mcq",
+      "question": "Which region of a mature human sperm contains the mitochondrial spiral (Nebenkern) that generates ATP for the lashing movement of the tail?",
+      "marks": 1,
+      "options": [
+        "Acrosome",
+        "Nucleus",
+        "Neck",
+        "Middle piece"
+      ],
+      "answer": 3,
+      "explanation": "The middle piece of the sperm houses numerous mitochondria arranged spirally around the axial filament, acting as the 'engine room' to supply energy for swimming.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q14",
+      "type": "mcq",
+      "question": "During fertilisation, which specific parts of the human sperm actually enter the cytoplasm of the ovum?",
+      "marks": 1,
+      "options": [
+        "The entire sperm including head, middle piece, and tail",
+        "Only the acrosome and the tail",
+        "Only the nucleus (head) and the centriole (neck)",
+        "Only the middle piece containing mitochondria"
+      ],
+      "answer": 2,
+      "explanation": "Once the acrosome dissolves the egg barriers, only the sperm head (containing the haploid nucleus) and the neck (centriole, needed for cleavage spindle formation) enter the ovum; the middle piece and tail are left behind.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q15",
+      "type": "mcq",
+      "question": "In the human ovary, the maturing ova are enclosed within cellular sacs situated in the outer cortex. A fully mature sac ready to rupture is called a:",
+      "marks": 1,
+      "options": [
+        "Corpus luteum",
+        "Corpus albicans",
+        "Graafian follicle",
+        "Blastocyst"
+      ],
+      "answer": 2,
+      "explanation": "Oogonia develop inside primary follicles, which grow into fluid-filled mature Graafian follicles containing the secondary oocyte.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q16",
+      "type": "mcq",
+      "question": "When the ovum is released from the ovary into the pelvic cavity, it is swept into the Fallopian tube by the:",
+      "marks": 1,
+      "options": [
+        "Peristaltic contractions of the uterus",
+        "Beating of flagella on the ovum",
+        "Finger-like projections called fimbriae at the edge of the infundibulum",
+        "Suction created by the cervix"
+      ],
+      "answer": 2,
+      "explanation": "The free, funnel-shaped end of the Fallopian tube (infundibulum) bears muscular finger-like projections called fimbriae that sweep over the ovary to pick up the released non-motile ovum.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q17",
+      "type": "mcq",
+      "question": "Propulsion of the non-motile ovum down the Fallopian tube toward the uterus is brought about by:",
+      "marks": 1,
+      "options": [
+        "Ciliary movement of the ciliated epithelium and muscular peristalsis of the oviduct wall",
+        "Gravity alone",
+        "Amoeboid movement of the ovum",
+        "Contractions of the ovarian ligament"
+      ],
+      "answer": 0,
+      "explanation": "The inner lining of the Fallopian tube consists of ciliated columnar epithelium. The rhythmic beating of cilia, combined with weak peristaltic waves of the tube's muscular wall, pushes the ovum toward the uterus.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q18",
+      "type": "mcq",
+      "question": "Match the layers of the uterine wall with their correct descriptions:\n1. Perimetrium — (P) Inner glandular and vascular lining shed during menstruation\n2. Myometrium — (Q) Thin outer serous membranous covering\n3. Endometrium — (R) Thick middle layer of smooth muscle fibres",
+      "marks": 1,
+      "options": [
+        "1-Q, 2-R, 3-P",
+        "1-P, 2-Q, 3-R",
+        "1-R, 2-P, 3-Q",
+        "1-Q, 2-P, 3-R"
+      ],
+      "answer": 0,
+      "explanation": "Perimetrium is the outer peritoneal covering (Q), Myometrium is the thick muscular middle layer that contracts during childbirth (R), and Endometrium is the inner vascular lining where implantation occurs (P).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q19",
+      "type": "mcq",
+      "question": "Which female accessory glands are located on either side of the vaginal opening and secrete a lubricating fluid homologous to the male Cowper's glands?",
+      "marks": 1,
+      "options": [
+        "Mammary glands",
+        "Bartholin's (Vestibular) glands",
+        "Inguinal glands",
+        "Perineal glands"
+      ],
+      "answer": 1,
+      "explanation": "Bartholin's glands (greater vestibular glands) lie on either side of the vaginal orifice and secrete mucus to lubricate the vagina during copulation.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q20",
+      "type": "mcq",
+      "question": "Identify the correct distinction between Menarche and Menopause:",
+      "marks": 1,
+      "options": [
+        "Menarche is the release of the ovum; Menopause is the implantation of the blastocyst.",
+        "Menarche is the permanent stoppage of menstruation at age 45–50; Menopause is the onset of menstruation at age 13.",
+        "Menarche is the onset of the first menstrual cycle at puberty (11–13 years); Menopause is the permanent cessation of menstruation around 45–50 years.",
+        "Menarche occurs every 14 days; Menopause occurs every 28 days."
+      ],
+      "answer": 2,
+      "explanation": "Menarche marks the beginning of reproductive life in girls at puberty (around 11–13 years), while menopause marks the end of reproductive capability around 45–50 years.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q21",
+      "type": "mcq",
+      "question": "During the Follicular (Proliferative) phase of the menstrual cycle (days 6 to 13), which pituitary hormone stimulates the growth of the primary follicle into a Graafian follicle?",
+      "marks": 1,
+      "options": [
+        "Progesterone",
+        "Oxytocin",
+        "Follicle Stimulating Hormone (FSH)",
+        "Prolactin"
+      ],
+      "answer": 2,
+      "explanation": "FSH secreted by the anterior pituitary stimulates the ovarian follicle to mature. As the follicle grows, it secretes estrogen, which proliferates (thickens) the uterine endometrium.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q22",
+      "type": "mcq",
+      "question": "Ovulation typically occurs around the 14th day of a 28-day menstrual cycle due to a sudden surge in the blood level of:",
+      "marks": 1,
+      "options": [
+        "Progesterone",
+        "Luteinizing Hormone (LH)",
+        "Relaxin",
+        "Human Chorionic Gonadotropin (hCG)"
+      ],
+      "answer": 1,
+      "explanation": "A peak in estrogen around day 12–13 triggers a massive release of Luteinizing Hormone (LH surge) from the anterior pituitary, causing the mature Graafian follicle to rupture and release the ovum.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q23",
+      "type": "mcq",
+      "question": "What happens to the Corpus Luteum if the released ovum is NOT fertilized within 24–48 hours?",
+      "marks": 1,
+      "options": [
+        "It continues to grow and secretes high levels of estrogen for 9 months.",
+        "It transforms into a new Graafian follicle immediately.",
+        "It degenerates around day 26–28 into a white scar tissue called Corpus Albicans, causing a sharp drop in progesterone.",
+        "It migrates down the Fallopian tube and implants in the uterus."
+      ],
+      "answer": 2,
+      "explanation": "Without fertilization, the corpus luteum regresses into the inactive corpus albicans. The resulting sudden drop in progesterone levels causes the thickened endometrium to break down and slough off (menstruation).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q24",
+      "type": "mcq",
+      "question": "If fertilization takes place, menstruation remains suspended throughout pregnancy because:",
+      "marks": 1,
+      "options": [
+        "The ovaries are surgically blocked by the placenta.",
+        "The persistent corpus luteum (and later the placenta) continuously secretes progesterone, which maintains the thickened endometrium.",
+        "Oxytocin levels remain high throughout gestation.",
+        "The Graafian follicles continue to rupture every week."
+      ],
+      "answer": 1,
+      "explanation": "Progesterone is the 'pregnancy hormone'. Sustained high levels of progesterone from the corpus luteum and placenta keep the endometrium intact and inhibit the pituitary from releasing FSH/LH, preventing further ovulation and menstruation.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q25",
+      "type": "mcq",
+      "question": "A freshly ovulated human ovum is surrounded by an inner transparent, non-cellular glycoprotein layer and an outer layer of radially arranged follicular cells. These two layers are respectively:",
+      "marks": 1,
+      "options": [
+        "Corona radiata and Zona pellucida",
+        "Zona pellucida and Corona radiata",
+        "Vitelline membrane and Chorion",
+        "Amnion and Allantois"
+      ],
+      "answer": 1,
+      "explanation": "Outside the plasma membrane (vitelline membrane) lies the thick, transparent, non-cellular Zona pellucida, surrounded externally by the cellular Corona radiata derived from the follicle.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q26",
+      "type": "mcq",
+      "question": "As the fertilized egg (zygote) travels down the oviduct toward the uterus, it undergoes rapid mitotic divisions (cleavage) to form a solid mulberry-like ball of 16–32 cells called the:",
+      "marks": 1,
+      "options": [
+        "Blastocyst",
+        "Foetus",
+        "Morula",
+        "Gastrula"
+      ],
+      "answer": 2,
+      "explanation": "Cleavage of the single-celled zygote first produces a solid spherical mass of cells resembling a mulberry, termed the morula, which later develops a fluid-filled cavity to become a blastocyst.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q27",
+      "type": "mcq",
+      "question": "At which specific developmental stage does the human embryo fix itself (implant) into the endometrial wall of the uterus, about 7 days after fertilization?",
+      "marks": 1,
+      "options": [
+        "Zygote stage",
+        "Two-cell stage",
+        "Morula stage",
+        "Blastocyst stage"
+      ],
+      "answer": 3,
+      "explanation": "By the time the embryo reaches the uterus and is ready for implantation (about 5–7 days post-fertilization), it has developed into a hollow ball of cells called a blastocyst, featuring an outer trophoblast layer.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q28",
+      "type": "mcq",
+      "question": "During the development of the embryo, the outer layer of the blastocyst (trophoblast) forms finger-like projections called villi that interlock with the uterine wall. Which extra-embryonic membrane develops from this outer layer to form the foetal part of the placenta?",
+      "marks": 1,
+      "options": [
+        "Amnion",
+        "Chorion",
+        "Yolk sac",
+        "Perimetrium"
+      ],
+      "answer": 1,
+      "explanation": "The chorion is the outermost extra-embryonic membrane. Its chorionic villi penetrate the maternal endometrium to form the foetal portion of the placenta.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q29",
+      "type": "mcq",
+      "question": "Which of the following is NOT a function of the amniotic fluid surrounding the fetus?",
+      "marks": 1,
+      "options": [
+        "It acts as a shock absorber to protect the embryo from mechanical jerks and injuries.",
+        "It prevents the amnion from sticking to the growing embryo.",
+        "It supplies oxygen and glucose directly to the fetus from the mother's lungs.",
+        "It maintains an even temperature and pressure around the fetus."
+      ],
+      "answer": 2,
+      "explanation": "Supplying oxygen and nutrients is the function of the placenta and umbilical cord, not the amniotic fluid. Amniotic fluid provides mechanical cushioning, prevents adhesion, and allows restricted fetal movement.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q30",
+      "type": "mcq",
+      "question": "Regarding the circulation of blood in the placenta, which statement is biologically accurate?",
+      "marks": 1,
+      "options": [
+        "Maternal blood flows directly into the fetus's heart through the umbilical vein.",
+        "Maternal blood and foetal blood mix freely inside the amniotic cavity.",
+        "There is no direct mixing of maternal and foetal blood; substances diffuse across thin capillary membranes.",
+        "Only red blood cells cross the placental barrier from mother to fetus."
+      ],
+      "answer": 2,
+      "explanation": "The bloodstreams of the mother and fetus are completely separate. They come into close proximity in the placenta, allowing exchange of gases, nutrients, and wastes via diffusion and active transport without blood mixing (which prevents blood-group incompatibility reactions and protects delicate fetal capillaries from high maternal blood pressure).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q31",
+      "type": "mcq",
+      "question": "Which set of substances correctly represents the direction of diffusion across the placenta?",
+      "marks": 1,
+      "options": [
+        "Mother to Fetus: Urea, CO2 | Fetus to Mother: Oxygen, Glucose",
+        "Mother to Fetus: Oxygen, Glucose, Amino acids, Antibodies | Fetus to Mother: Urea, Carbon dioxide, Uric acid",
+        "Mother to Fetus: Red blood cells, Platelets | Fetus to Mother: Proteins, Fats",
+        "Mother to Fetus: Carbon dioxide, Bile | Fetus to Mother: Oxygen, Hormones"
+      ],
+      "answer": 1,
+      "explanation": "The placenta acts as a respiratory, nutritive, and excretory organ for the fetus—delivering O2, nutrients, and maternal antibodies to the fetus while transferring metabolic wastes (CO2, urea) back into the mother's blood for excretion.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q32",
+      "type": "mcq",
+      "question": "Although the placenta acts as a protective barrier against most bacteria, which of the following harmful agents can cross the placenta and infect the fetus?",
+      "marks": 1,
+      "options": [
+        "Viruses such as HIV and Rubella (German measles), as well as nicotine and alcohol",
+        "Large maternal red blood cells",
+        "Sperm cells",
+        "Undigested starch molecules"
+      ],
+      "answer": 0,
+      "explanation": "While the placenta blocks most large bacterial pathogens, certain Ultramicroscopic viruses (like HIV, Rubella, Hepatitis B), drugs, alcohol, and nicotine can easily diffuse across and harm the fetus.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q33",
+      "type": "mcq",
+      "question": "The umbilical cord contains blood vessels that transport blood between the fetus and the placenta. Which statement accurately describes the nature of blood in these vessels?",
+      "marks": 1,
+      "options": [
+        "Umbilical artery carries oxygenated blood to the fetus; Umbilical vein carries deoxygenated blood to the placenta.",
+        "Umbilical vein carries oxygenated, nutrient-rich blood from the placenta to the fetus; Umbilical arteries carry deoxygenated, waste-laden blood from the fetus to the placenta.",
+        "Both umbilical arteries and veins carry pure oxygenated blood.",
+        "The umbilical cord contains only lymph vessels and no blood vessels."
+      ],
+      "answer": 1,
+      "explanation": "Arteries are defined as vessels carrying blood away from the fetal heart (toward the placenta), so the umbilical arteries carry deoxygenated blood and urea. The umbilical vein returns oxygenated, nutrient-rich blood from the placenta to the fetus.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q34",
+      "type": "mcq",
+      "question": "At the end of the 280-day gestation period, vigorous contractions of the uterine myometrium during parturition (childbirth) are stimulated by the hormone:",
+      "marks": 1,
+      "options": [
+        "Progesterone from the corpus luteum",
+        "Oxytocin secreted by the posterior lobe of the pituitary gland",
+        "Prolactin secreted by the anterior pituitary",
+        "FSH from the pituitary gland"
+      ],
+      "answer": 1,
+      "explanation": "Oxytocin (the 'birth hormone') from the maternal posterior pituitary causes powerful contractions of the smooth muscles of the myometrium (labour pains) to expel the baby, while Relaxin softens the pelvic ligaments and widens the cervix.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q35",
+      "type": "mcq",
+      "question": "Which hormone, secreted by the placenta and ovary toward the end of pregnancy, softens the pubic symphysis and dilates the uterine cervix to facilitate easy childbirth?",
+      "marks": 1,
+      "options": [
+        "Relaxin",
+        "Testosterone",
+        "Luteinizing hormone",
+        "Thyroxine"
+      ],
+      "answer": 0,
+      "explanation": "Relaxin relaxes the pelvic ligaments (pubic symphysis) and softens/widens the cervix so the birth canal can expand during parturition.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q36",
+      "type": "mcq",
+      "question": "Fraternal (Dizygotic) twins are produced when:",
+      "marks": 1,
+      "options": [
+        "A single fertilized ovum splits into two blastomeres during the first cleavage.",
+        "Two sperms fertilize a single ovum simultaneously.",
+        "Two ova are released from the ovaries at the same time and are fertilized by two separate sperms.",
+        "An unfertilized ovum divides parthenogenetically."
+      ],
+      "answer": 2,
+      "explanation": "Fraternal twins result from the simultaneous ovulation of two distinct eggs fertilized by two different sperms. They have separate placentas, are genetically no more similar than regular siblings, and may be of the same or different sex.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q37",
+      "type": "mcq",
+      "question": "Which of the following is ALWAYS true for Identical (Monozygotic) twins?",
+      "marks": 1,
+      "options": [
+        "One is always male and the other is always female.",
+        "They develop from two separate zygotes.",
+        "They possess the exact same genotype and are always of the same sex.",
+        "They never share a common placenta."
+      ],
+      "answer": 2,
+      "explanation": "Identical twins arise from the splitting of a single fertilized egg (zygote) into two embryos. Because they originate from the same sperm and egg, their genetic constitution (DNA) and biological sex are 100% identical.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q38",
+      "type": "mcq",
+      "question": "What is the ploidy (chromosome number) of a Primary Spermatocyte, a Secondary Spermatocyte, and a Zygote in humans, respectively?",
+      "marks": 1,
+      "options": [
+        "23, 23, 46",
+        "46, 23, 46",
+        "46, 46, 46",
+        "23, 46, 23"
+      ],
+      "answer": 1,
+      "explanation": "A Primary Spermatocyte is diploid (2n = 46). It undergoes Meiosis-I (reduction division) to form haploid Secondary Spermatocytes (n = 23). When a haploid sperm (23) fertilizes a haploid ovum (23), the diploid Zygote (2n = 46) is restored.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q39",
+      "type": "mcq",
+      "question": "A married man undergoes a surgical sterilization procedure called Vasectomy. Which of the following will be the physiological outcome of this surgery?",
+      "marks": 1,
+      "options": [
+        "His testes will stop producing sperms and testosterone immediately.",
+        "He will no longer be able to ejaculate any seminal fluid.",
+        "Testosterone secretion and sperm production continue normally, but the ejaculated semen will be completely free of sperms.",
+        "His voice pitch will become high and secondary sexual characters will disappear."
+      ],
+      "answer": 2,
+      "explanation": "In vasectomy, the vas deferens are cut and ligated. The testes continue to produce sperms (which are harmlessly destroyed by phagocytes in the epididymis) and secrete testosterone directly into the blood, while accessory glands still produce seminal fluid lacking sperms.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q40",
+      "type": "mcq",
+      "question": "Assertion (A): An embryo after 7 to 8 weeks of fertilization is referred to as a foetus.\nReason (R): By the end of 7–8 weeks, the major internal organs and external limbs are formed, and the developing embryo begins to resemble a miniature human being.",
+      "marks": 1,
+      "options": [
+        "Both A and R are true, and R is the correct explanation of A.",
+        "Both A and R are true, but R is NOT the correct explanation of A.",
+        "A is true, but R is false.",
+        "A is false, but R is true."
+      ],
+      "answer": 0,
+      "explanation": "Up to about 7–8 weeks of gestation, the developing organism is called an embryo. Once organogenesis establishes the basic human body plan and recognizable limbs/features (around 8 weeks), it is termed a foetus until birth.",
+      "diagram_required": false
+    }
+  ]
+}
