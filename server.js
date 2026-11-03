@@ -65,10 +65,11 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
 // 2. REDIS DISTRIBUTED STATE ENGINE (WITH ZERO-DEPENDENCY RESP & REST CLIENTS)
 // ============================================================================
 const MAX_MAP_SIZE = 5000;
-const TOKEN_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+const TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // Implementation 1: Extended to 30 Days
 const TOKEN_MAX_AGE_SEC = Math.ceil(TOKEN_MAX_AGE_MS / 1000);
 const CACHE_TTL_MS = 60 * 1000;
 const AUTH_COOKIE_NAME = 'pioneers_auth_token';
+const SUBMISSIONS_REDIS_KEY = 'global:submissions:history';
 
 class NativeRedisClient {
     constructor(redisUrl) {
@@ -473,7 +474,13 @@ function isSecureConnection(req) {
     return Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production');
 }
 
+// Implementation 2: Prioritize Explicit Authorization Header over Stale Ambient Cookies
 function extractAuthToken(req) {
+    const headerToken = req.get('Authorization')?.replace('Bearer ', '').trim();
+    if (headerToken && headerToken.includes('|||')) {
+        return headerToken;
+    }
+
     const cookieHeader = req.headers['cookie'];
     if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
         const pairs = cookieHeader.split(';');
@@ -490,14 +497,23 @@ function extractAuthToken(req) {
             }
         }
     }
-
-    const headerToken = req.get('Authorization')?.replace('Bearer ', '').trim();
-    if (headerToken && headerToken.includes('|||')) {
-        return headerToken;
-    }
     return null;
 }
 
+// Helper to keep the HttpOnly cookie synchronized with the latest valid Bearer token (for direct PDF links)
+function syncAuthCookieIfNeeded(req, res, token) {
+    if (token && req.get('Authorization')) {
+        res.cookie(AUTH_COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            maxAge: TOKEN_MAX_AGE_MS,
+            path: '/'
+        });
+    }
+}
+
+// Implementation 3A: Pre-submit security guard verifies identity without burning the global SSO token
 async function preSubmitSecurityGuard(req, res, next) {
     try {
         const clientIp = getClientIp(req);
@@ -508,14 +524,9 @@ async function preSubmitSecurityGuard(req, res, next) {
 
         const token = extractAuthToken(req);
         if (token) {
-            const preCheck = await verifyAuthToken(token, null, true);
+            const preCheck = await verifyAuthToken(token, null, false);
             if (!preCheck.valid) {
-                return res.status(403).json({ success: false, error: preCheck.error });
-            }
-            const lockKey = `sub:lock:${preCheck.signature}`;
-            const acquired = await stateStore.setNx(lockKey, '1', 60);
-            if (!acquired) {
-                return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+                return res.status(401).json({ success: false, error: preCheck.error });
             }
             req.preVerifiedAuth = preCheck;
             return next();
@@ -955,6 +966,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             })();
         </script>`;
 
+        // Implementation 4: Added cache busting for livetest.js / admin-live.js & fixed Confetti SRI integrity block
         let dynamicHtml = data
             .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
             .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
@@ -966,9 +978,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(['"\s=])\/?index\.html/gi, '$1/')
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            .replace(/(src="\/js\/livetest\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
+            .replace(/(src="\/js\/admin-live\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
-            .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/i,
-                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" integrity="sha384-H308P2b1p2sE2tCj7ZzVbV/f0c4U02yU53pI+rW1+e/K6p+m2a2Y5F5B/Yp3tZp0" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
+            .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/gi,
+                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
             .replace(/<meta name="viewport"[^>]*>/i, fileName === 'livetest.html' ? '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">' : '<meta name="viewport" content="width=1280">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
@@ -1188,17 +1202,23 @@ function getOfficialQuizDuration(quizId, clientFallback) {
     return 900;
 }
 
-async function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallback) {
+// Implementation 5: Allow starting a new quiz or switching chapters cleanly in the same global session
+async function getOrCreateExamSession(authSignature, cleanQuizId, clientDurationFallback, forceNew = false) {
     const sessionKey = `exam:session:${authSignature}`;
-    const rawExisting = await stateStore.get(sessionKey);
-    if (rawExisting) {
-        try {
-            const existing = typeof rawExisting === 'string' ? JSON.parse(rawExisting) : rawExisting;
-            if (existing.quizId !== cleanQuizId) {
-                return { error: 'This verification session is already locked to another quiz.' };
-            }
-            return existing;
-        } catch {}
+    if (!forceNew) {
+        const rawExisting = await stateStore.get(sessionKey);
+        if (rawExisting) {
+            try {
+                const existing = typeof rawExisting === 'string' ? JSON.parse(rawExisting) : rawExisting;
+                if (existing.quizId === cleanQuizId) {
+                    const isAlreadySubmitted = await stateStore.get(`exam:used:${existing.signature}`);
+                    const elapsedSec = (Date.now() - existing.startTime) / 1000;
+                    if (!isAlreadySubmitted && elapsedSec < existing.duration) {
+                        return existing;
+                    }
+                }
+            } catch {}
+        }
     }
 
     const officialDuration = getOfficialQuizDuration(cleanQuizId, clientDurationFallback);
@@ -1268,6 +1288,7 @@ function resolveSafeDescriptivePath(rawFileName) {
     return allPdfFiles.find(filePath => path.basename(filePath).toLowerCase() === cleanName.toLowerCase()) || null;
 }
 
+// Implementation 3B: Global SSO Token Verification (does not block after 1 quiz submission)
 async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = false) {
     if (!authToken || typeof authToken !== 'string' || !authToken.includes('|||')) {
         return { valid: false, error: 'Security Alert: Invalid submission token.' };
@@ -1302,33 +1323,67 @@ async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = fa
     if (expectedEmail && tokenEmail !== expectedEmail.trim().toLowerCase()) {
         return { valid: false, error: 'Security Alert: Token email mismatch.' };
     }
-    if (checkReplay) {
-        const isUsed = await stateStore.get(`auth:used:${authSignature}`);
-        if (isUsed) {
-            return { valid: false, error: 'This quiz session has already been submitted.' };
-        }
-    }
 
     return { valid: true, email: tokenEmail, firstName, lastName, signature: authSignature };
+}
+
+// Implementation 6: Dual Redis + File Persistence for Submissions & Leaderboard History
+async function getHistoricalSubmissions() {
+    let redisList = [];
+    let fileList = [];
+
+    try {
+        const rawRedis = await stateStore.get(SUBMISSIONS_REDIS_KEY);
+        if (rawRedis) {
+            const parsed = typeof rawRedis === 'string' ? JSON.parse(rawRedis) : rawRedis;
+            if (Array.isArray(parsed)) redisList = parsed;
+        }
+    } catch {}
+
+    try {
+        const submissionsFile = path.join(__dirname, 'submissions.json');
+        if (fs.existsSync(submissionsFile)) {
+            const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
+            const parsed = JSON.parse(fileData);
+            if (Array.isArray(parsed)) fileList = parsed;
+        }
+    } catch {}
+
+    if (redisList.length === 0) return fileList;
+    if (fileList.length === 0) return redisList;
+
+    const merged = [...redisList];
+    const seenKeys = new Set(redisList.map(s => `${s.timestamp || ''}|${s.email || ''}|${s.quizId || s.chapterTitle || ''}|${s.score}`));
+    for (const item of fileList) {
+        const key = `${item.timestamp || ''}|${item.email || ''}|${item.quizId || item.chapterTitle || ''}|${item.score}`;
+        if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            merged.push(item);
+        }
+    }
+    return merged.slice(-500);
 }
 
 let submissionWritePromise = Promise.resolve();
 function queueSubmissionBackup(entry) {
     submissionWritePromise = submissionWritePromise.then(async () => {
         try {
-            const submissionsFile = path.join(__dirname, 'submissions.json');
-            let allSubmissions = [];
-            if (fs.existsSync(submissionsFile)) {
-                const fileData = await fs.promises.readFile(submissionsFile, 'utf8');
-                allSubmissions = JSON.parse(fileData);
-            }
+            let allSubmissions = await getHistoricalSubmissions();
             const { secretKey, breakdown, ...safeMetadata } = entry;
             allSubmissions.push(safeMetadata);
             if (allSubmissions.length > 500) {
                 allSubmissions = allSubmissions.slice(-500);
             }
+            const fiveYearsSec = 60 * 60 * 24 * 365 * 5;
+            await stateStore.set(SUBMISSIONS_REDIS_KEY, allSubmissions, fiveYearsSec);
+
+            const submissionsFile = path.join(__dirname, 'submissions.json');
             await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2), { mode: 0o600 });
-        } catch (err) { console.error('Local backup failed:', err); }
+            return allSubmissions;
+        } catch (err) {
+            console.error('Local backup failed:', err);
+            return [];
+        }
     });
     return submissionWritePromise;
 }
@@ -1361,8 +1416,10 @@ app.get('/ping', (req, res) => res.status(200).send('Awake'));
 app.post('/api/create-order', async (req, res) => {
     try {
         if (!razorpay) return res.status(503).json({ error: 'Payments are currently unavailable.' });
-        const authCheck = await verifyAuthToken(extractAuthToken(req));
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
 
         const { itemId } = req.body;
         if (!itemId) return res.status(400).json({ error: 'Missing item ID.' });
@@ -1395,8 +1452,10 @@ app.post('/api/create-order', async (req, res) => {
 
 app.post('/api/verify-payment', async (req, res) => {
     try {
-        const authCheck = await verifyAuthToken(extractAuthToken(req));
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
 
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature, itemId } = req.body;
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !itemId) {
@@ -1526,10 +1585,12 @@ app.get('/api/download-descriptive/:fileName', async (req, res) => {
     }
 
     // Require Auth for ALL downloads
-    const authCheck = await verifyAuthToken(extractAuthToken(req));
+    const token = extractAuthToken(req);
+    const authCheck = await verifyAuthToken(token);
     if (!authCheck.valid) {
         return res.status(401).send("Authentication required. Please sign in on the homepage.");
     }
+    syncAuthCookieIfNeeded(req, res, token);
 
     const isUltra = upperName.startsWith('ULTRA_');
     const isPremium = isUltra || upperName.startsWith('PRO_');
@@ -1613,10 +1674,12 @@ app.get('/api/download-note/:fileName', async (req, res) => {
     }
 
     // Require Auth for ALL downloads
-    const authCheck = await verifyAuthToken(extractAuthToken(req));
+    const token = extractAuthToken(req);
+    const authCheck = await verifyAuthToken(token);
     if (!authCheck.valid) {
         return res.status(401).send("Authentication required. Please sign in on the homepage.");
     }
+    syncAuthCookieIfNeeded(req, res, token);
 
     const isUltra = upperName.startsWith('ULTRA_');
     const isPremium = isUltra || upperName.startsWith('PRO_');
@@ -1688,8 +1751,10 @@ app.get('/api/quizzes', (req, res) => {
 app.get('/api/quiz/:id', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token, null, false);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
 
         const cleanId = path.basename(String(req.params.id || '')).trim();
         const filePath = resolveSafeQuizPath(cleanId);
@@ -1706,7 +1771,7 @@ app.get('/api/quiz/:id', async (req, res) => {
             if (!hasAccess) return res.status(402).json({ error: "Payment required to access this content." });
         }
 
-        const session = await getOrCreateExamSession(authCheck.signature, cleanId, null);
+        const session = await getOrCreateExamSession(authCheck.signature, cleanId, null, false);
         if (session.error) return res.status(403).json({ error: session.error });
 
         res.json({ totalQuestions: (content.questions || []).length });
@@ -1719,7 +1784,8 @@ app.get('/api/quiz/:id', async (req, res) => {
 app.get('/api/quiz/:id/question/:index', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
-        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token, null, false);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
 
         const cleanId = path.basename(String(req.params.id || '')).trim();
@@ -1730,18 +1796,21 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
         const rawSession = await stateStore.get(sessionKey);
         if (!rawSession) return res.status(403).json({ error: "No active session." });
         
+        const session = typeof rawSession === 'string' ? JSON.parse(rawSession) : rawSession;
+        const seedKey = session.signature || authCheck.signature;
+
         const content = getCachedQuizContent(filePath);
         const rawQuestions = content.questions || [];
         if (index < 0 || index >= rawQuestions.length) return res.status(400).json({ error: "Invalid index." });
 
-        const qOrder = getDeterministicPermutation(rawQuestions.length, `${authCheck.signature}:${cleanId}:q`);
+        const qOrder = getDeterministicPermutation(rawQuestions.length, `${seedKey}:${cleanId}:q`);
         const origIdx = qOrder[index];
         const q = rawQuestions[origIdx];
         const qType = q.type || 'mcq';
         let clientOptions = q.options || [];
 
         if (qType === 'mcq' && Array.isArray(q.options) && q.options.length > 1) {
-            const optOrder = getSafeOptionPermutation(q.options, `${authCheck.signature}:${cleanId}:opt:${origIdx}`);
+            const optOrder = getSafeOptionPermutation(q.options, `${seedKey}:${cleanId}:opt:${origIdx}`);
             clientOptions = optOrder.map(oIdx => q.options[oIdx]);
         }
 
@@ -1757,8 +1826,10 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
 
 app.post('/api/start-quiz', async (req, res) => {
     try {
-        const authCheck = await verifyAuthToken(extractAuthToken(req), null, true);
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token, null, false);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
 
         const { quizId, duration } = req.body;
         const cleanId = path.basename(String(quizId || '')).trim();
@@ -1780,7 +1851,8 @@ app.post('/api/start-quiz', async (req, res) => {
             }
         }
 
-        const session = await getOrCreateExamSession(authCheck.signature, cleanId, duration);
+        // Always create a fresh exam session when clicking a quiz card so retakes and new quizzes work seamlessly
+        const session = await getOrCreateExamSession(authCheck.signature, cleanId, duration, true);
         if (session.error) return res.status(403).json({ error: session.error });
 
         res.json({
@@ -1907,34 +1979,24 @@ app.post('/api/verify-otp', async (req, res) => {
     }
 });
 
+// Implementation 7: Per-Exam Replay Lock, Persistent Cookie & Redis Leaderboard
 app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     submitJsonParser(req, res, async (err) => {
         if (err) {
-            if (req.preVerifiedAuth?.signature) {
-                await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
-            }
             return res.status(400).json({ success: false, error: 'Invalid or oversized submission payload.' });
         }
         next();
     });
 }, async (req, res) => {
-    const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : 'no-email';
+    const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : null;
     const { className, chapterTitle, quizId, userAnswers, serverStartTime, timerSignature, quizDuration } = req.body;
 
     const tokenToVerify = extractAuthToken(req);
-    const authCheck = await verifyAuthToken(tokenToVerify, rawEmail, true);
+    const authCheck = await verifyAuthToken(tokenToVerify, rawEmail, false);
     if (!authCheck.valid) {
-        if (req.preVerifiedAuth?.signature) await stateStore.del(`sub:lock:${req.preVerifiedAuth.signature}`);
-        return res.status(403).json({ success: false, error: authCheck.error });
+        return res.status(401).json({ success: false, error: authCheck.error });
     }
-
-    const lockKey = `sub:lock:${authCheck.signature}`;
-    if (!req.preVerifiedAuth) {
-        const acquired = await stateStore.setNx(lockKey, '1', 60);
-        if (!acquired) {
-            return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
-        }
-    }
+    syncAuthCookieIfNeeded(req, res, tokenToVerify);
 
     const firstName = authCheck.firstName || (req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : 'UNKNOWN');
     const lastName = authCheck.lastName || (req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : 'NAME');
@@ -1943,42 +2005,41 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     const cleanQuizId = path.basename(String(quizId || '')).trim();
     const filePath = resolveSafeQuizPath(cleanQuizId);
     if (!filePath) {
-        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Invalid quiz ID.' });
     }
 
     const sessionKey = `exam:session:${authCheck.signature}`;
     const rawLockedSession = await stateStore.get(sessionKey);
     const lockedSession = rawLockedSession ? (typeof rawLockedSession === 'string' ? JSON.parse(rawLockedSession) : rawLockedSession) : null;
-    if (lockedSession && lockedSession.quizId !== cleanQuizId) {
-        await stateStore.del(lockKey);
-        return res.status(400).json({ success: false, error: 'Quiz ID mismatch with active exam session.' });
-    }
 
-    const effectiveStartTime = lockedSession ? lockedSession.startTime : Number(serverStartTime);
-    const effectiveDuration = lockedSession ? lockedSession.duration : Number(quizDuration);
+    const effectiveStartTime = (lockedSession && lockedSession.quizId === cleanQuizId) ? lockedSession.startTime : Number(serverStartTime);
+    const effectiveDuration = (lockedSession && lockedSession.quizId === cleanQuizId) ? lockedSession.duration : Number(quizDuration);
 
     if (!effectiveStartTime || !timerSignature || !effectiveDuration) {
-        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Missing quiz timer credentials.' });
     }
 
     const expectedTimerSig = crypto.createHmac('sha256', SECRET).update(`${cleanQuizId}:${effectiveDuration}:${effectiveStartTime}`).digest('hex');
     if (!safeCompareHex(timerSignature, expectedTimerSig)) {
-        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Tampered timer token detected.' });
     }
 
     const elapsedSeconds = (Date.now() - effectiveStartTime) / 1000;
     if (elapsedSeconds < 0 || elapsedSeconds > effectiveDuration + 120) {
-        await stateStore.del(lockKey);
         return res.status(400).json({ success: false, error: 'Quiz time limit exceeded.' });
     }
 
-    const markedUnused = await stateStore.setNx(`auth:used:${authCheck.signature}`, '1', TOKEN_MAX_AGE_SEC);
+    // Per-exam submission lock & replay guard (prevents double-submitting the same attempt without burning the global login token)
+    const lockKey = `sub:lock:${expectedTimerSig}`;
+    const acquired = await stateStore.setNx(lockKey, '1', 60);
+    if (!acquired) {
+        return res.status(429).json({ success: false, error: 'Submission is already being processed.' });
+    }
+
+    const markedUnused = await stateStore.setNx(`exam:used:${expectedTimerSig}`, '1', TOKEN_MAX_AGE_SEC);
     if (!markedUnused) {
         await stateStore.del(lockKey);
-        return res.status(403).json({ success: false, error: 'This quiz session has already been submitted.' });
+        return res.status(403).json({ success: false, error: 'This quiz attempt has already been submitted.' });
     }
     await stateStore.del(sessionKey);
 
@@ -1990,61 +2051,81 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         let correctCount = 0, incorrectCount = 0, attemptedCount = 0;
         const totalCount = realQuestions.length;
 
-        const qOrder = getDeterministicPermutation(totalCount, `${authCheck.signature}:${cleanQuizId}:q`);
-        const origToClientIndex = new Array(totalCount);
-        qOrder.forEach((origIdx, clientIdx) => {
-            origToClientIndex[origIdx] = clientIdx;
-        });
+        // Backward compatible seed check: supports both new per-exam signature seed and active pre-deploy authSignature seed
+        const seedCandidates = [expectedTimerSig];
+        if (authCheck.signature && authCheck.signature !== expectedTimerSig) {
+            seedCandidates.push(authCheck.signature);
+        }
 
-        let breakdownHtml = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;"><tr style="background-color:#f1f5f9;text-align:left;"><th>#</th><th>Question</th><th>Student's Selection</th><th>Correct Option</th><th>Status</th></tr>`;
+        let bestEval = null;
+        for (const seedKey of seedCandidates) {
+            let cCount = 0, iCount = 0, aCount = 0;
+            const qOrder = getDeterministicPermutation(totalCount, `${seedKey}:${cleanQuizId}:q`);
+            const origToClientIndex = new Array(totalCount);
+            qOrder.forEach((origIdx, clientIdx) => {
+                origToClientIndex[origIdx] = clientIdx;
+            });
 
-        realQuestions.forEach((q, origIndex) => {
-            const clientIdx = origToClientIndex[origIndex];
-            const response = safeUserAnswers[clientIdx.toString()] !== undefined ? safeUserAnswers[clientIdx.toString()] : safeUserAnswers[clientIdx];
-            const attempted = response !== undefined && response !== null && response !== "";
-            if (attempted) attemptedCount++;
+            let html = `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;"><tr style="background-color:#f1f5f9;text-align:left;"><th>#</th><th>Question</th><th>Student's Selection</th><th>Correct Option</th><th>Status</th></tr>`;
 
-            let isCorrect = false, selText = "Skipped", corrText = "N/A", rawStatus = "Skipped", statusColor = "yellow";
+            realQuestions.forEach((q, origIndex) => {
+                const clientIdx = origToClientIndex[origIndex];
+                const response = safeUserAnswers[clientIdx.toString()] !== undefined ? safeUserAnswers[clientIdx.toString()] : safeUserAnswers[clientIdx];
+                const attempted = response !== undefined && response !== null && response !== "";
+                if (attempted) aCount++;
 
-            if (q.type === 'descriptive' || q.type === 'diagram') {
-                if (attempted && isSafeBase64Image(response)) selText = `<img src="${response.trim()}" style="max-width:200px;border-radius:4px;" />`;
-                else selText = attempted ? escapeHtml(String(response).slice(0, 2000)) : "Skipped";
-                corrText = escapeHtml(q.model_answer || "Refer to marking scheme");
-                if (attempted) { rawStatus = "Needs Review"; statusColor = "orange"; }
-            } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
-                selText = attempted ? escapeHtml(String(response).slice(0, 500)) : "Skipped";
-                corrText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
-                isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
-                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
-                rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
-                statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
-            } else {
-                const clientOptIdx = parseInt(response, 10);
-                const optOrder = getSafeOptionPermutation(q.options || [], `${authCheck.signature}:${cleanQuizId}:opt:${origIndex}`);
-                const actualOptIdx = (attempted && !isNaN(clientOptIdx) && optOrder[clientOptIdx] !== undefined) ? optOrder[clientOptIdx] : clientOptIdx;
+                let isCorrect = false, selText = "Skipped", corrText = "N/A", rawStatus = "Skipped", statusColor = "yellow";
 
-                isCorrect = attempted && actualOptIdx === q.answer;
-                if (isCorrect) correctCount++; else if (attempted) incorrectCount++;
-                selText = attempted ? escapeHtml(q.options?.[actualOptIdx] || "Unknown") : "Skipped";
-                corrText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
-                rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
-                statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
+                if (q.type === 'descriptive' || q.type === 'diagram') {
+                    if (attempted && isSafeBase64Image(response)) selText = `<img src="${response.trim()}" style="max-width:200px;border-radius:4px;" />`;
+                    else selText = attempted ? escapeHtml(String(response).slice(0, 2000)) : "Skipped";
+                    corrText = escapeHtml(q.model_answer || "Refer to marking scheme");
+                    if (attempted) { rawStatus = "Needs Review"; statusColor = "orange"; }
+                } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+                    selText = attempted ? escapeHtml(String(response).slice(0, 500)) : "Skipped";
+                    corrText = escapeHtml(q.answer_text || q.model_answer || "Refer to marking scheme");
+                    isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
+                    if (isCorrect) cCount++; else if (attempted) iCount++;
+                    rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+                    statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
+                } else {
+                    const clientOptIdx = parseInt(response, 10);
+                    const optOrder = getSafeOptionPermutation(q.options || [], `${seedKey}:${cleanQuizId}:opt:${origIndex}`);
+                    const actualOptIdx = (attempted && !isNaN(clientOptIdx) && optOrder[clientOptIdx] !== undefined) ? optOrder[clientOptIdx] : clientOptIdx;
+
+                    isCorrect = attempted && actualOptIdx === q.answer;
+                    if (isCorrect) cCount++; else if (attempted) iCount++;
+                    selText = attempted ? escapeHtml(q.options?.[actualOptIdx] || "Unknown") : "Skipped";
+                    corrText = q.options?.[q.answer] !== undefined ? escapeHtml(q.options[q.answer]) : "N/A";
+                    rawStatus = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+                    statusColor = isCorrect ? "lightgreen" : (attempted ? "lightcoral" : "yellow");
+                }
+
+                let questionText = escapeHtml(q.question || "N/A");
+                if (q.explanation) {
+                    questionText += `<br><br><span style="color: green;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>`;
+                }
+
+                html += `<tr><td>${origIndex + 1}</td><td>${questionText}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
+            });
+            html += `</table>`;
+
+            if (!bestEval || cCount > bestEval.cCount) {
+                bestEval = { cCount, iCount, aCount, html };
             }
+            if (lockedSession && lockedSession.signature === expectedTimerSig) break;
+        }
 
-            let questionText = escapeHtml(q.question || "N/A");
-            if (q.explanation) {
-                questionText += `<br><br><span style="color: green;"><b>Explanation:</b> ${escapeHtml(q.explanation)}</span>`;
-            }
-
-            breakdownHtml += `<tr><td>${origIndex + 1}</td><td>${questionText}</td><td>${selText}</td><td>${corrText}</td><td style="text-align:center;"><span style="background-color:${statusColor};color:black;font-weight:bold;padding:4px 8px;border-radius:4px;">${rawStatus}</span></td></tr>`;
-        });
-        breakdownHtml += `</table>`;
+        correctCount = bestEval.cCount;
+        incorrectCount = bestEval.iCount;
+        attemptedCount = bestEval.aCount;
+        const breakdownHtml = bestEval.html;
 
         const cleanClassName = String(className || '').trim().slice(0, 40);
         const cleanChapterTitle = String(chapterTitle || content.title || 'Quiz').trim().slice(0, 120);
         const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName)) ? `${cleanClassName} - ${cleanChapterTitle}` : cleanChapterTitle;
         const payload = {
-            quizId: cleanQuizId, // Added for precise leaderboard tracking
+            quizId: cleanQuizId,
             firstName: escapeHtml(firstName), lastName: escapeHtml(lastName), email: escapeHtml(email),
             className: escapeHtml(cleanClassName), chapterTitle: escapeHtml(fullTitle),
             subject: `New Quiz Submission - ${fullTitle} - ${firstName} ${lastName}`.trim(),
@@ -2052,29 +2133,30 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             correct: correctCount, incorrect: incorrectCount, breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
         };
 
-        await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
+        const historical = await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
 
-        // --- NEW LEADERBOARD & STATS ENGINE ---
-        let historical = [];
-        try {
-            const subPath = path.join(__dirname, 'submissions.json');
-            if (fs.existsSync(subPath)) {
-                historical = JSON.parse(await fs.promises.readFile(subPath, 'utf8'));
+        // --- PERSISTENT LEADERBOARD & STATS ENGINE (WITH LEGACY RECORD MATCHING) ---
+        const norm = str => String(str || '').trim().toLowerCase();
+        let quizSubmissions = historical.filter(s => {
+            if (s.quizId && norm(s.quizId) === norm(cleanQuizId)) return true;
+            if (!s.quizId && s.chapterTitle) {
+                const sTitle = norm(s.chapterTitle);
+                return sTitle === norm(fullTitle) || sTitle === norm(cleanChapterTitle) || sTitle.endsWith(norm(cleanChapterTitle));
             }
-        } catch (e) { console.error('Leaderboard read error:', e); }
+            return false;
+        });
 
-        // Filter historical attempts for this specific test (current submission is already included here)
-        let quizSubmissions = historical.filter(s => s.quizId === cleanQuizId);
-        
+        if (quizSubmissions.length === 0) {
+            quizSubmissions.push({ firstName: payload.firstName, lastName: payload.lastName, score: correctCount, total: totalCount });
+        }
+
         // Sort descending by score
         quizSubmissions.sort((a, b) => b.score - a.score);
 
         const totalAttempts = quizSubmissions.length;
         const belowCount = quizSubmissions.filter(s => s.score < correctCount).length;
-        // Calculate Percentile (How many people they beat)
         const percentile = totalAttempts > 1 ? Math.round((belowCount / (totalAttempts - 1)) * 100) : 100;
-        // Calculate Class Average
-        const avgScore = totalAttempts > 0 ? (quizSubmissions.reduce((acc, s) => acc + s.score, 0) / totalAttempts).toFixed(1) : correctCount.toFixed(1);
+        const avgScore = totalAttempts > 0 ? (quizSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1) : correctCount.toFixed(1);
         
         // Extract Top 5 Scorers (Displaying the full last name)
         const leaderboard = quizSubmissions.slice(0, 5).map(s => ({
@@ -2082,14 +2164,7 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             score: s.score
         }));
 
-        res.clearCookie(AUTH_COOKIE_NAME, {
-            httpOnly: true,
-            secure: isSecureConnection(req),
-            sameSite: 'strict',
-            path: '/'
-        });
-
-        // Send all competitive data to the frontend
+        // Send all competitive data to the frontend (Note: Auth cookie is intentionally kept alive!)
         res.json({ 
             success: true, 
             score: correctCount, 
@@ -2245,12 +2320,13 @@ async function updateBoardSecurely(cleanId, updateFn) {
     }
 }
 
-// Student: Verify Admin OTP & Join Live Mock
+// Implementation 8: Student Verify Admin OTP & Join Live Mock (Preserves answers on refresh & supports unlimited live mocks)
 app.post('/api/live/student/verify', async (req, res) => {
     try {
-        // Extract identity strictly from the global token
-        const authCheck = await verifyAuthToken(extractAuthToken(req));
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token, null, false);
         if (!authCheck.valid) return res.status(401).json({ error: 'Unauthorized. Please sign in globally first.' });
+        syncAuthCookieIfNeeded(req, res, token);
 
         const { quizId, otp } = req.body;
         const cleanId = path.basename(String(quizId)).trim();
@@ -2268,11 +2344,14 @@ app.post('/api/live/student/verify', async (req, res) => {
 
         const fName = String(authCheck.firstName).trim().toUpperCase();
         const lName = String(authCheck.lastName).trim().toUpperCase();
+        const fullName = `${fName} ${lName}`;
         const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         
         await updateBoardSecurely(cleanId, (board) => {
-            board[`${fName} ${lName}`] = { joinedAt: Date.now(), answers: {} };
+            if (!board[fullName]) {
+                board[fullName] = { joinedAt: Date.now(), answers: {} };
+            }
             return board;
         });
 

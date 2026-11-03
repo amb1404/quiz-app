@@ -4,9 +4,18 @@ let localIndex = -1;
 let syncInterval;
 let testActive = true;
 
+function handleExpiredSession() {
+    localStorage.clear();
+    sessionStorage.removeItem('pioneers_prep_state');
+    sessionStorage.setItem('force_login_open', 'true');
+    alert('Session expired. Please sign in again.');
+    window.location.replace('/');
+}
+
 document.getElementById('join-btn').addEventListener('click', async () => {
     const token = localStorage.getItem('pp_id_token');
     if (!token) {
+        sessionStorage.setItem('force_login_open', 'true');
         alert('Please sign in on the homepage first.');
         window.location.replace('/');
         return;
@@ -27,15 +36,29 @@ document.getElementById('join-btn').addEventListener('click', async () => {
             },
             body: JSON.stringify({ quizId: currentQuizId, otp })
         });
+
+        if (res.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+
         const data = await res.json();
         if (data.success) {
             liveToken = data.token;
+            testActive = true;     // Reset for multiple live tests
+            localIndex = -1;       // Reset question index tracker
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
             startSync();
             startHeartbeat(); 
-        } else { alert(data.error); document.getElementById('join-btn').innerText = "Join Test"; }
-    } catch (e) { alert("Network Error"); document.getElementById('join-btn').innerText = "Join Test"; }
+        } else { 
+            alert(data.error); 
+            document.getElementById('join-btn').innerText = "Join Test"; 
+        }
+    } catch (e) { 
+        alert("Network Error"); 
+        document.getElementById('join-btn').innerText = "Join Test"; 
+    }
 });
 
 function startHeartbeat() {
@@ -76,13 +99,20 @@ function startSync() {
             const res = await fetch(`/api/live/student/sync/${currentQuizId}`, {
                 headers: { 'Authorization': `Bearer ${liveToken}` }
             });
+
+            if (res.status === 401) {
+                testActive = false;
+                clearInterval(syncInterval);
+                handleExpiredSession();
+                return;
+            }
+
             const data = await res.json();
             
             if (data.status === 'ended' && data.scorecard) {
                 testActive = false;
                 clearInterval(syncInterval);
                 
-                // Requirement 3 & 4: Explicit Popup followed by Scorecard
                 alert("Test was ended by admin.");
                 
                 document.getElementById('quiz-screen').innerHTML = `
@@ -109,7 +139,7 @@ function startSync() {
                         <a href="/" style="display: inline-block; margin-top: 25px; background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Return to Homepage</a>
                     </div>
                 `;
-                triggerCelebration(); // Add this line here
+                triggerCelebration();
                 return;
             }
 
@@ -151,4 +181,18 @@ function renderQuestion(data) {
         optsBox.appendChild(btn);
     });
 }
-triggerCelebration()
+
+function triggerCelebration() {
+    if (typeof confetti !== 'function') return;
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+    const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
+    }, 250);
+}

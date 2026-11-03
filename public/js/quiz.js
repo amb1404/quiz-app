@@ -34,6 +34,14 @@ function escapeClientHtml(str) {
     return div.innerHTML;
 }
 
+function handleExpiredSession() {
+    localStorage.clear();
+    sessionStorage.removeItem('pioneers_prep_state');
+    sessionStorage.setItem('force_login_open', 'true');
+    alert('Session expired. Please sign in again.');
+    window.location.replace('/');
+}
+
 // ANTI-SCRAPING: Client-Side XOR Decipher
 function xorDecipher(b64Str, key) {
     const raw = atob(b64Str);
@@ -425,6 +433,7 @@ function loadNeetTopics(cName, uName, chap) {
 function prepareQuiz(quiz) {
     const token = localStorage.getItem('pp_id_token');
     if (!token) {
+        sessionStorage.setItem('force_login_open', 'true');
         alert('Please sign in on the homepage first.');
         window.location.replace('/');
         return;
@@ -444,6 +453,7 @@ function prepareQuiz(quiz) {
 function preparePremiumPdf(item, type) {
     const token = localStorage.getItem('pp_id_token');
     if (!token) {
+        sessionStorage.setItem('force_login_open', 'true');
         alert('Please sign in on the homepage first.');
         window.location.replace('/');
         return;
@@ -472,6 +482,10 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
             },
             body: JSON.stringify({ itemId })
         });
+        if (orderRes.status === 401) {
+            handleExpiredSession();
+            return;
+        }
         const orderData = await orderRes.json();
 
         if (!orderRes.ok) {
@@ -531,60 +545,79 @@ async function attemptQuizStart() {
     const last = localStorage.getItem('pp_lname');
     const email = localStorage.getItem('pp_email');
 
-    showScreen('quiz-screen');
-    document.getElementById('quiz-screen-heading').innerText = "Loading...";
+    try {
+        const startRes = await fetch('/api/start-quiz', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+        });
+        const startData = await startRes.json();
 
-    const startRes = await fetch('/api/start-quiz', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
-    });
-    const startData = await startRes.json();
-
-    if (startRes.status === 402) {
-        goBack(); // Payment required, kick them back to selection
-        const qz = dynamicQuizzes.find(q => q.id === currentQuizId);
-        const price = qz ? qz.price : 49;
-        initiateRazorpayPayment(currentQuizId, price, email, first, last, () => attemptQuizStart());
-        return;
-    }
-    
-    if (startRes.status === 403) {
-        alert(startData.error || 'Access denied. Your email is not whitelisted for this premium content.');
-        goBack();
-        return;
-    }
-
-    if (!startRes.ok) {
-        alert(startData.error || 'Verification Error.');
-        goBack();
-        return;
-    }
-
-    serverStartTime = startData.startTime;
-    timerSignature = startData.signature;
-    quizDuration = startData.duration || timeRemaining;
-    timeRemaining = quizDuration;
-
-    // JIT: Fetch total question count
-    const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
-        credentials: 'same-origin',
-        headers: { 
-            'X-Requested-With': 'PioneersPrepApp',
-            'Authorization': `Bearer ${token}` 
+        // Implementation 1: Smart 401 Auto-Logout
+        if (startRes.status === 401) {
+            handleExpiredSession();
+            return;
         }
-    });
-    const metaData = await qRes.json();
-    currentQuestionsCount = metaData.totalQuestions || 0;
 
-    currentQuestionIndex = 0; userAnswers = {}; skippedQuestions = new Set(); screenHistory = []; questionCache = {};
+        if (startRes.status === 402) {
+            const qz = dynamicQuizzes.find(q => q.id === currentQuizId);
+            const price = qz ? qz.price : 49;
+            initiateRazorpayPayment(currentQuizId, price, email, first, last, () => attemptQuizStart());
+            return;
+        }
+        
+        if (startRes.status === 403) {
+            alert(startData.error || 'Access denied. Your email is not whitelisted for this premium content.');
+            return;
+        }
 
-    await renderQuestion();
-    startTimer();
+        if (!startRes.ok) {
+            alert(startData.error || 'Verification Error.');
+            return;
+        }
+
+        serverStartTime = startData.startTime;
+        timerSignature = startData.signature;
+        quizDuration = startData.duration || timeRemaining;
+        timeRemaining = quizDuration;
+
+        // JIT: Fetch total question count
+        const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+            credentials: 'same-origin',
+            headers: { 
+                'X-Requested-With': 'PioneersPrepApp',
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        if (qRes.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+        const metaData = await qRes.json();
+        currentQuestionsCount = metaData.totalQuestions || 0;
+
+        // Reset previous quiz state and clean DOM before switching to quiz-screen
+        currentQuestionIndex = 0;
+        userAnswers = {};
+        skippedQuestions = new Set();
+        screenHistory = [];
+        questionCache = {};
+
+        const qBox = document.getElementById('question-box');
+        const oBox = document.getElementById('options-container');
+        if (qBox) qBox.innerText = 'Loading Question 1...';
+        if (oBox) oBox.innerHTML = '';
+
+        showScreen('quiz-screen');
+        await renderQuestion();
+        startTimer();
+    } catch (err) {
+        alert('Network error while starting quiz. Please try again.');
+    }
 }
 
 async function attemptPdfDownload() {
@@ -602,6 +635,12 @@ async function attemptPdfDownload() {
             'Authorization': `Bearer ${token}`
         }
     });
+
+    // Implementation 2: Smart 401 Auto-Logout on PDF Downloads
+    if (res.status === 401) {
+        handleExpiredSession();
+        return;
+    }
 
     if (res.status === 402) {
         initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
@@ -656,6 +695,10 @@ async function renderQuestion() {
                     'Authorization': `Bearer ${token}` 
                 }
             });
+            if (res.status === 401) {
+                handleExpiredSession();
+                return;
+            }
             const data = await res.json();
             if (data.payload && data.key) {
                 questionCache[currentQuestionIndex] = JSON.parse(xorDecipher(data.payload, data.key));
@@ -812,6 +855,10 @@ async function submitQuiz(isAuto = false) {
                 userAnswers, serverStartTime, timerSignature, quizDuration, isAutoSubmit: isAuto
             })
         });
+        if (res.status === 401) {
+            handleExpiredSession();
+            return;
+        }
         const data = await res.json();
         if (res.ok && data.success) {
             sessionStorage.removeItem('pioneers_prep_state');
@@ -989,6 +1036,7 @@ async function submitQuiz(isAuto = false) {
         });
     });
 })();
+
 function triggerCelebration() {
     if (typeof confetti !== 'function') return;
     const duration = 3000;
