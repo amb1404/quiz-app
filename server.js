@@ -2179,9 +2179,21 @@ async function updateBoardSecurely(cleanId, updateFn) {
 }
 
 // Student: Verify OTP & Join
+// Student: Verify OTP & Join
 app.post('/api/live/student/verify', async (req, res) => {
     try {
-        const { firstName, lastName, quizId, otp } = req.body;
+        const { identityToken, quizId, otp } = req.body;
+        if (!identityToken) return res.status(401).json({ error: 'Unauthorized.' });
+
+        const [payload, idSignature] = identityToken.split('|||');
+        const expectedSignature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+        
+        // Strict tamper check
+        if (!safeCompareHex(idSignature, expectedSignature)) {
+            return res.status(403).json({ error: 'Security breach: Tampered identity token detected.' });
+        }
+
+        const [fName, lName, email] = payload.split('|');
         const cleanId = path.basename(String(quizId)).trim();
         
         const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
