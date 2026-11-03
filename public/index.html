@@ -143,5 +143,154 @@
 
     <footer id="site-footer" class="site-footer"></footer>
     <script src="/js/main.js"></script>
+    <!-- Global Sign-In 2-Step Modal -->
+    <div id="global-login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: white; padding: 40px 30px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); position: relative;">
+            <button id="close-login-btn" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1;">&times;</button>
+            <h2 style="margin-top: 0; color: #1e3a8a; text-align: center;">Student Sign In</h2>
+            
+            <!-- STEP 1: Name and Email -->
+            <div id="login-step-1">
+                <p style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px;">Sign in securely to access mock tests, descriptive papers, and study materials.</p>
+                <input type="text" id="global-fname" placeholder="First Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                <input type="text" id="global-lname" placeholder="Last Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                <input type="email" id="global-email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 25px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: lowercase; font-weight: normal; outline: none;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'">
+                
+                <button id="btn-send-otp" style="width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Send OTP</button>
+            </div>
+
+            <!-- STEP 2: OTP Verification -->
+            <div id="login-step-2" style="display: none;">
+                <p style="text-align: center; color: #10b981; font-weight: bold; margin-bottom: 15px;">OTP sent to your email!</p>
+                <input type="number" id="global-otp" placeholder="Enter 6-digit OTP" style="width: 100%; padding: 12px; margin-bottom: 25px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-weight: bold; outline: none; text-align: center; letter-spacing: 2px;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'">
+                
+                <button id="btn-verify-otp" style="width: 100%; padding: 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Verify & Sign In</button>
+                <button id="btn-change-email" style="width: 100%; padding: 10px; background: none; color: #64748b; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline;">Change Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('pp_id_token');
+            const fName = localStorage.getItem('pp_fname');
+            const lName = localStorage.getItem('pp_lname');
+
+            const signinBtn = document.getElementById('nav-signin-btn');
+            const logoutBtn = document.getElementById('nav-logout-btn');
+            const closeBtn = document.getElementById('close-login-btn');
+            const sendOtpBtn = document.getElementById('btn-send-otp');
+            const verifyOtpBtn = document.getElementById('btn-verify-otp');
+            const changeEmailBtn = document.getElementById('btn-change-email');
+
+            // Render UI State
+            if (token && fName && lName) {
+                showProfileBadge(fName, lName);
+            } else {
+                if (signinBtn) signinBtn.style.display = 'block';
+            }
+
+            // Event Listeners for Navbar & Modal Controls
+            if (signinBtn) signinBtn.addEventListener('click', () => document.getElementById('global-login-modal').style.display = 'flex');
+            if (closeBtn) closeBtn.addEventListener('click', () => document.getElementById('global-login-modal').style.display = 'none');
+            if (changeEmailBtn) changeEmailBtn.addEventListener('click', resetLoginStep);
+            if (logoutBtn) logoutBtn.addEventListener('click', () => {
+                localStorage.clear();
+                window.location.reload();
+            });
+
+            // Step 1: Request OTP
+            if (sendOtpBtn) {
+                sendOtpBtn.addEventListener('click', async () => {
+                    const fname = document.getElementById('global-fname').value.trim();
+                    const lname = document.getElementById('global-lname').value.trim();
+                    const email = document.getElementById('global-email').value.trim();
+
+                    if (!fname || !lname || !email) return alert('All fields are required.');
+                    
+                    sendOtpBtn.innerText = 'Sending...'; 
+                    sendOtpBtn.disabled = true;
+
+                    try {
+                        const res = await fetch('/api/send-otp', {
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ firstName: fname, lastName: lname, email: email })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('login-step-1').style.display = 'none';
+                            document.getElementById('login-step-2').style.display = 'block';
+                        } else { 
+                            alert(data.error || 'Failed to send OTP.'); 
+                        }
+                    } catch (err) { 
+                        alert('Network error. Please try again.'); 
+                    } finally { 
+                        sendOtpBtn.innerText = 'Send OTP'; 
+                        sendOtpBtn.disabled = false; 
+                    }
+                });
+            }
+
+            // Step 2: Verify OTP & Establish SSO Token
+            if (verifyOtpBtn) {
+                verifyOtpBtn.addEventListener('click', async () => {
+                    const email = document.getElementById('global-email').value.trim();
+                    const otp = document.getElementById('global-otp').value.trim();
+
+                    if (!otp) return alert('Enter the OTP sent to your email.');
+                    
+                    verifyOtpBtn.innerText = 'Verifying...'; 
+                    verifyOtpBtn.disabled = true;
+
+                    try {
+                        const res = await fetch('/api/verify-otp', {
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, otp })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            // Store the cryptographic token permanently in browser storage
+                            localStorage.setItem('pp_id_token', data.token);
+                            localStorage.setItem('pp_fname', data.firstName);
+                            localStorage.setItem('pp_lname', data.lastName);
+                            localStorage.setItem('pp_email', data.email);
+                            
+                            document.getElementById('global-login-modal').style.display = 'none';
+                            showProfileBadge(data.firstName, data.lastName);
+                        } else { 
+                            alert(data.error || 'Invalid OTP.'); 
+                        }
+                    } catch (err) { 
+                        alert('Network error. Please try again.'); 
+                    } finally { 
+                        verifyOtpBtn.innerText = 'Verify & Sign In'; 
+                        verifyOtpBtn.disabled = false; 
+                    }
+                });
+            }
+        });
+
+        function resetLoginStep() {
+            document.getElementById('login-step-2').style.display = 'none';
+            document.getElementById('login-step-1').style.display = 'block';
+            document.getElementById('global-otp').value = '';
+        }
+
+        function showProfileBadge(fName, lName) {
+            const signinBtn = document.getElementById('nav-signin-btn');
+            const profileBadge = document.getElementById('nav-profile-badge');
+            const avatar = document.getElementById('nav-avatar');
+            const nameDisplay = document.getElementById('nav-name');
+
+            if (signinBtn) signinBtn.style.display = 'none';
+            if (profileBadge) profileBadge.style.display = 'flex';
+            if (avatar) avatar.innerText = (fName.charAt(0) + lName.charAt(0)).toUpperCase();
+            if (nameDisplay) nameDisplay.innerText = `${fName.toUpperCase()} ${lName.toUpperCase()}`;
+        }
+    </script>
 </body>
 </html>
