@@ -89,14 +89,6 @@ function updateState() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    const firstInput = document.getElementById('first-name');
-    const lastInput = document.getElementById('last-name');
-    const emailInput = document.getElementById('email-address');
-
-    if (firstInput) firstInput.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
-    if (lastInput) lastInput.addEventListener('input', e => e.target.value = e.target.value.toUpperCase());
-    if (emailInput) emailInput.addEventListener('input', e => e.target.value = e.target.value.toLowerCase());
-
     const normalizedRoute = MainNav.normalizeRoute(CURRENT_ROUTE);
 
     if (normalizedRoute === '/test-portal.html') {
@@ -146,13 +138,6 @@ async function restoreSessionState(state) {
         userAnswers = state.userAnswers || {};
         skippedQuestions = new Set(state.skippedQuestions || []);
 
-        const fEl = document.getElementById('first-name');
-        const lEl = document.getElementById('last-name');
-        const eEl = document.getElementById('email-address');
-        if (fEl) fEl.value = state.firstName || '';
-        if (lEl) lEl.value = state.lastName || '';
-        if (eEl) eEl.value = state.email || '';
-
         if (state.activeScreen === 'quiz-screen' && currentQuizId) {
             if (serverStartTime && quizDuration) {
                 timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
@@ -171,10 +156,7 @@ async function restoreSessionState(state) {
         else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) await selectNotesSubject(selectedNotesSubject);
         else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) selectDescriptiveClass(selectedDescriptiveClass);
         else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) await selectDescriptiveSubject(selectedDescriptiveSubject);
-        else if (state.activeScreen === 'name-screen') {
-            showScreen('name-screen');
-            if (state.otpSent) showOtpWrapper();
-        } else {
+        else {
             showScreen(state.activeScreen);
         }
 
@@ -227,10 +209,6 @@ function goHome() {
     activePremiumType = null;
     MainNav.clearExamMode();
     sessionStorage.removeItem('pioneers_prep_state');
-    const optW = document.getElementById('otp-wrapper');
-    if (optW) optW.remove();
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) { vBtn.innerText = 'Verify & Start'; vBtn.disabled = false; }
     document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('home-dashboard')?.classList.remove('hidden');
 }
@@ -441,6 +419,9 @@ function loadNeetTopics(cName, uName, chap) {
     showScreen('neet-topic-screen');
 }
 
+// ----------------------------------------------------------------------------
+// NATIVE AUTHENTICATION BYPASS & QUIZ INITIALIZATION
+// ----------------------------------------------------------------------------
 function prepareQuiz(quiz) {
     activePremiumPdf = null;
     activePremiumType = null;
@@ -449,14 +430,18 @@ function prepareQuiz(quiz) {
     timeRemaining = quiz.duration || 900;
     quizDuration = timeRemaining;
 
-    const h2 = document.getElementById('name-screen')?.querySelector('h2');
-    if (h2) h2.innerText = "Candidate Verification";
+    const token = localStorage.getItem('pp_id_token');
+    const fName = localStorage.getItem('pp_fname');
+    const lName = localStorage.getItem('pp_lname');
 
-    const optW = document.getElementById('otp-wrapper');
-    if (optW) optW.remove();
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) { vBtn.innerText = 'Verify & Start'; vBtn.disabled = false; }
-    showScreen('name-screen');
+    if (!token || !fName || !lName) {
+        alert('Security Violation: You must sign in from the homepage first.');
+        window.location.replace('/');
+        return;
+    }
+
+    // Bypass verification screen entirely and start quiz immediately
+    startQuiz();
 }
 
 function preparePremiumPdf(item, type) {
@@ -464,36 +449,25 @@ function preparePremiumPdf(item, type) {
     activePremiumPdf = item;
     activePremiumType = type;
 
-    const h2 = document.getElementById('name-screen')?.querySelector('h2');
-    if (h2) h2.innerText = "Premium Access Verification";
+    const token = localStorage.getItem('pp_id_token');
+    const fName = localStorage.getItem('pp_fname');
+    const lName = localStorage.getItem('pp_lname');
+    const email = localStorage.getItem('pp_email') || '';
 
-    const optW = document.getElementById('otp-wrapper');
-    if (optW) optW.remove();
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) { vBtn.innerText = 'Verify Email'; vBtn.disabled = false; }
-    showScreen('name-screen');
-}
-
-function showOtpWrapper() {
-    const vBtn = document.getElementById('verify-start-btn');
-    const existing = document.getElementById('otp-wrapper');
-    if (!existing && vBtn) {
-        const wrapper = document.createElement('div');
-        wrapper.id = 'otp-wrapper';
-        wrapper.innerHTML = '<input type="number" id="otp-input" placeholder="Enter 6-digit OTP" style="text-align:center;letter-spacing:4px;margin-top:5px;margin-bottom:20px;">';
-        document.getElementById('name-screen').insertBefore(wrapper, vBtn);
-        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz';
-        vBtn.disabled = false;
+    if (!token || !fName || !lName) {
+        alert('Security Violation: You must sign in from the homepage first.');
+        window.location.replace('/');
+        return;
     }
+
+    // Bypass verification screen and attempt download/payment directly
+    attemptPdfDownload(fName, lName, email);
 }
 
 // ----------------------------------------------------------------------------
 // RAZORPAY CHECKOUT ENGINE
 // ----------------------------------------------------------------------------
 async function initiateRazorpayPayment(itemId, amount, email, firstName, lastName, onSuccessCallback) {
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) { vBtn.innerText = 'Initializing Payment...'; vBtn.disabled = true; }
-
     try {
         const orderRes = await fetch('/api/create-order', {
             method: 'POST',
@@ -505,7 +479,6 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
 
         if (!orderRes.ok) {
             alert(orderData.error || 'Failed to create payment order.');
-            if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
             return;
         }
 
@@ -517,7 +490,6 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
             description: "Premium Content Access",
             order_id: orderData.orderId,
             handler: async function (response) {
-                if (vBtn) { vBtn.innerText = 'Verifying Payment...'; }
                 const verifyRes = await fetch('/api/verify-payment', {
                     method: 'POST',
                     credentials: 'same-origin',
@@ -535,7 +507,6 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
                     onSuccessCallback();
                 } else {
                     alert('Payment verification failed. Please contact support.');
-                    if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
                 }
             },
             prefill: { name: firstName + ' ' + lastName, email: email },
@@ -544,76 +515,32 @@ async function initiateRazorpayPayment(itemId, amount, email, firstName, lastNam
         const rzp = new Razorpay(options);
         rzp.on('payment.failed', function (response) {
             alert('Payment failed: ' + response.error.description);
-            if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
         });
         rzp.open();
     } catch (err) {
         alert('Network error during payment initialization.');
-        if (vBtn) { vBtn.innerText = 'Retry'; vBtn.disabled = false; }
     }
 }
 
 // ----------------------------------------------------------------------------
-// PRIMARY ACCESS FLOW (OTP -> PAYWALL -> CONTENT)
+// PRIMARY ACCESS FLOW (BYPASSES OTP USING GLOBAL STORAGE TOKEN)
 // ----------------------------------------------------------------------------
 async function startQuiz() {
-    const fEl = document.getElementById('first-name'), lEl = document.getElementById('last-name'), eEl = document.getElementById('email-address'), vBtn = document.getElementById('verify-start-btn');
-    const first = fEl.value.trim().toUpperCase(), last = lEl.value.trim().toUpperCase(), email = eEl.value.trim().toLowerCase();
-
-    fEl.value = first; lEl.value = last; eEl.value = email;
-    if (!first || !last || !email) { alert('Please fill all fields.'); return; }
-
-    const otpInput = document.getElementById('otp-input');
-    if (!otpInput) {
-        vBtn.innerText = 'Sending OTP...'; vBtn.disabled = true;
-        const res = await fetch('/api/send-otp', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName: first, lastName: last, email })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'Failed to send verification.');
-            vBtn.innerText = activePremiumPdf ? 'Verify Email' : 'Verify & Start';
-            vBtn.disabled = false;
-            return;
-        }
-        showOtpWrapper();
-        updateState();
-        return;
-    }
-
-    const otp = otpInput.value.trim();
-    if (otp.length !== 6) { alert('Enter the 6-digit OTP.'); return; }
-
-    vBtn.innerText = 'Verifying...'; vBtn.disabled = true;
-    const vRes = await fetch('/api/verify-otp', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp })
-    });
-    const vData = await vRes.json();
-    if (!vRes.ok) {
-        alert(vData.error || 'Invalid OTP');
-        vBtn.innerText = activePremiumPdf ? 'Proceed' : 'Start Quiz';
-        vBtn.disabled = false;
-        return;
-    }
-
     if (activePremiumPdf) {
-        await attemptPdfDownload(first, last, email);
+        const fName = localStorage.getItem('pp_fname') || '';
+        const lName = localStorage.getItem('pp_lname') || '';
+        const email = localStorage.getItem('pp_email') || '';
+        await attemptPdfDownload(fName, lName, email);
     } else if (currentQuizId) {
-        await attemptQuizStart(first, last, email);
+        const fName = localStorage.getItem('pp_fname') || '';
+        const lName = localStorage.getItem('pp_lname') || '';
+        const email = localStorage.getItem('pp_email') || '';
+        await attemptQuizStart(fName, lName, email);
     }
 }
 
 async function attemptQuizStart(first, last, email) {
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) vBtn.innerText = 'Starting...';
-
-    const token = localStorage.getItem('pp_id_token'); // Fetch the global token
+    const token = localStorage.getItem('pp_id_token');
     const currentQuizDuration = timeRemaining;
 
     const startRes = await fetch('/api/start-quiz', {
@@ -621,7 +548,7 @@ async function attemptQuizStart(first, last, email) {
         credentials: 'same-origin',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Inject secure token
+            'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ 
             quizId: currentQuizId, 
@@ -639,7 +566,7 @@ async function attemptQuizStart(first, last, email) {
 
     if (!startRes.ok) {
         alert(startData.error || 'Verification Error.');
-        if (vBtn) { vBtn.innerText = 'Start Quiz'; vBtn.disabled = false; }
+        goHome();
         return;
     }
 
@@ -651,7 +578,10 @@ async function attemptQuizStart(first, last, email) {
     // JIT: Fetch total question count
     const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'PioneersPrepApp' }
+        headers: { 
+            'X-Requested-With': 'PioneersPrepApp',
+            'Authorization': `Bearer ${token}`
+        }
     });
     const metaData = await qRes.json();
     currentQuestionsCount = metaData.totalQuestions || 0;
@@ -664,13 +594,14 @@ async function attemptQuizStart(first, last, email) {
 }
 
 async function attemptPdfDownload(first, last, email) {
-    const vBtn = document.getElementById('verify-start-btn');
-    if (vBtn) vBtn.innerText = 'Accessing...';
-
     const endpoint = activePremiumType === 'notes' ? '/api/download-note/' : '/api/download-descriptive/';
     const url = endpoint + encodeURIComponent(activePremiumPdf.fileName);
+    const token = localStorage.getItem('pp_id_token');
 
-    const res = await fetch(url, { credentials: 'same-origin' });
+    const res = await fetch(url, { 
+        credentials: 'same-origin',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
 
     if (res.status === 402) {
         initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
@@ -682,7 +613,7 @@ async function attemptPdfDownload(first, last, email) {
 
     if (!res.ok) {
         alert('Failed to access file. Error ' + res.status);
-        if (vBtn) { vBtn.innerText = 'Proceed'; vBtn.disabled = false; }
+        goHome();
         return;
     }
 
@@ -707,6 +638,7 @@ async function renderQuestion() {
     document.getElementById('quiz-screen-heading').innerText = activeQuizTitle;
     const container = document.getElementById('options-container');
     const questionBox = document.getElementById('question-box');
+    const token = localStorage.getItem('pp_id_token');
 
     // JIT Fetching & Caching single question
     if (!questionCache[currentQuestionIndex]) {
@@ -715,7 +647,10 @@ async function renderQuestion() {
         try {
             const res = await fetch(`/api/quiz/${encodeURIComponent(currentQuizId)}/question/${currentQuestionIndex}`, {
                 credentials: 'same-origin',
-                headers: { 'X-Requested-With': 'PioneersPrepApp' }
+                headers: { 
+                    'X-Requested-With': 'PioneersPrepApp',
+                    'Authorization': `Bearer ${token}`
+                }
             });
             const data = await res.json();
             if (data.payload && data.key) {
@@ -854,12 +789,12 @@ async function submitQuiz(isAuto = false) {
     const submitBtn = document.getElementById('submit-btn');
     if (submitBtn) { submitBtn.innerText = 'Submitting...'; submitBtn.disabled = true; }
 
-    const first = document.getElementById('first-name').value.trim().toUpperCase();
-    const last = document.getElementById('last-name').value.trim().toUpperCase();
-    const email = document.getElementById('email-address').value.trim().toLowerCase();
+    const first = localStorage.getItem('pp_fname') || '';
+    const last = localStorage.getItem('pp_lname') || '';
+    const email = localStorage.getItem('pp_email') || '';
 
     try {
-        const token = localStorage.getItem('pp_id_token'); // Fetch the global token
+        const token = localStorage.getItem('pp_id_token');
         const payload = {
             firstName: first, lastName: last, email,
             className: selectedClassName, chapterTitle: activeQuizTitle, quizId: currentQuizId,
@@ -871,7 +806,7 @@ async function submitQuiz(isAuto = false) {
             credentials: 'same-origin',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // Inject secure token
+                'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify(payload)
         });
