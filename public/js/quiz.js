@@ -887,7 +887,7 @@ async function submitQuiz(isAuto = false) {
             `;
             screenHistory = [];
             showScreen('result-screen');
-            if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+            triggerCelebration();
         } else {
             alert(data.error || 'Submission failed.');
             goHome();
@@ -989,3 +989,17 @@ async function submitQuiz(isAuto = false) {
         });
     });
 })();
+function triggerCelebration() {
+    if (typeof confetti !== 'function') return;
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+    const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
+    }, 250);
+}

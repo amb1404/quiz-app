@@ -109,6 +109,7 @@ function startSync() {
                         <a href="/" style="display: inline-block; margin-top: 25px; background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Return to Homepage</a>
                     </div>
                 `;
+                triggerCelebration(); // Add this line here
                 return;
             }
 
@@ -150,3 +151,4 @@ function renderQuestion(data) {
         optsBox.appendChild(btn);
     });
 }
+triggerCelebration()
