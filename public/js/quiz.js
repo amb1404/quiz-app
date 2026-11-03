@@ -818,14 +818,73 @@ async function submitQuiz(isAuto = false) {
             const safeCandidate = escapeClientHtml(`${first} ${last}`);
             const safeScore = escapeClientHtml(data.score);
             const safeTotal = escapeClientHtml(data.total);
-            document.getElementById('result-screen').innerHTML =
-                `<button class="back-btn" data-action="go-home">Back to Portal</button>` +
-                `<h2 style="text-align:center;color:#4285f4;margin-top:0;">Quiz Results</h2>` +
-                `<div style="text-align:center;margin-top:20px;">` +
-                `<p style="font-size:18px;color:#333;">Candidate: <strong>${safeCandidate}</strong></p>` +
-                `<h1 style="color:#4285f4;font-size:48px;margin:10px 0;">${safeScore} / ${safeTotal}</h1>` +
-                `<p style="font-size:16px;color:#64748b;">Response recorded and mailed to the administrator successfully. A copy of your response has also been mailed to your provided email id.</p>` +
-                `</div>`;
+            const percentage = ((data.score / data.total) * 100).toFixed(1);
+            
+            // Build Leaderboard Table HTML
+            let lbHtml = `<table style="width:100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
+                <tr style="background:#e2e8f0; color:#1e293b;">
+                    <th style="padding:10px; border-radius: 6px 0 0 0;">Rank</th>
+                    <th style="padding:10px;">Student</th>
+                    <th style="padding:10px; text-align:right; border-radius: 0 6px 0 0;">Score</th>
+                </tr>`;
+                
+            if (data.leaderboard && data.leaderboard.length > 0) {
+                data.leaderboard.forEach((user, idx) => {
+                    // Highlight the current user in the leaderboard
+                    const isMe = user.name === `${first} ${last.charAt(0)}.`;
+                    const rowStyle = isMe ? 'background:#dbeafe; font-weight:bold; color:#1e40af;' : 'border-bottom: 1px solid #e2e8f0;';
+                    lbHtml += `<tr style="${rowStyle}">
+                        <td style="padding:10px; font-weight:600;">#${idx + 1}</td>
+                        <td style="padding:10px;">${escapeClientHtml(user.name)}${isMe ? ' <span style="font-size:11px; color:#2563eb;">(You)</span>' : ''}</td>
+                        <td style="padding:10px; text-align:right; font-weight:600;">${escapeClientHtml(user.score)}</td>
+                    </tr>`;
+                });
+            }
+            lbHtml += `</table>`;
+
+            // Inject the new Interactive Dashboard
+            document.getElementById('result-screen').innerHTML = `
+                <button class="back-btn" data-action="go-home">Back to Portal</button>
+                <div style="max-width: 650px; margin: 0 auto; padding: 10px;">
+                    <h2 style="text-align:center; color:#4285f4; margin-top:0;">Performance Dashboard</h2>
+                    
+                    <!-- Stats Card -->
+                    <div style="text-align:center; margin-top:20px; background: #ffffff; border-radius: 12px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <p style="font-size:15px; color:#64748b; margin-bottom: 5px;">Candidate: <strong>${safeCandidate}</strong></p>
+                        
+                        <h1 style="color:#2563eb; font-size:58px; margin:10px 0; line-height: 1;">${percentage}%</h1>
+                        <p style="font-size:18px; font-weight:600; color:#0f172a; margin-top:0;">${safeScore} / ${safeTotal} Correct</p>
+                        
+                        <!-- Progress Bar -->
+                        <div style="width:100%; background:#e2e8f0; border-radius:8px; height:12px; margin:20px 0; overflow:hidden;">
+                            <div style="width:${percentage}%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:8px;"></div>
+                        </div>
+                        
+                        <!-- Comparative Metrics -->
+                        <div style="display:flex; justify-content:space-around; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
+                            <div>
+                                <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${100 - data.percentile}%</span>
+                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Your Percentile</span>
+                            </div>
+                            <div>
+                                <span style="display:block; font-size:24px; font-weight:800; color:#f59e0b;">${data.average}</span>
+                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Class Average</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard Card -->
+                    <div style="margin-top: 25px; background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="margin:0; color:#1e293b; font-size: 16px;">🏆 Top Performers</h3>
+                            <span style="font-size:12px; background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-weight:bold;">${data.totalAttempts} Total Attempts</span>
+                        </div>
+                        ${lbHtml}
+                    </div>
+
+                    <p style="font-size:13px; color:#94a3b8; text-align:center; margin-top:25px;">A detailed copy of your response has been mailed to your registered email.</p>
+                </div>
+            `;
             screenHistory = [];
             showScreen('result-screen');
             if (typeof confetti === 'function') confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });

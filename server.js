@@ -2044,6 +2044,7 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         const cleanChapterTitle = String(chapterTitle || content.title || 'Quiz').trim().slice(0, 120);
         const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName)) ? `${cleanClassName} - ${cleanChapterTitle}` : cleanChapterTitle;
         const payload = {
+            quizId: cleanQuizId, // Added for precise leaderboard tracking
             firstName: escapeHtml(firstName), lastName: escapeHtml(lastName), email: escapeHtml(email),
             className: escapeHtml(cleanClassName), chapterTitle: escapeHtml(fullTitle),
             subject: `New Quiz Submission - ${fullTitle} - ${firstName} ${lastName}`.trim(),
@@ -2053,6 +2054,37 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
 
         await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
 
+        // --- NEW LEADERBOARD & STATS ENGINE ---
+        let historical = [];
+        try {
+            const subPath = path.join(__dirname, 'submissions.json');
+            if (fs.existsSync(subPath)) {
+                historical = JSON.parse(await fs.promises.readFile(subPath, 'utf8'));
+            }
+        } catch (e) { console.error('Leaderboard read error:', e); }
+
+        // Filter historical attempts for this specific test
+        let quizSubmissions = historical.filter(s => s.quizId === cleanQuizId);
+        
+        // Add the current student's attempt into memory for accurate ranking
+        quizSubmissions.push({ firstName: payload.firstName, lastName: payload.lastName, score: correctCount, total: totalCount });
+        
+        // Sort descending by score
+        quizSubmissions.sort((a, b) => b.score - a.score);
+
+        const totalAttempts = quizSubmissions.length;
+        const belowCount = quizSubmissions.filter(s => s.score < correctCount).length;
+        // Calculate Percentile (How many people they beat)
+        const percentile = totalAttempts > 1 ? Math.round((belowCount / (totalAttempts - 1)) * 100) : 100;
+        // Calculate Class Average
+        const avgScore = (quizSubmissions.reduce((acc, s) => acc + s.score, 0) / totalAttempts).toFixed(1);
+        
+        // Extract Top 5 Scorers (Format Name: John D. for privacy)
+        const leaderboard = quizSubmissions.slice(0, 5).map(s => ({
+            name: `${s.firstName} ${s.lastName ? s.lastName.charAt(0) + '.' : ''}`.trim(),
+            score: s.score
+        }));
+
         res.clearCookie(AUTH_COOKIE_NAME, {
             httpOnly: true,
             secure: isSecureConnection(req),
@@ -2060,7 +2092,16 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             path: '/'
         });
 
-        res.json({ success: true, score: correctCount, total: totalCount });
+        // Send all competitive data to the frontend
+        res.json({ 
+            success: true, 
+            score: correctCount, 
+            total: totalCount,
+            percentile,
+            average: avgScore,
+            totalAttempts,
+            leaderboard
+        });
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (scriptURL && APPS_SECRET) {
