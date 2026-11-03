@@ -319,33 +319,40 @@ class StateStore {
 const stateStore = new StateStore();
 
 // ============================================================================
-// ZERO-TRUST UNIVERSAL ACCESS GATE (SUPPORTS PRO, ULTRA, VIP & ITEM WHITELIST)
+// ZERO-TRUST UNIVERSAL ACCESS GATE (ENFORCES GLOBAL WHITELIST & ULTRA PAYWALL)
 // ============================================================================
 async function checkContentAccess(email, itemID, isPremium, isUltra = false) {
-    if (!isPremium && !isUltra) return true;
-
     const cleanEmail = String(email || '').trim().toLowerCase();
     if (!cleanEmail) return false;
 
-    // 1. Master VIP Whitelist Check (Bypassed if item is tagged as ULTRA)
-    if (!isUltra) {
-        const isVip = await stateStore.get(`whitelist:vip:${cleanEmail}`);
-        if (isVip) return true;
+    // Requirement 6 Exception: ULTRA items ALWAYS require a specific purchase
+    if (isUltra) {
+        const inPurchaseSet = await stateStore.sismember(`user:purchases:${cleanEmail}`, itemID);
+        if (inPurchaseSet) return true;
+        const inPurchaseKey = await stateStore.get(`user:purchases:${cleanEmail}:${itemID}`);
+        if (inPurchaseKey) return true;
+        return false; 
     }
 
-    // 2. Item-Specific Whitelist Check (Supports both SADD Set & SET String formats)
+    // If content is NOT premium, any signed-in user can access it
+    if (!isPremium) return true;
+
+    // For Premium content, enforce the Whitelist
+    const isVip = await stateStore.get(`whitelist:vip:${cleanEmail}`);
+    if (isVip) return true;
+
     const inWhitelistSet = await stateStore.sismember(`whitelist:item:${itemID}`, cleanEmail);
     if (inWhitelistSet) return true;
     const inWhitelistKey = await stateStore.get(`whitelist:item:${itemID}:${cleanEmail}`);
     if (inWhitelistKey) return true;
 
-    // 3. Purchase Ledger Check (Supports both SADD Set & SET String formats)
+    // If it is Premium, also check if they bought it specifically
     const inPurchaseSet = await stateStore.sismember(`user:purchases:${cleanEmail}`, itemID);
     if (inPurchaseSet) return true;
     const inPurchaseKey = await stateStore.get(`user:purchases:${cleanEmail}:${itemID}`);
     if (inPurchaseKey) return true;
 
-    return false;
+    return false; // Not whitelisted and not purchased
 }
 
 function setBoundedMap(map, key, value) {
@@ -614,6 +621,14 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     var isRecentClick = (Date.now() - clickStamp) < 15000;
                     var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
 
+                    // GLOBAL SSO GUARD: Kick unauthenticated users to home instantly
+                    var token = localStorage.getItem('pp_id_token');
+                    var isExemptAdmin = (baseRoute === '/admin-live');
+                    if (!isHome && !isExemptAdmin && !token) {
+                        window.location.replace('/');
+                        return;
+                    }
+
                     if (isHome) {
                         sessionStorage.setItem('pioneers_active_route', '/');
                         sessionStorage.removeItem('pioneers_nav_ok');
@@ -753,7 +768,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
                         return;
                     }
-                    var fnMatch = /^([a-zA-Z0-9_]+)\\((.*)\\)$/.exec(legacyExpr.trim());
+                    var fnMatch = /^([a-zA-Z0-9_]+)\((.*)\)$/.exec(legacyExpr.trim());
                     if (!fnMatch) return;
                     var fnName = fnMatch[1];
                     var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
@@ -1498,16 +1513,19 @@ app.get('/api/download-descriptive/:fileName', async (req, res) => {
         return res.status(403).send("This paper is not yet available.");
     }
 
-    if (upperName.startsWith('PRO_') || upperName.startsWith('ULTRA_')) {
-        const authCheck = await verifyAuthToken(extractAuthToken(req));
-        if (!authCheck.valid) {
-            return res.status(401).send("Authentication required to download premium content.");
-        }
-        const isUltra = upperName.startsWith('ULTRA_');
-        const hasAccess = await checkContentAccess(authCheck.email, rawFileName, true, isUltra);
-        if (!hasAccess) {
-            return res.status(402).send("Payment required to access this content.");
-        }
+    // Require Auth for ALL downloads
+    const authCheck = await verifyAuthToken(extractAuthToken(req));
+    if (!authCheck.valid) {
+        return res.status(401).send("Authentication required. Please sign in on the homepage.");
+    }
+
+    const isUltra = upperName.startsWith('ULTRA_');
+    const isPremium = isUltra || upperName.startsWith('PRO_');
+    
+    // Check if they are allowed (handles free vs premium vs ultra via our updated function)
+    const hasAccess = await checkContentAccess(authCheck.email, rawFileName, isPremium, isUltra);
+    if (!hasAccess) {
+        return res.status(403).send(isUltra ? "Purchase required to access this Ultra content." : "Your email is not whitelisted for this premium material.");
     }
 
     const clientIp = getClientIp(req);
@@ -1582,16 +1600,19 @@ app.get('/api/download-note/:fileName', async (req, res) => {
         return res.status(403).send("This note is not yet available.");
     }
 
-    if (upperName.startsWith('PRO_') || upperName.startsWith('ULTRA_')) {
-        const authCheck = await verifyAuthToken(extractAuthToken(req));
-        if (!authCheck.valid) {
-            return res.status(401).send("Authentication required to download premium content.");
-        }
-        const isUltra = upperName.startsWith('ULTRA_');
-        const hasAccess = await checkContentAccess(authCheck.email, rawFileName, true, isUltra);
-        if (!hasAccess) {
-            return res.status(402).send("Payment required to access this content.");
-        }
+    // Require Auth for ALL downloads
+    const authCheck = await verifyAuthToken(extractAuthToken(req));
+    if (!authCheck.valid) {
+        return res.status(401).send("Authentication required. Please sign in on the homepage.");
+    }
+
+    const isUltra = upperName.startsWith('ULTRA_');
+    const isPremium = isUltra || upperName.startsWith('PRO_');
+    
+    // Check if they are allowed (handles free vs premium vs ultra via our updated function)
+    const hasAccess = await checkContentAccess(authCheck.email, rawFileName, isPremium, isUltra);
+    if (!hasAccess) {
+        return res.status(403).send(isUltra ? "Purchase required to access this Ultra content." : "Your email is not whitelisted for this premium material.");
     }
 
     const clientIp = getClientIp(req);
@@ -1858,14 +1879,17 @@ app.post('/api/verify-otp', async (req, res) => {
         await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
 
         res.cookie(AUTH_COOKIE_NAME, authToken, {
-            httpOnly: true,
-            secure: isSecureConnection(req),
-            sameSite: 'strict',
-            maxAge: TOKEN_MAX_AGE_MS,
-            path: '/'
+            httpOnly: true, secure: isSecureConnection(req), sameSite: 'strict', maxAge: TOKEN_MAX_AGE_MS, path: '/'
         });
 
-        res.json({ success: true });
+        // Send the token and user data to the frontend for Global SSO
+        res.json({ 
+            success: true, 
+            token: authToken, 
+            firstName: record.firstName, 
+            lastName: record.lastName, 
+            email: email 
+        });
     } catch {
         res.status(500).json({ success: false, error: 'OTP verification failed.' });
     }
@@ -2171,19 +2195,29 @@ async function updateBoardSecurely(cleanId, updateFn) {
     }
 }
 
-// Student: Verify OTP & Join
+// Student: Verify Admin OTP & Join Live Mock
 app.post('/api/live/student/verify', async (req, res) => {
     try {
-        const { firstName, lastName, quizId, otp } = req.body;
+        // Extract identity strictly from the global token
+        const authCheck = await verifyAuthToken(extractAuthToken(req));
+        if (!authCheck.valid) return res.status(401).json({ error: 'Unauthorized. Please sign in globally first.' });
+
+        const { quizId, otp } = req.body;
         const cleanId = path.basename(String(quizId)).trim();
         
+        // Enforce whitelist for live mocks too
+        const isUltra = cleanId.toUpperCase().startsWith('ULTRA_');
+        const isPremium = isUltra || cleanId.toUpperCase().startsWith('PRO_');
+        const hasAccess = await checkContentAccess(authCheck.email, cleanId, isPremium, isUltra);
+        if (!hasAccess) return res.status(403).json({ error: 'Your email is not whitelisted for this Premium Live Mock.' });
+
         const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
         if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
-            return res.status(400).json({ error: 'Invalid or expired OTP.' });
+            return res.status(400).json({ error: 'Invalid or expired Admin OTP.' });
         }
 
-        const fName = String(firstName).trim().toUpperCase();
-        const lName = String(lastName).trim().toUpperCase();
+        const fName = String(authCheck.firstName).trim().toUpperCase();
+        const lName = String(authCheck.lastName).trim().toUpperCase();
         const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         
