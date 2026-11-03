@@ -188,6 +188,12 @@
                 showProfileBadge(fName, lName);
             } else {
                 if (signinBtn) signinBtn.style.display = 'block';
+                
+                // If they were kicked back from a protected page, auto-open the modal
+                if (sessionStorage.getItem('force_login_open') === 'true') {
+                    sessionStorage.removeItem('force_login_open');
+                    document.getElementById('global-login-modal').style.display = 'flex';
+                }
             }
 
             // Event Listeners for Navbar & Modal Controls
