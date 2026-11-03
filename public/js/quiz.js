@@ -613,11 +613,20 @@ async function attemptQuizStart(first, last, email) {
     const vBtn = document.getElementById('verify-start-btn');
     if (vBtn) vBtn.innerText = 'Starting...';
 
+    const token = localStorage.getItem('pp_id_token'); // Fetch the global token
+    const currentQuizDuration = timeRemaining;
+
     const startRes = await fetch('/api/start-quiz', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Inject secure token
+        },
+        body: JSON.stringify({ 
+            quizId: currentQuizId, 
+            duration: currentQuizDuration 
+        })
     });
     const startData = await startRes.json();
 
@@ -850,15 +859,21 @@ async function submitQuiz(isAuto = false) {
     const email = document.getElementById('email-address').value.trim().toLowerCase();
 
     try {
+        const token = localStorage.getItem('pp_id_token'); // Fetch the global token
+        const payload = {
+            firstName: first, lastName: last, email,
+            className: selectedClassName, chapterTitle: activeQuizTitle, quizId: currentQuizId,
+            userAnswers, serverStartTime, timerSignature, quizDuration, isAutoSubmit: isAuto
+        };
+
         const res = await fetch('/api/submit', {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                firstName: first, lastName: last, email,
-                className: selectedClassName, chapterTitle: activeQuizTitle, quizId: currentQuizId,
-                userAnswers, serverStartTime, timerSignature, quizDuration, isAutoSubmit: isAuto
-            })
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // Inject secure token
+            },
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok && data.success) {
