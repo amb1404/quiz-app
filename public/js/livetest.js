@@ -4,30 +4,36 @@ let localIndex = -1;
 let syncInterval;
 let testActive = true;
 
-document.getElementById('join-btn').addEventListener('click', async () => {
-    const first = document.getElementById('live-first').value.trim().toUpperCase();
-    const last = document.getElementById('live-last').value.trim().toUpperCase();
-    const otp = document.getElementById('live-otp').value.trim();
-    currentQuizId = document.getElementById('live-quiz-id').value.trim();
+const joinLiveBtn = document.getElementById('join-btn') || document.getElementById('join-live-btn');
+if (joinLiveBtn) {
+    joinLiveBtn.addEventListener('click', async () => {
+        const identityToken = localStorage.getItem('pp_id_token');
+        const otpEl = document.getElementById('live-otp') || document.getElementById('stu-otp');
+        const otp = otpEl ? otpEl.value.trim() : "";
+        const quizIdEl = document.getElementById('live-quiz-id');
+        if (quizIdEl) currentQuizId = quizIdEl.value.trim();
 
-    if (!first || !last || !otp || !currentQuizId) return alert("Fill all fields.");
-    
-    document.getElementById('join-btn').innerText = "Verifying...";
-    try {
-        const res = await fetch('/api/live/student/verify', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName: first, lastName: last, quizId: currentQuizId, otp })
-        });
-        const data = await res.json();
-        if (data.success) {
-            liveToken = data.token;
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('quiz-screen').style.display = 'block';
-            startSync();
-            startHeartbeat(); 
-        } else { alert(data.error); document.getElementById('join-btn').innerText = "Join Test"; }
-    } catch (e) { alert("Network Error"); document.getElementById('join-btn').innerText = "Join Test"; }
-});
+        if (!identityToken) return window.location.replace('/');
+        if (!otp) return alert("Enter the OTP.");
+        if (!currentQuizId) return alert("Fill all fields.");
+
+        joinLiveBtn.innerText = "Verifying...";
+        try {
+            const res = await fetch('/api/live/student/verify', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identityToken, quizId: currentQuizId, otp })
+            });
+            const data = await res.json();
+            if (data.success) {
+                liveToken = data.token;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('quiz-screen').style.display = 'block';
+                startSync();
+                startHeartbeat(); 
+            } else { alert(data.error); joinLiveBtn.innerText = "Join Test"; }
+        } catch (e) { alert("Network Error"); joinLiveBtn.innerText = "Join Test"; }
+    });
+}
 
 function startHeartbeat() {
     setInterval(() => {
