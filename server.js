@@ -2179,7 +2179,6 @@ async function updateBoardSecurely(cleanId, updateFn) {
 }
 
 // Student: Verify OTP & Join
-// Student: Verify OTP & Join
 app.post('/api/live/student/verify', async (req, res) => {
     try {
         const { identityToken, quizId, otp } = req.body;
@@ -2193,6 +2192,7 @@ app.post('/api/live/student/verify', async (req, res) => {
             return res.status(403).json({ error: 'Security breach: Tampered identity token detected.' });
         }
 
+        // Successfully extracted from the secure token
         const [fName, lName, email] = payload.split('|');
         const cleanId = path.basename(String(quizId)).trim();
         
@@ -2201,8 +2201,7 @@ app.post('/api/live/student/verify', async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired OTP.' });
         }
 
-        const fName = String(firstName).trim().toUpperCase();
-        const lName = String(lastName).trim().toUpperCase();
+        // Generate the new Live Session Token
         const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         
