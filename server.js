@@ -614,6 +614,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     var isRecentClick = (Date.now() - clickStamp) < 15000;
                     var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
 
+                    // Global Security Auth Guard
+                    const token = localStorage.getItem('pp_id_token');
+                    if (!isHome && !token) {
+                        window.location.replace('/');
+                        return;
+                    }
+
                     if (isHome) {
                         sessionStorage.setItem('pioneers_active_route', '/');
                         sessionStorage.removeItem('pioneers_nav_ok');
@@ -2325,6 +2332,30 @@ app.post('/api/live/student/submit', async (req, res) => {
         if (status === 'locked') return res.status(403).json({ error: 'Answer already permanently locked.' });
         res.status(400).json({ error: 'Student not found on board.' });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
+});
+
+// ============================================================================
+// 10. GLOBAL SECURE STUDENT AUTHENTICATION
+// ============================================================================
+app.post('/api/auth/signin', (req, res) => {
+    try {
+        const { firstName, lastName, email } = req.body;
+        if (!firstName || !lastName || !email) return res.status(400).json({ error: 'Missing fields' });
+
+        // Force strict formatting on the backend
+        const fName = String(firstName).trim().toUpperCase();
+        const lName = String(lastName).trim().toUpperCase();
+        const mail = String(email).trim().toLowerCase();
+
+        // Create a cryptographically signed identity token
+        const payload = `${fName}|${lName}|${mail}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+        const identityToken = `${payload}|||${signature}`;
+
+        res.json({ success: true, identityToken, fName, lName, mail });
+    } catch (err) { 
+        res.status(500).json({ error: 'Authentication failed.' }); 
+    }
 });
 // ============================================================================
 
