@@ -1,0 +1,309 @@
+{
+  "title": "Cell Cycle, Cell Division and Genetics - Advanced Test",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "biology",
+  "duration": 1500,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "During the 'S' phase of the cell cycle, which of the following changes occurs accurately?",
+      "options": [
+        "The number of chromosomes doubles, but DNA content remains the same.",
+        "Both the number of chromosomes and DNA content double.",
+        "The DNA content doubles, but the number of chromosomes remains the same.",
+        "The cell undergoes rapid growth without DNA replication."
+      ],
+      "answer": 2,
+      "explanation": "Chromosome number is counted by the number of centromeres. In S phase, DNA replicates to form two sister chromatids, doubling the DNA mass, but they are still held by a single centromere, so the chromosome number remains 2n."
+    },
+    {
+      "type": "mcq",
+      "question": "A student observing a dividing cell under a microscope notes that the cell plate is forming from the center outwards. Which of the following is also true for this specific cell?",
+      "options": [
+        "It possesses a centrosome with two centrioles.",
+        "Aster rays will be clearly visible at the poles.",
+        "Cytokinesis is occurring via a cleavage furrow.",
+        "It lacks a centrosome and aster rays."
+      ],
+      "answer": 3,
+      "explanation": "Centrifugal cell plate formation indicates a plant cell. Plant cells do not have centrosomes or form aster rays (anastral mitosis), unlike animal cells which show centripetal cleavage furrowing and amphiastral spindles."
+    },
+    {
+      "type": "mcq",
+      "question": "How many autosomes are present in a single normal human unfertilized ovum?",
+      "options": [
+        "44",
+        "22",
+        "23",
+        "46"
+      ],
+      "answer": 1,
+      "explanation": "An ovum is a haploid female gamete containing 23 chromosomes in total: 22 autosomes and 1 sex chromosome (X)."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following bonds are responsible for holding the two complementary strands of a DNA double helix together?",
+      "options": [
+        "Phosphodiester bonds",
+        "Covalent bonds",
+        "Hydrogen bonds",
+        "Peptide bonds"
+      ],
+      "answer": 2,
+      "explanation": "While phosphodiester bonds link adjacent nucleotides in a single strand to form the sugar-phosphate backbone, weak hydrogen bonds link the complementary nitrogenous bases across the two strands (A=T with 2 bonds, G≡C with 3 bonds)."
+    },
+    {
+      "type": "mcq",
+      "question": "The V-shaped appearance of a chromosome during Anaphase indicates that its centromere is:",
+      "options": [
+        "Metacentric (located in the exact middle)",
+        "Acrocentric (located near one end)",
+        "Telocentric (located at the extreme tip)",
+        "Sub-metacentric (located slightly away from the middle)"
+      ],
+      "answer": 0,
+      "explanation": "The position of the centromere dictates the shape as it is dragged towards the poles by spindle fibres. A metacentric centromere creates a V-shape, sub-metacentric creates an L-shape, and acrocentric creates a J-shape."
+    },
+    {
+      "type": "mcq",
+      "question": "If a cell fails to undergo cytokinesis after karyokinesis, what will be the immediate result?",
+      "options": [
+        "The cell will die immediately.",
+        "A multinucleate cell will be formed.",
+        "The cell will enter the G0 phase.",
+        "The chromosomes will uncoil and disappear."
+      ],
+      "answer": 1,
+      "explanation": "Karyokinesis is nuclear division. If cytoplasmic division (cytokinesis) does not follow nuclear division, a single cell with multiple nuclei (a coenocyte or syncytium) is formed."
+    },
+    {
+      "type": "mcq",
+      "question": "Which specific event in Meiosis I is responsible for the genetic variation seen in offspring?",
+      "options": [
+        "Separation of sister chromatids",
+        "Formation of the spindle apparatus",
+        "Crossing over between non-sister chromatids",
+        "Condensation of chromatin fibres"
+      ],
+      "answer": 2,
+      "explanation": "Crossing over in Prophase I physically swaps homologous genetic segments between non-sister chromatids, creating genetic recombination and new allele combinations."
+    },
+    {
+      "type": "mcq",
+      "question": "The complex of DNA wrapped around a core of eight histone proteins is termed a:",
+      "options": [
+        "Nucleotide",
+        "Nucleolus",
+        "Nucleosome",
+        "Centrosome"
+      ],
+      "answer": 2,
+      "explanation": "Negatively charged DNA wraps tightly around an octamer of positively charged histone proteins to form repeating units called nucleosomes ('beads-on-a-string')."
+    },
+    {
+      "type": "mcq",
+      "question": "At which stage of mitosis are chromosomes at their shortest, thickest, and most distinctly visible, making it the best time to study a karyotype?",
+      "options": [
+        "Prophase",
+        "Metaphase",
+        "Anaphase",
+        "Telophase"
+      ],
+      "answer": 1,
+      "explanation": "During metaphase, chromosomes reach maximum condensation and align at the equatorial plane, making it the ideal stage for morphology and karyotype studies."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the specific role of the centromere in a chromosome?",
+      "options": [
+        "It contains the genes for protein synthesis.",
+        "It connects two homologous chromosomes together.",
+        "It is the site of attachment for spindle fibres during cell division.",
+        "It prevents the ends of the chromosomes from sticking together."
+      ],
+      "answer": 2,
+      "explanation": "The centromere holds sister chromatids together and serves as the assembly site for kinetochores, which attach to spindle microtubules during cell division."
+    },
+    {
+      "type": "mcq",
+      "question": "Which statement correctly describes homologous chromosomes?",
+      "options": [
+        "They are two identical sister chromatids held by a single centromere.",
+        "They are a pair of chromosomes, one maternal and one paternal, with identical gene loci.",
+        "They are chromosomes that only determine the sex of the organism.",
+        "They are chromosomes that have undergone mutation."
+      ],
+      "answer": 1,
+      "explanation": "Homologous chromosomes are pairs of chromosomes (one inherited maternally and one paternally) having similar size, shape, and gene loci, although their alleles may differ."
+    },
+    {
+      "type": "mcq",
+      "question": "In the DNA double helix, the rule of complementary base pairing dictates that the amount of Adenine is always equal to the amount of:",
+      "options": [
+        "Cytosine",
+        "Guanine",
+        "Thymine",
+        "Uracil"
+      ],
+      "answer": 2,
+      "explanation": "According to Chargaff's rules of base pairing in double-stranded DNA, adenine specifically bonds with thymine (A = T), and guanine with cytosine (G = C)."
+    },
+    {
+      "type": "mcq",
+      "question": "A cell divides by mitosis to heal a wound. If the original parent cell had 46 chromosomes, how many chromosomes will each daughter cell have?",
+      "options": [
+        "23",
+        "46",
+        "92",
+        "22"
+      ],
+      "answer": 1,
+      "explanation": "Mitosis is an equational division where the original chromosome count is conserved, so human diploid parent cells (46 chromosomes) yield daughter cells with 46 chromosomes each."
+    },
+    {
+      "type": "mcq",
+      "question": "Chiasmata are formed during which phase of cell division?",
+      "options": [
+        "Prophase of Mitosis",
+        "Metaphase of Mitosis",
+        "Prophase I of Meiosis",
+        "Anaphase II of Meiosis"
+      ],
+      "answer": 2,
+      "explanation": "Chiasmata are visible X-shaped junction points where non-sister chromatids of homologous chromosomes exchange genetic material during Prophase I of Meiosis."
+    },
+    {
+      "type": "mcq",
+      "question": "Certain specialized cells in the human body, such as mature nerve cells, never divide once formed. In which phase of the cell cycle are these cells permanently arrested?",
+      "options": [
+        "G1 phase",
+        "G2 phase",
+        "S phase",
+        "G0 phase"
+      ],
+      "answer": 3,
+      "explanation": "The G0 (quiescent) phase is an exit state from the proliferative cell cycle. Cells like mature neurons stay metabolically active but do not replicate DNA or divide."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following is the correct composition of a single nucleotide in DNA?",
+      "options": [
+        "Ribose sugar + Phosphate + Nitrogenous base",
+        "Deoxyribose sugar + Phosphate + Nitrogenous base",
+        "Deoxyribose sugar + Histone + Nitrogenous base",
+        "Ribose sugar + Histone + Phosphate"
+      ],
+      "answer": 1,
+      "explanation": "A DNA nucleotide monomer consists of a deoxyribose pentose sugar, a phosphate group, and a nitrogenous base (Adenine, Guanine, Cytosine, or Thymine)."
+    },
+    {
+      "type": "mcq",
+      "question": "During which phase of mitosis does the nuclear membrane begin to completely disappear, allowing chromosomes to spread into the cytoplasm?",
+      "options": [
+        "Early Prophase",
+        "Late Prophase",
+        "Late Telophase",
+        "Early Anaphase"
+      ],
+      "answer": 1,
+      "explanation": "In late prophase (prometaphase), the nuclear membrane and nucleolus disintegrate entirely so that spindle fibres can attach to kinetochores."
+    },
+    {
+      "type": "mcq",
+      "question": "In a chromosome, the specialized ends that prevent the DNA strands from unravelling or sticking to other chromosomes are called:",
+      "options": [
+        "Centromeres",
+        "Chromomeres",
+        "Telomeres",
+        "Nucleosomes"
+      ],
+      "answer": 2,
+      "explanation": "Telomeres are protective terminal caps at the ends of linear chromosomes that prevent degradation and chromosomal fusion."
+    },
+    {
+      "type": "mcq",
+      "question": "What would be the consequence if Meiosis did NOT occur during gamete formation in sexually reproducing organisms?",
+      "options": [
+        "The offspring would have half the normal chromosome number.",
+        "The chromosome number would double in each successive generation.",
+        "The offspring would be genetically identical to the parents.",
+        "The organism would switch to asexual reproduction."
+      ],
+      "answer": 1,
+      "explanation": "Meiosis halves chromosome numbers (diploid to haploid) so that syngamy (fertilization) restores the diploid state. Without meiosis, chromosome counts would double every generation."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following events strictly marks the onset of Anaphase during mitosis?",
+      "options": [
+        "Chromosomes line up at the equator.",
+        "The nuclear membrane reappears.",
+        "The centromeres split and chromatids separate.",
+        "Chromatin condenses into distinct chromosomes."
+      ],
+      "answer": 2,
+      "explanation": "The splitting of centromeres and divergence of sister chromatids into individual daughter chromosomes marks the precise beginning of anaphase."
+    },
+    {
+      "type": "mcq",
+      "question": "Purines and Pyrimidines are two categories of nitrogenous bases. Which of the following correctly pairs a purine with a pyrimidine?",
+      "options": [
+        "Adenine and Guanine",
+        "Cytosine and Thymine",
+        "Adenine and Thymine",
+        "Guanine and Uracil"
+      ],
+      "answer": 2,
+      "explanation": "Purines (Adenine, Guanine) are double-ring compounds and pyrimidines (Cytosine, Thymine, Uracil) are single-ring compounds. In DNA base pairing, purine Adenine pairs with pyrimidine Thymine."
+    },
+    {
+      "type": "mcq",
+      "question": "A biologist examines a dividing cell and notes the presence of a cleavage furrow. What other feature is she almost certain to find in this cell?",
+      "options": [
+        "A rigid cellulose cell wall",
+        "Centrosomes containing centrioles",
+        "Large central vacuoles",
+        "Chloroplasts"
+      ],
+      "answer": 1,
+      "explanation": "Cleavage furrowing during cytokinesis is characteristic of animal cells, which distinctly contain centrosomes and centrioles for aster formation."
+    },
+    {
+      "type": "mcq",
+      "question": "Meiosis II is often described as being similar to Mitosis. What is the primary difference between a cell undergoing Mitosis and a cell undergoing Meiosis II?",
+      "options": [
+        "Meiosis II has crossing over; Mitosis does not.",
+        "The cell entering Meiosis II is haploid; the cell entering Mitosis is typically diploid.",
+        "Meiosis II does not involve spindle fibres; Mitosis does.",
+        "Centromeres do not split in Meiosis II; they do in Mitosis."
+      ],
+      "answer": 1,
+      "explanation": "Both divide sister chromatids equationally, but cells entering Meiosis II are haploid (having been reduced in Meiosis I), whereas typical mitotic somatic cells are diploid."
+    },
+    {
+      "type": "mcq",
+      "question": "During Interphase, the genetic material exists as a tangled, uncoiled network. What is this network called?",
+      "options": [
+        "Chromatid",
+        "Centrosome",
+        "Chromatin",
+        "Chromosome"
+      ],
+      "answer": 2,
+      "explanation": "Chromatin is the uncoiled, diffuse nucleoprotein network seen during interphase, allowing transcription and replication before condensing into visible chromosomes during division."
+    },
+    {
+      "type": "mcq",
+      "question": "Why do the two sister chromatids of a single chromosome contain exactly the same genetic information?",
+      "options": [
+        "Because one comes from the mother and one from the father.",
+        "Because they underwent crossing over in prophase.",
+        "Because they were formed by the exact replication of a single DNA molecule during the S phase.",
+        "Because they are held together by the same centromere."
+      ],
+      "answer": 2,
+      "explanation": "Sister chromatids are duplicate strands produced by semi-conservative DNA replication of a single original chromosome during the interphase synthesis (S) phase."
+    }
+  ]
+}
