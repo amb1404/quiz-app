@@ -1857,23 +1857,24 @@ app.post('/api/verify-otp', async (req, res) => {
         }
 
         await stateStore.del(otpKey);
-
-        const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
-        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-        const authToken = `${tokenData}|||${signature}`;
-
         await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
 
-        res.cookie(AUTH_COOKIE_NAME, authToken, {
-            httpOnly: true,
-            secure: isSecureConnection(req),
-            sameSite: 'strict',
-            maxAge: TOKEN_MAX_AGE_MS,
-            path: '/'
+        // Generate the Global Identity Token
+        const fName = String(record.firstName).trim().toUpperCase();
+        const lName = String(record.lastName).trim().toUpperCase();
+        const mail = email;
+
+        const payload = `${fName}|${lName}|${mail}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+        const identityToken = `${payload}|||${signature}`;
+
+        // Retain cookie setup for backward compatibility
+        res.cookie(AUTH_COOKIE_NAME, identityToken, {
+            httpOnly: true, secure: isSecureConnection(req), sameSite: 'strict', maxAge: TOKEN_MAX_AGE_MS, path: '/'
         });
 
-        res.json({ success: true });
-    } catch {
+        res.json({ success: true, identityToken, fName, lName, mail });
+    } catch (err) {
         res.status(500).json({ success: false, error: 'OTP verification failed.' });
     }
 });
