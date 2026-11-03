@@ -631,10 +631,12 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     var isRecentClick = (Date.now() - clickStamp) < 15000;
                     var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
 
-                    // GLOBAL SSO GUARD: Kick unauthenticated users to home instantly
+                    // GLOBAL SSO GUARD: Warn and kick unauthenticated users to home
                     var token = localStorage.getItem('pp_id_token');
                     var isExemptAdmin = (baseRoute === '/admin-live');
                     if (!isHome && !isExemptAdmin && !token) {
+                        alert('Please sign in to access premium study contents.');
+                        sessionStorage.setItem('force_login_open', 'true');
                         window.location.replace('/');
                         return;
                     }
