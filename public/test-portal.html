@@ -102,48 +102,5 @@
     <script>const CURRENT_ROUTE = '/test-portal.html';</script>
     <script src="/js/main.js"></script>
     <script src="/js/quiz.js"></script>
-    <script>
-    // This script runs constantly to detect if the candidate verification screen appears
-    // and instantly auto-fills and bypasses it using the global login credentials.
-    const autoLoginObserver = new MutationObserver(() => {
-        const nameScreen = document.getElementById('name-screen') || document.getElementById('user-info-screen') || document.querySelector('.candidate-verification');
-        
-        // If the screen becomes visible
-        if (nameScreen && !nameScreen.classList.contains('hidden')) {
-            const token = localStorage.getItem('pp_id_token');
-            const fName = localStorage.getItem('pp_fname');
-            const lName = localStorage.getItem('pp_lname');
-            const email = localStorage.getItem('pp_email');
-
-            if (!token) {
-                alert('Security Violation: You must sign in from the homepage first.');
-                window.location.replace('/');
-                return;
-            }
-
-            // Find the inputs and auto-fill them instantly
-            const inputs = nameScreen.querySelectorAll('input');
-            if (inputs.length >= 3) {
-                inputs[0].value = fName;
-                inputs[1].value = lName;
-                inputs[2].value = email;
-                
-                // Hide the screen so the user doesn't see a flash
-                nameScreen.style.opacity = '0';
-                
-                // Find the "Verify & Start" button and click it programmatically
-                const startBtn = nameScreen.querySelector('button, [onclick*="startQuiz"]');
-                if (startBtn && !startBtn.disabled) {
-                    startBtn.click();
-                    // Stop observing once we've successfully clicked
-                    autoLoginObserver.disconnect();
-                }
-            }
-        }
-    });
-
-    // Start watching the body for UI changes
-    autoLoginObserver.observe(document.body, { attributes: true, childList: true, subtree: true });
-</script>
 </body>
 </html>
