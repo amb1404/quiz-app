@@ -2470,36 +2470,20 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
 
         const [, , first, last] = tokenData.split('|');
         const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
-
         const boardKey = `live:board:${cleanId}`;
         const rawBoard = await stateStore.get(boardKey);
-        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-        const savedAnswerObj = board[fullName]?.answers?.[state.currentIndex];
-        const savedAnswer = (savedAnswerObj !== undefined && savedAnswerObj.answer !== undefined) ? savedAnswerObj.answer : null;
+        const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const studentAnswers = board[fullName]?.answers || {};
+        const currentIndex = Number.isInteger(state.currentIndex) ? state.currentIndex : 0;
+        const currentQuestion = content.questions[currentIndex] || null;
 
-        const q = content.questions[state.currentIndex];
-        const singleUseKey = crypto.randomBytes(12).toString('hex');
-        const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
-
-        res.json({
-            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
-            savedAnswer, payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
-        });
-    } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
-});
-        const boardKey = `live:board:${cleanId}`;
-        const rawBoard = await stateStore.get(boardKey);
-        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-        const savedAnswerObj = board[fullName]?.answers?.[state.currentIndex];
-        const savedAnswer = (savedAnswerObj !== undefined && savedAnswerObj.answer !== undefined) ? savedAnswerObj.answer : null;
-
-        const q = content.questions[state.currentIndex];
-        const singleUseKey = crypto.randomBytes(12).toString('hex');
-        const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
-
-        res.json({
-            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
-            savedAnswer, payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+        return res.json({
+            status: state.status || 'waiting',
+            currentIndex,
+            question: currentQuestion,
+            studentAnswers,
+            answeredKeys: Object.keys(studentAnswers).map(Number).sort((a, b) => a - b),
+            questionCount: content.questions.length
         });
     } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
 });
