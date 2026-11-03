@@ -2438,9 +2438,6 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         if (!stateStr) return res.json({ status: 'waiting' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
-        // RULE 1: Time-based inactivity switch removed. 
-        // The test now ends ONLY when the admin explicitly closes the tab (/api/live/admin/end).
-
         const content = getLiveMockContent(cleanId);
         
         // Final Scorecard Rendering Check
@@ -2459,7 +2456,6 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
                 const ansObj = studentAnswers[idx];
                 if (ansObj !== undefined && ansObj.answer !== undefined) {
                     attempted++;
-                    // Live test options are not shuffled, so we grade the raw index directly
                     if (Number(ansObj.answer) === Number(q.answer)) {
                         correct++;
                     }
@@ -2472,10 +2468,26 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
             });
         }
 
-        const authHeader = req.get('Authorization');
-        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
         const [, , first, last] = tokenData.split('|');
         const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const savedAnswerObj = board[fullName]?.answers?.[state.currentIndex];
+        const savedAnswer = (savedAnswerObj !== undefined && savedAnswerObj.answer !== undefined) ? savedAnswerObj.answer : null;
+
+        const q = content.questions[state.currentIndex];
+        const singleUseKey = crypto.randomBytes(12).toString('hex');
+        const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
+
+        res.json({
+            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
+            savedAnswer, payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+        });
+    } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
+});
+
 
         const boardKey = `live:board:${cleanId}`;
         const rawBoard = await stateStore.get(boardKey);
