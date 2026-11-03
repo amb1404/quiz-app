@@ -2487,8 +2487,6 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         });
     } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
 });
-
-
         const boardKey = `live:board:${cleanId}`;
         const rawBoard = await stateStore.get(boardKey);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
