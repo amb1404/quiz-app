@@ -161,9 +161,21 @@ function renderQuestion(data) {
     const optsBox = document.getElementById('options-container');
     optsBox.innerHTML = '';
     
+    const hasAlreadyAnswered = data.savedAnswer !== null && data.savedAnswer !== undefined;
+
     q.options.forEach((opt, idx) => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
+        
+        // Restore previous selection if student refreshed or reconnected
+        if (hasAlreadyAnswered && Number(data.savedAnswer) === idx) {
+            btn.classList.add('selected');
+        }
+        if (hasAlreadyAnswered) {
+            btn.disabled = true;
+            btn.classList.add('locked');
+        }
+
         btn.innerText = opt;
         btn.onclick = () => {
             document.querySelectorAll('.opt-btn').forEach(b => {

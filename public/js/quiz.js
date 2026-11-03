@@ -934,6 +934,16 @@ async function submitQuiz(isAuto = false) {
             `;
             screenHistory = [];
             showScreen('result-screen');
+            // Explicitly save state so refresh keeps them on the result screen
+            try {
+                const resultState = {
+                    activeScreen: 'result-screen',
+                    screenHistory: [],
+                    currentQuizId: currentQuizId,
+                    activeQuizTitle: activeQuizTitle
+                };
+                sessionStorage.setItem('pioneers_prep_state', JSON.stringify(resultState));
+            } catch (err) {}
             triggerCelebration();
         } else {
             alert(data.error || 'Submission failed.');

@@ -815,9 +815,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 if (s) {
                     var st = JSON.parse(s);
                     var a = st.activeScreen;
-                    if (a === 'result-screen') {
-                        sessionStorage.removeItem('pioneers_prep_state');
-                    } else if (a && a !== 'home-dashboard') {
+                    if (a && a !== 'home-dashboard') {
                         var screens = document.querySelectorAll('.app-screen');
                         var found = false;
                         for (var i = 0; i < screens.length; i++) {
@@ -2135,7 +2133,7 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
 
         const historical = await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
 
-        // --- PERSISTENT LEADERBOARD & STATS ENGINE (WITH LEGACY RECORD MATCHING) ---
+        // --- ROBUST LEADERBOARD & STATS ENGINE (DEDUPLICATED & ACCURATE PERCENTILE) ---
         const norm = str => String(str || '').trim().toLowerCase();
         let quizSubmissions = historical.filter(s => {
             if (s.quizId && norm(s.quizId) === norm(cleanQuizId)) return true;
@@ -2146,22 +2144,48 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             return false;
         });
 
-        if (quizSubmissions.length === 0) {
-            quizSubmissions.push({ firstName: payload.firstName, lastName: payload.lastName, score: correctCount, total: totalCount });
-        }
+        // Ensure current submission is represented
+        quizSubmissions.push({ 
+            firstName: payload.firstName, 
+            lastName: payload.lastName, 
+            email: payload.email,
+            score: Number(correctCount), 
+            total: Number(totalCount),
+            timestamp: Date.now()
+        });
 
-        // Sort descending by score
-        quizSubmissions.sort((a, b) => b.score - a.score);
-
-        const totalAttempts = quizSubmissions.length;
-        const belowCount = quizSubmissions.filter(s => s.score < correctCount).length;
-        const percentile = totalAttempts > 1 ? Math.round((belowCount / (totalAttempts - 1)) * 100) : 100;
-        const avgScore = totalAttempts > 0 ? (quizSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1) : correctCount.toFixed(1);
+        // Deduplicate: Keep only the HIGHEST score attempt per student email/name
+        const bestAttemptsMap = new Map();
+        quizSubmissions.forEach(s => {
+            const key = norm(s.email || `${s.firstName}_${s.lastName}`);
+            const existing = bestAttemptsMap.get(key);
+            if (!existing || Number(s.score) > Number(existing.score)) {
+                bestAttemptsMap.set(key, s);
+            }
+        });
+        const uniqueSubmissions = Array.from(bestAttemptsMap.values());
         
-        // Extract Top 5 Scorers (Displaying the full last name)
-        const leaderboard = quizSubmissions.slice(0, 5).map(s => ({
+        // Sort descending by score
+        uniqueSubmissions.sort((a, b) => Number(b.score) - Number(b.score));
+
+        const totalAttempts = uniqueSubmissions.length;
+        
+        // Calculate Percentile (scores below + half of ties / total attempts)
+        const lowerScores = uniqueSubmissions.filter(s => Number(s.score) < Number(correctCount)).length;
+        const equalScores = uniqueSubmissions.filter(s => Number(s.score) === Number(correctCount)).length;
+        
+        const percentile = totalAttempts > 0 
+            ? Math.round(((lowerScores + (0.5 * equalScores)) / totalAttempts) * 100) 
+            : 100;
+
+        const avgScore = totalAttempts > 0 
+            ? (uniqueSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1) 
+            : correctCount.toFixed(1);
+        
+        // Extract Top 5 Unique Scorers
+        const leaderboard = uniqueSubmissions.slice(0, 5).map(s => ({
             name: `${s.firstName} ${s.lastName || ''}`.trim(),
-            score: s.score
+            score: Number(s.score)
         }));
 
         // Send all competitive data to the frontend (Note: Auth cookie is intentionally kept alive!)
@@ -2351,6 +2375,9 @@ app.post('/api/live/student/verify', async (req, res) => {
         await updateBoardSecurely(cleanId, (board) => {
             if (!board[fullName]) {
                 board[fullName] = { joinedAt: Date.now(), answers: {} };
+            } else {
+                // Preserve existing answers if they are re-joining / refreshing mid-test
+                board[fullName].lastReconnectedAt = Date.now();
             }
             return board;
         });
@@ -2445,13 +2472,24 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
             });
         }
 
+        const authHeader = req.get('Authorization');
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, , first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const savedAnswerObj = board[fullName]?.answers?.[state.currentIndex];
+        const savedAnswer = (savedAnswerObj !== undefined && savedAnswerObj.answer !== undefined) ? savedAnswerObj.answer : null;
+
         const q = content.questions[state.currentIndex];
         const singleUseKey = crypto.randomBytes(12).toString('hex');
         const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
 
         res.json({
             status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
-            payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+            savedAnswer, payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
         });
     } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
 });
