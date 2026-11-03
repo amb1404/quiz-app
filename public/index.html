@@ -152,87 +152,132 @@
     </div>
 
     <!-- Global Sign-In Popup -->
-    <div id="global-login-modal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: white; padding: 40px 30px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-            <h2 style="margin-top: 0; color: #1e3a8a; text-align: center;">Student Login</h2>
-            <p style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px;">Please sign in to access mock tests and study materials.</p>
-            
+<div id="global-login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+    <div style="background: white; padding: 40px 30px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <h2 style="margin-top: 0; color: #1e3a8a; text-align: center;">Student Login</h2>
+        <p style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px;">Please sign in to access mock tests and study materials.</p>
+        
+        <!-- STEP 1: Name and Email -->
+        <div id="login-step-1">
             <input type="text" id="global-fname" placeholder="First Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;">
             <input type="text" id="global-lname" placeholder="Last Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;">
             <input type="email" id="global-email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 25px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: lowercase; outline: none;">
             
-            <button id="login-submit-btn" onclick="handleGlobalLogin()" style="width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 0;">Enter Portal</button>
+            <button id="btn-send-otp" onclick="requestGlobalOtp()" style="width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Send OTP</button>
+        </div>
+
+        <!-- STEP 2: OTP Verification -->
+        <div id="login-step-2" style="display: none;">
+            <p style="text-align: center; color: #10b981; font-weight: bold; margin-bottom: 15px;">OTP sent to your email!</p>
+            <input type="text" id="global-otp" placeholder="Enter 6-digit OTP" style="width: 100%; padding: 12px; margin-bottom: 25px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-weight: bold; outline: none; text-align: center; letter-spacing: 2px;">
+            
+            <button id="btn-verify-otp" onclick="verifyGlobalOtp()" style="width: 100%; padding: 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Verify & Enter Portal</button>
+            <button onclick="resetLoginStep()" style="width: 100%; padding: 10px; background: none; color: #64748b; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline;">Change Email</button>
         </div>
     </div>
+</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Place the profile badge immediately after the last link in the top navigation bar
-            const siteNav = document.querySelector('.site-nav');
-            const profileBadge = document.getElementById('user-profile-display');
-            if (siteNav && profileBadge) {
-                siteNav.appendChild(profileBadge);
-            }
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const token = localStorage.getItem('pp_id_token');
+        const fName = localStorage.getItem('pp_fname');
+        const lName = localStorage.getItem('pp_lname');
 
-            // Attach CSP-compatible event listeners alongside onclick attributes
-            const loginBtn = document.getElementById('login-submit-btn');
-            if (loginBtn) loginBtn.addEventListener('click', handleGlobalLogin);
+        if (token && fName && lName) {
+            document.getElementById('global-login-modal').style.display = 'none';
+            showProfile(fName, lName);
+        } else {
+            document.getElementById('global-login-modal').style.display = 'flex';
+        }
+    });
 
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    async function requestGlobalOtp() {
+        const fnameInput = document.getElementById('global-fname').value.trim();
+        const lnameInput = document.getElementById('global-lname').value.trim();
+        const emailInput = document.getElementById('global-email').value.trim();
 
-            const token = localStorage.getItem('pp_id_token');
-            const fName = localStorage.getItem('pp_fname');
-            const lName = localStorage.getItem('pp_lname');
+        if (!fnameInput || !lnameInput || !emailInput) return alert('All fields are required.');
+        
+        const btn = document.getElementById('btn-send-otp');
+        btn.innerText = 'Sending...';
+        btn.disabled = true;
 
-            if (token && fName && lName) {
-                document.getElementById('global-login-modal').style.display = 'none';
-                showProfile(fName, lName);
-            }
-        });
-
-        async function handleGlobalLogin() {
-            const fnameInput = document.getElementById('global-fname').value.trim();
-            const lnameInput = document.getElementById('global-lname').value.trim();
-            const emailInput = document.getElementById('global-email').value.trim();
-
-            if (!fnameInput || !lnameInput || !emailInput) return alert('All fields are required.');
+        try {
+            const res = await fetch('/api/send-otp', {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName: fnameInput, lastName: lnameInput, email: emailInput })
+            });
+            const data = await res.json();
             
-            document.getElementById('login-submit-btn').innerText = 'Verifying...';
+            if (data.success) {
+                document.getElementById('login-step-1').style.display = 'none';
+                document.getElementById('login-step-2').style.display = 'block';
+            } else {
+                alert(data.error || 'Failed to send OTP.');
+            }
+        } catch (err) { 
+            alert('Network error.'); 
+        } finally {
+            btn.innerText = 'Send OTP';
+            btn.disabled = false;
+        }
+    }
 
-            try {
-                const res = await fetch('/api/auth/signin', {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ firstName: fnameInput, lastName: lnameInput, email: emailInput })
-                });
-                const data = await res.json();
+    async function verifyGlobalOtp() {
+        const emailInput = document.getElementById('global-email').value.trim();
+        const otpInput = document.getElementById('global-otp').value.trim();
+
+        if (!otpInput) return alert('Enter the OTP.');
+        
+        const btn = document.getElementById('btn-verify-otp');
+        btn.innerText = 'Verifying...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/verify-otp', {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: emailInput, otp: otpInput })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                // Store the secure token generated by the OTP verifier
+                localStorage.setItem('pp_id_token', data.identityToken);
+                localStorage.setItem('pp_fname', data.fName);
+                localStorage.setItem('pp_lname', data.lName);
+                localStorage.setItem('pp_email', data.mail);
                 
-                if (data.success) {
-                    // Store the secure, un-tamperable token
-                    localStorage.setItem('pp_id_token', data.identityToken);
-                    localStorage.setItem('pp_fname', data.fName);
-                    localStorage.setItem('pp_lname', data.lName);
-                    
-                    document.getElementById('global-login-modal').style.display = 'none';
-                    showProfile(data.fName, data.lName);
-                } else {
-                    alert('Sign in failed.');
-                    document.getElementById('login-submit-btn').innerText = 'Enter Portal';
-                }
-            } catch (err) { alert('Network error.'); }
+                document.getElementById('global-login-modal').style.display = 'none';
+                showProfile(data.fName, data.lName);
+            } else {
+                alert(data.error || 'Invalid OTP.');
+            }
+        } catch (err) { 
+            alert('Network error.'); 
+        } finally {
+            btn.innerText = 'Verify & Enter Portal';
+            btn.disabled = false;
         }
+    }
 
-        function showProfile(fName, lName) {
-            document.getElementById('user-profile-display').style.display = 'flex';
-            document.getElementById('profile-avatar').innerText = (fName.charAt(0) + lName.charAt(0)).toUpperCase();
-            document.getElementById('profile-name').innerText = `${fName} ${lName}`;
-        }
+    function resetLoginStep() {
+        document.getElementById('login-step-2').style.display = 'none';
+        document.getElementById('login-step-1').style.display = 'block';
+        document.getElementById('global-otp').value = '';
+    }
 
-        function handleLogout() {
-            localStorage.clear();
-            window.location.reload();
-        }
-    </script>
+    function showProfile(fName, lName) {
+        document.getElementById('user-profile-display').style.display = 'flex';
+        document.getElementById('profile-avatar').innerText = (fName.charAt(0) + lName.charAt(0)).toUpperCase();
+        document.getElementById('profile-name').innerText = `${fName} ${lName}`;
+    }
+
+    function handleLogout() {
+        localStorage.clear();
+        window.location.reload();
+    }
+</script>
 </body>
 </html>
