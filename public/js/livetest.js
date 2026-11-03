@@ -5,18 +5,27 @@ let syncInterval;
 let testActive = true;
 
 document.getElementById('join-btn').addEventListener('click', async () => {
-    const first = document.getElementById('live-first').value.trim().toUpperCase();
-    const last = document.getElementById('live-last').value.trim().toUpperCase();
-    const otp = document.getElementById('live-otp').value.trim();
-    currentQuizId = document.getElementById('live-quiz-id').value.trim();
+    const token = localStorage.getItem('pp_id_token');
+    if (!token) {
+        alert('Please sign in on the homepage first.');
+        window.location.replace('/');
+        return;
+    }
 
-    if (!first || !last || !otp || !currentQuizId) return alert("Fill all fields.");
+    currentQuizId = document.getElementById('live-quiz-id').value.trim();
+    const otp = document.getElementById('live-otp').value.trim();
+
+    if (!currentQuizId || !otp) return alert("Test ID and OTP are required.");
     
     document.getElementById('join-btn').innerText = "Verifying...";
     try {
         const res = await fetch('/api/live/student/verify', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName: first, lastName: last, quizId: currentQuizId, otp })
+            method: 'POST', 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ quizId: currentQuizId, otp })
         });
         const data = await res.json();
         if (data.success) {
