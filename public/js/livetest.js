@@ -5,6 +5,29 @@ let syncInterval;
 let testActive = true;
 let lastSavedAnswer = null; // NEW: Tracks the current answer state
 
+// 1. AUTO-RESTORE SESSION IF THE BROWSER IS REFRESHED
+window.addEventListener('DOMContentLoaded', () => {
+    const savedSession = sessionStorage.getItem('live_student_session');
+    
+    if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        liveToken = parsed.token;
+        currentQuizId = parsed.quizId;
+        
+        // Hide the auth form and show the test interface
+        const authScreen = document.getElementById('auth-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        if (authScreen) authScreen.style.display = 'none';
+        if (quizScreen) quizScreen.style.display = 'block';
+        
+        // Jump straight back into the server synchronization loop
+        if (typeof startSync === 'function') {
+            startSync();
+            startHeartbeat(); 
+        }
+    }
+});
+
 function handleExpiredSession() {
     localStorage.clear();
     sessionStorage.removeItem('pioneers_prep_state');
@@ -48,6 +71,10 @@ document.getElementById('join-btn').addEventListener('click', async () => {
             liveToken = data.token;
             testActive = true;     // Reset for multiple live tests
             localIndex = -1;       // Reset question index tracker
+            
+            // 2. SAVE THE ACTIVE SESSION TO SURVIVE BROWSER REFRESHES
+            sessionStorage.setItem('live_student_session', JSON.stringify({ token: liveToken, quizId: currentQuizId }));
+
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
             startSync();
@@ -114,6 +141,9 @@ function startSync() {
                 testActive = false;
                 clearInterval(syncInterval);
                 
+                // 3. WIPE THE MEMORY BECAUSE THE TEST IS OFFICIALLY OVER
+                sessionStorage.removeItem('live_student_session');
+                
                 alert("Test was ended by admin.");
                 
                 document.getElementById('quiz-screen').innerHTML = `
@@ -165,6 +195,7 @@ function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;
     
+    // Decrypting the payload uses data.key - ensuring it works correctly based on your previous fixes
     const q = JSON.parse(xorDecipher(data.payload, data.key));
     document.getElementById('question-text').innerText = `Q${localIndex + 1}. ${q.question}`;
     
