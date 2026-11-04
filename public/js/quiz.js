@@ -146,6 +146,17 @@ async function restoreSessionState(state) {
         userAnswers = state.userAnswers || {};
         skippedQuestions = new Set(state.skippedQuestions || []);
 
+        // Pre-load parent menus so Back navigation is always fully populated
+        if (selectedClassName && (selectedClassName === 'XI' || selectedClassName === 'XII')) {
+            loadNeetUnits(selectedClassName);
+            if (selectedNeetUnit) {
+                loadNeetChapters(selectedClassName, selectedNeetUnit);
+            }
+            if (selectedNeetUnit && selectedNeetChapter) {
+                loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            }
+        }
+
         if (state.activeScreen === 'quiz-screen' && currentQuizId) {
             if (serverStartTime && quizDuration) {
                 timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
@@ -155,6 +166,7 @@ async function restoreSessionState(state) {
             startTimer();
         } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
             loadNeetUnits(selectedClassName);
+            screenHistory = ['home-dashboard'];
         } else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
             loadNeetChapters(selectedClassName, selectedNeetUnit);
             screenHistory = ['home-dashboard', 'neet-unit-screen'];
@@ -163,6 +175,7 @@ async function restoreSessionState(state) {
             screenHistory = ['home-dashboard', 'neet-unit-screen', 'neet-chapter-screen'];
         } else if (state.activeScreen === 'subject-select-screen') {
             showScreen('subject-select-screen');
+            screenHistory = ['home-dashboard'];
         } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
             if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) {
                 selectSubject(selectedSubjectName);
@@ -173,11 +186,13 @@ async function restoreSessionState(state) {
             }
         } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) {
             selectNotesClass(selectedNotesClass);
+            screenHistory = ['home-dashboard'];
         } else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) {
             await selectNotesSubject(selectedNotesSubject);
             screenHistory = ['home-dashboard', 'notes-subject-screen'];
         } else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) {
             selectDescriptiveClass(selectedDescriptiveClass);
+            screenHistory = ['home-dashboard'];
         } else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) {
             await selectDescriptiveSubject(selectedDescriptiveSubject);
             screenHistory = ['home-dashboard', 'descriptive-subject-screen'];
@@ -185,7 +200,13 @@ async function restoreSessionState(state) {
             showScreen(state.activeScreen);
         }
 
-        // Fallback to state's saved history if valid
+        // Force the active screen to remain visible and correct
+        const targetScreen = document.getElementById(state.activeScreen);
+        if (targetScreen) {
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+            targetScreen.classList.remove('hidden');
+        }
+
         if (state.screenHistory && state.screenHistory.length > 0) {
             screenHistory = state.screenHistory;
         }
