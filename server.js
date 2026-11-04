@@ -1017,7 +1017,15 @@ app.get('/descriptive.html', (req, res) => serveDynamicHtml(req, res, 'descripti
 app.get('/admin-live', (req, res) => serveDynamicHtml(req, res, 'admin-live.html', '/admin-live'));
 app.get('/admin-live.html', (req, res) => serveDynamicHtml(req, res, 'admin-live.html', '/admin-live'));
 
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+// Serve static files but force the browser to check Render for updates on refresh
+app.use(express.static(path.join(__dirname, 'public'), { 
+    index: false,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+}));
 
 // ============================================================================
 // 5. SECURITY, SHUFFLING & CACHED FILE SYSTEM HELPERS
