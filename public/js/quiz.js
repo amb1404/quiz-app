@@ -700,8 +700,9 @@ async function renderQuestion() {
                 return;
             }
             const data = await res.json();
-            if (data.payload && data.key) {
-                questionCache[currentQuestionIndex] = JSON.parse(xorDecipher(data.payload, data.key));
+            if (data.payload) {
+                // Decrypt using the timerSignature already held in client memory
+                questionCache[currentQuestionIndex] = JSON.parse(xorDecipher(data.payload, timerSignature));
             } else {
                 throw new Error("Invalid payload");
             }

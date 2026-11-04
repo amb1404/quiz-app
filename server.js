@@ -1813,10 +1813,10 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
         }
 
         const sanitized = { type: qType, question: q.question, options: clientOptions };
-        const singleUseKey = crypto.randomBytes(12).toString('hex');
-        const payload = xorCipher(JSON.stringify(sanitized), singleUseKey);
+        // Use the existing secure session signature as the XOR key (never transmitted)
+        const payload = xorCipher(JSON.stringify(sanitized), seedKey);
 
-        res.json({ payload, key: singleUseKey });
+        res.json({ payload });
     } catch {
         res.status(500).json({ error: "Failed to fetch question." });
     }
@@ -2131,7 +2131,11 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             correct: correctCount, incorrect: incorrectCount, breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
         };
 
-        const historical = await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...payload });
+        // Strip heavy base64 image data before saving to Redis/Disk to prevent database bloat
+        const lightweightBreakdown = breakdownHtml.replace(/<img src="data:image\/[^;]+;base64,[^"]+"[^>]*>/g, '[Image submitted - Refer to email]');
+        const lightweightPayload = { ...payload, breakdown: lightweightBreakdown };
+        
+        const historical = await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...lightweightPayload });
 
         // --- ROBUST LEADERBOARD & STATS ENGINE (DEDUPLICATED & ACCURATE PERCENTILE) ---
         const norm = str => String(str || '').trim().toLowerCase();
