@@ -840,36 +840,28 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var baseRoute = '${canonicalBaseRoute}';
                 var backEventTriggered = false;
 
-                // --- NEW FIX: DOM HYDRATION TO PREVENT BLANK SCREENS ON REFRESH ---
-                try {
-                    // 1. Instantly restore parent screens that were wiped by the reload
-                    var cachedDOM = sessionStorage.getItem('pioneers_dom_cache');
-                    if (cachedDOM) {
-                        var domCache = JSON.parse(cachedDOM);
+                // --- 1. CONTINUOUS DOM CACHING ENGINE ---
+                function snapshotDOM() {
+                    try {
+                        var toCache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
                         document.querySelectorAll('.app-screen').forEach(function(screen) {
-                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen' && domCache[screen.id]) {
-                                // If the cached screen has dynamic buttons, but the newly loaded screen is blank, restore it!
-                                if (domCache[screen.id].indexOf('data-action') !== -1 && screen.innerHTML.indexOf('data-action') === -1) {
-                                    screen.innerHTML = domCache[screen.id];
+                            // Only target visible screens (ignoring active quizzes)
+                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen' && !screen.classList.contains('hidden')) {
+                                // SECURITY: Only cache the screen if it actually has fully loaded buttons/options
+                                if ((screen.innerHTML.match(/data-action/g) || []).length > 1) {
+                                    toCache[screen.id] = screen.innerHTML;
                                 }
                             }
                         });
-                    }
-                } catch(err) {}
-                
-                // 2. Cache the fully populated HTML menus right before the user refreshes
-                window.addEventListener('beforeunload', function() {
-                    try {
-                        var toCache = {};
-                        document.querySelectorAll('.app-screen').forEach(function(screen) {
-                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen') {
-                                toCache[screen.id] = screen.innerHTML;
-                            }
-                        });
                         sessionStorage.setItem('pioneers_dom_cache', JSON.stringify(toCache));
-                    } catch(err) {}
-                });
-                // ------------------------------------------------------------------
+                    } catch(e) {}
+                }
+                
+                // Save the screen layout 500ms after every click, keeping the cache perpetually up-to-date
+                document.addEventListener('click', function() { setTimeout(snapshotDOM, 500); });
+                window.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') snapshotDOM(); });
+                window.addEventListener('pagehide', snapshotDOM);
+                // ----------------------------------------
 
                 var screenSlugMap = {
                     'home-dashboard': '',
@@ -915,7 +907,29 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var observer = new MutationObserver(function(mutations) {
                     mutations.forEach(function(m) {
                         var el = m.target;
+                        
+                        // Detect when a screen is unhidden (e.g., when the user clicks "Back")
                         if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
+                            
+                            // --- 2. JUST-IN-TIME (JIT) RESTORATION ---
+                            try {
+                                var cacheStr = sessionStorage.getItem('pioneers_dom_cache');
+                                if (cacheStr && el.id !== 'quiz-screen' && el.id !== 'result-screen') {
+                                    var domCache = JSON.parse(cacheStr);
+                                    if (domCache[el.id]) {
+                                        // Count the action buttons. A blank screen only has 1 (the Back button).
+                                        var currCount = (el.innerHTML.match(/data-action/g) || []).length;
+                                        var cacheCount = (domCache[el.id].match(/data-action/g) || []).length;
+                                        
+                                        // If the cached screen has more options than the current blank screen, restore it!
+                                        if (cacheCount > currCount) {
+                                            el.innerHTML = domCache[el.id];
+                                        }
+                                    }
+                                }
+                            } catch(e) {}
+                            // -----------------------------------------
+
                             var targetUrl = getCleanUrlForScreen(el.id);
                             if (backEventTriggered) {
                                 backEventTriggered = false;
