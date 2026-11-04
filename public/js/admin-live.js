@@ -158,10 +158,15 @@ function startDashboardSync() {
             const data = await res.json();
             
             if (data.success) {
-                // If the page was refreshed, recover the current state from the server
+                // Restore state and OTP on refresh
                 if (data.state) {
                     currentIndex = data.state.currentIndex;
                     document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} ${totalQuestions > 0 ? '/ ' + totalQuestions : ''}`;
+                }
+                
+                // If the server sends the active OTP back, make sure it stays visible
+                if (data.otp) {
+                    document.getElementById('otp-display').innerText = `OTP: ${data.otp}`;
                 }
 
                 const tbody = document.getElementById('board-body');

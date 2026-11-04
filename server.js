@@ -2270,6 +2270,10 @@ app.post('/api/live/admin/end', async (req, res) => {
             state.status = 'ended';
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
         }
+        
+        // KILL THE OTP IMMEDIATELY
+        await stateStore.del(`live:otp:${cleanId}`);
+        
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end quiz.' }); }
 });
@@ -2335,8 +2339,9 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         
-        // RULE 2: Inactivity filtering removed. 
-        // Students are removed exclusively via the tab-close signal (/api/live/student/leave).
+        // Fetch the active OTP to send back to the dashboard
+        const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
+
         const activeStudents = board;
 
         const students = Object.keys(activeStudents).map(name => ({
@@ -2349,7 +2354,8 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
             return timeA - timeB;
         });
 
-        res.json({ success: true, state, students });
+        // Add `otp: activeOtp` to the JSON response
+        res.json({ success: true, state, students, otp: activeOtp });
     } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
 });
 
