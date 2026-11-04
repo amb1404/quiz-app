@@ -1,8 +1,32 @@
 let adminKey = "";
 let quizId = "";
 let currentIndex = 0;
-let totalQuestions = 0;
+let totalQuestions = 0; // Handled dynamically if refreshed
 let dashInterval;
+
+// RULE 2: Persist Admin Credentials on Refresh (Restore Session)
+window.addEventListener('DOMContentLoaded', () => {
+    const saved = sessionStorage.getItem('live_admin_session');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        adminKey = parsed.adminKey;
+        quizId = parsed.quizId;
+        
+        // Hide login, show panels immediately
+        document.getElementById('admin-key').value = adminKey;
+        document.getElementById('quiz-id').value = quizId;
+        document.getElementById('control-panel').style.display = 'block';
+        document.getElementById('board-panel').style.display = 'block';
+        
+        const startBtn = document.getElementById('start-btn');
+        startBtn.innerText = "Live Active (Restored)";
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.7';
+        startBtn.style.cursor = 'not-allowed';
+
+        startDashboardSync();
+    }
+});
 
 document.getElementById('start-btn').addEventListener('click', async () => {
     adminKey = document.getElementById('admin-key').value.trim();
@@ -23,6 +47,9 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
             
+            // Save to sessionStorage so it survives page refreshes
+            sessionStorage.setItem('live_admin_session', JSON.stringify({ adminKey, quizId }));
+
             // Keep visually active but fully disabled
             startBtn.innerText = "Live Active";
             startBtn.disabled = true;
@@ -37,19 +64,9 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// End test on all student browsers immediately ONLY when admin explicitly exits tab
-window.addEventListener('beforeunload', () => {
-    if (adminKey && quizId) {
-        fetch('/api/live/admin/end', {
-            method: 'POST',
-            keepalive: true,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminKey, quizId })
-        }).catch(() => {});
-    }
-});
+// RULE 1: `beforeunload` event has been permanently deleted from here.
+// The test now ONLY ends when you explicitly click the "End Test" button below.
 
-// Manual End Test Button Logic
 // Manual End Test Button Logic
 document.getElementById('end-test-btn').addEventListener('click', async () => {
     if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
@@ -63,6 +80,9 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
         
         // Stop fetching the leaderboard
         clearInterval(dashInterval);
+        
+        // Clear session storage so refresh doesn't auto-login anymore
+        sessionStorage.removeItem('live_admin_session');
         
         // Hide the active test panels
         document.getElementById('control-panel').style.display = 'none';
@@ -86,8 +106,32 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
     }
 });
 
+// RULE 3: Wire up the "Clear Responses" Button
+document.getElementById('clear-responses-btn')?.addEventListener('click', async () => {
+    if (!confirm("Are you sure? This will wipe all student selections for the current question so they can answer again.")) return;
+    
+    try {
+        const res = await fetch('/api/live/admin/clear-question', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId }) 
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert("Responses cleared! Students' screens have been unlocked.");
+        } else {
+            alert(data.error || "Failed to clear responses.");
+        }
+    } catch (err) {
+        alert("Network error while clearing responses.");
+    }
+});
+
 async function setQuestionIndex(newIndex) {
-    if (newIndex < 0 || newIndex >= totalQuestions) return;
+    // If totalQuestions wasn't set (due to refresh), we bypass the upper limit check
+    // since the server will block invalid indexes anyway.
+    if (newIndex < 0 || (totalQuestions > 0 && newIndex >= totalQuestions)) return;
     document.getElementById('prev-btn').disabled = true;
     document.getElementById('next-btn').disabled = true;
     
@@ -97,7 +141,7 @@ async function setQuestionIndex(newIndex) {
     });
     
     currentIndex = newIndex;
-    document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} / ${totalQuestions}`;
+    document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} ${totalQuestions > 0 ? '/ ' + totalQuestions : ''}`;
     document.getElementById('prev-btn').disabled = false;
     document.getElementById('next-btn').disabled = false;
 }
@@ -110,7 +154,14 @@ function startDashboardSync() {
         try {
             const res = await fetch(`/api/live/admin/dashboard?adminKey=${adminKey}&quizId=${quizId}`);
             const data = await res.json();
+            
             if (data.success) {
+                // If the page was refreshed, recover the current state from the server
+                if (data.state) {
+                    currentIndex = data.state.currentIndex;
+                    document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} ${totalQuestions > 0 ? '/ ' + totalQuestions : ''}`;
+                }
+
                 const tbody = document.getElementById('board-body');
                 tbody.innerHTML = '';
                 

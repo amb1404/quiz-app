@@ -2291,6 +2291,33 @@ app.post('/api/live/admin/set-index', async (req, res) => {
         res.json({ success: true, currentIndex: state.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
+// Admin: Clear current question responses for all students
+app.post('/api/live/admin/clear-question', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+        const cleanId = path.basename(String(quizId)).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Quiz not active.' });
+        
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        const currentIndex = state.currentIndex;
+
+        await updateBoardSecurely(cleanId, (board) => {
+            let modified = false;
+            Object.keys(board).forEach(studentName => {
+                if (board[studentName].answers && board[studentName].answers[currentIndex] !== undefined) {
+                    delete board[studentName].answers[currentIndex];
+                    modified = true;
+                }
+            });
+            return modified ? board : null; // Only update Redis if something was actually deleted
+        });
+
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Failed to clear question.' }); }
+});
 
 // Admin: Fetch Dashboard Leaderboard & Push Heartbeat
 app.get('/api/live/admin/dashboard', async (req, res) => {

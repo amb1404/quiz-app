@@ -3,6 +3,7 @@ let currentQuizId = "";
 let localIndex = -1;
 let syncInterval;
 let testActive = true;
+let lastSavedAnswer = null; // NEW: Tracks the current answer state
 
 function handleExpiredSession() {
     localStorage.clear();
@@ -143,9 +144,18 @@ function startSync() {
                 return;
             }
 
-            if (data.status === 'active' && data.currentIndex !== localIndex) {
-                localIndex = data.currentIndex;
-                renderQuestion(data);
+            if (data.status === 'active') {
+                const indexChanged = data.currentIndex !== localIndex;
+                const answerWasClearedByAdmin = (lastSavedAnswer !== null && data.savedAnswer === null);
+
+                if (indexChanged || answerWasClearedByAdmin) {
+                    localIndex = data.currentIndex;
+                    lastSavedAnswer = data.savedAnswer;
+                    renderQuestion(data);
+                } else {
+                    // Just keep our local tracker updated
+                    lastSavedAnswer = data.savedAnswer;
+                }
             }
         } catch (e) {}
     }, 2000);
