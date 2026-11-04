@@ -72,23 +72,26 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
     if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
     
     try {
-        await fetch('/api/live/admin/end', {
+        const res = await fetch('/api/live/admin/end', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ adminKey, quizId })
         });
         
-        // Stop fetching the leaderboard
-        clearInterval(dashInterval);
+        const data = await res.json();
         
-        // Clear session storage so refresh doesn't auto-login anymore
+        // Strict error checking to prevent silent failures
+        if (!res.ok || !data.success) {
+            alert(data.error || "Authentication failed. Your Admin Key may be incorrect.");
+            return; // Stop here, do not hide the UI
+        }
+        
+        clearInterval(dashInterval);
         sessionStorage.removeItem('live_admin_session');
         
-        // Hide the active test panels
         document.getElementById('control-panel').style.display = 'none';
         document.getElementById('board-panel').style.display = 'none';
         
-        // Reset the start button and clear OTP to match the initial screen
         const startBtn = document.getElementById('start-btn');
         startBtn.innerText = "Start Broadcast & Send OTP";
         startBtn.disabled = false;
@@ -96,13 +99,12 @@ document.getElementById('end-test-btn').addEventListener('click', async () => {
         startBtn.style.cursor = 'pointer';
         document.getElementById('otp-display').innerText = "";
         
-        // Clear inputs for the next session
         document.getElementById('admin-key').value = "";
         document.getElementById('quiz-id').value = "";
         
         alert("Test successfully terminated. Scorecards are now being displayed to students.");
     } catch (e) {
-        alert("Failed to end the test.");
+        alert("Network error. Failed to communicate with the server.");
     }
 });
 
