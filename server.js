@@ -840,6 +840,37 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var baseRoute = '${canonicalBaseRoute}';
                 var backEventTriggered = false;
 
+                // --- NEW FIX: DOM HYDRATION TO PREVENT BLANK SCREENS ON REFRESH ---
+                try {
+                    // 1. Instantly restore parent screens that were wiped by the reload
+                    var cachedDOM = sessionStorage.getItem('pioneers_dom_cache');
+                    if (cachedDOM) {
+                        var domCache = JSON.parse(cachedDOM);
+                        document.querySelectorAll('.app-screen').forEach(function(screen) {
+                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen' && domCache[screen.id]) {
+                                // If the cached screen has dynamic buttons, but the newly loaded screen is blank, restore it!
+                                if (domCache[screen.id].indexOf('data-action') !== -1 && screen.innerHTML.indexOf('data-action') === -1) {
+                                    screen.innerHTML = domCache[screen.id];
+                                }
+                            }
+                        });
+                    }
+                } catch(err) {}
+                
+                // 2. Cache the fully populated HTML menus right before the user refreshes
+                window.addEventListener('beforeunload', function() {
+                    try {
+                        var toCache = {};
+                        document.querySelectorAll('.app-screen').forEach(function(screen) {
+                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen') {
+                                toCache[screen.id] = screen.innerHTML;
+                            }
+                        });
+                        sessionStorage.setItem('pioneers_dom_cache', JSON.stringify(toCache));
+                    } catch(err) {}
+                });
+                // ------------------------------------------------------------------
+
                 var screenSlugMap = {
                     'home-dashboard': '',
                     'subject-screen': '/select-subject',
@@ -2281,9 +2312,16 @@ function getLiveMockContent(rawId) {
     const cleanId = path.basename(String(rawId)).trim().replace('.json', '');
     const liveDir = path.join(__dirname, 'livemock');
     if (!fs.existsSync(liveDir)) fs.mkdirSync(liveDir, { recursive: true });
-    const filePath = path.join(liveDir, cleanId + '.json');
-    if (!fs.existsSync(filePath)) return null;
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    
+    // Use your existing recursive scanner to search all subfolders
+    const allLiveFiles = getAllJsonFiles(liveDir);
+    const targetFileName = cleanId + '.json';
+    
+    // Find the file regardless of how deep it is nested in class folders
+    const matchedPath = allLiveFiles.find(filePath => path.basename(filePath) === targetFileName);
+    
+    if (!matchedPath) return null;
+    return JSON.parse(fs.readFileSync(matchedPath, 'utf8'));
 }
 
 // Admin: Start Quiz & Generate OTP
