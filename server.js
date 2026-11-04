@@ -840,28 +840,67 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var baseRoute = '${canonicalBaseRoute}';
                 var backEventTriggered = false;
 
-                // --- 1. CONTINUOUS DOM CACHING ENGINE ---
-                function snapshotDOM() {
+                // --- 1. RELIABLE PRE-CLICK DOM SNAPSHOT ENGINE ---
+                function countInteractiveItems(el) {
+                    if (!el) return 0;
+                    // Count actual cards, buttons, and list items (excluding the Back button)
+                    return el.querySelectorAll('.card, button:not(.back-btn), a, [data-action], [data-csp-action]').length;
+                }
+
+                function saveVisibleScreenToCache() {
                     try {
-                        var toCache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
-                        document.querySelectorAll('.app-screen').forEach(function(screen) {
-                            // Only target visible screens (ignoring active quizzes)
-                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen' && !screen.classList.contains('hidden')) {
-                                // SECURITY: Only cache the screen if it actually has fully loaded buttons/options
-                                if ((screen.innerHTML.match(/data-action/g) || []).length > 1) {
-                                    toCache[screen.id] = screen.innerHTML;
+                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
+                        document.querySelectorAll('.app-screen:not(.hidden)').forEach(function(screen) {
+                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen') {
+                                if (countInteractiveItems(screen) > 0) {
+                                    cache[screen.id] = screen.innerHTML;
                                 }
                             }
                         });
-                        sessionStorage.setItem('pioneers_dom_cache', JSON.stringify(toCache));
-                    } catch(e) {}
+                        sessionStorage.setItem('pioneers_dom_cache', JSON.stringify(cache));
+                    } catch (e) {}
                 }
-                
-                // Save the screen layout 500ms after every click, keeping the cache perpetually up-to-date
-                document.addEventListener('click', function() { setTimeout(snapshotDOM, 500); });
-                window.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') snapshotDOM(); });
-                window.addEventListener('pagehide', snapshotDOM);
-                // ----------------------------------------
+
+                // Capture the screen BEFORE the click switches to the next screen
+                window.addEventListener('mousedown', saveVisibleScreenToCache, true);
+                window.addEventListener('touchstart', saveVisibleScreenToCache, true);
+                window.addEventListener('beforeunload', saveVisibleScreenToCache);
+
+                // Helper to restore or re-build a blank parent screen
+                function hydrateScreenIfBlank(screenEl) {
+                    if (!screenEl || screenEl.id === 'quiz-screen' || screenEl.id === 'result-screen' || screenEl.id === 'home-dashboard') return;
+                    if (countInteractiveItems(screenEl) > 0) return; // Screen already has content
+
+                    // Step A: Restore from DOM Snapshot
+                    try {
+                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
+                        if (cache[screenEl.id]) {
+                            screenEl.innerHTML = cache[screenEl.id];
+                        }
+                    } catch (e) {}
+
+                    // Step B: If still blank, or to re-bind JS state, replay parent state from pioneers_prep_state
+                    if (countInteractiveItems(screenEl) === 0) {
+                        try {
+                            var st = JSON.parse(sessionStorage.getItem('pioneers_prep_state') || '{}');
+                            var cls = st.selectedClass || st.currentClass || st.classLevel;
+                            var sub = st.selectedSubject || st.currentSubject || st.subject;
+                            var unit = st.selectedUnit || st.currentUnit || st.unit;
+
+                            if ((screenEl.id.indexOf('subject') !== -1) && cls) {
+                                if (typeof selectClass === 'function') selectClass(cls);
+                                else if (typeof selectNotesClass === 'function') selectNotesClass(cls);
+                                else if (typeof selectDescriptiveClass === 'function') selectDescriptiveClass(cls);
+                            } else if ((screenEl.id.indexOf('unit') !== -1 || screenEl.id.indexOf('chapter') !== -1) && sub) {
+                                if (typeof selectSubject === 'function') selectSubject(sub);
+                                else if (typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(sub);
+                            } else if (screenEl.id.indexOf('chapter') !== -1 && unit && typeof selectUnit === 'function') {
+                                selectUnit(unit);
+                            }
+                        } catch (e) {}
+                    }
+                }
+                // ----------------------------------------------------
 
                 var screenSlugMap = {
                     'home-dashboard': '',
@@ -894,41 +933,33 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     return baseRoute + slug;
                 }
 
+                // Pre-hydrate all hidden parent screens on page reload
                 setTimeout(function() {
+                    try {
+                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
+                        document.querySelectorAll('.app-screen.hidden').forEach(function(screen) {
+                            if (cache[screen.id] && countInteractiveItems(screen) === 0) {
+                                screen.innerHTML = cache[screen.id];
+                            }
+                        });
+                    } catch (e) {}
+
                     if (window.location.search && window.location.search.indexOf('class=') !== -1) {
                         return;
                     }
                     var activeEl = document.querySelector('.app-screen:not(.hidden)');
                     if (!activeEl) return;
+                    hydrateScreenIfBlank(activeEl);
                     var initialUrl = getCleanUrlForScreen(activeEl.id);
                     history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, initialUrl);
-                }, 0);
+                }, 50);
 
                 var observer = new MutationObserver(function(mutations) {
                     mutations.forEach(function(m) {
                         var el = m.target;
-                        
-                        // Detect when a screen is unhidden (e.g., when the user clicks "Back")
                         if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
-                            
-                            // --- 2. JUST-IN-TIME (JIT) RESTORATION ---
-                            try {
-                                var cacheStr = sessionStorage.getItem('pioneers_dom_cache');
-                                if (cacheStr && el.id !== 'quiz-screen' && el.id !== 'result-screen') {
-                                    var domCache = JSON.parse(cacheStr);
-                                    if (domCache[el.id]) {
-                                        // Count the action buttons. A blank screen only has 1 (the Back button).
-                                        var currCount = (el.innerHTML.match(/data-action/g) || []).length;
-                                        var cacheCount = (domCache[el.id].match(/data-action/g) || []).length;
-                                        
-                                        // If the cached screen has more options than the current blank screen, restore it!
-                                        if (cacheCount > currCount) {
-                                            el.innerHTML = domCache[el.id];
-                                        }
-                                    }
-                                }
-                            } catch(e) {}
-                            // -----------------------------------------
+                            // Instantly hydrate if the screen unhides blank
+                            hydrateScreenIfBlank(el);
 
                             var targetUrl = getCleanUrlForScreen(el.id);
                             if (backEventTriggered) {
