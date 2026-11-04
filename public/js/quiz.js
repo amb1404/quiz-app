@@ -153,22 +153,42 @@ async function restoreSessionState(state) {
             showScreen('quiz-screen');
             await renderQuestion();
             startTimer();
-        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) loadNeetUnits(selectedClassName);
-        else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) loadNeetChapters(selectedClassName, selectedNeetUnit);
-        else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
-        else if (state.activeScreen === 'subject-select-screen') showScreen('subject-select-screen');
-        else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
-            if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) selectSubject(selectedSubjectName);
-            else loadDynamicChapters(selectedClassName);
-        } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) selectNotesClass(selectedNotesClass);
-        else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) await selectNotesSubject(selectedNotesSubject);
-        else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) selectDescriptiveClass(selectedDescriptiveClass);
-        else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) await selectDescriptiveSubject(selectedDescriptiveSubject);
-        else {
+        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
+            loadNeetUnits(selectedClassName);
+        } else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
+            loadNeetChapters(selectedClassName, selectedNeetUnit);
+            screenHistory = ['home-dashboard', 'neet-unit-screen'];
+        } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
+            loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            screenHistory = ['home-dashboard', 'neet-unit-screen', 'neet-chapter-screen'];
+        } else if (state.activeScreen === 'subject-select-screen') {
+            showScreen('subject-select-screen');
+        } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
+            if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) {
+                selectSubject(selectedSubjectName);
+                screenHistory = ['home-dashboard', 'subject-select-screen'];
+            } else {
+                loadDynamicChapters(selectedClassName);
+                screenHistory = ['home-dashboard'];
+            }
+        } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) {
+            selectNotesClass(selectedNotesClass);
+        } else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) {
+            await selectNotesSubject(selectedNotesSubject);
+            screenHistory = ['home-dashboard', 'notes-subject-screen'];
+        } else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) {
+            selectDescriptiveClass(selectedDescriptiveClass);
+        } else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) {
+            await selectDescriptiveSubject(selectedDescriptiveSubject);
+            screenHistory = ['home-dashboard', 'descriptive-subject-screen'];
+        } else {
             showScreen(state.activeScreen);
         }
 
-        screenHistory = state.screenHistory || [];
+        // Fallback to state's saved history if valid
+        if (state.screenHistory && state.screenHistory.length > 0) {
+            screenHistory = state.screenHistory;
+        }
     } catch (e) {
         console.error(e);
     } finally {
@@ -446,7 +466,6 @@ function prepareQuiz(quiz) {
     timeRemaining = quiz.duration || 900;
     quizDuration = timeRemaining;
 
-    // Instantly bypass candidate screen and fetch the quiz
     attemptQuizStart();
 }
 
@@ -463,7 +482,6 @@ function preparePremiumPdf(item, type) {
     activePremiumPdf = item;
     activePremiumType = type;
 
-    // Instantly bypass candidate screen and fetch the PDF
     attemptPdfDownload();
 }
 
@@ -557,7 +575,6 @@ async function attemptQuizStart() {
         });
         const startData = await startRes.json();
 
-        // Implementation 1: Smart 401 Auto-Logout
         if (startRes.status === 401) {
             handleExpiredSession();
             return;
@@ -585,7 +602,6 @@ async function attemptQuizStart() {
         quizDuration = startData.duration || timeRemaining;
         timeRemaining = quizDuration;
 
-        // JIT: Fetch total question count
         const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
             credentials: 'same-origin',
             headers: { 
@@ -600,7 +616,6 @@ async function attemptQuizStart() {
         const metaData = await qRes.json();
         currentQuestionsCount = metaData.totalQuestions || 0;
 
-        // Reset previous quiz state and clean DOM before switching to quiz-screen
         currentQuestionIndex = 0;
         userAnswers = {};
         skippedQuestions = new Set();
@@ -636,7 +651,6 @@ async function attemptPdfDownload() {
         }
     });
 
-    // Implementation 2: Smart 401 Auto-Logout on PDF Downloads
     if (res.status === 401) {
         handleExpiredSession();
         return;
@@ -683,7 +697,6 @@ async function renderQuestion() {
     const questionBox = document.getElementById('question-box');
     const token = localStorage.getItem('pp_id_token');
 
-    // JIT Fetching & Caching single question
     if (!questionCache[currentQuestionIndex]) {
         questionBox.innerText = `Loading Question ${currentQuestionIndex + 1}...`;
         container.innerHTML = '';
@@ -701,7 +714,6 @@ async function renderQuestion() {
             }
             const data = await res.json();
             if (data.payload) {
-                // Decrypt using the timerSignature already held in client memory
                 questionCache[currentQuestionIndex] = JSON.parse(xorDecipher(data.payload, timerSignature));
             } else {
                 throw new Error("Invalid payload");
@@ -868,7 +880,6 @@ async function submitQuiz(isAuto = false) {
             const safeTotal = escapeClientHtml(data.total);
             const percentage = ((data.score / data.total) * 100).toFixed(1);
             
-            // Build Leaderboard Table HTML
             let lbHtml = `<table style="width:100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
                 <tr style="background:#e2e8f0; color:#1e293b;">
                     <th style="padding:10px; border-radius: 6px 0 0 0;">Rank</th>
@@ -878,7 +889,6 @@ async function submitQuiz(isAuto = false) {
                 
             if (data.leaderboard && data.leaderboard.length > 0) {
                 data.leaderboard.forEach((user, idx) => {
-                    // Highlight the current user in the leaderboard using their full name
                     const isMe = user.name === `${first} ${last}`.trim();
                     const rowStyle = isMe ? 'background:#dbeafe; font-weight:bold; color:#1e40af;' : 'border-bottom: 1px solid #e2e8f0;';
                     lbHtml += `<tr style="${rowStyle}">
@@ -890,25 +900,21 @@ async function submitQuiz(isAuto = false) {
             }
             lbHtml += `</table>`;
 
-            // Inject the new Interactive Dashboard
             document.getElementById('result-screen').innerHTML = `
                 <button class="back-btn" data-action="go-home">Back to Portal</button>
                 <div style="max-width: 650px; margin: 0 auto; padding: 10px;">
                     <h2 style="text-align:center; color:#4285f4; margin-top:0;">Performance Dashboard</h2>
                     
-                    <!-- Stats Card -->
                     <div style="text-align:center; margin-top:20px; background: #ffffff; border-radius: 12px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                         <p style="font-size:15px; color:#64748b; margin-bottom: 5px;">Candidate: <strong>${safeCandidate}</strong></p>
                         
                         <h1 style="color:#2563eb; font-size:58px; margin:10px 0; line-height: 1;">${percentage}%</h1>
                         <p style="font-size:18px; font-weight:600; color:#0f172a; margin-top:0;">${safeScore} / ${safeTotal} Correct</p>
                         
-                        <!-- Progress Bar -->
                         <div style="width:100%; background:#e2e8f0; border-radius:8px; height:12px; margin:20px 0; overflow:hidden;">
                             <div style="width:${percentage}%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:8px;"></div>
                         </div>
                         
-                        <!-- Comparative Metrics -->
                         <div style="display:flex; justify-content:space-around; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
                             <div>
                                 <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${100 - data.percentile}%</span>
@@ -921,7 +927,6 @@ async function submitQuiz(isAuto = false) {
                         </div>
                     </div>
 
-                    <!-- Leaderboard Card -->
                     <div style="margin-top: 25px; background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <h3 style="margin:0; color:#1e293b; font-size: 16px;">🏆 Top Performers</h3>
@@ -935,7 +940,6 @@ async function submitQuiz(isAuto = false) {
             `;
             screenHistory = [];
             showScreen('result-screen');
-            // Explicitly save state so refresh keeps them on the result screen
             try {
                 const resultState = {
                     activeScreen: 'result-screen',

@@ -700,6 +700,108 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 }
 
+                // 1. Track every navigation function call & its arguments in sessionStorage
+                var NAV_HISTORY_KEY = 'pioneers_nav_chain';
+                function recordStep(fnName, arg) {
+                    try {
+                        var chain = JSON.parse(sessionStorage.getItem(NAV_HISTORY_KEY) || '{}');
+                        chain[fnName] = arg;
+                        sessionStorage.setItem(NAV_HISTORY_KEY, JSON.stringify(chain));
+                    } catch (e) {}
+                }
+
+                // Wrap global navigation functions once they load so every step is recorded
+                function wrapNavFunctions() {
+                    var fns = ['selectClass', 'selectSubject', 'selectUnit', 'selectChapter', 'selectNotesClass', 'selectDescriptiveClass', 'selectDescriptiveSubject'];
+                    fns.forEach(function(fn) {
+                        if (typeof window[fn] === 'function' && !window[fn].__wrapped) {
+                            var orig = window[fn];
+                            window[fn] = function(arg) {
+                                recordStep(fn, arg);
+                                const res = orig.apply(this, arguments);
+                                setTimeout(snapshotAllPopulatedScreens, 120);
+                                return res;
+                            };
+                            window[fn].__wrapped = true;
+                        }
+                    });
+                }
+
+                // 2. Snapshot innerHTML of any screen that actually has rendered items
+                var DOM_CACHE_KEY = 'pioneers_dom_cache_v2';
+                function isScreenPopulated(screenEl) {
+                    if (!screenEl) return false;
+                    // Look for any dynamic container with children, or more than 1 button/card
+                    var cards = screenEl.querySelectorAll('.card, .quiz-card, .chapter-card, .unit-card, .subject-card, .note-card, .paper-card, a[href], button:not(.back-btn)');
+                    return cards.length > 0;
+                }
+
+                function snapshotAllPopulatedScreens() {
+                    try {
+                        var cache = JSON.parse(sessionStorage.getItem(DOM_CACHE_KEY) || '{}');
+                        document.querySelectorAll('.app-screen').forEach(function(scr) {
+                            if (scr.id && scr.id !== 'quiz-screen' && scr.id !== 'result-screen' && isScreenPopulated(scr)) {
+                                // Tag dynamic cards with their visible text so click delegation works after restore
+                                scr.querySelectorAll('.card, button:not(.back-btn)').forEach(function(el) {
+                                    if (!el.getAttribute('data-restored-label')) {
+                                        el.setAttribute('data-restored-label', (el.innerText || '').trim());
+                                    }
+                                });
+                                cache[scr.id] = scr.innerHTML;
+                            }
+                        });
+                        sessionStorage.setItem(DOM_CACHE_KEY, JSON.stringify(cache));
+                    } catch (e) {}
+                }
+
+                function restoreBlankScreensFromCache() {
+                    try {
+                        var cache = JSON.parse(sessionStorage.getItem(DOM_CACHE_KEY) || '{}');
+                        document.querySelectorAll('.app-screen').forEach(function(scr) {
+                            if (scr.id && scr.id !== 'quiz-screen' && scr.id !== 'result-screen' && cache[scr.id] && !isScreenPopulated(scr)) {
+                                scr.innerHTML = cache[scr.id];
+                            }
+                        });
+                    } catch (e) {}
+                }
+
+                // 3. Rebuild parent screens natively after a page refresh without switching away from the active screen
+                function replayParentHierarchySilently() {
+                    try {
+                        wrapNavFunctions();
+                        var activeBefore = document.querySelector('.app-screen:not(.hidden)');
+                        var activeId = activeBefore ? activeBefore.id : null;
+                        if (!activeId || activeId === 'home-dashboard' || activeId === 'quiz-screen' || activeId === 'result-screen') return;
+
+                        var state = JSON.parse(sessionStorage.getItem('pioneers_prep_state') || '{}');
+                        var chain = JSON.parse(sessionStorage.getItem(NAV_HISTORY_KEY) || '{}');
+
+                        var cls = chain.selectClass || state.selectedClass || state.currentClass || state.classLevel;
+                        var sub = chain.selectSubject || state.selectedSubject || state.currentSubject || state.subject;
+                        var unit = chain.selectUnit || state.selectedUnit || state.currentUnit || state.unit;
+                        var nCls = chain.selectNotesClass || cls;
+                        var dCls = chain.selectDescriptiveClass || cls;
+                        var dSub = chain.selectDescriptiveSubject || sub;
+
+                        // Replay parent builders in order so their DOM containers are populated with live listeners
+                        if (cls && typeof window.selectClass === 'function') window.selectClass(cls);
+                        if (nCls && typeof window.selectNotesClass === 'function') window.selectNotesClass(nCls);
+                        if (dCls && typeof window.selectDescriptiveClass === 'function') window.selectDescriptiveClass(dCls);
+                        if (sub && typeof window.selectSubject === 'function') window.selectSubject(sub);
+                        if (dSub && typeof window.selectDescriptiveSubject === 'function') window.selectDescriptiveSubject(dSub);
+                        if (unit && typeof window.selectUnit === 'function') window.selectUnit(unit);
+
+                        // Restore the exact screen the student was on when they hit refresh
+                        document.querySelectorAll('.app-screen').forEach(function(s) {
+                            if (s.id === activeId) s.classList.remove('hidden');
+                            else s.classList.add('hidden');
+                        });
+                        state.activeScreen = activeId;
+                        sessionStorage.setItem('pioneers_prep_state', JSON.stringify(state));
+                        snapshotAllPopulatedScreens();
+                    } catch (e) {}
+                }
+
                 try {
                     var origSetItem = sessionStorage.setItem;
                     sessionStorage.setItem = function(key, val) {
@@ -716,11 +818,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 } catch (e) {}
 
+                // Intercept fetch so as soon as /api/quizzes, /api/notes, or /api/descriptive-questions finishes loading on refresh, we rebuild parent screens
                 var originalFetch = window.fetch;
                 if (originalFetch) {
                     window.fetch = function(input, init) {
+                        var url = '';
                         try {
-                            var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+                            url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
                             if (url.indexOf('/api/') !== -1) {
                                 init = init || {};
                                 init.credentials = 'same-origin';
@@ -734,11 +838,25 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 }
                             }
                         } catch (e) {}
-                        return originalFetch.call(this, input, init);
+                        var p = originalFetch.call(this, input, init);
+                        if (url.indexOf('/api/quizzes') !== -1 || url.indexOf('/api/notes') !== -1 || url.indexOf('/api/descriptive-questions') !== -1) {
+                            p.then(function() {
+                                setTimeout(function() {
+                                    replayParentHierarchySilently();
+                                    restoreBlankScreensFromCache();
+                                }, 150);
+                            }).catch(function() {});
+                        }
+                        return p;
                     };
                 }
 
+                window.addEventListener('mousedown', snapshotAllPopulatedScreens, true);
+                window.addEventListener('touchstart', snapshotAllPopulatedScreens, true);
+                window.addEventListener('beforeunload', snapshotAllPopulatedScreens);
+
                 document.addEventListener('click', function(e) {
+                    wrapNavFunctions();
                     var target = e.target ? e.target.closest('[data-action], [data-csp-action], .card, button, a') : null;
                     if (!target) return;
 
@@ -746,7 +864,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     var arg = target.getAttribute('data-arg');
                     if (action) {
                         if (action === 'clear-session') {
-                            try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
+                            try {
+                                sessionStorage.removeItem('pioneers_prep_state');
+                                sessionStorage.removeItem(DOM_CACHE_KEY);
+                                sessionStorage.removeItem(NAV_HISTORY_KEY);
+                            } catch (err) {}
                         } else if (action === 'select-class' && typeof selectClass === 'function') {
                             selectClass(arg);
                         } else if (action === 'select-subject' && typeof selectSubject === 'function') {
@@ -759,6 +881,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             selectDescriptiveSubject(arg);
                         } else if (action === 'go-back' && typeof goBack === 'function') {
                             goBack();
+                            setTimeout(restoreBlankScreensFromCache, 20);
                         } else if (action === 'go-home' && typeof goHome === 'function') {
                             goHome();
                         } else if (action === 'start-quiz' && typeof startQuiz === 'function') {
@@ -775,7 +898,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return;
                     }
 
-                    // Fallback button/card text matching for dynamic elements
                     var txt = (target.innerText || '').trim();
                     if (txt.includes('Class IX (Physics')) { selectClass('IX'); return; }
                     if (txt.includes('Class X (Physics')) { selectClass('X'); return; }
@@ -787,222 +909,172 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     if ((txt.includes('Submit') || txt.includes('Finish')) && typeof submitQuiz === 'function') { submitQuiz(false); return; }
 
                     var legacyExpr = target.getAttribute('data-csp-action');
-                    if (!legacyExpr) return;
-                    if (legacyExpr.indexOf("sessionStorage.removeItem('pioneers_prep_state')") !== -1) {
-                        try { sessionStorage.removeItem('pioneers_prep_state'); } catch (err) {}
-                        return;
+                    if (legacyExpr) {
+                        if (legacyExpr.indexOf("sessionStorage.removeItem('pioneers_prep_state')") !== -1) {
+                            try {
+                                sessionStorage.removeItem('pioneers_prep_state');
+                                sessionStorage.removeItem(DOM_CACHE_KEY);
+                                sessionStorage.removeItem(NAV_HISTORY_KEY);
+                            } catch (err) {}
+                            return;
+                        }
+                        var fnMatch = /^([a-zA-Z0-9_]+)\((.*)\)$/.exec(legacyExpr.trim());
+                        if (fnMatch) {
+                            var fnName = fnMatch[1];
+                            var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
+                            if (typeof window[fnName] === 'function') {
+                                if (fnName === 'submitQuiz') window[fnName](rawArg === 'true');
+                                else window[fnName](rawArg);
+                                setTimeout(restoreBlankScreensFromCache, 20);
+                            }
+                            return;
+                        }
                     }
-                    var fnMatch = /^([a-zA-Z0-9_]+)\((.*)\)$/.exec(legacyExpr.trim());
-                    if (!fnMatch) return;
-                    var fnName = fnMatch[1];
-                    var rawArg = fnMatch[2].trim().replace(/^['"]|['"]$/g, '');
-                    if (fnName === 'selectClass' && typeof selectClass === 'function') selectClass(rawArg);
-                    else if (fnName === 'selectSubject' && typeof selectSubject === 'function') selectSubject(rawArg);
-                    else if (fnName === 'selectNotesClass' && typeof selectNotesClass === 'function') selectNotesClass(rawArg);
-                    else if (fnName === 'selectDescriptiveClass' && typeof selectDescriptiveClass === 'function') selectDescriptiveClass(rawArg);
-                    else if (fnName === 'selectDescriptiveSubject' && typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(rawArg);
-                    else if (fnName === 'goBack' && typeof goBack === 'function') goBack();
-                    else if (fnName === 'goHome' && typeof goHome === 'function') goHome();
-                    else if (fnName === 'startQuiz' && typeof startQuiz === 'function') startQuiz();
-                    else if (fnName === 'submitQuiz' && typeof submitQuiz === 'function') submitQuiz(rawArg === 'true');
-                    else if (fnName === 'prevQuestion' && typeof prevQuestion === 'function') prevQuestion();
-                    else if (fnName === 'clearResponse' && typeof clearResponse === 'function') clearResponse();
-                    else if (fnName === 'nextQuestion' && typeof nextQuestion === 'function') nextQuestion();
-                });
-            })();
 
-            try {
-                var s = sessionStorage.getItem('pioneers_prep_state');
-                if (s) {
-                    var st = JSON.parse(s);
-                    var a = st.activeScreen;
-                    if (a && a !== 'home-dashboard') {
-                        var screens = document.querySelectorAll('.app-screen');
-                        var found = false;
-                        for (var i = 0; i < screens.length; i++) {
-                            if (screens[i].id === a) {
-                                screens[i].classList.remove('hidden');
-                                found = true;
-                            } else {
-                                screens[i].classList.add('hidden');
+                    // If a restored card on Unit/Subject screen was clicked after DOM cache restore
+                    var parentScreen = target.closest('.app-screen');
+                    if (parentScreen && target.classList.contains('card') && !target.hasAttribute('data-csp-action')) {
+                        var cardTitleEl = target.querySelector('h3, h4, .card-title, strong');
+                        var cardLabel = cardTitleEl ? cardTitleEl.innerText.trim() : txt.split('\\n')[0].trim();
+                        if (parentScreen.id.indexOf('unit') !== -1 && typeof window.selectUnit === 'function') {
+                            window.selectUnit(cardLabel);
+                        } else if (parentScreen.id.indexOf('chapter') !== -1 && typeof window.selectChapter === 'function') {
+                            window.selectChapter(cardLabel);
+                        } else if (parentScreen.id.indexOf('subject') !== -1 && typeof window.selectSubject === 'function') {
+                            window.selectSubject(cardLabel);
+                        }
+                    }
+                });
+
+                try {
+                    var s = sessionStorage.getItem('pioneers_prep_state');
+                    if (s) {
+                        var st = JSON.parse(s);
+                        var a = st.activeScreen;
+                        if (a && a !== 'home-dashboard') {
+                            var screens = document.querySelectorAll('.app-screen');
+                            var found = false;
+                            for (var i = 0; i < screens.length; i++) {
+                                if (screens[i].id === a) {
+                                    screens[i].classList.remove('hidden');
+                                    found = true;
+                                } else {
+                                    screens[i].classList.add('hidden');
+                                }
+                            }
+                            if (a === 'quiz-screen') document.body.classList.add('exam-mode');
+                            if (!found) {
+                                var home = document.getElementById('home-dashboard');
+                                if (home) home.classList.remove('hidden');
                             }
                         }
-                        if (a === 'quiz-screen') document.body.classList.add('exam-mode');
-                        if (!found) {
-                            var home = document.getElementById('home-dashboard');
-                            if (home) home.classList.remove('hidden');
-                        }
                     }
-                }
-            } catch(e) {}
+                } catch(e) {}
 
-            window.addEventListener('DOMContentLoaded', function() {
-                var baseRoute = '${canonicalBaseRoute}';
-                var backEventTriggered = false;
+                window.addEventListener('DOMContentLoaded', function() {
+                    var baseRoute = '${canonicalBaseRoute}';
+                    var backEventTriggered = false;
 
-                // --- 1. RELIABLE PRE-CLICK DOM SNAPSHOT ENGINE ---
-                function countInteractiveItems(el) {
-                    if (!el) return 0;
-                    // Count actual cards, buttons, and list items (excluding the Back button)
-                    return el.querySelectorAll('.card, button:not(.back-btn), a, [data-action], [data-csp-action]').length;
-                }
+                    wrapNavFunctions();
+                    restoreBlankScreensFromCache();
+                    setTimeout(function() {
+                        replayParentHierarchySilently();
+                        restoreBlankScreensFromCache();
+                    }, 300);
 
-                function saveVisibleScreenToCache() {
-                    try {
-                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
-                        document.querySelectorAll('.app-screen:not(.hidden)').forEach(function(screen) {
-                            if (screen.id !== 'quiz-screen' && screen.id !== 'result-screen') {
-                                if (countInteractiveItems(screen) > 0) {
-                                    cache[screen.id] = screen.innerHTML;
+                    var screenSlugMap = {
+                        'home-dashboard': '',
+                        'subject-screen': '/select-subject',
+                        'subject-select-screen': '/select-subject',
+                        'ix-x-chapter-screen': '/select-chapter',
+                        'unit-screen': '/select-unit',
+                        'neet-unit-screen': '/select-unit',
+                        'chapter-screen': '/select-chapter',
+                        'neet-chapter-screen': '/select-chapter',
+                        'topic-screen': '/select-topic',
+                        'neet-topic-screen': '/select-topic',
+                        'user-info-screen': '/candidate-verification',
+                        'name-screen': '/candidate-verification',
+                        'quiz-screen': '/live-assessment',
+                        'result-screen': '/scorecard',
+                        'notes-display-screen': '/study-materials',
+                        'notes-subject-screen': '/select-subject',
+                        'notes-list-screen': '/study-materials',
+                        'descriptive-subject-screen': '/select-subject',
+                        'descriptive-list-screen': '/question-papers'
+                    };
+
+                    function getCleanUrlForScreen(screenId) {
+                        if (baseRoute === '/') return '/';
+                        var slug = screenSlugMap[screenId];
+                        if (slug === undefined) {
+                            slug = screenId ? '/' + screenId.replace(/-screen$/i, '') : '';
+                        }
+                        return baseRoute + slug;
+                    }
+
+                    setTimeout(function() {
+                        if (window.location.search && window.location.search.indexOf('class=') !== -1) {
+                            return;
+                        }
+                        var activeEl = document.querySelector('.app-screen:not(.hidden)');
+                        if (!activeEl) return;
+                        var initialUrl = getCleanUrlForScreen(activeEl.id);
+                        history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, initialUrl);
+                    }, 0);
+
+                    var observer = new MutationObserver(function(mutations) {
+                        mutations.forEach(function(m) {
+                            var el = m.target;
+                            if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
+                                if (!isScreenPopulated(el)) {
+                                    restoreBlankScreensFromCache();
+                                }
+                                var targetUrl = getCleanUrlForScreen(el.id);
+                                if (backEventTriggered) {
+                                    backEventTriggered = false;
+                                    history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                                } else if (el.id !== 'home-dashboard' && el.id !== 'result-screen') {
+                                    history.pushState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                                } else {
+                                    history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
                                 }
                             }
                         });
-                        sessionStorage.setItem('pioneers_dom_cache', JSON.stringify(cache));
-                    } catch (e) {}
-                }
+                    });
 
-                // Capture the screen BEFORE the click switches to the next screen
-                window.addEventListener('mousedown', saveVisibleScreenToCache, true);
-                window.addEventListener('touchstart', saveVisibleScreenToCache, true);
-                window.addEventListener('beforeunload', saveVisibleScreenToCache);
+                    document.querySelectorAll('.app-screen').forEach(function(s) {
+                        observer.observe(s, { attributes: true, attributeFilter: ['class'] });
+                    });
 
-                // Helper to restore or re-build a blank parent screen
-                function hydrateScreenIfBlank(screenEl) {
-                    if (!screenEl || screenEl.id === 'quiz-screen' || screenEl.id === 'result-screen' || screenEl.id === 'home-dashboard') return;
-                    if (countInteractiveItems(screenEl) > 0) return; // Screen already has content
-
-                    // Step A: Restore from DOM Snapshot
-                    try {
-                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
-                        if (cache[screenEl.id]) {
-                            screenEl.innerHTML = cache[screenEl.id];
+                    window.addEventListener('popstate', function() {
+                        var activeScreen = document.querySelector('.app-screen:not(.hidden)');
+                        if (activeScreen && activeScreen.id === 'quiz-screen') {
+                            history.pushState({ app: 'pioneers', screen: 'quiz-screen' }, document.title, getCleanUrlForScreen('quiz-screen'));
+                            alert("Please use the 'Submit Quiz' button to exit.");
+                            return;
                         }
-                    } catch (e) {}
-
-                    // Step B: If still blank, or to re-bind JS state, replay parent state from pioneers_prep_state
-                    if (countInteractiveItems(screenEl) === 0) {
-                        try {
-                            var st = JSON.parse(sessionStorage.getItem('pioneers_prep_state') || '{}');
-                            var cls = st.selectedClass || st.currentClass || st.classLevel;
-                            var sub = st.selectedSubject || st.currentSubject || st.subject;
-                            var unit = st.selectedUnit || st.currentUnit || st.unit;
-
-                            if ((screenEl.id.indexOf('subject') !== -1) && cls) {
-                                if (typeof selectClass === 'function') selectClass(cls);
-                                else if (typeof selectNotesClass === 'function') selectNotesClass(cls);
-                                else if (typeof selectDescriptiveClass === 'function') selectDescriptiveClass(cls);
-                            } else if ((screenEl.id.indexOf('unit') !== -1 || screenEl.id.indexOf('chapter') !== -1) && sub) {
-                                if (typeof selectSubject === 'function') selectSubject(sub);
-                                else if (typeof selectDescriptiveSubject === 'function') selectDescriptiveSubject(sub);
-                            } else if (screenEl.id.indexOf('chapter') !== -1 && unit && typeof selectUnit === 'function') {
-                                selectUnit(unit);
-                            }
-                        } catch (e) {}
-                    }
-                }
-                // ----------------------------------------------------
-
-                var screenSlugMap = {
-                    'home-dashboard': '',
-                    'subject-screen': '/select-subject',
-                    'subject-select-screen': '/select-subject',
-                    'ix-x-chapter-screen': '/select-chapter',
-                    'unit-screen': '/select-unit',
-                    'neet-unit-screen': '/select-unit',
-                    'chapter-screen': '/select-chapter',
-                    'neet-chapter-screen': '/select-chapter',
-                    'topic-screen': '/select-topic',
-                    'neet-topic-screen': '/select-topic',
-                    'user-info-screen': '/candidate-verification',
-                    'name-screen': '/candidate-verification',
-                    'quiz-screen': '/live-assessment',
-                    'result-screen': '/scorecard',
-                    'notes-display-screen': '/study-materials',
-                    'notes-subject-screen': '/select-subject',
-                    'notes-list-screen': '/study-materials',
-                    'descriptive-subject-screen': '/select-subject',
-                    'descriptive-list-screen': '/question-papers'
-                };
-
-                function getCleanUrlForScreen(screenId) {
-                    if (baseRoute === '/') return '/';
-                    var slug = screenSlugMap[screenId];
-                    if (slug === undefined) {
-                        slug = screenId ? '/' + screenId.replace(/-screen$/i, '') : '';
-                    }
-                    return baseRoute + slug;
-                }
-
-                // Pre-hydrate all hidden parent screens on page reload
-                setTimeout(function() {
-                    try {
-                        var cache = JSON.parse(sessionStorage.getItem('pioneers_dom_cache') || '{}');
-                        document.querySelectorAll('.app-screen.hidden').forEach(function(screen) {
-                            if (cache[screen.id] && countInteractiveItems(screen) === 0) {
-                                screen.innerHTML = cache[screen.id];
-                            }
-                        });
-                    } catch (e) {}
-
-                    if (window.location.search && window.location.search.indexOf('class=') !== -1) {
-                        return;
-                    }
-                    var activeEl = document.querySelector('.app-screen:not(.hidden)');
-                    if (!activeEl) return;
-                    hydrateScreenIfBlank(activeEl);
-                    var initialUrl = getCleanUrlForScreen(activeEl.id);
-                    history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, initialUrl);
-                }, 50);
-
-                var observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(m) {
-                        var el = m.target;
-                        if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
-                            // Instantly hydrate if the screen unhides blank
-                            hydrateScreenIfBlank(el);
-
-                            var targetUrl = getCleanUrlForScreen(el.id);
-                            if (backEventTriggered) {
-                                backEventTriggered = false;
-                                history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
-                            } else if (el.id !== 'home-dashboard' && el.id !== 'result-screen') {
-                                history.pushState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                        if (activeScreen && activeScreen.id !== 'home-dashboard') {
+                            var backBtn = activeScreen.querySelector('.back-btn');
+                            if (backBtn) {
+                                backEventTriggered = true;
+                                backBtn.click();
+                                setTimeout(restoreBlankScreensFromCache, 20);
                             } else {
-                                history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                                sessionStorage.setItem('pioneers_nav_ok', Date.now().toString());
+                                window.location.href = '/';
                             }
                         }
                     });
-                });
 
-                document.querySelectorAll('.app-screen').forEach(function(s) {
-                    observer.observe(s, { attributes: true, attributeFilter: ['class'] });
-                });
-
-                window.addEventListener('popstate', function() {
-                    var activeScreen = document.querySelector('.app-screen:not(.hidden)');
-                    if (activeScreen && activeScreen.id === 'quiz-screen') {
-                        history.pushState({ app: 'pioneers', screen: 'quiz-screen' }, document.title, getCleanUrlForScreen('quiz-screen'));
-                        alert("Please use the 'Submit Quiz' button to exit.");
-                        return;
-                    }
-                    if (activeScreen && activeScreen.id !== 'home-dashboard') {
-                        var backBtn = activeScreen.querySelector('.back-btn');
-                        if (backBtn) {
+                    document.addEventListener('click', function(e) {
+                        if (e.target && e.target.classList && e.target.classList.contains('back-btn')) {
                             backEventTriggered = true;
-                            backBtn.click();
-                        } else {
-                            sessionStorage.setItem('pioneers_nav_ok', Date.now().toString());
-                            window.location.href = '/';
+                            setTimeout(restoreBlankScreensFromCache, 20);
                         }
-                    }
+                    }, true);
                 });
-
-                document.addEventListener('click', function(e) {
-                    if (e.target && e.target.classList && e.target.classList.contains('back-btn')) {
-                        backEventTriggered = true;
-                    }
-                }, true);
-            });
+            })();
         </script>`;
 
         const noscriptBlock = `<noscript>
