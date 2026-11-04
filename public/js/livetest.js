@@ -22,6 +22,11 @@ window.addEventListener('DOMContentLoaded', () => {
         
         // Jump straight back into the server synchronization loop
         if (typeof startSync === 'function') {
+            fetch('/api/live/student/rejoin', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${liveToken}` }
+            }).catch(() => {});
+
             startSync();
             startHeartbeat(); 
         }

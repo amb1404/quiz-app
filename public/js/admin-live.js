@@ -64,69 +64,71 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// RULE 1: `beforeunload` event has been permanently deleted from here.
-// The test now ONLY ends when you explicitly click the "End Test" button below.
-
-// Manual End Test Button Logic
-document.getElementById('end-test-btn').addEventListener('click', async () => {
-    if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
+// Robust Event Delegation for Admin Controls
+document.addEventListener('click', async (e) => {
+    const endBtn = e.target.closest('#end-test-btn');
+    const clearBtn = e.target.closest('#clear-responses-btn');
     
-    try {
-        const res = await fetch('/api/live/admin/end', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminKey, quizId })
-        });
-        
-        const data = await res.json();
-        
-        // Strict error checking to prevent silent failures
-        if (!res.ok || !data.success) {
-            alert(data.error || "Authentication failed. Your Admin Key may be incorrect.");
-            return; // Stop here, do not hide the UI
+    if (!endBtn && !clearBtn) return;
+    
+    // Always grab the freshest credentials from session storage
+    const activeSessionStr = sessionStorage.getItem('live_admin_session');
+    const creds = activeSessionStr ? JSON.parse(activeSessionStr) : { adminKey, quizId };
+    
+    if (!creds.adminKey || !creds.quizId) return alert("Error: Missing admin credentials. Please restart broadcast.");
+
+    if (endBtn) {
+        if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
+        try {
+            const res = await fetch('/api/live/admin/end', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(creds)
+            });
+            const data = await res.json();
+            
+            if (!res.ok || !data.success) {
+                return alert(data.error || "Authentication failed. Your Admin Key may be incorrect.");
+            }
+            
+            clearInterval(dashInterval);
+            sessionStorage.removeItem('live_admin_session');
+            document.getElementById('control-panel').style.display = 'none';
+            document.getElementById('board-panel').style.display = 'none';
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.innerText = "Start Broadcast & Send OTP";
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            startBtn.style.cursor = 'pointer';
+            document.getElementById('otp-display').innerText = "";
+            document.getElementById('admin-key').value = "";
+            document.getElementById('quiz-id').value = "";
+            
+            alert("Test successfully terminated. Scorecards are now being displayed to students.");
+        } catch (err) {
+            alert("Network error. Failed to communicate with the server.");
         }
-        
-        clearInterval(dashInterval);
-        sessionStorage.removeItem('live_admin_session');
-        
-        document.getElementById('control-panel').style.display = 'none';
-        document.getElementById('board-panel').style.display = 'none';
-        
-        const startBtn = document.getElementById('start-btn');
-        startBtn.innerText = "Start Broadcast & Send OTP";
-        startBtn.disabled = false;
-        startBtn.style.opacity = '1';
-        startBtn.style.cursor = 'pointer';
-        document.getElementById('otp-display').innerText = "";
-        
-        document.getElementById('admin-key').value = "";
-        document.getElementById('quiz-id').value = "";
-        
-        alert("Test successfully terminated. Scorecards are now being displayed to students.");
-    } catch (e) {
-        alert("Network error. Failed to communicate with the server.");
     }
-});
-
-// RULE 3: Wire up the "Clear Responses" Button
-document.getElementById('clear-responses-btn')?.addEventListener('click', async () => {
-    if (!confirm("Are you sure? This will wipe all student selections for the current question so they can answer again.")) return;
     
-    try {
-        const res = await fetch('/api/live/admin/clear-question', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ adminKey, quizId }) 
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            alert("Responses cleared! Students' screens have been unlocked.");
-        } else {
-            alert(data.error || "Failed to clear responses.");
+    if (clearBtn) {
+        if (!confirm("Wipe all student selections for the current question?")) return;
+        try {
+            const res = await fetch('/api/live/admin/clear-question', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(creds) 
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert("Responses cleared! Students' screens have been unlocked.");
+            } else {
+                alert(data.error || "Failed to clear responses.");
+            }
+        } catch (err) {
+            alert("Network error while clearing responses.");
         }
-    } catch (err) {
-        alert("Network error while clearing responses.");
     }
 });
 

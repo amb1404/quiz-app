@@ -2342,7 +2342,16 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         // Fetch the active OTP to send back to the dashboard
         const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
 
-        const activeStudents = board;
+        const activeStudents = {};
+        const now = Date.now();
+        Object.keys(board).forEach(name => {
+            const student = board[name];
+            // 5-second grace period for refreshes before hiding from dashboard
+            if (student.disconnected && student.leaveTime && (now - student.leaveTime > 5000)) {
+                return; 
+            }
+            activeStudents[name] = student;
+        });
 
         const students = Object.keys(activeStudents).map(name => ({
             name, data: activeStudents[name]
@@ -2439,7 +2448,7 @@ app.post('/api/live/student/heartbeat', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Heartbeat failed.' }); }
 });
 
-// Student: Explicit Leave / Disconnect
+// Student: Explicit Leave / Disconnect (Marks disconnected instead of deleting)
 app.post('/api/live/student/leave', async (req, res) => {
     try {
         const authHeader = req.get('Authorization');
@@ -2451,13 +2460,36 @@ app.post('/api/live/student/leave', async (req, res) => {
 
         await updateBoardSecurely(cleanId, (board) => {
             if (board[fullName]) {
-                delete board[fullName];
+                board[fullName].disconnected = true;
+                board[fullName].leaveTime = Date.now();
                 return board;
             }
             return null;
         });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Leave failed.' }); }
+});
+// Student: Rejoin instantly after a page refresh
+app.post('/api/live/student/rejoin', async (req, res) => {
+    try {
+        const authHeader = req.get('Authorization');
+        if (!authHeader) return res.status(200).json({ success: true });
+        const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
+        const [, quizId, first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        const cleanId = path.basename(String(quizId)).trim();
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (board[fullName]) {
+                board[fullName].disconnected = false;
+                delete board[fullName].leaveTime;
+                return board;
+            }
+            board[fullName] = { joinedAt: Date.now(), answers: {}, disconnected: false };
+            return board;
+        });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Rejoin failed.' }); }
 });
 
 // Student: Synchronized Pull & Scorecard Evaluation
@@ -2474,6 +2506,13 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (!stateStr) return res.json({ status: 'waiting' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        // AUTO-END TEST IF ADMIN DASHBOARD TAB IS CLOSED
+        const lastAdminSeen = await stateStore.get(`live:admin_seen:${cleanId}`);
+        if (state.status === 'active' && lastAdminSeen && (Date.now() - Number(lastAdminSeen) > 10000)) {
+            state.status = 'ended';
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+            await stateStore.del(`live:otp:${cleanId}`);
+        }
 
         const content = getLiveMockContent(cleanId);
         
