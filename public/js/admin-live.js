@@ -1,10 +1,10 @@
 let adminKey = "";
 let quizId = "";
 let currentIndex = 0;
-let totalQuestions = 0; // Handled dynamically if refreshed
+let totalQuestions = 0; 
 let dashInterval;
 
-// RULE 2: Persist Admin Credentials on Refresh (Restore Session)
+// Persist Admin Credentials on Refresh (Restore Session)
 window.addEventListener('DOMContentLoaded', () => {
     try {
         const saved = sessionStorage.getItem('live_admin_session');
@@ -13,7 +13,6 @@ window.addEventListener('DOMContentLoaded', () => {
             adminKey = parsed.adminKey;
             quizId = parsed.quizId;
             
-            // Hide login, show panels immediately
             document.getElementById('admin-key').value = adminKey;
             document.getElementById('quiz-id').value = quizId;
             document.getElementById('control-panel').style.display = 'block';
@@ -51,10 +50,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
             
-            // Save to sessionStorage so it survives page refreshes
             sessionStorage.setItem('live_admin_session', JSON.stringify({ adminKey, quizId }));
 
-            // Keep visually active but fully disabled
             startBtn.innerText = "Live Active";
             startBtn.disabled = true;
             startBtn.style.opacity = '0.7';
@@ -68,31 +65,39 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     } catch (e) { alert("Error"); startBtn.innerText = "Start Broadcast"; }
 });
 
-// Robust Event Delegation for Admin Controls
+// Robust Event Delegation with IN-UI CONFIRMATION (Bypasses Browser Blocks)
 document.addEventListener('click', async (e) => {
     const endBtn = e.target.closest('#end-test-btn');
     const clearBtn = e.target.closest('#clear-responses-btn');
     
     if (!endBtn && !clearBtn) return;
     
-    // Explicitly prevent any default browser actions from swallowing the click
     e.preventDefault();
     
-    // Always grab the freshest credentials from session storage securely
     let creds = { adminKey, quizId };
     try {
         const activeSessionStr = sessionStorage.getItem('live_admin_session');
-        if (activeSessionStr) {
-            creds = JSON.parse(activeSessionStr);
-        }
-    } catch (err) {
-        console.warn("Could not parse session string.");
-    }
+        if (activeSessionStr) creds = JSON.parse(activeSessionStr);
+    } catch (err) {}
     
-    if (!creds.adminKey || !creds.quizId) return alert("Error: Missing admin credentials. Please restart broadcast.");
+    if (!creds.adminKey || !creds.quizId) return console.error("Missing admin credentials.");
 
     if (endBtn) {
-        if (!confirm("Are you sure you want to end this test immediately for all students?")) return;
+        // Double-Click UI Confirmation
+        if (endBtn.dataset.confirm !== "true") {
+            const originalText = endBtn.innerText;
+            endBtn.innerText = "Click Again to END TEST";
+            endBtn.style.background = "#991b1b"; // Dark red
+            endBtn.dataset.confirm = "true";
+            setTimeout(() => {
+                endBtn.innerText = originalText;
+                endBtn.style.background = "#dc2626"; // Original red
+                endBtn.dataset.confirm = "false";
+            }, 3000);
+            return;
+        }
+        
+        endBtn.innerText = "Ending...";
         try {
             const res = await fetch('/api/live/admin/end', {
                 method: 'POST',
@@ -102,7 +107,8 @@ document.addEventListener('click', async (e) => {
             const data = await res.json();
             
             if (!res.ok || !data.success) {
-                return alert(data.error || "Authentication failed. Your Admin Key may be incorrect.");
+                endBtn.innerText = "Auth Failed";
+                return;
             }
             
             clearInterval(dashInterval);
@@ -119,14 +125,31 @@ document.addEventListener('click', async (e) => {
             document.getElementById('admin-key').value = "";
             document.getElementById('quiz-id').value = "";
             
-            alert("Test successfully terminated. Scorecards are now being displayed to students.");
+            // Revert button visually for future sessions
+            endBtn.innerText = "End Test Now";
+            endBtn.style.background = "#dc2626";
+            endBtn.dataset.confirm = "false";
         } catch (err) {
-            alert("Network error. Failed to communicate with the server.");
+            endBtn.innerText = "Network Error";
         }
     }
     
     if (clearBtn) {
-        if (!confirm("Wipe all student selections for the current question?")) return;
+        // Double-Click UI Confirmation
+        if (clearBtn.dataset.confirm !== "true") {
+            const originalText = clearBtn.innerText;
+            clearBtn.innerText = "Click Again to WIPE RESPONSES";
+            clearBtn.style.background = "#ca8a04"; // Dark yellow
+            clearBtn.dataset.confirm = "true";
+            setTimeout(() => {
+                clearBtn.innerText = originalText;
+                clearBtn.style.background = "#eab308"; // Original yellow
+                clearBtn.dataset.confirm = "false";
+            }, 3000);
+            return;
+        }
+        
+        clearBtn.innerText = "Clearing...";
         try {
             const res = await fetch('/api/live/admin/clear-question', {
                 method: 'POST',
@@ -136,12 +159,26 @@ document.addEventListener('click', async (e) => {
             const data = await res.json();
             
             if (data.success) {
-                alert("Responses cleared! Students' screens have been unlocked.");
+                clearBtn.innerText = "Responses Cleared!";
+                clearBtn.style.background = "#16a34a"; // Green
             } else {
-                alert(data.error || "Failed to clear responses.");
+                clearBtn.innerText = "Failed to Clear";
+                clearBtn.style.background = "#dc2626"; // Red
             }
+            
+            setTimeout(() => {
+                clearBtn.innerText = "Clear Current Question Responses";
+                clearBtn.style.background = "#eab308";
+                clearBtn.dataset.confirm = "false";
+            }, 2000);
+            
         } catch (err) {
-            alert("Network error while clearing responses.");
+            clearBtn.innerText = "Network Error";
+            setTimeout(() => {
+                clearBtn.innerText = "Clear Current Question Responses";
+                clearBtn.style.background = "#eab308";
+                clearBtn.dataset.confirm = "false";
+            }, 2000);
         }
     }
 });
@@ -172,13 +209,10 @@ function startDashboardSync() {
             const data = await res.json();
             
             if (data.success) {
-                // Restore state and OTP on refresh
                 if (data.state) {
                     currentIndex = data.state.currentIndex;
                     document.getElementById('q-counter').innerText = `Q: ${currentIndex + 1} ${totalQuestions > 0 ? '/ ' + totalQuestions : ''}`;
                 }
-                
-                // If the server sends the active OTP back, make sure it stays visible
                 if (data.otp) {
                     document.getElementById('otp-display').innerText = `OTP: ${data.otp}`;
                 }
@@ -207,5 +241,5 @@ function startDashboardSync() {
                 });
             }
         } catch(e) {}
-    }, 700);
+    }, 2000); // Relaxed to 2000ms to protect Redis rate limits
 }
