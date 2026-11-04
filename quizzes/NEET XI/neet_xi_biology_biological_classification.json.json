@@ -1,16 +1,17 @@
 {
-  "title": "Genetics- Advanced",
-  "category": "icse",
-  "classLevel": "x",
+  "title": "Biological Classification - Complete Chapter Practice",
+  "category": "neet",
+  "classLevel": "xi",
   "subject": "biology",
-  "unit": "Plant Physiology",
-  "chapter": "Photosynthesis in Higher Plants",
-  "topic": "Complete Chapter Test",
-  "duration": 1800,
+  "unit": "Diversity in Living World",
+  "chapter": "Biological Classification",
+  "topic": "Overview of Five Kingdoms and Acellular Organisms",
+  "duration": 2400,
   "isAvailable": true,
   "isPremium": true,
   "isUltra": false,
   "price": 5,
+
   "questions": [
     {
       "type": "mcq",
