@@ -630,6 +630,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         `;
 
         const headRouteGuardScript = `<base href="/">
+        <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
         <script nonce="${nonce}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
         <script nonce="${nonce}">
             (function() {
@@ -1303,6 +1304,10 @@ async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = fa
     if (parts.length !== 2) return { valid: false, error: 'Security Alert: Malformed token.' };
 
     const [tokenData, authSignature] = parts;
+
+    const isBlacklisted = await stateStore.get(`blacklist:token:${authSignature}`);
+    if (isBlacklisted) return { valid: false, error: 'Security Alert: Token revoked. Please sign in again.' };
+
     const expectedAuthSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
 
     if (!safeCompareHex(authSignature, expectedAuthSig)) {
@@ -1446,7 +1451,8 @@ app.post('/api/create-order', async (req, res) => {
         const order = await razorpay.orders.create({
             amount: Math.round(actualPrice * 100), // Enforce server-side price
             currency: "INR",
-            receipt: `rcpt_${Date.now().toString().slice(-8)}`
+            receipt: `rcpt_${Date.now().toString().slice(-8)}`,
+            notes: { itemId: cleanId }
         });
         
         res.json({ success: true, orderId: order.id, amount: order.amount, keyId: process.env.RAZORPAY_KEY_ID });
@@ -1485,6 +1491,36 @@ app.post('/api/verify-payment', async (req, res) => {
     } catch (err) {
         console.error('Payment verification error:', err);
         res.status(500).json({ error: 'Payment verification failed.' });
+    }
+});
+// Server-Side Webhook to catch dropped connections during payment
+app.post('/api/razorpay-webhook', express.json({ type: 'application/json' }), async (req, res) => {
+    try {
+        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        if (webhookSecret) {
+            const signature = req.get('X-Razorpay-Signature');
+            const expectedSig = crypto.createHmac('sha256', webhookSecret).update(JSON.stringify(req.body)).digest('hex');
+            if (!safeCompareHex(signature, expectedSig)) {
+                return res.status(400).json({ error: 'Invalid webhook signature' });
+            }
+        }
+
+        const event = req.body.event;
+        if (event === 'payment.captured' || event === 'payment.authorized') {
+            const payment = req.body.payload.payment.entity;
+            const email = payment.email;
+            const itemId = payment.notes?.itemId;
+            
+            if (email && itemId) {
+                const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+                await stateStore.set(`user:purchases:${email.toLowerCase()}:${itemId}`, '1', tenYearsSec);
+                await stateStore.sadd(`user:purchases:${email.toLowerCase()}`, itemId);
+                console.log(`[Webhook] Recovered/Logged purchase for ${email} -> ${itemId}`);
+            }
+        }
+        res.json({ status: 'ok' });
+    } catch (err) {
+        res.status(500).json({ error: 'Webhook processing failed.' });
     }
 });
 
@@ -1984,7 +2020,23 @@ app.post('/api/verify-otp', async (req, res) => {
         res.status(500).json({ success: false, error: 'OTP verification failed.' });
     }
 });
-
+// Secure Logout Endpoint (Token Revocation)
+app.post('/api/logout', async (req, res) => {
+    try {
+        const token = extractAuthToken(req);
+        if (token) {
+            const parts = token.split('|||');
+            if (parts.length === 2) {
+                const signature = parts[1];
+                await stateStore.set(`blacklist:token:${signature}`, '1', TOKEN_MAX_AGE_SEC);
+            }
+        }
+        res.clearCookie(AUTH_COOKIE_NAME);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false });
+    }
+});
 // Implementation 7: Per-Exam Replay Lock, Persistent Cookie & Redis Leaderboard
 app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     submitJsonParser(req, res, async (err) => {
