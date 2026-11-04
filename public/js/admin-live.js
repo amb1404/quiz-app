@@ -6,25 +6,29 @@ let dashInterval;
 
 // RULE 2: Persist Admin Credentials on Refresh (Restore Session)
 window.addEventListener('DOMContentLoaded', () => {
-    const saved = sessionStorage.getItem('live_admin_session');
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        adminKey = parsed.adminKey;
-        quizId = parsed.quizId;
-        
-        // Hide login, show panels immediately
-        document.getElementById('admin-key').value = adminKey;
-        document.getElementById('quiz-id').value = quizId;
-        document.getElementById('control-panel').style.display = 'block';
-        document.getElementById('board-panel').style.display = 'block';
-        
-        const startBtn = document.getElementById('start-btn');
-        startBtn.innerText = "Live Active (Restored)";
-        startBtn.disabled = true;
-        startBtn.style.opacity = '0.7';
-        startBtn.style.cursor = 'not-allowed';
+    try {
+        const saved = sessionStorage.getItem('live_admin_session');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            adminKey = parsed.adminKey;
+            quizId = parsed.quizId;
+            
+            // Hide login, show panels immediately
+            document.getElementById('admin-key').value = adminKey;
+            document.getElementById('quiz-id').value = quizId;
+            document.getElementById('control-panel').style.display = 'block';
+            document.getElementById('board-panel').style.display = 'block';
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.innerText = "Live Active (Restored)";
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.7';
+            startBtn.style.cursor = 'not-allowed';
 
-        startDashboardSync();
+            startDashboardSync();
+        }
+    } catch (e) {
+        console.error("Failed to restore session", e);
     }
 });
 
@@ -71,9 +75,19 @@ document.addEventListener('click', async (e) => {
     
     if (!endBtn && !clearBtn) return;
     
-    // Always grab the freshest credentials from session storage
-    const activeSessionStr = sessionStorage.getItem('live_admin_session');
-    const creds = activeSessionStr ? JSON.parse(activeSessionStr) : { adminKey, quizId };
+    // Explicitly prevent any default browser actions from swallowing the click
+    e.preventDefault();
+    
+    // Always grab the freshest credentials from session storage securely
+    let creds = { adminKey, quizId };
+    try {
+        const activeSessionStr = sessionStorage.getItem('live_admin_session');
+        if (activeSessionStr) {
+            creds = JSON.parse(activeSessionStr);
+        }
+    } catch (err) {
+        console.warn("Could not parse session string.");
+    }
     
     if (!creds.adminKey || !creds.quizId) return alert("Error: Missing admin credentials. Please restart broadcast.");
 
@@ -133,8 +147,6 @@ document.addEventListener('click', async (e) => {
 });
 
 async function setQuestionIndex(newIndex) {
-    // If totalQuestions wasn't set (due to refresh), we bypass the upper limit check
-    // since the server will block invalid indexes anyway.
     if (newIndex < 0 || (totalQuestions > 0 && newIndex >= totalQuestions)) return;
     document.getElementById('prev-btn').disabled = true;
     document.getElementById('next-btn').disabled = true;
