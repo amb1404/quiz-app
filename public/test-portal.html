@@ -19,14 +19,69 @@
         </section>
 
         <div id="home-dashboard" class="app-screen">
-            <div class="dashboard-panel" style="width: 580px;">
-                <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Select Examination Class</h2>
-                <div class="card" data-action="select-class" data-arg="IX">Class IX (Physics, Chemistry, Biology)</div>
-                <div class="card" data-action="select-class" data-arg="X">Class X (Physics, Chemistry, Biology)</div>
-                <div class="card" data-action="select-class" data-arg="XI">NEET Class XI Biology (Unit-wise)</div>
-                <div class="card" data-action="select-class" data-arg="XII">NEET Class XII Biology (Unit-wise)</div>
-                <div class="card" data-action="select-class" data-arg="WB XI">WBCHSE Class XI (Biology)</div>
-                <div class="card" data-action="select-class" data-arg="WB XII">WBCHSE Class XII (Biology)</div>
+            <div class="dashboard-panel" style="width: 100%; max-width: 580px; margin: 0 auto;">
+                <style>
+                  .mock-category-section {
+                    margin-bottom: 24px;
+                    text-align: left;
+                  }
+                  .mock-category-header {
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 12px;
+                    padding-bottom: 6px;
+                    border-bottom: 2px solid #e2e8f0;
+                  }
+                  .mock-category-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+                    gap: 12px;
+                  }
+                  .mock-category-grid .card {
+                    margin: 0 !important;
+                    padding: 14px 10px !important;
+                    font-size: 14px !important;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    box-sizing: border-box;
+                    text-align: center;
+                  }
+                </style>
+
+                <h2 style="text-align: center; color: #4285f4; margin-top: 0; margin-bottom: 25px;">Select Examination Class</h2>
+
+                <!-- NEET Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">NEET (Medical)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="XI">Class XI</button>
+                    <button class="card" data-action="select-class" data-arg="XII">Class XII</button>
+                    <button class="card" data-action="select-class" data-arg="NEET-FULL">Full Length</button>
+                  </div>
+                </div>
+
+                <!-- WBCHSE Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">WBCHSE (Board)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="WB XI">Class XI</button>
+                    <button class="card" data-action="select-class" data-arg="WB XII">Class XII</button>
+                  </div>
+                </div>
+
+                <!-- Foundation Section -->
+                <div class="mock-category-section" style="margin-bottom: 0;">
+                  <div class="mock-category-header">Foundation (ICSE / CBSE)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="IX">Class IX</button>
+                    <button class="card" data-action="select-class" data-arg="X">Class X</button>
+                  </div>
+                </div>
             </div>
         </div>
 
