@@ -3,7 +3,7 @@ let currentQuizId = "";
 let localIndex = -1;
 let syncInterval;
 let testActive = true;
-let lastSavedAnswer = null; // NEW: Tracks the current answer state
+let lastSavedAnswer = null; // Tracks the current answer state
 
 // 1. AUTO-RESTORE SESSION IF THE BROWSER IS REFRESHED
 window.addEventListener('DOMContentLoaded', () => {
@@ -151,30 +151,8 @@ function startSync() {
                 
                 alert("Test was ended by admin.");
                 
-                document.getElementById('quiz-screen').innerHTML = `
-                    <div style="max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center;">
-                        <h2 style="color: #1e3a8a; margin-top: 0;">Exam Completed — Scorecard</h2>
-                        <p style="color: #64748b;">Here is your performance summary for this live assessment.</p>
-                        <div style="display: flex; justify-content: space-around; margin: 25px 0;">
-                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: #16a34a;">${data.scorecard.correct}</div>
-                                <div style="font-size: 13px; color: #475569;">Correct</div>
-                            </div>
-                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: #dc2626;">${data.scorecard.incorrect}</div>
-                                <div style="font-size: 13px; color: #475569;">Incorrect</div>
-                            </div>
-                            <div style="background: #f1f5f9; padding: 15px 25px; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: #ca8a04;">${data.scorecard.skipped}</div>
-                                <div style="font-size: 13px; color: #475569;">Skipped</div>
-                            </div>
-                        </div>
-                        <div style="font-size: 18px; font-weight: bold; color: #0f172a; margin-top: 15px;">
-                            Final Score: ${data.scorecard.correct} / ${data.scorecard.total}
-                        </div>
-                        <a href="/" style="display: inline-block; margin-top: 25px; background: #2563eb; color: white; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Return to Homepage</a>
-                    </div>
-                `;
+                // Inject the advanced scorecard + breakdown UI
+                renderLiveMockResults(data.scorecard, data.breakdown || []);
                 triggerCelebration();
                 return;
             }
@@ -238,6 +216,112 @@ function renderQuestion(data) {
         };
         optsBox.appendChild(btn);
     });
+}
+
+function renderLiveMockResults(scorecard, breakdown) {
+    const percentage = ((scorecard.correct / scorecard.total) * 100).toFixed(1);
+    
+    // Fallback escaper
+    const esc = str => {
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
+    };
+
+    let html = `
+        <div style="max-width: 900px; margin: 0 auto; padding: 20px; font-family: sans-serif; background: #fff;">
+            
+            <!-- Print Header (Hidden on screen, visible on PDF) -->
+            <div class="print-only-header" style="display: none; text-align: center; margin-bottom: 25px;">
+                <h1 style="color: #1e3a8a; margin: 0;">Pioneers Prep - Live Mock Report</h1>
+                <p style="color: #64748b; margin-top: 5px;">Candidate Performance Breakdown</p>
+            </div>
+
+            <!-- Action Bar (Hidden on print) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;" class="no-print">
+                <button onclick="window.location.href='/'" style="padding: 10px 18px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #475569;">&larr; Exit Dashboard</button>
+                <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
+                    Print / Save as PDF
+                </button>
+            </div>
+
+            <!-- Scorecard -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 35px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                <h2 style="margin: 0 0 10px 0; color: #334155;">Final Scorecard</h2>
+                <h1 style="font-size: 54px; margin: 0; color: #2563eb; line-height: 1;">${percentage}%</h1>
+                <p style="font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 8px;">${scorecard.correct} / ${scorecard.total} Correct</p>
+                
+                <div style="display: flex; justify-content: center; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
+                    <span style="background: #dcfce7; color: #166534; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">✅ Correct: ${scorecard.correct}</span>
+                    <span style="background: #fee2e2; color: #991b1b; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">❌ Incorrect: ${scorecard.incorrect}</span>
+                    <span style="background: #fef9c3; color: #854d0e; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">⚠️ Skipped: ${scorecard.skipped}</span>
+                </div>
+            </div>
+
+            <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 0;">Detailed Question Breakdown</h3>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
+                    <tr style="background: #1e293b; color: white;">
+                        <th style="padding: 14px; border-radius: 6px 0 0 0; width: 5%;">#</th>
+                        <th style="padding: 14px; width: 45%;">Question</th>
+                        <th style="padding: 14px; width: 20%;">Your Answer</th>
+                        <th style="padding: 14px; width: 20%;">Correct Answer</th>
+                        <th style="padding: 14px; border-radius: 0 6px 0 0; width: 10%; text-align: center;">Status</th>
+                    </tr>
+    `;
+
+    breakdown.forEach(item => {
+        let statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
+        let statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
+        let selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
+        
+        html += `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 16px; vertical-align: top; font-weight: bold; color: #475569;">${item.qNum}</td>
+                        <td style="padding: 16px; vertical-align: top;">
+                            <div style="color: #1e293b; font-weight: 500; font-size: 15px;">${esc(item.question)}</div>
+                            ${item.explanation ? `<div style="margin-top: 10px; font-size: 13px; color: #15803d; background: #f0fdf4; padding: 10px; border-radius: 6px; border-left: 4px solid #16a34a;"><strong>Explanation:</strong> ${esc(item.explanation)}</div>` : ''}
+                        </td>
+                        <td style="padding: 16px; vertical-align: top; color: ${selColor}; font-weight: ${item.status === 'Skipped' ? 'normal' : '600'};">${esc(item.selectedText)}</td>
+                        <td style="padding: 16px; vertical-align: top; color: #15803d; font-weight: 600;">${esc(item.correctText)}</td>
+                        <td style="padding: 16px; vertical-align: top; text-align: center;">
+                            <span style="background: ${statusBg}; color: ${statusColor}; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid ${statusColor}40;">${item.status}</span>
+                        </td>
+                    </tr>
+        `;
+    });
+
+    html += `
+                </table>
+            </div>
+        </div>
+        <style>
+            @media print {
+                body * { visibility: hidden; }
+                #quiz-screen { display: none !important; }
+                #result-screen, #result-screen * { visibility: visible; }
+                #result-screen { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; }
+                .no-print { display: none !important; }
+                .print-only-header { display: block !important; }
+                .app-screen, main { display: block !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+                table { page-break-inside: auto; }
+                tr { page-break-inside: avoid; page-break-after: auto; }
+                td, th { border: 1px solid #cbd5e1 !important; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+        </style>
+    `;
+    
+    // Inject and display
+    const quizScreen = document.getElementById('quiz-screen');
+    const resultScreen = document.createElement('div');
+    resultScreen.id = 'result-screen';
+    resultScreen.innerHTML = html;
+    
+    // Replace the quiz screen with the result screen seamlessly
+    quizScreen.replaceWith(resultScreen);
 }
 
 function triggerCelebration() {

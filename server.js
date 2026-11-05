@@ -2775,20 +2775,37 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
             let studentAnswers = board[fullName]?.answers || {};
             let correct = 0, attempted = 0;
             const total = content.questions.length;
+            
+            // Generate detailed breakdown array
+            const breakdown = [];
 
             content.questions.forEach((q, idx) => {
                 const ansObj = studentAnswers[idx];
-                if (ansObj !== undefined && ansObj.answer !== undefined) {
+                const hasAnswer = (ansObj !== undefined && ansObj.answer !== undefined);
+                let isCorrect = false;
+                
+                if (hasAnswer) {
                     attempted++;
                     if (Number(ansObj.answer) === Number(q.answer)) {
                         correct++;
+                        isCorrect = true;
                     }
                 }
+
+                breakdown.push({
+                    qNum: idx + 1,
+                    question: q.question || "N/A",
+                    selectedText: hasAnswer ? (q.options[Number(ansObj.answer)] || "Unknown") : "Skipped",
+                    correctText: (q.options && q.answer !== undefined) ? q.options[Number(q.answer)] : "N/A",
+                    status: isCorrect ? "Correct" : (hasAnswer ? "Incorrect" : "Skipped"),
+                    explanation: q.explanation || ""
+                });
             });
 
             return res.json({
                 status: 'ended',
-                scorecard: { correct, incorrect: attempted - correct, skipped: total - attempted, total }
+                scorecard: { correct, incorrect: attempted - correct, skipped: total - attempted, total },
+                breakdown: breakdown
             });
         }
 
