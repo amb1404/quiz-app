@@ -91,15 +91,70 @@
         </div>
 
         <div id="home-dashboard">
-            <!-- 1. Mock Tests Panel -->
+            <!-- 1. Mock Tests Panel (Grouped Grid Redesign) -->
             <div class="dashboard-panel">
-                <h2 style="text-align: center; color: #4285f4; margin-top: 0;">Mock Tests</h2>
-                <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">Class IX</a>
-                <a href="/test-portal.html?class=X" class="card" data-action="clear-session">Class X</a>
-                <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">NEET Class XI</a>
-                <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">NEET Class XII</a>
-                <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">WBCHSE Class XI</a>
-                <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">WBCHSE Class XII</a>
+                <style>
+                  .mock-category-section {
+                    margin-bottom: 24px;
+                    text-align: left;
+                  }
+                  .mock-category-header {
+                    font-size: 13px;
+                    font-weight: 800;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 12px;
+                    padding-bottom: 6px;
+                    border-bottom: 2px solid #e2e8f0;
+                  }
+                  .mock-category-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+                    gap: 12px;
+                  }
+                  .mock-category-grid .card {
+                    margin: 0 !important;
+                    padding: 14px 10px !important;
+                    font-size: 14px !important;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    box-sizing: border-box;
+                    text-align: center;
+                  }
+                </style>
+
+                <h2 style="text-align: center; color: #4285f4; margin-top: 0; margin-bottom: 20px;">Mock Tests</h2>
+
+                <!-- NEET Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">NEET (Medical)</div>
+                  <div class="mock-category-grid">
+                    <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">Class XI</a>
+                    <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">Class XII</a>
+                    <a href="/test-portal.html?class=NEET-FULL" class="card" data-action="clear-session">Full Length</a>
+                  </div>
+                </div>
+
+                <!-- WBCHSE Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">WBCHSE (Board)</div>
+                  <div class="mock-category-grid">
+                    <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">Class XI</a>
+                    <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">Class XII</a>
+                  </div>
+                </div>
+
+                <!-- Foundation Section -->
+                <div class="mock-category-section" style="margin-bottom: 0;">
+                  <div class="mock-category-header">Foundation (ICSE / CBSE)</div>
+                  <div class="mock-category-grid">
+                    <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">Class IX</a>
+                    <a href="/test-portal.html?class=X" class="card" data-action="clear-session">Class X</a>
+                  </div>
+                </div>
             </div>
 
             <!-- 2. Study Notes Panel -->
