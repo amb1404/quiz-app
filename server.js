@@ -570,6 +570,42 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         const isDesc = canonicalBaseRoute === '/descriptive-papers';
 
         const headerHTML = `
+            <style>
+                @media (max-width: 768px) {
+                    .site-header { padding: 8px 10px !important; }
+                    .nav-container {
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        padding: 0 !important;
+                        gap: 8px !important;
+                    }
+                    .brand-title { font-size: 22px !important; line-height: 1 !important; }
+                    .brand-subtitle { display: none !important; /* Hides subtitle on mobile to save space */ }
+                    .site-nav {
+                        flex-wrap: wrap !important;
+                        justify-content: center !important;
+                        gap: 6px !important;
+                        margin-top: 0 !important;
+                    }
+                    .nav-link {
+                        padding: 6px 10px !important;
+                        font-size: 13px !important;
+                        margin: 0 !important;
+                    }
+                    #auth-ui-container {
+                        margin-left: 0 !important;
+                        padding-left: 0 !important;
+                        border-left: none !important;
+                        margin-top: 4px !important;
+                        width: 100% !important;
+                        justify-content: center !important;
+                    }
+                    #nav-profile-badge { gap: 8px !important; }
+                    #nav-avatar { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+                    #nav-name { font-size: 12px !important; }
+                    #nav-logout-btn { font-size: 12px !important; }
+                }
+            </style>
             <div class="nav-container">
                 <a href="/" class="brand-logo" data-action="clear-session">
                     <span class="brand-title">PIONEERS PREP</span>
