@@ -415,7 +415,25 @@ function selectSubject(sub) {
 function loadDynamicChapters(cName) {
     const container = document.getElementById('ix-x-chapter-container');
     container.innerHTML = '';
-    const matched = dynamicQuizzes.filter(q => (q.category || '').toLowerCase() === (cName.startsWith('WB') ? 'wb' : 'neet') && (q.classLevel || '').toLowerCase() === cName.toLowerCase().replace('wb ', ''));
+    
+    let targetCategory = 'neet';
+    let cleanClassLevel = cName;
+
+    // Detect the exact category based on the button's data-arg prefix
+    if (cName.toUpperCase().startsWith('WB ')) {
+        targetCategory = 'wb';
+        cleanClassLevel = cName.substring(3).trim(); // Removes 'WB '
+    } else if (cName.toUpperCase().startsWith('ISC ')) {
+        targetCategory = 'isc';
+        cleanClassLevel = cName.substring(4).trim(); // Removes 'ISC '
+    }
+
+    // Filter quizzes matching both category and class
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === cleanClassLevel.toLowerCase()
+    );
+
     if (matched.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
     } else {
