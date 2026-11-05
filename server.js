@@ -2474,7 +2474,30 @@ function getLiveMockContent(rawId) {
     if (!matchedPath) return null;
     return JSON.parse(fs.readFileSync(matchedPath, 'utf8'));
 }
+// Automatically list all available Live Mock Tests for dropdowns
+app.get('/api/live/list', (req, res) => {
+    try {
+        const liveDir = path.join(__dirname, 'livemock');
+        if (!fs.existsSync(liveDir)) return res.json({ success: true, tests: [] });
 
+        const allLiveFiles = getAllJsonFiles(liveDir);
+        
+        const tests = allLiveFiles.map(filePath => {
+            const fileName = path.basename(filePath, '.json');
+            try {
+                const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                // Returns the filename as the ID, and the real title for display
+                return { id: fileName, title: content.title || fileName };
+            } catch (err) {
+                return { id: fileName, title: fileName };
+            }
+        });
+
+        res.json({ success: true, tests });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to list live tests.' });
+    }
+});
 // Admin: Start Quiz & Generate OTP
 app.post('/api/live/admin/start', async (req, res) => {
     try {

@@ -17,7 +17,36 @@
 <body>
     <div id="auth-screen" class="live-container">
         <h2 style="color: #4285f4;">Join Live Mock Test</h2>
-        <input type="text" id="live-quiz-id" placeholder="Test ID (e.g. mock1)" style="text-transform:none;">
+        <select id="live-quiz-id" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; background-color: white; font-weight: bold; color: #1e293b; cursor: pointer;">
+    <option value="">Loading Tests...</option>
+</select>
+
+<script>
+    // Fetch and populate the live mock dropdown automatically
+    document.addEventListener('DOMContentLoaded', async () => {
+        const dropdown = document.getElementById('live-quiz-id');
+        if (!dropdown) return;
+        
+        try {
+            const res = await fetch('/api/live/list');
+            const data = await res.json();
+            
+            if (data.success && data.tests.length > 0) {
+                dropdown.innerHTML = '<option value="">-- Select a Live Test --</option>';
+                data.tests.forEach(test => {
+                    const option = document.createElement('option');
+                    option.value = test.id;
+                    option.textContent = test.title;
+                    dropdown.appendChild(option);
+                });
+            } else {
+                dropdown.innerHTML = '<option value="">No Live Tests Available</option>';
+            }
+        } catch (e) {
+            dropdown.innerHTML = '<option value="">Error loading tests</option>';
+        }
+    });
+</script>
         <input type="number" id="live-otp" placeholder="Enter Admin OTP">
         <button id="join-btn" style="width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer;">Join Test</button>
     </div>
