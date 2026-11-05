@@ -239,8 +239,8 @@ function renderLiveMockResults(scorecard, breakdown) {
 
             <!-- Action Bar (Hidden on print) -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;" class="no-print">
-                <button onclick="window.location.href='/'" style="padding: 10px 18px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #475569;">&larr; Exit Dashboard</button>
-                <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <button id="btn-exit-dashboard" style="padding: 10px 18px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #475569;">&larr; Exit Dashboard</button>
+                <button id="btn-print-pdf" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
                     Print / Save as PDF
                 </button>
@@ -322,6 +322,15 @@ function renderLiveMockResults(scorecard, breakdown) {
     
     // Replace the quiz screen with the result screen seamlessly
     quizScreen.replaceWith(resultScreen);
+
+    // Add Event Listeners for the Action Buttons
+    document.getElementById('btn-exit-dashboard').addEventListener('click', () => {
+        window.location.href = '/';
+    });
+    
+    document.getElementById('btn-print-pdf').addEventListener('click', () => {
+        window.print();
+    });
 }
 
 function triggerCelebration() {
