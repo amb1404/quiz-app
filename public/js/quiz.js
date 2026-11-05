@@ -147,7 +147,7 @@ async function restoreSessionState(state) {
         skippedQuestions = new Set(state.skippedQuestions || []);
 
         // Pre-load parent menus so Back navigation is always fully populated
-        if (selectedClassName && (selectedClassName === 'XI' || selectedClassName === 'XII')) {
+        if (selectedClassName && (selectedClassName === 'XI' || selectedClassName === 'XII' || selectedClassName === 'ISC XI' || selectedClassName === 'ISC XII')) {
             loadNeetUnits(selectedClassName);
             if (selectedNeetUnit) {
                 loadNeetChapters(selectedClassName, selectedNeetUnit);
@@ -395,8 +395,11 @@ async function selectNotesSubject(subject) {
 function selectClass(cName) {
     selectedClassName = cName;
     if (cName === 'IX' || cName === 'X') showScreen('subject-select-screen');
-    else if (cName === 'XI' || cName === 'XII') loadNeetUnits(cName);
-    else loadDynamicChapters(cName);
+    else if (cName === 'XI' || cName === 'XII' || cName === 'ISC XI' || cName === 'ISC XII') {
+        loadNeetUnits(cName);
+    } else {
+        loadDynamicChapters(cName);
+    }
 }
 
 function selectSubject(sub) {
@@ -419,16 +422,14 @@ function loadDynamicChapters(cName) {
     let targetCategory = 'neet';
     let cleanClassLevel = cName;
 
-    // Detect the exact category based on the button's data-arg prefix
     if (cName.toUpperCase().startsWith('WB ')) {
         targetCategory = 'wb';
-        cleanClassLevel = cName.substring(3).trim(); // Removes 'WB '
+        cleanClassLevel = cName.substring(3).trim();
     } else if (cName.toUpperCase().startsWith('ISC ')) {
         targetCategory = 'isc';
-        cleanClassLevel = cName.substring(4).trim(); // Removes 'ISC '
+        cleanClassLevel = cName.substring(4).trim();
     }
 
-    // Filter quizzes matching both category and class
     const matched = dynamicQuizzes.filter(q => 
         (q.category || '').toLowerCase() === targetCategory && 
         (q.classLevel || '').toLowerCase() === cleanClassLevel.toLowerCase()
@@ -445,7 +446,11 @@ function loadDynamicChapters(cName) {
 function loadNeetUnits(cName) {
     const container = document.getElementById('neet-unit-container');
     container.innerHTML = '';
-    const units = neetHierarchy[cName] || {};
+    
+    // Extract the base class (XI or XII) to build the correct syllabus hierarchy
+    const baseClass = cName.includes('XII') ? 'XII' : 'XI';
+    const units = neetHierarchy[baseClass] || {};
+    
     Object.keys(units).forEach(uName => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -459,7 +464,10 @@ function loadNeetUnits(cName) {
 function loadNeetChapters(cName, uName) {
     const container = document.getElementById('neet-chapter-container');
     container.innerHTML = '';
-    const chapters = neetHierarchy[cName]?.[uName] || [];
+    
+    const baseClass = cName.includes('XII') ? 'XII' : 'XI';
+    const chapters = neetHierarchy[baseClass]?.[uName] || [];
+    
     if (chapters.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No chapters found.</p>';
     } else {
@@ -472,6 +480,28 @@ function loadNeetChapters(cName, uName) {
         });
     }
     showScreen('neet-chapter-screen');
+}
+
+function loadNeetTopics(cName, uName, chap) {
+    const container = document.getElementById('neet-topic-container');
+    container.innerHTML = '';
+    
+    // Dynamically apply the category filter based on the button clicked
+    const targetCategory = cName.startsWith('ISC') ? 'isc' : 'neet';
+    const targetClass = cName.includes('XII') ? 'xii' : 'xi';
+    
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === targetClass && 
+        isChapterMatch(q.chapter, chap)
+    );
+    
+    if (matched.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+    showScreen('neet-topic-screen');
 }
 
 function loadNeetTopics(cName, uName, chap) {
