@@ -5,6 +5,14 @@
             "label": "Quick Push to Render",
             "type": "shell",
             "command": "git add . && git commit -m \"Quick auto-update\" && git push",
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/d", "/c"
+                    ]
+                }
+            },
             "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
