@@ -507,7 +507,18 @@ function loadNeetTopics(cName, uName, chap) {
 function loadNeetTopics(cName, uName, chap) {
     const container = document.getElementById('neet-topic-container');
     container.innerHTML = '';
-    const matched = dynamicQuizzes.filter(q => (q.category || '').toLowerCase() === 'neet' && (q.classLevel || '').toLowerCase() === cName.toLowerCase() && isChapterMatch(q.chapter, chap));
+    
+    // Convert to uppercase to guarantee safe detection of 'ISC XI' or 'ISC XII'
+    const upperCName = String(cName).toUpperCase();
+    const targetCategory = upperCName.startsWith('ISC') ? 'isc' : 'neet';
+    const targetClass = upperCName.includes('XII') ? 'xii' : 'xi';
+    
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === targetClass && 
+        isChapterMatch(q.chapter, chap)
+    );
+    
     if (matched.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
     } else {
