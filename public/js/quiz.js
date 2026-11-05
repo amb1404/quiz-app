@@ -991,85 +991,40 @@ async function submitQuiz(isAuto = false) {
 
     const mobileQuizStyles = `
         #quiz-screen:not(.hidden) {
-            padding: 20px 15px !important;
+            padding: 15px 10px !important;
             border-radius: 0 !important;
             min-height: 100vh !important;
             box-shadow: none !important;
         }
         #question-box {
-            font-size: 18px !important;
-            line-height: 1.6 !important;
-            margin-bottom: 24px !important;
+            font-size: 17px !important;
+            line-height: 1.5 !important;
+            margin-bottom: 20px !important;
         }
         .option-btn {
-            padding: 16px 18px !important;
-            font-size: 16px !important;
-            margin-bottom: 12px !important;
+            padding: 14px 16px !important;
+            font-size: 15px !important;
+            margin-bottom: 10px !important;
             border-radius: 8px !important;
         }
         .quiz-nav-container {
             flex-direction: column !important;
-            gap: 12px !important;
-            margin-top: 30px !important;
+            gap: 10px !important;
+            margin-top: 20px !important;
         }
         .quiz-nav-container button {
             width: 100% !important;
             max-width: 100% !important;
-            padding: 14px !important;
-            font-size: 16px !important;
-        }
-        .quiz-header {
-            flex-direction: column !important;
-            align-items: center !important;
-            text-align: center !important;
-            gap: 12px !important;
-            margin-bottom: 20px !important;
-        }
-        #submit-btn {
-            width: 100% !important;
             padding: 12px !important;
+            font-size: 15px !important;
         }
     `;
 
-    let styleElement = null;
-    let originalViewport = null;
-
-    const observer = new MutationObserver(() => {
-        const quizScreen = document.getElementById('quiz-screen');
-        if (!quizScreen) return;
-
-        const isQuizActive = !quizScreen.classList.contains('hidden');
-        const metaViewport = document.querySelector('meta[name="viewport"]');
-
-        if (isQuizActive) {
-            if (metaViewport && metaViewport.getAttribute('content') === 'width=1280') {
-                originalViewport = 'width=1280';
-                metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-            }
-            if (!styleElement) {
-                styleElement = document.createElement('style');
-                styleElement.id = 'mobile-quiz-custom-styles';
-                styleElement.innerHTML = mobileQuizStyles;
-                document.head.appendChild(styleElement);
-            }
-        } else {
-            if (metaViewport && originalViewport) {
-                metaViewport.setAttribute('content', originalViewport);
-            }
-            if (styleElement) {
-                styleElement.remove();
-                styleElement = null;
-            }
-        }
-    });
-
     window.addEventListener('DOMContentLoaded', () => {
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class']
-        });
+        const styleElement = document.createElement('style');
+        styleElement.id = 'mobile-quiz-custom-styles';
+        styleElement.innerHTML = mobileQuizStyles;
+        document.head.appendChild(styleElement);
     });
 })();
 

@@ -1047,25 +1047,23 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         observer.observe(s, { attributes: true, attributeFilter: ['class'] });
                     });
 
-                    window.addEventListener('popstate', function() {
-                        var activeScreen = document.querySelector('.app-screen:not(.hidden)');
-                        if (activeScreen && activeScreen.id === 'quiz-screen') {
-                            history.pushState({ app: 'pioneers', screen: 'quiz-screen' }, document.title, getCleanUrlForScreen('quiz-screen'));
-                            alert("Please use the 'Submit Quiz' button to exit.");
-                            return;
+                    window.addEventListener('popstate', function(e) {
+                    var activeScreen = document.querySelector('.app-screen:not(.hidden)');
+                    if (activeScreen && (activeScreen.id === 'quiz-screen' || activeScreen.id === 'result-screen')) {
+                        history.pushState({ app: 'pioneers', screen: activeScreen.id }, document.title, getCleanUrlForScreen(activeScreen.id));
+                        alert("Please use the 'Submit Quiz' button to exit.");
+                        return;
+                    }
+                    if (activeScreen && activeScreen.id !== 'home-dashboard') {
+                        var backBtn = activeScreen.querySelector('.back-btn');
+                        if (backBtn) {
+                            backEventTriggered = true;
+                            backBtn.click();
+                            setTimeout(restoreBlankScreensFromCache, 20);
                         }
-                        if (activeScreen && activeScreen.id !== 'home-dashboard') {
-                            var backBtn = activeScreen.querySelector('.back-btn');
-                            if (backBtn) {
-                                backEventTriggered = true;
-                                backBtn.click();
-                                setTimeout(restoreBlankScreensFromCache, 20);
-                            } else {
-                                sessionStorage.setItem('pioneers_nav_ok', Date.now().toString());
-                                window.location.href = '/';
-                            }
-                        }
-                    });
+                        // The fatal mobile redirect to window.location.href = '/' has been removed from here
+                    }
+                });
 
                     document.addEventListener('click', function(e) {
                         if (e.target && e.target.classList && e.target.classList.contains('back-btn')) {
