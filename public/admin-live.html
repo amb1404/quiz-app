@@ -462,6 +462,19 @@
 
         function startPushLoop() {
             if (pushInterval) clearInterval(pushInterval);
+            // PRE-WARM: Instantly check for student offers as soon as stream starts
+            fetch('/api/live/rtc/admin/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminKey: getAdminCredentials().adminKey,
+                    quizId: getAdminCredentials().quizId,
+                    videoEnabled,
+                    audioEnabled,
+                    rate: TARGET_SAMPLE_RATE,
+                    afterStudentSeq: lastStudentSeq
+                })
+            }).catch(() => {});
             pushInterval = setInterval(async () => {
                 if (!isBroadcasting || isPushing) return;
                 const { adminKey, quizId } = getAdminCredentials();
