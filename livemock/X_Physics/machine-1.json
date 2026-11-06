@@ -1,0 +1,190 @@
+{
+  "title": "ICSE Class X Physics - Machines",
+  "category": "physics",
+  "classLevel": "X",
+  "subject": "Physics",
+  "unit": "Force, Work, Power and Energy",
+  "chapter": "Machines",
+  "duration": 1800,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "What is the defining principle of an ideal machine?",
+      "options": ["Work output is greater than work input", "Work output is equal to work input", "Work output is less than work input", "Efficiency is always less than 100%"],
+      "answer": 1,
+      "explanation": "An ideal machine is frictionless and weightless, meaning there is no loss of energy. Therefore, the useful work output is exactly equal to the work input, giving it 100% efficiency."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following represents the correct mathematical relationship between Mechanical Advantage (MA), Velocity Ratio (VR), and Efficiency (η)?",
+      "options": ["MA = VR / η", "η = VR / MA", "MA = η × VR", "VR = MA × η"],
+      "answer": 2,
+      "explanation": "Efficiency (η) is defined as the ratio of Mechanical Advantage to Velocity Ratio (η = MA / VR). Therefore, MA = η × VR."
+    },
+    {
+      "type": "mcq",
+      "question": "The Velocity Ratio (VR) of a machine is formally defined as the ratio of:",
+      "options": ["Distance moved by load to distance moved by effort", "Distance moved by effort to distance moved by load", "Load to effort", "Effort to load"],
+      "answer": 1,
+      "explanation": "Velocity ratio is a kinematic property of a machine, defined as the distance moved by the effort divided by the distance moved by the load in the same time interval."
+    },
+    {
+      "type": "mcq",
+      "question": "In which class of lever is the fulcrum situated directly between the load and the effort?",
+      "options": ["Class I lever", "Class II lever", "Class III lever", "None of the above"],
+      "answer": 0,
+      "explanation": "In a Class I lever, the fulcrum is centrally located between the effort and the load. Examples include a seesaw and a pair of scissors."
+    },
+    {
+      "type": "mcq",
+      "question": "A nutcracker is a practical example of a:",
+      "options": ["Class I lever", "Class II lever", "Class III lever", "Single movable pulley"],
+      "answer": 1,
+      "explanation": "In a nutcracker, the load (the nut) is placed between the fulcrum (the hinge) and the effort (applied at the handles), making it a Class II lever."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following statements is universally true for a Class III lever?",
+      "options": ["Its mechanical advantage is always greater than 1", "Its mechanical advantage is always equal to 1", "Its mechanical advantage is always less than 1", "It always acts as a force multiplier"],
+      "answer": 2,
+      "explanation": "In a Class III lever, the effort is between the fulcrum and the load. This makes the effort arm always shorter than the load arm, resulting in a Mechanical Advantage of less than 1. It acts as a speed multiplier."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the primary practical purpose of using a single fixed pulley?",
+      "options": ["To multiply the force", "To increase the velocity ratio to 2", "To change the direction of the applied effort", "To gain mechanical advantage greater than 1"],
+      "answer": 2,
+      "explanation": "A single fixed pulley has an ideal MA of 1. It does not multiply force or speed, but it makes work more convenient by allowing the effort to be applied in a downward direction rather than upward."
+    },
+    {
+      "type": "mcq",
+      "question": "The mechanical advantage of an ideal single movable pulley is:",
+      "options": ["1", "2", "3", "4"],
+      "answer": 1,
+      "explanation": "In an ideal single movable pulley, the load is supported by two segments of the string. Therefore, the effort required is half the load (E = L/2), making the Mechanical Advantage 2."
+    },
+    {
+      "type": "mcq",
+      "question": "If 'n' is the total number of pulleys in a block and tackle system, what is its expected velocity ratio?",
+      "options": ["n - 1", "n", "n + 1", "2n"],
+      "answer": 1,
+      "explanation": "The velocity ratio of a block and tackle system is equal to the total number of pulleys in both blocks (n) or the number of string strands supporting the movable block."
+    },
+    {
+      "type": "mcq",
+      "question": "In a practical block and tackle system, why is the mechanical advantage always less than the velocity ratio?",
+      "options": ["Due to the weight of the upper fixed block", "Because velocity ratio increases with friction", "Due to friction in the bearings and the weight of the lower movable block", "Because effort is applied downwards"],
+      "answer": 2,
+      "explanation": "Real machines are not 100% efficient. Part of the applied effort is wasted in overcoming friction between moving parts and lifting the physical weight of the lower movable block."
+    },
+    {
+      "type": "mcq",
+      "question": "What happens to the velocity ratio of a machine if friction within its moving parts increases over time?",
+      "options": ["It increases", "It decreases", "It becomes zero", "It remains unchanged"],
+      "answer": 3,
+      "explanation": "Velocity ratio depends entirely on the design and geometry of the machine (distances moved). It is completely unaffected by friction or weight of machine parts."
+    },
+    {
+      "type": "mcq",
+      "question": "A machine functioning as a force multiplier must have a Mechanical Advantage (MA) that is:",
+      "options": ["Equal to 1", "Less than 1", "Greater than 1", "Negative"],
+      "answer": 2,
+      "explanation": "When MA > 1, the load overcome is greater than the effort applied (MA = Load/Effort). Hence, a small effort can lift a large load, making it a force multiplier."
+    },
+    {
+      "type": "mcq",
+      "question": "Why do metal shears (used for cutting thick metal sheets) have distinctly long handles?",
+      "options": ["To make them act as a speed multiplier", "To decrease the effort arm", "To ensure the mechanical advantage is greater than 1", "To decrease the mechanical advantage"],
+      "answer": 2,
+      "explanation": "Long handles increase the effort arm compared to the load arm (the cutting blades). Since MA = Effort arm / Load arm, this ensures MA > 1, providing the large force needed to cut metal."
+    },
+    {
+      "type": "mcq",
+      "question": "If the load arm of a lever is greater than its effort arm, the lever functions as a:",
+      "options": ["Force multiplier", "Speed multiplier", "Direction changer only", "Energy generator"],
+      "answer": 1,
+      "explanation": "When Load arm > Effort arm, MA < 1. In this scenario, the load moves a greater distance than the effort in the same time, multiplying the speed of the output."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following physical quantities has no SI unit?",
+      "options": ["Mechanical Advantage", "Velocity Ratio", "Efficiency", "All of the above"],
+      "answer": 3,
+      "explanation": "MA is a ratio of two forces, VR is a ratio of two distances, and Efficiency is a ratio of two works (or MA/VR). Because they are ratios of identical physical quantities, none of them have units."
+    },
+    {
+      "type": "mcq",
+      "question": "In a Class II lever, the Mechanical Advantage is consistently greater than 1 because:",
+      "options": ["The effort arm is always longer than the load arm", "The load arm is always longer than the effort arm", "The fulcrum is between the load and the effort", "It acts as a speed multiplier"],
+      "answer": 0,
+      "explanation": "In a Class II lever, the load is situated between the fulcrum and the effort. Therefore, the effort arm (distance from fulcrum to effort) is inherently longer than the load arm (distance from fulcrum to load)."
+    },
+    {
+      "type": "mcq",
+      "question": "A pair of sugar tongs is a practical example of a:",
+      "options": ["Class I lever", "Class II lever", "Class III lever", "Complex machine"],
+      "answer": 2,
+      "explanation": "When using sugar tongs, the fulcrum is at one end (the joined part), the load (sugar cube) is at the other end, and the effort is applied in the middle by the fingers. This makes it a Class III lever."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the velocity ratio of a single fixed pulley?",
+      "options": ["0.5", "1", "2", "Depends on the load"],
+      "answer": 1,
+      "explanation": "In a single fixed pulley, the distance moved downwards by the effort string is exactly equal to the distance the load moves upwards. Thus, VR = d_E / d_L = 1."
+    },
+    {
+      "type": "mcq",
+      "question": "The human forearm lifting a weight in the hand acts as which class of lever?",
+      "options": ["Class I lever", "Class II lever", "Class III lever", "It is not a lever"],
+      "answer": 2,
+      "explanation": "The elbow joint is the fulcrum, the weight in the hand is the load, and the biceps muscle attached to the forearm provides the effort between the elbow and the hand. This is a Class III lever."
+    },
+    {
+      "type": "mcq",
+      "question": "In an ideal machine, the ratio of useful work done by the machine to the work put into the machine is:",
+      "options": ["0", "0.5", "1", "Infinite"],
+      "answer": 2,
+      "explanation": "This ratio defines efficiency. An ideal machine experiences no energy losses (e.g., from friction), meaning Work Output equals Work Input. The ratio (efficiency) is exactly 1 (or 100%)."
+    },
+    {
+      "type": "mcq",
+      "question": "A boy applies an effort of 200 N to lift a load of 1000 N using a machine. What is the Mechanical Advantage (MA) of this machine?",
+      "options": ["0.2", "5", "800", "1200"],
+      "answer": 1,
+      "explanation": "Mechanical Advantage is calculated as Load / Effort. Here, MA = 1000 N / 200 N = 5."
+    },
+    {
+      "type": "mcq",
+      "question": "In a block and tackle system with 4 pulleys, what effort is required to lift a load of 1000 N if the machine's efficiency is 80%?",
+      "options": ["200 N", "250 N", "312.5 N", "400 N"],
+      "answer": 2,
+      "explanation": "Velocity Ratio (VR) = 4. Efficiency (η) = 0.8. Mechanical Advantage (MA) = VR × η = 4 × 0.8 = 3.2. Effort = Load / MA = 1000 N / 3.2 = 312.5 N."
+    },
+    {
+      "type": "mcq",
+      "question": "A 2 m long lever is used as a Class I lever. If its fulcrum is situated at a distance of 40 cm from the load, what is its Mechanical Advantage?",
+      "options": ["0.25", "4", "5", "160"],
+      "answer": 1,
+      "explanation": "Total length of the lever = 200 cm. Load arm = 40 cm. The effort is applied at the other end, so Effort arm = 200 cm - 40 cm = 160 cm. MA = Effort arm / Load arm = 160 / 40 = 4."
+    },
+    {
+      "type": "mcq",
+      "question": "A machine has a velocity ratio of 5. It is used to lift a load of 500 N to a certain height by applying an effort of 125 N. Calculate its efficiency.",
+      "options": ["75%", "80%", "85%", "100%"],
+      "answer": 1,
+      "explanation": "First, find Mechanical Advantage: MA = Load / Effort = 500 N / 125 N = 4. Efficiency = (MA / VR) × 100% = (4 / 5) × 100% = 80%."
+    },
+    {
+      "type": "mcq",
+      "question": "A crowbar of length 150 cm has its fulcrum at a distance of 25 cm from the load. What effort is required to lift a load of 1000 N?",
+      "options": ["150 N", "200 N", "250 N", "500 N"],
+      "answer": 1,
+      "explanation": "A crowbar is a Class I lever. Total length = 150 cm. Load arm = 25 cm. Effort arm = 150 - 25 = 125 cm. MA = Effort arm / Load arm = 125 / 25 = 5. Effort = Load / MA = 1000 N / 5 = 200 N."
+    }
+  ]
+}
