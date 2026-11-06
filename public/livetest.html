@@ -213,10 +213,16 @@
         <button id="join-btn" style="width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer;">Join Test</button>
     </div>
 <!-- Live PowerPoint Presentation Screen -->
+    <!-- Live PowerPoint Presentation Screen -->
     <div id="presentation-screen">
         <div id="presentation-header">
             <span>🖥️ Live Presentation Broadcast</span>
-            <span style="color: #34d399;">● LIVE SLIDES</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: #34d399;">● LIVE SLIDES</span>
+                <button id="btn-ppt-fullscreen" type="button" title="Go Fullscreen" style="background: #2563eb; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    ⛶ Fullscreen
+                </button>
+            </div>
         </div>
         <video id="student-ppt-video" autoplay playsinline muted></video>
     </div>
@@ -276,6 +282,26 @@
         const remoteVideo = document.getElementById('student-remote-video');
         const pptVideo = document.getElementById('student-ppt-video');
         const presentationScreen = document.getElementById('presentation-screen');
+        const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    if (presentationScreen.requestFullscreen) {
+                        presentationScreen.requestFullscreen();
+                    } else if (presentationScreen.webkitRequestFullscreen) {
+                        presentationScreen.webkitRequestFullscreen();
+                    }
+                    fullscreenBtn.textContent = '✕ Exit Fullscreen';
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                    fullscreenBtn.textContent = '⛶ Fullscreen';
+                }
+            });
+        }
         const quizScreen = document.getElementById('quiz-screen');
         const videoPlaceholder = document.getElementById('student-video-placeholder');
         const unmuteHintBtn = document.getElementById('btn-unmute-hint');
