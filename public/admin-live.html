@@ -311,7 +311,6 @@
                 screenStream = null;
             }
             try {
-                // Capture at 1280x720 @ locked 30 FPS so CPU never chokes and every keystroke renders live
                 screenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         width: { ideal: 1280, max: 1280 },
@@ -336,14 +335,30 @@
                 };
                 return true;
             } catch (err) {
+                console.error("Screen share error:", err);
+                alert("Could not start presentation share: " + (err.message || "Permission denied or cancelled."));
                 return false;
             }
         }
 
-        btnModeQuestion.addEventListener('click', async () => {
-            broadcastMode = 'question';
+        btnModePpt.addEventListener('click', async () => {
+            const { adminKey, quizId } = getAdminCredentials();
+            if (!adminKey || !quizId) {
+                alert('Please enter your Admin Secret Key and Test ID first.');
+                return;
+            }
+            
+            const hasScreen = await acquireScreenShareStream(false);
+            if (!hasScreen) return;
+
+            broadcastMode = 'presentation';
             updateModeConsoleUI();
-            await syncModeToServer();
+
+            if (!isBroadcasting) {
+                await startOrUpdateBroadcast();
+            } else {
+                await syncModeToServer();
+            }
         });
 
         btnModePpt.addEventListener('click', async () => {
