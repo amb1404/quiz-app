@@ -475,6 +475,8 @@
         async function connectToAdminVideo() {
             if (isJoiningRtc || !liveToken || !currentQuizId) return;
             isJoiningRtc = true;
+            // BUG 2 FIX: Ensure the joining lock resets even if ICE gathering silently hangs
+            setTimeout(() => { isJoiningRtc = false; }, 10000);
             try {
                 if (studentPc) studentPc.close();
                 studentPc = new RTCPeerConnection({
@@ -557,6 +559,9 @@
         function teardownStream() {
             document.body.classList.remove('rtc-stream-active');
             document.body.classList.remove('rtc-presentation-active');
+            // BUG 2 FIX: Aggressively wipe stale video bindings so they can cleanly accept new streams
+            if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.load(); }
+            if (pptVideo) { pptVideo.srcObject = null; pptVideo.load(); }
             if (pipBox) pipBox.style.display = 'none';
             if (remoteVideo) remoteVideo.style.display = 'none';
             if (presentationScreen) presentationScreen.style.display = 'none';

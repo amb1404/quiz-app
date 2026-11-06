@@ -174,9 +174,11 @@
         let pendingPcmSamples = [];
         let preRollBuffers = []; 
         let lastStudentSeq = 0;
-        let nextStudentPlayTime = 0;
-        let lastStudentAudioPlayedMs = 0;
-
+        
+        // BUG 1 FIX: Track audio playback time individually per student to prevent delays/overlaps
+        const studentPlayTimes = new Map(); 
+        const studentAudioPlayedMs = new Map();
+        let globalLastAudioPlayedMs = 0;
         const peerConnections = new Map();
         const answeringStudents = new Set();
 
@@ -361,26 +363,7 @@
             }
         });
 
-        btnModePpt.addEventListener('click', async () => {
-            const { adminKey, quizId } = getAdminCredentials();
-            if (!adminKey || !quizId) {
-                alert('Please enter your Admin Secret Key and Test ID first.');
-                return;
-            }
-            // Grab PPT window if not already captured in memory
-            const hasScreen = await acquireScreenShareStream(false);
-            if (!hasScreen) return;
-
-            broadcastMode = 'presentation';
-            updateModeConsoleUI();
-
-            // If stream wasn't started yet, start broadcast tunnel automatically
-            if (!isBroadcasting) {
-                await startOrUpdateBroadcast();
-            } else {
-                await syncModeToServer();
-            }
-        });
+        
 
         btnReselectPpt.addEventListener('click', async () => {
             const switched = await acquireScreenShareStream(true);
@@ -446,16 +429,7 @@
         }
 
         function int16ToBase64(int16Arr) {
-            const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
-            let binary = '';
-            const chunkSize = 4096;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-            }
-            return btoa(binary);
-        }
-
-        function playIncomingPcmBase64(b64Str, sampleRate) {
+            function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             try {
                 const samePcCall = Number(localStorage.getItem('pp_student_call_same_pc') || 0);
                 if (Date.now() - samePcCall < 2000) return;
@@ -474,30 +448,38 @@
             const channel = audioBuffer.getChannelData(0);
 
             const now = adminAudioCtx.currentTime;
-            const isNewPhrase = (nextStudentPlayTime < now);
+            
+            // Isolate playback timeline per student
+            let studentNextTime = studentPlayTimes.get(studentName) || 0;
+            const isNewPhrase = (studentNextTime < now);
 
             for (let i = 0; i < int16.length; i++) {
                 let val = (int16[i] / 32768.0) * 1.6;
                 if (val > 1.0) val = 1.0;
                 else if (val < -1.0) val = -1.0;
-
                 if (isNewPhrase && i < 24) val *= (i / 24);
                 channel[i] = val;
             }
 
-            if (isNewPhrase) nextStudentPlayTime = now + 0.20;
-            else if (nextStudentPlayTime - now > 2.5) nextStudentPlayTime = now + 0.20;
+            if (isNewPhrase) studentNextTime = now + 0.15;
+            else if (studentNextTime - now > 1.5) studentNextTime = now + 0.15; // Prevent massive buffer lag
 
             const src = adminAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(adminAudioCtx.destination);
-            src.start(nextStudentPlayTime);
-            nextStudentPlayTime += audioBuffer.duration;
+            src.start(studentNextTime);
+            
+            studentNextTime += audioBuffer.duration;
+            studentPlayTimes.set(studentName, studentNextTime);
 
-            const remainingPlayMs = Math.max(0, (nextStudentPlayTime - now) * 1000);
-            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 500;
-
-            try { localStorage.setItem('pp_admin_speaker_active_until', String(lastStudentAudioPlayedMs)); } catch (e) {}
+            const remainingPlayMs = Math.max(0, (studentNextTime - now) * 1000);
+            const playedUntilMs = Date.now() + remainingPlayMs + 300;
+            studentAudioPlayedMs.set(studentName, playedUntilMs);
+            
+            if (playedUntilMs > globalLastAudioPlayedMs) {
+                globalLastAudioPlayedMs = playedUntilMs;
+                try { localStorage.setItem('pp_admin_speaker_active_until', String(globalLastAudioPlayedMs)); } catch (e) {}
+            }
         }
 
         async function ensureMediaSetup() {
