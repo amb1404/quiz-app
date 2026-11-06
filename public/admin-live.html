@@ -108,7 +108,7 @@
 
     <!-- Streaming Console Bar -->
     <div id="admin-stream-console">
-        <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & Audio Console:</strong>
+        <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & HD Voice Console:</strong>
         <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
         <button id="btn-admin-audio" class="stream-btn" type="button">🎙️ Audio: OFF</button>
         <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
@@ -140,7 +140,7 @@
     <div id="admin-pip-box">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
-            <span style="color: #38bdf8;">● LIVE</span>
+            <span style="color: #38bdf8;">● LIVE HD</span>
         </div>
         <video id="admin-self-video" autoplay playsinline muted></video>
     </div>
@@ -148,7 +148,7 @@
     <script src="/js/admin-live.js"></script>
     <script>
     (function() {
-        const TARGET_SAMPLE_RATE = 12000;
+        const TARGET_SAMPLE_RATE = 16000; // 16kHz Wideband HD Voice
         let localStream = null;
         let videoEnabled = false;
         let audioEnabled = false;
@@ -162,6 +162,7 @@
         let pendingPcmSamples = [];
         let lastStudentSeq = 0;
         let nextStudentPlayTime = 0;
+        let noiseFloor = 0.002;
 
         const captureCanvas = document.createElement('canvas');
         captureCanvas.width = 200;
@@ -218,22 +219,26 @@
             });
         })(pipBox, document.getElementById('admin-pip-header'));
 
-        function downsampleToInt16(float32Arr, inputRate, outputRate) {
-            if (outputRate >= inputRate) {
-                const out = new Int16Array(float32Arr.length);
-                for (let i = 0; i < float32Arr.length; i++) {
-                    const s = Math.max(-1, Math.min(1, float32Arr[i]));
-                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                return out;
-            }
+        // Anti-Aliased Boxcar Downsampler with Makeup Gain & Soft Limiter
+        function downsampleAndEnhance(float32Arr, inputRate, outputRate, gainMultiplier) {
             const ratio = inputRate / outputRate;
-            const newLen = Math.round(float32Arr.length / ratio);
+            const newLen = Math.floor(float32Arr.length / ratio);
             const result = new Int16Array(newLen);
+
             for (let i = 0; i < newLen; i++) {
-                const idx = Math.min(float32Arr.length - 1, Math.floor(i * ratio));
-                const s = Math.max(-1, Math.min(1, float32Arr[idx]));
-                result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                const start = Math.floor(i * ratio);
+                const end = Math.min(float32Arr.length, Math.ceil((i + 1) * ratio));
+                let sum = 0;
+                let count = 0;
+                for (let j = start; j < end; j++) {
+                    sum += float32Arr[j];
+                    count++;
+                }
+                let sample = (count > 0 ? sum / count : float32Arr[start]) * gainMultiplier;
+                // Soft-clipping limiter to prevent harsh distortion
+                if (sample > 1.0) sample = 1.0;
+                else if (sample < -1.0) sample = -1.0;
+                result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
         }
@@ -248,6 +253,7 @@
             return btoa(binary);
         }
 
+        // Smooth De-Clicked Jitter Buffer Playback for Incoming Student Voice
         function playIncomingPcmBase64(b64Str, sampleRate) {
             if (!adminAudioCtx) return;
             if (adminAudioCtx.state === 'suspended') adminAudioCtx.resume().catch(() => {});
@@ -258,16 +264,31 @@
             const int16 = new Int16Array(bytes.buffer);
             if (int16.length === 0) return;
 
-            const audioBuffer = adminAudioCtx.createBuffer(1, int16.length, sampleRate || TARGET_SAMPLE_RATE);
+            const rate = sampleRate || TARGET_SAMPLE_RATE;
+            const audioBuffer = adminAudioCtx.createBuffer(1, int16.length, rate);
             const channel = audioBuffer.getChannelData(0);
+            const fadeSamples = Math.min(48, Math.floor(int16.length / 10));
+
             for (let i = 0; i < int16.length; i++) {
-                channel[i] = int16[i] / 32768.0;
+                let val = (int16[i] / 32768.0) * 1.35; // Boost incoming student voice clarity
+                if (val > 1.0) val = 1.0;
+                else if (val < -1.0) val = -1.0;
+
+                // Micro-fade edges to prevent buffer click artifacts
+                if (i < fadeSamples) val *= (i / fadeSamples);
+                else if (i >= int16.length - fadeSamples) val *= ((int16.length - 1 - i) / fadeSamples);
+
+                channel[i] = val;
             }
 
             const now = adminAudioCtx.currentTime;
-            if (nextStudentPlayTime < now || (nextStudentPlayTime - now) > 1.2) {
-                nextStudentPlayTime = now + 0.05;
+            // 120ms jitter buffer cushion for seamless continuous speech
+            if (nextStudentPlayTime < now) {
+                nextStudentPlayTime = now + 0.12;
+            } else if (nextStudentPlayTime - now > 1.5) {
+                nextStudentPlayTime = now + 0.12;
             }
+
             const src = adminAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(adminAudioCtx.destination);
@@ -285,36 +306,72 @@
 
             if (!localStream) {
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 320 }, height: { ideal: 200 } },
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                    video: { width: { ideal: 320 }, height: { ideal: 200 }, frameRate: { ideal: 15 } },
+                    audio: {
+                        echoCancellation: { ideal: true },
+                        noiseSuppression: { ideal: true },
+                        autoGainControl: { ideal: true },
+                        channelCount: { ideal: 1 }
+                    }
                 });
-                selfVideo.srcObject = localStream;
+
+                // CRITICAL FIX FOR SELF-ECHO (#2 & #4):
+                // Only attach the VIDEO track to selfVideo so the <video> element can NEVER output audio!
+                selfVideo.muted = true;
+                selfVideo.volume = 0;
+                selfVideo.srcObject = new MediaStream(localStream.getVideoTracks());
                 await selfVideo.play().catch(() => {});
-micSource = adminAudioCtx.createMediaStreamSource(localStream);
-                
-                // 150Hz High-Pass Filter removes fan/AC hum so VAD only triggers on human voice
-                const highPass = adminAudioCtx.createBiquadFilter();
-                highPass.type = 'highpass';
-                highPass.frequency.value = 150;
+
+                // 4-STAGE STUDIO AUDIO DSP CHAIN
+                micSource = adminAudioCtx.createMediaStreamSource(new MediaStream(localStream.getAudioTracks()));
+
+                // Stage 1: 130Hz High-Pass Filter (cuts fan, AC hum, and low rumble)
+                const hpFilter = adminAudioCtx.createBiquadFilter();
+                hpFilter.type = 'highpass';
+                hpFilter.frequency.value = 130;
+                hpFilter.Q.value = 0.707;
+
+                // Stage 2: 6800Hz Anti-Aliasing Low-Pass Filter (cuts high hiss)
+                const lpFilter = adminAudioCtx.createBiquadFilter();
+                lpFilter.type = 'lowpass';
+                lpFilter.frequency.value = 6800;
+                lpFilter.Q.value = 0.707;
+
+                // Stage 3: 2600Hz Vocal Presence Boost (+4.5 dB for clear speech articulation)
+                const presenceFilter = adminAudioCtx.createBiquadFilter();
+                presenceFilter.type = 'peaking';
+                presenceFilter.frequency.value = 2600;
+                presenceFilter.Q.value = 1.0;
+                presenceFilter.gain.value = 4.5;
+
+                // Stage 4: Broadcast Dynamics Compressor (levels voice volume smoothly)
+                const compressor = adminAudioCtx.createDynamicsCompressor();
+                compressor.threshold.value = -28;
+                compressor.knee.value = 12;
+                compressor.ratio.value = 5;
+                compressor.attack.value = 0.003;
+                compressor.release.value = 0.18;
 
                 micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
                 const zeroGain = adminAudioCtx.createGain();
                 zeroGain.gain.value = 0;
 
-                let lastAdminVoiceTime = 0;
+                let lastSpeechDetectedMs = 0;
 
                 micProcessor.onaudioprocess = (e) => {
+                    // Explicitly zero out output buffer so local mic NEVER leaks to local speakers
+                    const outBuf = e.outputBuffer.getChannelData(0);
+                    for (let i = 0; i < outBuf.length; i++) outBuf[i] = 0;
+
                     if (!isBroadcasting || !audioEnabled) return;
 
-                    // 1. ECHO LOCK: Mute Admin mic while Student voice is playing on Admin speakers (+350ms room reverb tail)
-                    if (adminAudioCtx.currentTime < nextStudentPlayTime + 0.35) {
+                    // ECHO LOCK: Mute Admin mic while Student voice is playing on Admin speakers (+650ms room reverb tail)
+                    if (adminAudioCtx.currentTime < nextStudentPlayTime + 0.65) {
                         pendingPcmSamples = [];
                         return;
                     }
 
                     const input = e.inputBuffer.getChannelData(0);
-
-                    // 2. VOICE ACTIVITY DETECTION (VAD): Measure speech volume (RMS)
                     let sumSq = 0;
                     for (let i = 0; i < input.length; i++) {
                         sumSq += input[i] * input[i];
@@ -322,26 +379,39 @@ micSource = adminAudioCtx.createMediaStreamSource(localStream);
                     const rms = Math.sqrt(sumSq / input.length);
                     const nowMs = Date.now();
 
-                    if (rms > 0.012) {
-                        lastAdminVoiceTime = nowMs; // Active speech detected
+                    // Adaptive Noise Floor Tracking
+                    if (rms < noiseFloor) {
+                        noiseFloor = (0.95 * noiseFloor) + (0.05 * rms);
+                    } else if (rms < noiseFloor * 1.8) {
+                        noiseFloor = (0.995 * noiseFloor) + (0.005 * rms);
+                    }
+                    noiseFloor = Math.max(0.001, Math.min(0.015, noiseFloor));
+
+                    if (rms > Math.max(0.004, noiseFloor * 2.1)) {
+                        lastSpeechDetectedMs = nowMs;
                     }
 
-                    // Only transmit if Admin spoke within the last 350ms (prevents sending background silence)
-                    if (nowMs - lastAdminVoiceTime > 350) {
+                    // Keep gate open for 600ms after speech so word endings & soft consonants are never clipped
+                    if (nowMs - lastSpeechDetectedMs > 600) {
                         return;
                     }
 
-                    const downsampled = downsampleToInt16(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+                    // Smooth soft noise gate attenuation for quiet background frames
+                    const gateGain = rms < noiseFloor * 1.5 ? 0.35 : 1.45;
+                    const downsampled = downsampleAndEnhance(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE, gateGain);
                     for (let i = 0; i < downsampled.length; i++) {
                         pendingPcmSamples.push(downsampled[i]);
                     }
-                    if (pendingPcmSamples.length > 9600) {
-                        pendingPcmSamples = pendingPcmSamples.slice(-9600);
+                    if (pendingPcmSamples.length > 16000) {
+                        pendingPcmSamples = pendingPcmSamples.slice(-16000);
                     }
                 };
 
-                micSource.connect(highPass);
-                highPass.connect(micProcessor);
+                micSource.connect(hpFilter);
+                hpFilter.connect(lpFilter);
+                lpFilter.connect(presenceFilter);
+                presenceFilter.connect(compressor);
+                compressor.connect(micProcessor);
                 micProcessor.connect(zeroGain);
                 zeroGain.connect(adminAudioCtx.destination);
             }
@@ -384,6 +454,13 @@ micSource = adminAudioCtx.createMediaStreamSource(localStream);
                 if (!isBroadcasting || isPushing) return;
                 const { adminKey, quizId } = getAdminCredentials();
                 if (!adminKey || !quizId) return;
+
+                // Signal to same-browser tabs that Admin mic is active on this machine
+                if (audioEnabled) {
+                    try { localStorage.setItem('pp_admin_mic_same_pc', String(Date.now())); } catch (e) {}
+                } else {
+                    try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
+                }
 
                 isPushing = true;
                 try {
@@ -458,7 +535,6 @@ micSource = adminAudioCtx.createMediaStreamSource(localStream);
         }
 
         async function handleStreamToggle() {
-            // If both Video and Audio are toggled OFF, automatically stop broadcast & clear callers
             if (!videoEnabled && !audioEnabled) {
                 if (btnStop) btnStop.click();
                 resetCallerBadge();
@@ -489,11 +565,11 @@ micSource = adminAudioCtx.createMediaStreamSource(localStream);
             videoEnabled = false;
             audioEnabled = false;
             pendingPcmSamples = [];
+            try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
             updateButtonsUI();
             pipBox.style.display = 'none';
             btnStop.style.display = 'none';
-            callerBadge.textContent = '🎧 No active student calls';
-            callerBadge.classList.remove('calling');
+            resetCallerBadge();
 
             if (pushInterval) clearInterval(pushInterval);
             if (localStream) {

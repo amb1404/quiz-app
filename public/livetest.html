@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; margin: 0; padding: 15px; box-sizing: border-box; }
-        /* Guarantees the top-right video box never overlaps #quiz-screen on mobile or desktop */
         body.rtc-stream-active {
             align-items: flex-start !important;
         }
@@ -174,7 +173,7 @@
     <div id="student-pip-box" class="no-print">
         <div id="student-pip-header">
             <span>⠿ Drag Video</span>
-            <span style="color: #34d399;">● LIVE</span>
+            <span style="color: #34d399;">● LIVE HD</span>
         </div>
         <div id="student-video-stage">
             <img id="student-remote-video" alt="Live Instructor Feed">
@@ -190,10 +189,11 @@
     <script src="/js/livetest.js"></script>
     <script>
     (function() {
-        const TARGET_SAMPLE_RATE = 12000;
+        const TARGET_SAMPLE_RATE = 16000; // 16kHz Wideband HD Voice
         let studentAudioCtx = null;
         let lastAdminAudioSeq = 0;
         let nextAdminPlayTime = 0;
+        let serverSaysAdminSpeaking = false;
         let isPulling = false;
 
         let isCallActive = false;
@@ -202,6 +202,7 @@
         let studentMicProcessor = null;
         let pendingCallSamples = [];
         let callPushInterval = null;
+        let studentNoiseFloor = 0.002;
 
         const pipBox = document.getElementById('student-pip-box');
         const remoteVideoImg = document.getElementById('student-remote-video');
@@ -222,7 +223,6 @@
             }
         }
 
-        // Unlock WebAudio automatically on any click or touch
         document.addEventListener('pointerdown', ensureStudentAudioCtx);
         unmuteHintBtn.addEventListener('click', ensureStudentAudioCtx);
 
@@ -260,22 +260,25 @@
             });
         })(pipBox, document.getElementById('student-pip-header'));
 
-        function downsampleToInt16(float32Arr, inputRate, outputRate) {
-            if (outputRate >= inputRate) {
-                const out = new Int16Array(float32Arr.length);
-                for (let i = 0; i < float32Arr.length; i++) {
-                    const s = Math.max(-1, Math.min(1, float32Arr[i]));
-                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                return out;
-            }
+        // Anti-Aliased Boxcar Downsampler with Makeup Gain & Soft Limiter
+        function downsampleAndEnhance(float32Arr, inputRate, outputRate, gainMultiplier) {
             const ratio = inputRate / outputRate;
-            const newLen = Math.round(float32Arr.length / ratio);
+            const newLen = Math.floor(float32Arr.length / ratio);
             const result = new Int16Array(newLen);
+
             for (let i = 0; i < newLen; i++) {
-                const idx = Math.min(float32Arr.length - 1, Math.floor(i * ratio));
-                const s = Math.max(-1, Math.min(1, float32Arr[idx]));
-                result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                const start = Math.floor(i * ratio);
+                const end = Math.min(float32Arr.length, Math.ceil((i + 1) * ratio));
+                let sum = 0;
+                let count = 0;
+                for (let j = start; j < end; j++) {
+                    sum += float32Arr[j];
+                    count++;
+                }
+                let sample = (count > 0 ? sum / count : float32Arr[start]) * gainMultiplier;
+                if (sample > 1.0) sample = 1.0;
+                else if (sample < -1.0) sample = -1.0;
+                result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
         }
@@ -290,7 +293,18 @@
             return btoa(binary);
         }
 
+        // Smooth De-Clicked Jitter Buffer Playback for Admin Voice
         function playAdminPcmBase64(b64Str, sampleRate) {
+            // SAME-COMPUTER FEEDBACK GUARD:
+            // If you opened livetest.html in another tab on the SAME laptop as admin-live.html,
+            // do not play your own voice back into your own laptop speakers!
+            try {
+                const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
+                if (Date.now() - adminLocalStamp < 2000) {
+                    return;
+                }
+            } catch (e) {}
+
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -306,16 +320,30 @@
             const int16 = new Int16Array(bytes.buffer);
             if (int16.length === 0) return;
 
-            const audioBuffer = studentAudioCtx.createBuffer(1, int16.length, sampleRate || TARGET_SAMPLE_RATE);
+            const rate = sampleRate || TARGET_SAMPLE_RATE;
+            const audioBuffer = studentAudioCtx.createBuffer(1, int16.length, rate);
             const channel = audioBuffer.getChannelData(0);
+            const fadeSamples = Math.min(48, Math.floor(int16.length / 10));
+
             for (let i = 0; i < int16.length; i++) {
-                channel[i] = int16[i] / 32768.0;
+                let val = (int16[i] / 32768.0) * 1.25;
+                if (val > 1.0) val = 1.0;
+                else if (val < -1.0) val = -1.0;
+
+                if (i < fadeSamples) val *= (i / fadeSamples);
+                else if (i >= int16.length - fadeSamples) val *= ((int16.length - 1 - i) / fadeSamples);
+
+                channel[i] = val;
             }
 
             const now = studentAudioCtx.currentTime;
-            if (nextAdminPlayTime < now || (nextAdminPlayTime - now) > 1.2) {
-                nextAdminPlayTime = now + 0.05;
+            // 120ms jitter buffer cushion prevents choppy speech
+            if (nextAdminPlayTime < now) {
+                nextAdminPlayTime = now + 0.12;
+            } else if (nextAdminPlayTime - now > 1.5) {
+                nextAdminPlayTime = now + 0.12;
             }
+
             const src = studentAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(studentAudioCtx.destination);
@@ -366,22 +394,49 @@
             if (isCallActive) stopStudentCall();
         }
 
-        // 1-Click Call Button Handler
+        // 1-Click Call Button Handler with 4-Stage Studio Vocal DSP Chain
         callBtn.addEventListener('click', async () => {
             ensureStudentAudioCtx();
 
             if (!isCallActive) {
                 try {
                     studentMicStream = await navigator.mediaDevices.getUserMedia({
-                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                        audio: {
+                            echoCancellation: { ideal: true },
+                            noiseSuppression: { ideal: true },
+                            autoGainControl: { ideal: true },
+                            channelCount: { ideal: 1 }
+                        }
                     });
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
 
-                    // 150Hz High-Pass Filter removes room rumble & fan noise
-                    const highPass = studentAudioCtx.createBiquadFilter();
-                    highPass.type = 'highpass';
-                    highPass.frequency.value = 150;
+                    // Stage 1: 135Hz High-Pass Filter (cuts fan & ambient room rumble)
+                    const hpFilter = studentAudioCtx.createBiquadFilter();
+                    hpFilter.type = 'highpass';
+                    hpFilter.frequency.value = 135;
+                    hpFilter.Q.value = 0.707;
+
+                    // Stage 2: 6800Hz Anti-Aliasing Low-Pass Filter
+                    const lpFilter = studentAudioCtx.createBiquadFilter();
+                    lpFilter.type = 'lowpass';
+                    lpFilter.frequency.value = 6800;
+                    lpFilter.Q.value = 0.707;
+
+                    // Stage 3: 2700Hz Vocal Clarity Presence Boost (+5 dB so student voice is crystal clear)
+                    const presenceFilter = studentAudioCtx.createBiquadFilter();
+                    presenceFilter.type = 'peaking';
+                    presenceFilter.frequency.value = 2700;
+                    presenceFilter.Q.value = 1.0;
+                    presenceFilter.gain.value = 5.0;
+
+                    // Stage 4: Broadcast Compressor (boosts soft-spoken students automatically)
+                    const compressor = studentAudioCtx.createDynamicsCompressor();
+                    compressor.threshold.value = -32;
+                    compressor.knee.value = 14;
+                    compressor.ratio.value = 6;
+                    compressor.attack.value = 0.003;
+                    compressor.release.value = 0.20;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
                     const zeroGain = studentAudioCtx.createGain();
@@ -391,17 +446,19 @@
                     let lastStudentVoiceTime = 0;
 
                     studentMicProcessor.onaudioprocess = (e) => {
+                        // Zero out output buffer so student never hears self-echo
+                        const outBuf = e.outputBuffer.getChannelData(0);
+                        for (let i = 0; i < outBuf.length; i++) outBuf[i] = 0;
+
                         if (!isCallActive) return;
 
-                        // 1. ECHO LOCK: Mute Student mic while Admin voice is playing on Student speakers (+350ms room reverb tail)
-                        if (studentAudioCtx.currentTime < nextAdminPlayTime + 0.35) {
+                        // STRICT ECHO SHIELD: Mute Student mic while Admin voice is playing on Student speakers (+700ms room decay tail)
+                        if (serverSaysAdminSpeaking || studentAudioCtx.currentTime < nextAdminPlayTime + 0.70) {
                             pendingCallSamples = [];
                             return;
                         }
 
                         const input = e.inputBuffer.getChannelData(0);
-
-                        // 2. VOICE ACTIVITY DETECTION (VAD): Measure speech volume (RMS)
                         let sumSq = 0;
                         for (let i = 0; i < input.length; i++) {
                             sumSq += input[i] * input[i];
@@ -409,26 +466,37 @@
                         const rms = Math.sqrt(sumSq / input.length);
                         const nowMs = Date.now();
 
-                        if (rms > 0.012) {
-                            lastStudentVoiceTime = nowMs; // Active student speech detected
+                        if (rms < studentNoiseFloor) {
+                            studentNoiseFloor = (0.95 * studentNoiseFloor) + (0.05 * rms);
+                        } else if (rms < studentNoiseFloor * 1.8) {
+                            studentNoiseFloor = (0.995 * studentNoiseFloor) + (0.005 * rms);
+                        }
+                        studentNoiseFloor = Math.max(0.001, Math.min(0.015, studentNoiseFloor));
+
+                        if (rms > Math.max(0.004, studentNoiseFloor * 2.0)) {
+                            lastStudentVoiceTime = nowMs;
                         }
 
-                        // Only transmit chunks when the student is actively speaking
-                        if (nowMs - lastStudentVoiceTime > 350) {
+                        // Hold gate open for 600ms after student speaks so words never get cut off
+                        if (nowMs - lastStudentVoiceTime > 600) {
                             return;
                         }
 
-                        const down = downsampleToInt16(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+                        const gateGain = rms < studentNoiseFloor * 1.5 ? 0.35 : 1.65;
+                        const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, gateGain);
                         for (let i = 0; i < down.length; i++) {
                             pendingCallSamples.push(down[i]);
                         }
-                        if (pendingCallSamples.length > 9600) {
-                            pendingCallSamples = pendingCallSamples.slice(-9600);
+                        if (pendingCallSamples.length > 16000) {
+                            pendingCallSamples = pendingCallSamples.slice(-16000);
                         }
                     };
 
-                    studentMicSource.connect(highPass);
-                    highPass.connect(studentMicProcessor);
+                    studentMicSource.connect(hpFilter);
+                    hpFilter.connect(lpFilter);
+                    lpFilter.connect(presenceFilter);
+                    presenceFilter.connect(compressor);
+                    compressor.connect(studentMicProcessor);
                     studentMicProcessor.connect(zeroGain);
                     zeroGain.connect(studentAudioCtx.destination);
 
@@ -444,20 +512,7 @@
                             pendingCallSamples = [];
                             chunkB64 = int16ToBase64(int16);
                         }
-                        await fetch('/api/live/rtc/student/call', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${liveToken}`
-                            },
-                            body: JSON.stringify({
-                                quizId: currentQuizId,
-                                callActive: true,
-                                audioChunk: chunkB64,
-                                rate: TARGET_SAMPLE_RATE
-                            })
-                        }).catch(() => {});
-                    const callRes = await fetch('/api/live/rtc/student/call', {
+                        const callRes = await fetch('/api/live/rtc/student/call', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -471,14 +526,13 @@
                             })
                         }).catch(() => {});
 
-                        // If server indicates the stream ended, cleanly stop student call immediately
                         if (callRes && callRes.ok) {
                             const callData = await callRes.json().catch(() => ({}));
                             if (callData.streamEnded && isCallActive) {
                                 await stopStudentCall();
                             }
                         }
-                    }, 220);
+                    }, 160);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
@@ -487,7 +541,7 @@
             }
         });
 
-        // Fast 240ms Pull Loop for Live Video Frames & Admin Audio
+        // Fast 160ms Pull Loop for Live Video Frames & Admin 16kHz Audio
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -508,10 +562,10 @@
                     return;
                 }
 
+                serverSaysAdminSpeaking = Boolean(status.adminSpeaking);
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                // Smooth double-buffer swap to prevent flicker and choppiness
                 if (status.videoEnabled && status.frame) {
                     const nextFrame = new Image();
                     nextFrame.onload = () => {
@@ -523,10 +577,9 @@
                 } else {
                     remoteVideoImg.style.display = 'none';
                     videoPlaceholder.style.display = 'block';
-                    videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live Audio Active' : '⏸️ Stream Paused';
+                    videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live HD Audio Active' : '⏸️ Stream Paused';
                 }
 
-                // Initialize sequence pointer on first join so only live audio plays
                 if (lastAdminAudioSeq === 0 && status.latestSeq) {
                     lastAdminAudioSeq = status.latestSeq;
                 }
