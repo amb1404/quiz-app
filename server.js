@@ -2888,7 +2888,7 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
-// 9. LIVE HTTPS VIDEO & 16kHz HD AUDIO RELAY HUB (WITH SERVER ECHO GATE)
+// 9. LIVE HTTPS VIDEO & 16kHz HD AUDIO RELAY HUB (LOW-LATENCY & ZERO-DROP)
 // ============================================================================
 const liveMediaRooms = new Map();
 
@@ -2902,7 +2902,6 @@ function getOrCreateMediaRoom(quizId) {
             latestFrame: null,
             adminAudioSeq: 0,
             adminAudioBuffer: [],
-            lastAdminVoiceAt: 0,      // Tracks when Admin last spoke to block student speaker echo
             studentAudioSeq: 0,
             studentAudioBuffer: [],
             activeCallers: new Map(),
@@ -2948,7 +2947,7 @@ app.post('/api/live/rtc/admin/toggle', (req, res) => {
     res.json({ success: true, broadcastActive: room.broadcastActive });
 });
 
-// 2. Admin pushes live video + 16kHz audio AND pulls incoming student call audio
+// 2. Admin pushes live video + audio AND pulls incoming student call audio
 app.post('/api/live/rtc/admin/push', (req, res) => {
     const { adminKey, quizId, videoEnabled, audioEnabled, frame, audioChunk, rate, afterStudentSeq } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
@@ -2968,13 +2967,12 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
 
     if (room.audioEnabled && typeof audioChunk === 'string' && audioChunk.length > 0) {
         room.adminAudioSeq += 1;
-        room.lastAdminVoiceAt = Date.now();
         room.adminAudioBuffer.push({
             seq: room.adminAudioSeq,
             pcm: audioChunk,
             rate: Number(rate) || 16000
         });
-        if (room.adminAudioBuffer.length > 30) {
+        if (room.adminAudioBuffer.length > 15) {
             room.adminAudioBuffer.shift();
         }
     }
@@ -3000,7 +2998,7 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     });
 });
 
-// 3. Student pulls live video frame + admin 16kHz audio chunks
+// 3. Student pulls live video frame + admin audio chunks
 app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3019,14 +3017,13 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
         broadcastActive: room.broadcastActive,
         videoEnabled: room.videoEnabled,
         audioEnabled: room.audioEnabled,
-        adminSpeaking: (Date.now() - room.lastAdminVoiceAt) < 750,
         frame: room.videoEnabled ? room.latestFrame : null,
         latestSeq: room.adminAudioSeq,
         audioChunks
     });
 });
 
-// 4. Student 1-click call state & voice chunk upload (with Server Echo Gate)
+// 4. Student 1-click call state & voice chunk upload (Unconditional Priority)
 app.post('/api/live/rtc/student/call', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3041,9 +3038,7 @@ app.post('/api/live/rtc/student/call', (req, res) => {
 
     if (callActive) {
         room.activeCallers.set(verified.studentName, Date.now());
-        // SERVER ECHO SHIELD: Ignore student mic packets while Admin's voice is playing on student speakers (700ms window)
-        const adminCurrentlySpeaking = room.audioEnabled && ((Date.now() - room.lastAdminVoiceAt) < 700);
-        if (!adminCurrentlySpeaking && typeof audioChunk === 'string' && audioChunk.length > 0) {
+        if (typeof audioChunk === 'string' && audioChunk.length > 0) {
             room.studentAudioSeq += 1;
             room.studentAudioBuffer.push({
                 seq: room.studentAudioSeq,
@@ -3051,7 +3046,7 @@ app.post('/api/live/rtc/student/call', (req, res) => {
                 pcm: audioChunk,
                 rate: Number(rate) || 16000
             });
-            if (room.studentAudioBuffer.length > 30) {
+            if (room.studentAudioBuffer.length > 15) {
                 room.studentAudioBuffer.shift();
             }
         }

@@ -189,20 +189,22 @@
     <script src="/js/livetest.js"></script>
     <script>
     (function() {
-        const TARGET_SAMPLE_RATE = 16000; // 16kHz Wideband HD Voice
+        const TARGET_SAMPLE_RATE = 16000;
         let studentAudioCtx = null;
         let lastAdminAudioSeq = 0;
         let nextAdminPlayTime = 0;
-        let serverSaysAdminSpeaking = false;
+        let lastAdminAudioPlayedMs = 0;
         let isPulling = false;
 
         let isCallActive = false;
+        let isCallPushing = false; // Prevents overlapping HTTP POSTs from piling up & causing major delay
         let studentMicStream = null;
         let studentMicSource = null;
         let studentMicProcessor = null;
+        let studentSilentSink = null;
         let pendingCallSamples = [];
         let callPushInterval = null;
-        let studentNoiseFloor = 0.002;
+        let studentActivelySpeakingUntil = 0;
 
         const pipBox = document.getElementById('student-pip-box');
         const remoteVideoImg = document.getElementById('student-remote-video');
@@ -260,7 +262,6 @@
             });
         })(pipBox, document.getElementById('student-pip-header'));
 
-        // Anti-Aliased Boxcar Downsampler with Makeup Gain & Soft Limiter
         function downsampleAndEnhance(float32Arr, inputRate, outputRate, gainMultiplier) {
             const ratio = inputRate / outputRate;
             const newLen = Math.floor(float32Arr.length / ratio);
@@ -269,8 +270,7 @@
             for (let i = 0; i < newLen; i++) {
                 const start = Math.floor(i * ratio);
                 const end = Math.min(float32Arr.length, Math.ceil((i + 1) * ratio));
-                let sum = 0;
-                let count = 0;
+                let sum = 0, count = 0;
                 for (let j = start; j < end; j++) {
                     sum += float32Arr[j];
                     count++;
@@ -293,17 +293,19 @@
             return btoa(binary);
         }
 
-        // Smooth De-Clicked Jitter Buffer Playback for Admin Voice
+        // Smooth Playback for Admin Voice on Student Device (No Duplicate Echo)
         function playAdminPcmBase64(b64Str, sampleRate) {
-            // SAME-COMPUTER FEEDBACK GUARD:
-            // If you opened livetest.html in another tab on the SAME laptop as admin-live.html,
-            // do not play your own voice back into your own laptop speakers!
+            // Same-computer guard
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
-                if (Date.now() - adminLocalStamp < 2000) {
-                    return;
-                }
+                if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
+
+            // AUTO-DUCKING DURING CALL: If the student is actively speaking into their mic on a call,
+            // mute speaker output so Admin's voice cannot bleed from Student's speaker into Student's mic
+            if (isCallActive && Date.now() < studentActivelySpeakingUntil) {
+                return;
+            }
 
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -323,7 +325,7 @@
             const rate = sampleRate || TARGET_SAMPLE_RATE;
             const audioBuffer = studentAudioCtx.createBuffer(1, int16.length, rate);
             const channel = audioBuffer.getChannelData(0);
-            const fadeSamples = Math.min(48, Math.floor(int16.length / 10));
+            const fadeSamples = Math.min(32, Math.floor(int16.length / 12));
 
             for (let i = 0; i < int16.length; i++) {
                 let val = (int16[i] / 32768.0) * 1.25;
@@ -337,11 +339,8 @@
             }
 
             const now = studentAudioCtx.currentTime;
-            // 120ms jitter buffer cushion prevents choppy speech
-            if (nextAdminPlayTime < now) {
-                nextAdminPlayTime = now + 0.12;
-            } else if (nextAdminPlayTime - now > 1.5) {
-                nextAdminPlayTime = now + 0.12;
+            if (nextAdminPlayTime < now || (nextAdminPlayTime - now) > 0.45) {
+                nextAdminPlayTime = now + 0.04;
             }
 
             const src = studentAudioCtx.createBufferSource();
@@ -349,10 +348,14 @@
             src.connect(studentAudioCtx.destination);
             src.start(nextAdminPlayTime);
             nextAdminPlayTime += audioBuffer.duration;
+
+            const remainingPlayMs = Math.max(0, (nextAdminPlayTime - now) * 1000);
+            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 400;
         }
 
         async function stopStudentCall() {
             isCallActive = false;
+            isCallPushing = false;
             pendingCallSamples = [];
             callBtn.textContent = '📞 Call Sir';
             callBtn.classList.remove('on-call');
@@ -362,11 +365,11 @@
                 callPushInterval = null;
             }
             if (studentMicProcessor) {
-                studentMicProcessor.disconnect();
+                try { studentMicProcessor.disconnect(); } catch (e) {}
                 studentMicProcessor = null;
             }
             if (studentMicSource) {
-                studentMicSource.disconnect();
+                try { studentMicSource.disconnect(); } catch (e) {}
                 studentMicSource = null;
             }
             if (studentMicStream) {
@@ -394,7 +397,7 @@
             if (isCallActive) stopStudentCall();
         }
 
-        // 1-Click Call Button Handler with 4-Stage Studio Vocal DSP Chain
+        // 1-Click Student Call Button Handler (Isolated from Speakers + No Request Pileup)
         callBtn.addEventListener('click', async () => {
             ensureStudentAudioCtx();
 
@@ -402,137 +405,111 @@
                 try {
                     studentMicStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
-                            echoCancellation: { ideal: true },
-                            noiseSuppression: { ideal: true },
-                            autoGainControl: { ideal: true },
-                            channelCount: { ideal: 1 }
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            channelCount: 1
                         }
                     });
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
 
-                    // Stage 1: 135Hz High-Pass Filter (cuts fan & ambient room rumble)
                     const hpFilter = studentAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 135;
-                    hpFilter.Q.value = 0.707;
+                    hpFilter.frequency.value = 130;
 
-                    // Stage 2: 6800Hz Anti-Aliasing Low-Pass Filter
-                    const lpFilter = studentAudioCtx.createBiquadFilter();
-                    lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 6800;
-                    lpFilter.Q.value = 0.707;
-
-                    // Stage 3: 2700Hz Vocal Clarity Presence Boost (+5 dB so student voice is crystal clear)
                     const presenceFilter = studentAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
                     presenceFilter.frequency.value = 2700;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 5.0;
-
-                    // Stage 4: Broadcast Compressor (boosts soft-spoken students automatically)
-                    const compressor = studentAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -32;
-                    compressor.knee.value = 14;
-                    compressor.ratio.value = 6;
-                    compressor.attack.value = 0.003;
-                    compressor.release.value = 0.20;
+                    presenceFilter.gain.value = 5.5;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
-                    const zeroGain = studentAudioCtx.createGain();
-                    zeroGain.gain.value = 0;
+                    // CRITICAL FIX FOR PROBLEM #1: Connect processor to a dead-end MediaStreamDestination
+                    // so the student's microphone graph NEVER touches studentAudioCtx.destination (their speaker)!
+                    studentSilentSink = studentAudioCtx.createMediaStreamDestination();
 
                     pendingCallSamples = [];
-                    let lastStudentVoiceTime = 0;
 
                     studentMicProcessor.onaudioprocess = (e) => {
-                        // Zero out output buffer so student never hears self-echo
-                        const outBuf = e.outputBuffer.getChannelData(0);
-                        for (let i = 0; i < outBuf.length; i++) outBuf[i] = 0;
-
                         if (!isCallActive) return;
 
-                        // STRICT ECHO SHIELD: Mute Student mic while Admin voice is playing on Student speakers (+700ms room decay tail)
-                        if (serverSaysAdminSpeaking || studentAudioCtx.currentTime < nextAdminPlayTime + 0.70) {
-                            pendingCallSamples = [];
+                        // If Admin's voice is currently playing out of the student's speaker,
+                        // do not record the speaker output into the student's mic
+                        if (Date.now() < lastAdminAudioPlayedMs) {
                             return;
                         }
 
                         const input = e.inputBuffer.getChannelData(0);
                         let sumSq = 0;
-                        for (let i = 0; i < input.length; i++) {
-                            sumSq += input[i] * input[i];
-                        }
+                        for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
                         const nowMs = Date.now();
 
-                        if (rms < studentNoiseFloor) {
-                            studentNoiseFloor = (0.95 * studentNoiseFloor) + (0.05 * rms);
-                        } else if (rms < studentNoiseFloor * 1.8) {
-                            studentNoiseFloor = (0.995 * studentNoiseFloor) + (0.005 * rms);
-                        }
-                        studentNoiseFloor = Math.max(0.001, Math.min(0.015, studentNoiseFloor));
-
-                        if (rms > Math.max(0.004, studentNoiseFloor * 2.0)) {
-                            lastStudentVoiceTime = nowMs;
+                        if (rms > 0.004) {
+                            studentActivelySpeakingUntil = nowMs + 450;
                         }
 
-                        // Hold gate open for 600ms after student speaks so words never get cut off
-                        if (nowMs - lastStudentVoiceTime > 600) {
-                            return;
-                        }
-
-                        const gateGain = rms < studentNoiseFloor * 1.5 ? 0.35 : 1.65;
-                        const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, gateGain);
-                        for (let i = 0; i < down.length; i++) {
-                            pendingCallSamples.push(down[i]);
-                        }
-                        if (pendingCallSamples.length > 16000) {
-                            pendingCallSamples = pendingCallSamples.slice(-16000);
+                        // Transmit whenever student spoke within the last 450ms with 2.2x clarity gain
+                        if (nowMs < studentActivelySpeakingUntil) {
+                            const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 2.2);
+                            for (let i = 0; i < down.length; i++) {
+                                pendingCallSamples.push(down[i]);
+                            }
+                            // Cap buffer to latest 0.45s so delay can NEVER build up
+                            if (pendingCallSamples.length > 7200) {
+                                pendingCallSamples = pendingCallSamples.slice(-7200);
+                            }
                         }
                     };
 
                     studentMicSource.connect(hpFilter);
-                    hpFilter.connect(lpFilter);
-                    lpFilter.connect(presenceFilter);
-                    presenceFilter.connect(compressor);
-                    compressor.connect(studentMicProcessor);
-                    studentMicProcessor.connect(zeroGain);
-                    zeroGain.connect(studentAudioCtx.destination);
+                    hpFilter.connect(presenceFilter);
+                    presenceFilter.connect(studentMicProcessor);
+                    studentMicProcessor.connect(studentSilentSink);
 
                     isCallActive = true;
+                    isCallPushing = false;
                     callBtn.textContent = '🔴 End Call';
                     callBtn.classList.add('on-call');
 
                     callPushInterval = setInterval(async () => {
-                        if (!isCallActive || !liveToken || !currentQuizId) return;
-                        let chunkB64 = null;
-                        if (pendingCallSamples.length > 0) {
-                            const int16 = new Int16Array(pendingCallSamples);
-                            pendingCallSamples = [];
-                            chunkB64 = int16ToBase64(int16);
-                        }
-                        const callRes = await fetch('/api/live/rtc/student/call', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${liveToken}`
-                            },
-                            body: JSON.stringify({
-                                quizId: currentQuizId,
-                                callActive: true,
-                                audioChunk: chunkB64,
-                                rate: TARGET_SAMPLE_RATE
-                            })
-                        }).catch(() => {});
+                        // In-flight lock prevents request pileups & multi-second voice delay
+                        if (!isCallActive || isCallPushing || !liveToken || !currentQuizId) return;
+                        isCallPushing = true;
 
-                        if (callRes && callRes.ok) {
-                            const callData = await callRes.json().catch(() => ({}));
-                            if (callData.streamEnded && isCallActive) {
-                                await stopStudentCall();
+                        try {
+                            let chunkB64 = null;
+                            if (pendingCallSamples.length > 0) {
+                                const int16 = new Int16Array(pendingCallSamples);
+                                pendingCallSamples = [];
+                                chunkB64 = int16ToBase64(int16);
                             }
+                            const callRes = await fetch('/api/live/rtc/student/call', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${liveToken}`
+                                },
+                                body: JSON.stringify({
+                                    quizId: currentQuizId,
+                                    callActive: true,
+                                    audioChunk: chunkB64,
+                                    rate: TARGET_SAMPLE_RATE
+                                })
+                            });
+
+                            if (callRes && callRes.ok) {
+                                const callData = await callRes.json().catch(() => ({}));
+                                if (callData.streamEnded && isCallActive) {
+                                    await stopStudentCall();
+                                }
+                            }
+                        } catch (e) {
+                        } finally {
+                            isCallPushing = false;
                         }
-                    }, 160);
+                    }, 150);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
@@ -541,7 +518,7 @@
             }
         });
 
-        // Fast 160ms Pull Loop for Live Video Frames & Admin 16kHz Audio
+        // Fast 150ms Pull Loop for Live Video Frames & Admin Audio
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -562,7 +539,6 @@
                     return;
                 }
 
-                serverSaysAdminSpeaking = Boolean(status.adminSpeaking);
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
@@ -596,7 +572,7 @@
             } finally {
                 isPulling = false;
             }
-        }, 160);
+        }, 150);
     })();
     </script>
 </body>
