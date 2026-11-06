@@ -201,17 +201,17 @@
             };
         }
 
-        // Creates a silent, low-CPU standby video track so WebRTC Channel 2 is always pre-negotiated
-        // and ready to hot-swap PowerPoint slides in 0ms mid-session
+        // Initializes the WebRTC Presentation pipeline at full 1280x720 @ 30 FPS from the start
+        // so hot-swapping to PowerPoint never gets throttled to 1 FPS
         function getIdlePptTrack() {
             if (!idlePptStream) {
                 const canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 360;
-                const ctx = canvas.getContext('2d');
+                canvas.width = 1280;
+                canvas.height = 720;
+                const ctx = canvas.getContext('2d', { alpha: false });
                 ctx.fillStyle = '#0f172a';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                idlePptStream = canvas.captureStream(1);
+                idlePptStream = canvas.captureStream(30);
             }
             return idlePptStream.getVideoTracks()[0];
         }
@@ -226,7 +226,7 @@
             return getIdlePptTrack();
         }
 
-        // Configures WebRTC hardware encoder to prioritize 30 FPS fluidity and low latency
+        // Locks WebRTC hardware encoder to 'maintain-framerate' at 30 FPS so every single letter appears live
         function optimizeVideoSender(sender, isPresentation) {
             if (!sender || typeof sender.getParameters !== 'function') return;
             try {
@@ -234,9 +234,11 @@
                 if (!params.encodings || params.encodings.length === 0) {
                     params.encodings = [{}];
                 }
-                params.degradationPreference = isPresentation ? 'balanced' : 'maintain-framerate';
+                // Strictly forbid WebRTC from dropping framerate on both Webcam and PPT
+                params.degradationPreference = 'maintain-framerate';
                 params.encodings[0].maxFramerate = 30;
-                params.encodings[0].maxBitrate = isPresentation ? 1800000 : 900000;
+                params.encodings[0].maxBitrate = isPresentation ? 2500000 : 900000;
+                params.encodings[0].scaleResolutionDownBy = 1.0;
                 params.encodings[0].priority = 'high';
                 params.encodings[0].networkPriority = 'high';
                 sender.setParameters(params).catch(() => {});
@@ -245,7 +247,7 @@
 
         function hotSwapCameraTrack(newCamTrack) {
             if (newCamTrack && 'contentHint' in newCamTrack) {
-                newCamTrack.contentHint = 'motion'; // Tells encoder to prioritize fluid 30 FPS motion
+                newCamTrack.contentHint = 'motion';
             }
             peerConnections.forEach((pc) => {
                 if (pc._camSender) {
@@ -258,7 +260,7 @@
 
         function hotSwapPresentationTrack(newTrack) {
             if (newTrack && 'contentHint' in newTrack) {
-                newTrack.contentHint = 'motion';
+                newTrack.contentHint = 'motion'; // Forces 30 FPS real-time encoding for typing/drawing
             }
             peerConnections.forEach((pc) => {
                 if (pc._pptSender) {
@@ -309,14 +311,22 @@
                 screenStream = null;
             }
             try {
+                // Capture at 1280x720 @ locked 30 FPS so CPU never chokes and every keystroke renders live
                 screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+                    video: {
+                        width: { ideal: 1280, max: 1280 },
+                        height: { ideal: 720, max: 720 },
+                        frameRate: { min: 30, ideal: 30, max: 30 },
+                        cursor: 'always'
+                    },
                     audio: false
                 });
                 const screenTrack = screenStream.getVideoTracks()[0];
+                if ('contentHint' in screenTrack) {
+                    screenTrack.contentHint = 'motion';
+                }
                 hotSwapPresentationTrack(screenTrack);
 
-                // If Admin clicks the browser's native "Stop sharing" bar, revert cleanly to Question Card
                 screenTrack.onended = () => {
                     screenStream = null;
                     hotSwapPresentationTrack(getIdlePptTrack());

@@ -250,6 +250,26 @@
 <script>
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
+        // Global resume handler to instantly restore session after a refresh or back-button
+        window.resumeLiveSession = async function(quizId, token) {
+            currentQuizId = quizId;
+            liveToken = token;
+            testActive = true;
+            const authScreen = document.getElementById('auth-screen');
+            const quizScreen = document.getElementById('quiz-screen');
+            if (authScreen) authScreen.style.display = 'none';
+            if (quizScreen) quizScreen.style.display = 'block';
+            
+            try {
+                const res = await fetch(`/api/live/student/sync/${quizId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data && data.success && typeof window.renderQuestion === 'function') {
+                    window.renderQuestion(data.question, data.currentIndex, data.total);
+                }
+            } catch (e) {}
+        };
         let studentAudioCtx = null;
         let lastAdminAudioSeq = 0;
         let hasSyncedInitialSeq = false;
@@ -373,12 +393,11 @@
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
+            // Auto-resume audio context if browser suspended it during a page reload
             if (studentAudioCtx.state === 'suspended') {
-                unmuteHintBtn.style.display = 'block';
-                return;
+                studentAudioCtx.resume().catch(() => {});
             }
             unmuteHintBtn.style.display = 'none';
-
             const raw = atob(b64Str);
             const bytes = new Uint8Array(raw.length);
             for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -441,36 +460,17 @@
             });
         }
 
-        function attachLowLatencyVideo(videoEl, track, receiver) {
-            // Minimize WebRTC receiver jitter buffer so frames render immediately without delay buildup
+       function attachLowLatencyVideo(videoEl, track, receiver) {
+            // Render every incoming 30 FPS WebRTC frame immediately without seeking or resetting the decoder
             if (receiver) {
                 try {
-                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.02;
-                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 20;
+                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0;
+                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0;
                 } catch (e) {}
             }
             videoEl.srcObject = new MediaStream([track]);
             videoEl.play().catch(() => {});
         }
-
-        // Real-Time Edge Catch-Up: Prevents occasional network spikes from creating permanent video delay
-        setInterval(() => {
-            [remoteVideo, pptVideo].forEach(v => {
-                if (!v || !v.srcObject || v.paused) return;
-                try {
-                    if (v.buffered && v.buffered.length > 0) {
-                        const lag = v.buffered.end(v.buffered.length - 1) - v.currentTime;
-                        if (lag > 0.35) {
-                            v.currentTime = v.buffered.end(v.buffered.length - 1) - 0.02;
-                        } else if (lag > 0.15) {
-                            v.playbackRate = 1.05;
-                        } else if (v.playbackRate !== 1.0) {
-                            v.playbackRate = 1.0;
-                        }
-                    }
-                } catch (e) {}
-            });
-        }, 500);
 
         async function connectToAdminVideo() {
             if (isJoiningRtc || !liveToken || !currentQuizId) return;
@@ -487,10 +487,13 @@
 
                 studentPc.ontrack = (event) => {
                     if (event.track.kind === 'video') {
+                        const freshStream = new MediaStream([event.track]);
                         if (event.transceiver === camTransceiver) {
-                            attachLowLatencyVideo(remoteVideo, event.track, event.transceiver.receiver);
+                            remoteVideo.srcObject = freshStream;
+                            remoteVideo.play().catch(() => {});
                         } else if (event.transceiver === pptTransceiver) {
-                            attachLowLatencyVideo(pptVideo, event.track, event.transceiver.receiver);
+                            pptVideo.srcObject = freshStream;
+                            pptVideo.play().catch(() => {});
                         }
                     }
                 };
@@ -550,15 +553,16 @@
         function teardownStream() {
             document.body.classList.remove('rtc-stream-active');
             document.body.classList.remove('rtc-presentation-active');
-            pipBox.style.display = 'none';
-            remoteVideo.style.display = 'none';
+            if (pipBox) pipBox.style.display = 'none';
+            if (remoteVideo) remoteVideo.style.display = 'none';
             if (presentationScreen) presentationScreen.style.display = 'none';
             if (quizScreen && testActive) quizScreen.style.display = 'block';
+            
             lastAdminAudioSeq = 0;
             hasSyncedInitialSeq = false;
             
             if (studentPc) {
-                studentPc.close();
+                try { studentPc.close(); } catch (e) {}
                 studentPc = null;
             }
             isJoiningRtc = false;

@@ -1,35 +1,42 @@
-let liveToken = "";
-let currentQuizId = "";
+// 1. SYNCHRONOUSLY RESTORE SESSION INSTANTLY ON PAGE LOAD (Prevents WebRTC black screen on refresh)
+const _savedLiveSession = sessionStorage.getItem('live_student_session');
+let _initialLiveToken = "";
+let _initialQuizId = "";
+let _hasActiveRestoredSession = false;
+
+if (_savedLiveSession) {
+    try {
+        const _parsedLive = JSON.parse(_savedLiveSession);
+        _initialLiveToken = _parsedLive.token || "";
+        _initialQuizId = _parsedLive.quizId || "";
+        if (_initialLiveToken && _initialQuizId) {
+            _hasActiveRestoredSession = true;
+        }
+    } catch (e) {}
+}
+
+let liveToken = _initialLiveToken;
+let currentQuizId = _initialQuizId;
 let localIndex = -1;
 let syncInterval;
-let testActive = true;
-let lastSavedAnswer = null; // Tracks the current answer state
+let testActive = _hasActiveRestoredSession;
+let lastSavedAnswer = null;
 
-// 1. AUTO-RESTORE SESSION IF THE BROWSER IS REFRESHED
+// Immediately hide auth screen and show quiz screen if session was active
 window.addEventListener('DOMContentLoaded', () => {
-    const savedSession = sessionStorage.getItem('live_student_session');
-    
-    if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        liveToken = parsed.token;
-        currentQuizId = parsed.quizId;
-        
-        // Hide the auth form and show the test interface
+    if (_hasActiveRestoredSession) {
         const authScreen = document.getElementById('auth-screen');
         const quizScreen = document.getElementById('quiz-screen');
         if (authScreen) authScreen.style.display = 'none';
         if (quizScreen) quizScreen.style.display = 'block';
-        
-        // Jump straight back into the server synchronization loop
-        if (typeof startSync === 'function') {
-            fetch('/api/live/student/rejoin', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${liveToken}` }
-            }).catch(() => {});
 
-            startSync();
-            startHeartbeat(); 
-        }
+        fetch('/api/live/student/rejoin', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${liveToken}` }
+        }).catch(() => {});
+
+        startSync();
+        startHeartbeat();
     }
 });
 
