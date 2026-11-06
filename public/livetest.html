@@ -482,16 +482,20 @@
                     iceCandidatePoolSize: 4
                 });
 
-                const camTransceiver = studentPc.addTransceiver('video', { direction: 'recvonly' });
-                const pptTransceiver = studentPc.addTransceiver('video', { direction: 'recvonly' });
+                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 0: Webcam PIP
+                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 1: PPT Presentation
 
                 studentPc.ontrack = (event) => {
                     if (event.track.kind === 'video') {
+                        const transceivers = studentPc.getTransceivers();
+                        const trackIndex = transceivers.findIndex(t => t.receiver === event.receiver);
+                        const assignedIndex = (trackIndex !== -1) ? trackIndex : (remoteVideo.srcObject ? 1 : 0);
+
                         const freshStream = new MediaStream([event.track]);
-                        if (event.transceiver === camTransceiver) {
+                        if (assignedIndex === 0) {
                             remoteVideo.srcObject = freshStream;
                             remoteVideo.play().catch(() => {});
-                        } else if (event.transceiver === pptTransceiver) {
+                        } else {
                             pptVideo.srcObject = freshStream;
                             pptVideo.play().catch(() => {});
                         }
