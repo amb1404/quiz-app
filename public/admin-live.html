@@ -226,10 +226,45 @@
             return getIdlePptTrack();
         }
 
+        // Configures WebRTC hardware encoder to prioritize 30 FPS fluidity and low latency
+        function optimizeVideoSender(sender, isPresentation) {
+            if (!sender || typeof sender.getParameters !== 'function') return;
+            try {
+                const params = sender.getParameters();
+                if (!params.encodings || params.encodings.length === 0) {
+                    params.encodings = [{}];
+                }
+                params.degradationPreference = isPresentation ? 'balanced' : 'maintain-framerate';
+                params.encodings[0].maxFramerate = 30;
+                params.encodings[0].maxBitrate = isPresentation ? 1800000 : 900000;
+                params.encodings[0].priority = 'high';
+                params.encodings[0].networkPriority = 'high';
+                sender.setParameters(params).catch(() => {});
+            } catch (e) {}
+        }
+
+        function hotSwapCameraTrack(newCamTrack) {
+            if (newCamTrack && 'contentHint' in newCamTrack) {
+                newCamTrack.contentHint = 'motion'; // Tells encoder to prioritize fluid 30 FPS motion
+            }
+            peerConnections.forEach((pc) => {
+                if (pc._camSender) {
+                    pc._camSender.replaceTrack(newCamTrack).then(() => {
+                        optimizeVideoSender(pc._camSender, false);
+                    }).catch(() => {});
+                }
+            });
+        }
+
         function hotSwapPresentationTrack(newTrack) {
+            if (newTrack && 'contentHint' in newTrack) {
+                newTrack.contentHint = 'motion';
+            }
             peerConnections.forEach((pc) => {
                 if (pc._pptSender) {
-                    pc._pptSender.replaceTrack(newTrack).catch(() => {});
+                    pc._pptSender.replaceTrack(newTrack).then(() => {
+                        optimizeVideoSender(pc._pptSender, true);
+                    }).catch(() => {});
                 }
             });
         }
@@ -459,7 +494,11 @@
                         selfVideo.volume = 0;
                         selfVideo.srcObject = new MediaStream(stream.getVideoTracks());
                         await selfVideo.play().catch(() => {});
-
+// Immediately push live 30 FPS camera track into any pre-connected student tunnels
+                        const liveCamTrack = stream.getVideoTracks()[0];
+                        if (liveCamTrack) {
+                            hotSwapCameraTrack(liveCamTrack);
+                        }
                         micSource = adminAudioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
 
                         const hpFilter = adminAudioCtx.createBiquadFilter();
@@ -535,27 +574,42 @@
             }
         }
 
-        function waitForIce(pc, timeout = 2500) {
+        // Fast ICE Gathering: Resolves as soon as the first network candidate is ready (~150ms instead of 2500ms)
+        function waitForIce(pc, maxTimeout = 600) {
             return new Promise(resolve => {
                 if (pc.iceGatheringState === 'complete') return resolve();
-                const timer = setTimeout(resolve, timeout);
-                pc.addEventListener('icegatheringstatechange', () => {
-                    if (pc.iceGatheringState === 'complete') {
-                        clearTimeout(timer);
-                        resolve();
+                let resolved = false;
+                let quickTimer = null;
+                const done = () => {
+                    if (resolved) return;
+                    resolved = true;
+                    clearTimeout(maxTimer);
+                    if (quickTimer) clearTimeout(quickTimer);
+                    resolve();
+                };
+                const maxTimer = setTimeout(done, maxTimeout);
+                pc.addEventListener('icecandidate', (e) => {
+                    if (!e.candidate) {
+                        done();
+                    } else if (e.candidate.candidate && (e.candidate.candidate.includes('srflx') || e.candidate.candidate.includes('host'))) {
+                        if (!quickTimer) quickTimer = setTimeout(done, 120);
                     }
+                });
+                pc.addEventListener('icegatheringstatechange', () => {
+                    if (pc.iceGatheringState === 'complete') done();
                 });
             });
         }
 
-        // Dual-Track WebRTC Setup: Transceiver 0 = Webcam PIP, Transceiver 1 = Presentation Main Screen
+        // Dual-Track WebRTC Setup with Pre-Warmed Candidate Pool & 30 FPS Priority
         async function handleStudentOffer(studentName, offer, adminKey, quizId) {
             if (peerConnections.has(studentName)) {
                 peerConnections.get(studentName).close();
             }
 
             const pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                iceCandidatePoolSize: 4
             });
             peerConnections.set(studentName, pc);
 
@@ -564,13 +618,18 @@
             const camTrack = (localStream && localStream.getVideoTracks()[0]) ? localStream.getVideoTracks()[0] : getIdlePptTrack();
             const pptTrack = getActivePptTrack();
 
-            // 1st video track binds to Student PIP Webcam; 2nd video track binds to Student Main PPT Screen
+            if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
+            if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
+
             pc._camSender = pc.addTrack(camTrack, localStream || idlePptStream);
             pc._pptSender = pc.addTrack(pptTrack, screenStream || idlePptStream);
 
+            optimizeVideoSender(pc._camSender, false);
+            optimizeVideoSender(pc._pptSender, true);
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            await waitForIce(pc, 2500);
+            await waitForIce(pc, 600);
 
             await fetch('/api/live/rtc/admin/webrtc-answer', {
                 method: 'POST',
