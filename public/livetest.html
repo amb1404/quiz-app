@@ -377,14 +377,47 @@
                     });
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
+
+                    // 150Hz High-Pass Filter removes room rumble & fan noise
+                    const highPass = studentAudioCtx.createBiquadFilter();
+                    highPass.type = 'highpass';
+                    highPass.frequency.value = 150;
+
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
                     const zeroGain = studentAudioCtx.createGain();
                     zeroGain.gain.value = 0;
 
                     pendingCallSamples = [];
+                    let lastStudentVoiceTime = 0;
+
                     studentMicProcessor.onaudioprocess = (e) => {
                         if (!isCallActive) return;
+
+                        // 1. ECHO LOCK: Mute Student mic while Admin voice is playing on Student speakers (+350ms room reverb tail)
+                        if (studentAudioCtx.currentTime < nextAdminPlayTime + 0.35) {
+                            pendingCallSamples = [];
+                            return;
+                        }
+
                         const input = e.inputBuffer.getChannelData(0);
+
+                        // 2. VOICE ACTIVITY DETECTION (VAD): Measure speech volume (RMS)
+                        let sumSq = 0;
+                        for (let i = 0; i < input.length; i++) {
+                            sumSq += input[i] * input[i];
+                        }
+                        const rms = Math.sqrt(sumSq / input.length);
+                        const nowMs = Date.now();
+
+                        if (rms > 0.012) {
+                            lastStudentVoiceTime = nowMs; // Active student speech detected
+                        }
+
+                        // Only transmit chunks when the student is actively speaking
+                        if (nowMs - lastStudentVoiceTime > 350) {
+                            return;
+                        }
+
                         const down = downsampleToInt16(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
                         for (let i = 0; i < down.length; i++) {
                             pendingCallSamples.push(down[i]);
@@ -394,7 +427,8 @@
                         }
                     };
 
-                    studentMicSource.connect(studentMicProcessor);
+                    studentMicSource.connect(highPass);
+                    highPass.connect(studentMicProcessor);
                     studentMicProcessor.connect(zeroGain);
                     zeroGain.connect(studentAudioCtx.destination);
 

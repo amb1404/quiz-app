@@ -290,15 +290,47 @@
                 });
                 selfVideo.srcObject = localStream;
                 await selfVideo.play().catch(() => {});
+micSource = adminAudioCtx.createMediaStreamSource(localStream);
+                
+                // 150Hz High-Pass Filter removes fan/AC hum so VAD only triggers on human voice
+                const highPass = adminAudioCtx.createBiquadFilter();
+                highPass.type = 'highpass';
+                highPass.frequency.value = 150;
 
-                micSource = adminAudioCtx.createMediaStreamSource(localStream);
                 micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
                 const zeroGain = adminAudioCtx.createGain();
                 zeroGain.gain.value = 0;
 
+                let lastAdminVoiceTime = 0;
+
                 micProcessor.onaudioprocess = (e) => {
                     if (!isBroadcasting || !audioEnabled) return;
+
+                    // 1. ECHO LOCK: Mute Admin mic while Student voice is playing on Admin speakers (+350ms room reverb tail)
+                    if (adminAudioCtx.currentTime < nextStudentPlayTime + 0.35) {
+                        pendingPcmSamples = [];
+                        return;
+                    }
+
                     const input = e.inputBuffer.getChannelData(0);
+
+                    // 2. VOICE ACTIVITY DETECTION (VAD): Measure speech volume (RMS)
+                    let sumSq = 0;
+                    for (let i = 0; i < input.length; i++) {
+                        sumSq += input[i] * input[i];
+                    }
+                    const rms = Math.sqrt(sumSq / input.length);
+                    const nowMs = Date.now();
+
+                    if (rms > 0.012) {
+                        lastAdminVoiceTime = nowMs; // Active speech detected
+                    }
+
+                    // Only transmit if Admin spoke within the last 350ms (prevents sending background silence)
+                    if (nowMs - lastAdminVoiceTime > 350) {
+                        return;
+                    }
+
                     const downsampled = downsampleToInt16(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
                     for (let i = 0; i < downsampled.length; i++) {
                         pendingPcmSamples.push(downsampled[i]);
@@ -308,7 +340,8 @@
                     }
                 };
 
-                micSource.connect(micProcessor);
+                micSource.connect(highPass);
+                highPass.connect(micProcessor);
                 micProcessor.connect(zeroGain);
                 zeroGain.connect(adminAudioCtx.destination);
             }
