@@ -250,35 +250,16 @@
 <script>
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
-        // Global resume handler to instantly restore session after a refresh or back-button
-        window.resumeLiveSession = async function(quizId, token) {
-            currentQuizId = quizId;
-            liveToken = token;
-            testActive = true;
-            const authScreen = document.getElementById('auth-screen');
-            const quizScreen = document.getElementById('quiz-screen');
-            if (authScreen) authScreen.style.display = 'none';
-            if (quizScreen) quizScreen.style.display = 'block';
-            
-            try {
-                const res = await fetch(`/api/live/student/sync/${quizId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data && data.success && typeof window.renderQuestion === 'function') {
-                    window.renderQuestion(data.question, data.currentIndex, data.total);
-                }
-            } catch (e) {}
-        };
         let studentAudioCtx = null;
         let lastAdminAudioSeq = 0;
         let hasSyncedInitialSeq = false;
         let nextAdminPlayTime = 0;
-        let lastAdminAudioPlayedMs = 0;
         let isPulling = false;
 
         let studentPc = null;
         let isJoiningRtc = false;
+        let currentOfferId = null;
+        let hasSentCurrentOffer = false;
 
         let isCallActive = false;
         let isCallPushing = false;
@@ -287,11 +268,9 @@
         let studentMicProcessor = null;
         let studentSilentSink = null;
         let pendingCallSamples = [];
-        let studentPreRollBuffers = []; 
+        let studentPreRollBuffers = [];
         let callPushInterval = null;
         let studentActivelySpeakingUntil = 0;
-        let echoReflectionGuardUntil = 0; 
-        let recentSpeechPeakRms = 0.02;
 
         const pipBox = document.getElementById('student-pip-box');
         const remoteVideo = document.getElementById('student-remote-video');
@@ -317,6 +296,13 @@
 
         document.addEventListener('pointerdown', ensureStudentAudioCtx);
         unmuteHintBtn.addEventListener('click', ensureStudentAudioCtx);
+
+        // Handle Back-Forward Cache (bfcache) restoration if student navigates back and forward
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                teardownStream();
+            }
+        });
 
         (function makeDraggable(boxEl, handleEl) {
             let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
@@ -388,16 +374,18 @@
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
 
-            if (isCallActive && Date.now() < studentActivelySpeakingUntil) return;
-
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            // Auto-resume audio context if browser suspended it during a page reload
             if (studentAudioCtx.state === 'suspended') {
                 studentAudioCtx.resume().catch(() => {});
+                if (studentAudioCtx.state === 'suspended') {
+                    unmuteHintBtn.style.display = 'block';
+                    return;
+                }
             }
             unmuteHintBtn.style.display = 'none';
+
             const raw = atob(b64Str);
             const bytes = new Uint8Array(raw.length);
             for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
@@ -415,25 +403,20 @@
                 let val = (int16[i] / 32768.0) * 1.3;
                 if (val > 1.0) val = 1.0;
                 else if (val < -1.0) val = -1.0;
-
                 if (isNewPhrase && i < 24) val *= (i / 24);
                 channel[i] = val;
             }
 
-            if (isNewPhrase) nextAdminPlayTime = now + 0.20;
-            else if (nextAdminPlayTime - now > 2.5) nextAdminPlayTime = now + 0.20;
+            if (isNewPhrase) nextAdminPlayTime = now + 0.08;
+            else if (nextAdminPlayTime - now > 0.6) nextAdminPlayTime = now + 0.08;
 
             const src = studentAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(studentAudioCtx.destination);
             src.start(nextAdminPlayTime);
             nextAdminPlayTime += audioBuffer.duration;
-
-            const remainingPlayMs = Math.max(0, (nextAdminPlayTime - now) * 1000);
-            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 450;
         }
 
-       // Dedicated Dual-Track WebRTC Video Tunnel (Fast ICE + Zero-Delay Playout)
         function waitForIce(pc, maxTimeout = 600) {
             return new Promise(resolve => {
                 if (pc.iceGatheringState === 'complete') return resolve();
@@ -460,8 +443,7 @@
             });
         }
 
-       function attachLowLatencyVideo(videoEl, track, receiver) {
-            // Render every incoming 30 FPS WebRTC frame immediately without seeking or resetting the decoder
+        function attachLowLatencyVideo(videoEl, track, receiver) {
             if (receiver) {
                 try {
                     if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0;
@@ -475,10 +457,14 @@
         async function connectToAdminVideo() {
             if (isJoiningRtc || !liveToken || !currentQuizId) return;
             isJoiningRtc = true;
-            // BUG 2 FIX: Ensure the joining lock resets even if ICE gathering silently hangs
-            setTimeout(() => { isJoiningRtc = false; }, 10000);
+            hasSentCurrentOffer = false;
+            const myOfferId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            currentOfferId = myOfferId;
+
             try {
-                if (studentPc) studentPc.close();
+                if (studentPc) {
+                    try { studentPc.close(); } catch (e) {}
+                }
                 studentPc = new RTCPeerConnection({
                     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
                     iceCandidatePoolSize: 4
@@ -487,20 +473,31 @@
                 studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 0: Webcam PIP
                 studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 1: PPT Presentation
 
+                let receivedTrackCount = 0;
                 studentPc.ontrack = (event) => {
                     if (event.track.kind === 'video') {
                         const transceivers = studentPc.getTransceivers();
-                        const trackIndex = transceivers.findIndex(t => t.receiver === event.receiver);
-                        const assignedIndex = (trackIndex !== -1) ? trackIndex : (remoteVideo.srcObject ? 1 : 0);
-
-                        const freshStream = new MediaStream([event.track]);
-                        if (assignedIndex === 0) {
-                            remoteVideo.srcObject = freshStream;
-                            remoteVideo.play().catch(() => {});
-                        } else {
-                            pptVideo.srcObject = freshStream;
-                            pptVideo.play().catch(() => {});
+                        let trackIndex = transceivers.findIndex(t => t.receiver === event.receiver);
+                        if (trackIndex === -1) {
+                            trackIndex = receivedTrackCount;
                         }
+                        receivedTrackCount++;
+
+                        if (trackIndex === 0) {
+                            attachLowLatencyVideo(remoteVideo, event.track, event.receiver);
+                        } else {
+                            attachLowLatencyVideo(pptVideo, event.track, event.receiver);
+                        }
+                    }
+                };
+
+                // Automatically reconnect if WebRTC connection drops or fails after a page navigation
+                studentPc.onconnectionstatechange = () => {
+                    if (studentPc && (studentPc.connectionState === 'failed' || studentPc.connectionState === 'disconnected')) {
+                        try { studentPc.close(); } catch (e) {}
+                        studentPc = null;
+                        isJoiningRtc = false;
+                        hasSentCurrentOffer = false;
                     }
                 };
 
@@ -508,13 +505,19 @@
                 await studentPc.setLocalDescription(offer);
                 await waitForIce(studentPc, 600);
 
-                await fetch('/api/live/rtc/student/webrtc-offer', {
+                const res = await fetch('/api/live/rtc/student/webrtc-offer', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
-                    body: JSON.stringify({ quizId: currentQuizId, offer: studentPc.localDescription })
+                    body: JSON.stringify({ quizId: currentQuizId, offer: studentPc.localDescription, offerId: myOfferId })
                 });
+                if (res.ok) {
+                    hasSentCurrentOffer = true;
+                } else {
+                    isJoiningRtc = false;
+                }
             } catch (e) {
                 isJoiningRtc = false;
+                hasSentCurrentOffer = false;
             }
         }
 
@@ -559,17 +562,17 @@
         function teardownStream() {
             document.body.classList.remove('rtc-stream-active');
             document.body.classList.remove('rtc-presentation-active');
-            // BUG 2 FIX: Aggressively wipe stale video bindings so they can cleanly accept new streams
-            if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.load(); }
-            if (pptVideo) { pptVideo.srcObject = null; pptVideo.load(); }
+            if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.style.display = 'none'; }
+            if (pptVideo) { pptVideo.srcObject = null; }
             if (pipBox) pipBox.style.display = 'none';
-            if (remoteVideo) remoteVideo.style.display = 'none';
             if (presentationScreen) presentationScreen.style.display = 'none';
             if (quizScreen && testActive) quizScreen.style.display = 'block';
-            
+
             lastAdminAudioSeq = 0;
             hasSyncedInitialSeq = false;
-            
+            currentOfferId = null;
+            hasSentCurrentOffer = false;
+
             if (studentPc) {
                 try { studentPc.close(); } catch (e) {}
                 studentPc = null;
@@ -616,12 +619,7 @@
                         if (!isCallActive) return;
                         const nowMs = Date.now();
 
-                        if (nowMs < lastAdminAudioPlayedMs) {
-                            studentPreRollBuffers = [];
-                            wasStudentSpeaking = false;
-                            return;
-                        }
-
+                        // Same-PC echo guard (only triggers if Admin and Student tabs are open on the exact same computer)
                         try {
                             const adminSpkUntil = Number(localStorage.getItem('pp_admin_speaker_active_until') || 0);
                             if (nowMs < adminSpkUntil) {
@@ -636,17 +634,8 @@
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
 
-                        const inEchoTail = (nowMs >= studentActivelySpeakingUntil) && (nowMs < echoReflectionGuardUntil);
-                        const activeThreshold = inEchoTail
-                            ? Math.max(0.022, recentSpeechPeakRms * 0.55)
-                            : 0.0055;
-
-                        if (rms > activeThreshold || nowMs < callWarmupUntil) {
-                            if (rms > 0.01) {
-                                recentSpeechPeakRms = (0.7 * recentSpeechPeakRms) + (0.3 * rms);
-                            }
-                            studentActivelySpeakingUntil = nowMs + 700; 
-                            echoReflectionGuardUntil = nowMs + 1350;    
+                        if (rms > 0.0045 || nowMs < callWarmupUntil) {
+                            studentActivelySpeakingUntil = nowMs + 750;
                         }
 
                         const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.55);
@@ -685,6 +674,7 @@
                         isCallPushing = true;
 
                         try {
+                            try { localStorage.setItem('pp_student_call_same_pc', String(Date.now())); } catch (e) {}
                             let chunkB64 = null;
                             if (pendingCallSamples.length > 0) {
                                 const int16 = new Int16Array(pendingCallSamples);
@@ -715,7 +705,7 @@
                         } finally {
                             isCallPushing = false;
                         }
-                    }, 130);
+                    }, 100);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
@@ -753,7 +743,14 @@
                     connectToAdminVideo();
                 }
 
-                if (status.webrtcAnswer && studentPc && studentPc.signalingState === 'have-local-offer') {
+                // Only apply the WebRTC Answer if it matches the exact offerId sent in this page session
+                if (
+                    hasSentCurrentOffer &&
+                    status.webrtcAnswer &&
+                    status.webrtcOfferId === currentOfferId &&
+                    studentPc &&
+                    studentPc.signalingState === 'have-local-offer'
+                ) {
                     await studentPc.setRemoteDescription(new RTCSessionDescription(status.webrtcAnswer));
                     isJoiningRtc = false;
                 }
@@ -763,6 +760,9 @@
                     document.body.classList.add('rtc-presentation-active');
                     if (quizScreen) quizScreen.style.display = 'none';
                     if (presentationScreen) presentationScreen.style.display = 'block';
+                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
+                        pptVideo.play().catch(() => {});
+                    }
                 } else {
                     document.body.classList.remove('rtc-presentation-active');
                     if (presentationScreen) presentationScreen.style.display = 'none';
@@ -772,6 +772,9 @@
                 if (status.videoEnabled) {
                     remoteVideo.style.display = 'block';
                     videoPlaceholder.style.display = 'none';
+                    if (remoteVideo.paused && remoteVideo.srcObject) {
+                        remoteVideo.play().catch(() => {});
+                    }
                 } else {
                     remoteVideo.style.display = 'none';
                     videoPlaceholder.style.display = 'block';

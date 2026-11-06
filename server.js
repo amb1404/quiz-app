@@ -2906,7 +2906,7 @@ function getOrCreateMediaRoom(quizId) {
             studentAudioSeq: 0,
             studentAudioBuffer: [],
             activeCallers: new Map(),
-            students: new Map(), // WebRTC Signaling state
+            students: new Map(), // studentName -> { offerId, offer, answer }
             updatedAt: Date.now()
         });
     }
@@ -2961,6 +2961,9 @@ app.post('/api/live/rtc/admin/mode', (req, res) => {
 
     const room = getOrCreateMediaRoom(quizId);
     room.broadcastMode = (broadcastMode === 'presentation') ? 'presentation' : 'question';
+    if (room.broadcastMode === 'presentation') {
+        room.broadcastActive = true;
+    }
     room.updatedAt = Date.now();
 
     res.json({ success: true, broadcastMode: room.broadcastMode });
@@ -3003,7 +3006,9 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
 
     const pendingOffers = [];
     room.students.forEach((data, name) => {
-        if (data.offer && !data.answer) pendingOffers.push({ name, offer: data.offer });
+        if (data.offer && !data.answer) {
+            pendingOffers.push({ name, offer: data.offer, offerId: data.offerId });
+        }
     });
 
     const lastSeq = Number(afterStudentSeq) || 0;
@@ -3019,14 +3024,14 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     });
 });
 
-// 3. Admin sends WebRTC Video Answer
+// 3. Admin sends WebRTC Video Answer (Matched by offerId so rejoined students never get stale answers)
 app.post('/api/live/rtc/admin/webrtc-answer', (req, res) => {
-    const { adminKey, quizId, studentName, answer } = req.body;
+    const { adminKey, quizId, studentName, answer, offerId } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
 
     const room = getOrCreateMediaRoom(quizId);
     const student = room.students.get(studentName);
-    if (student) {
+    if (student && (!offerId || student.offerId === offerId)) {
         student.answer = answer;
     }
     res.json({ success: true });
@@ -3055,24 +3060,29 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
         audioEnabled: room.audioEnabled,
         broadcastMode: room.broadcastMode || 'question',
         webrtcAnswer: student ? student.answer : null,
+        webrtcOfferId: student ? student.offerId : null,
         latestSeq: room.adminAudioSeq,
         audioChunks
     });
 });
 
-// 5. Student sends WebRTC Video Offer
+// 5. Student sends WebRTC Video Offer with unique offerId
 app.post('/api/live/rtc/student/webrtc-offer', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { quizId, offer } = req.body;
+    const { quizId, offer, offerId } = req.body;
     const room = getOrCreateMediaRoom(quizId || verified.quizId);
-    room.students.set(verified.studentName, { offer, answer: null });
+    room.students.set(verified.studentName, {
+        offerId: offerId || String(Date.now()),
+        offer,
+        answer: null
+    });
 
     res.json({ success: true });
 });
 
-// 6. Student 1-click voice chunk upload
+// 6. Student 1-click voice chunk upload (Full-duplex: no longer drops chunks when admin mic is open)
 app.post('/api/live/rtc/student/call', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3087,8 +3097,7 @@ app.post('/api/live/rtc/student/call', (req, res) => {
 
     if (callActive) {
         room.activeCallers.set(verified.studentName, Date.now());
-        const adminSpeaking = room.audioEnabled && ((Date.now() - room.lastAdminVoiceAt) < 700);
-        if (!adminSpeaking && typeof audioChunk === 'string' && audioChunk.length > 0) {
+        if (typeof audioChunk === 'string' && audioChunk.length > 0) {
             room.studentAudioSeq += 1;
             room.studentAudioBuffer.push({
                 seq: room.studentAudioSeq,
@@ -3096,7 +3105,7 @@ app.post('/api/live/rtc/student/call', (req, res) => {
                 pcm: audioChunk,
                 rate: Number(rate) || 16000
             });
-            if (room.studentAudioBuffer.length > 15) room.studentAudioBuffer.shift();
+            if (room.studentAudioBuffer.length > 25) room.studentAudioBuffer.shift();
         }
     } else {
         room.activeCallers.delete(verified.studentName);
