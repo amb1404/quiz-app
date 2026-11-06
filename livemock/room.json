@@ -3,11 +3,20 @@
   "category": "physics",
   "classLevel": "X",
   "subject": "Physics",
-  "unit": "Force, Work, Power and Energy",
-  "chapter": "Machines",
-  "duration": 1800,
+  "unit": "General",
+  "chapter": "Live Broadcast",
+  "duration": 3600,
   "isAvailable": true,
   "isPremium": false,
   "isUltra": false,
-  "price": 0
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Live Presentation Session",
+      "options": ["Proceed to Slides"],
+      "answer": 0,
+      "explanation": "Live stream session active."
+    }
+  ]
 }
