@@ -419,18 +419,35 @@
             btnAudio.classList.toggle('active-mic', audioEnabled);
         }
 
+        function resetCallerBadge() {
+            callerBadge.textContent = '🎧 No active student calls';
+            callerBadge.classList.remove('calling');
+        }
+
+        async function handleStreamToggle() {
+            // If both Video and Audio are toggled OFF, automatically stop broadcast & clear callers
+            if (!videoEnabled && !audioEnabled) {
+                if (btnStop) btnStop.click();
+                resetCallerBadge();
+                return;
+            }
+            const ok = await startOrUpdateBroadcast();
+            if (!ok) {
+                videoEnabled = false;
+                audioEnabled = false;
+                resetCallerBadge();
+            }
+            updateButtonsUI();
+        }
+
         btnVideo.addEventListener('click', async () => {
             videoEnabled = !videoEnabled;
-            const ok = await startOrUpdateBroadcast();
-            if (!ok) videoEnabled = false;
-            updateButtonsUI();
+            await handleStreamToggle();
         });
 
         btnAudio.addEventListener('click', async () => {
             audioEnabled = !audioEnabled;
-            const ok = await startOrUpdateBroadcast();
-            if (!ok) audioEnabled = false;
-            updateButtonsUI();
+            await handleStreamToggle();
         });
 
         btnStop.addEventListener('click', async () => {

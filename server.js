@@ -3033,6 +3033,12 @@ app.post('/api/live/rtc/student/call', (req, res) => {
     const { quizId, callActive, audioChunk, rate } = req.body;
     const room = getOrCreateMediaRoom(quizId || verified.quizId);
 
+    // If stream is not running, reject the call heartbeat and clear callers
+    if (!room.broadcastActive) {
+        room.activeCallers.clear();
+        return res.json({ success: true, callActive: false, streamEnded: true });
+    }
+
     if (callActive) {
         room.activeCallers.set(verified.studentName, Date.now());
         if (typeof audioChunk === 'string' && audioChunk.length > 0) {
