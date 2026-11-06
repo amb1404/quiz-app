@@ -590,10 +590,16 @@
             }
 
             if (localStream) {
-                localStream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
+                localStream.getVideoTracks().forEach(t => {
+                    if (videoEnabled) {
+                        t.enabled = true;
+                    } else {
+                        t.stop(); // Physically turns off the camera hardware light
+                        localStream.removeTrack(t);
+                    }
+                });
                 localStream.getAudioTracks().forEach(t => t.enabled = audioEnabled);
             }
-        }
 
         function waitForIce(pc, maxTimeout = 600) {
             return new Promise(resolve => {
@@ -808,6 +814,9 @@
 
         btnVideo.addEventListener('click', async () => {
             videoEnabled = !videoEnabled;
+            if (videoEnabled) {
+                localStream = null; // Force fresh camera track acquisition
+            }
             await handleStreamToggle();
         });
 
