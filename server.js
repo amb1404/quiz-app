@@ -2888,7 +2888,7 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
-// 9. LIVE HTTPS VIDEO & 16kHz HD AUDIO RELAY HUB (LOW-LATENCY & ZERO-DROP)
+// 9. FLUID VIDEO & GAPLESS 16kHz AUDIO RELAY HUB (DELTA FRAME + ZERO CLIPPING)
 // ============================================================================
 const liveMediaRooms = new Map();
 
@@ -2899,6 +2899,7 @@ function getOrCreateMediaRoom(quizId) {
             broadcastActive: false,
             videoEnabled: false,
             audioEnabled: false,
+            frameSeq: 0,
             latestFrame: null,
             adminAudioSeq: 0,
             adminAudioBuffer: [],
@@ -2938,6 +2939,7 @@ app.post('/api/live/rtc/admin/toggle', (req, res) => {
     room.audioEnabled = Boolean(audioEnabled);
     if (!room.broadcastActive) {
         room.latestFrame = null;
+        room.frameSeq = 0;
         room.adminAudioBuffer = [];
         room.studentAudioBuffer = [];
         room.activeCallers.clear();
@@ -2961,6 +2963,7 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
 
     if (room.videoEnabled && typeof frame === 'string' && frame.startsWith('data:image/')) {
         room.latestFrame = frame;
+        room.frameSeq += 1;
     } else if (!room.videoEnabled) {
         room.latestFrame = null;
     }
@@ -2970,9 +2973,10 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
         room.adminAudioBuffer.push({
             seq: room.adminAudioSeq,
             pcm: audioChunk,
-            rate: Number(rate) || 16000
+            rate: Number(rate) || 16000,
+            ts: Date.now()
         });
-        if (room.adminAudioBuffer.length > 15) {
+        if (room.adminAudioBuffer.length > 25) {
             room.adminAudioBuffer.shift();
         }
     }
@@ -2988,7 +2992,8 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     });
 
     const lastSeq = Number(afterStudentSeq) || 0;
-    const incomingStudentAudio = room.studentAudioBuffer.filter(item => item.seq > lastSeq);
+    // Allow seq > 0 even when lastSeq === 0 (so the very first word "Sir" is never dropped!)
+    const incomingStudentAudio = room.studentAudioBuffer.filter(item => item.seq > lastSeq && (now - item.ts < 3000));
 
     res.json({
         success: true,
@@ -2998,7 +3003,7 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     });
 });
 
-// 3. Student pulls live video frame + admin audio chunks
+// 3. Student pulls live video frame (delta-only) + admin audio chunks
 app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3008,22 +3013,31 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
         room.broadcastActive = false;
     }
 
+    const now = Date.now();
     const afterSeq = Number(req.query.afterSeq) || 0;
-    const audioChunks = (afterSeq > 0 && room.audioEnabled)
-        ? room.adminAudioBuffer.filter(c => c.seq > afterSeq)
+    const afterFrameSeq = Number(req.query.afterFrameSeq) || 0;
+    const isSynced = req.query.synced === '1';
+
+    // Deliver fresh audio chunks immediately even if afterSeq was 0
+    const audioChunks = (isSynced && room.audioEnabled)
+        ? room.adminAudioBuffer.filter(c => c.seq > afterSeq && (now - c.ts < 3000))
         : [];
+
+    // Only transmit Base64 frame if a newer frame exists (saves bandwidth for smooth audio)
+    const hasNewFrame = room.videoEnabled && room.latestFrame && (room.frameSeq > afterFrameSeq);
 
     res.json({
         broadcastActive: room.broadcastActive,
         videoEnabled: room.videoEnabled,
         audioEnabled: room.audioEnabled,
-        frame: room.videoEnabled ? room.latestFrame : null,
+        frameSeq: room.frameSeq,
+        frame: hasNewFrame ? room.latestFrame : null,
         latestSeq: room.adminAudioSeq,
         audioChunks
     });
 });
 
-// 4. Student 1-click call state & voice chunk upload (Unconditional Priority)
+// 4. Student 1-click call state & voice chunk upload
 app.post('/api/live/rtc/student/call', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3044,9 +3058,10 @@ app.post('/api/live/rtc/student/call', (req, res) => {
                 seq: room.studentAudioSeq,
                 studentName: verified.studentName,
                 pcm: audioChunk,
-                rate: Number(rate) || 16000
+                rate: Number(rate) || 16000,
+                ts: Date.now()
             });
-            if (room.studentAudioBuffer.length > 15) {
+            if (room.studentAudioBuffer.length > 25) {
                 room.studentAudioBuffer.shift();
             }
         }

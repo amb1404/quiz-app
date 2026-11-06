@@ -150,21 +150,23 @@
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
         let localStream = null;
-        let mediaSetupPromise = null; // Prevents duplicate mic processors from causing double-voice echo
+        let mediaSetupPromise = null;
         let videoEnabled = false;
         let audioEnabled = false;
         let isBroadcasting = false;
         let pushInterval = null;
         let isPushing = false;
+        let tickCounter = 0;
 
         let adminAudioCtx = null;
         let micProcessor = null;
         let micSource = null;
         let silentSink = null;
         let pendingPcmSamples = [];
+        let preRollBuffers = []; // 180ms Lookback Ring Buffer so first word is never clipped
         let lastStudentSeq = 0;
         let nextStudentPlayTime = 0;
-        let lastStudentAudioPlayedMs = 0; // Tracks when student voice played on Admin speakers
+        let lastStudentAudioPlayedMs = 0;
 
         const captureCanvas = document.createElement('canvas');
         captureCanvas.width = 200;
@@ -252,8 +254,14 @@
             return btoa(binary);
         }
 
-        // Low-Latency Playback for Incoming Student Call Audio (Boosted Volume & Capped Delay)
+        // Gapless Jitter-Buffered Playback for Incoming Student Voice (No Mid-Word Chopping)
         function playIncomingPcmBase64(b64Str, sampleRate) {
+            // Same-computer guard
+            try {
+                const samePcCall = Number(localStorage.getItem('pp_student_call_same_pc') || 0);
+                if (Date.now() - samePcCall < 2000) return;
+            } catch (e) {}
+
             if (!adminAudioCtx) return;
             if (adminAudioCtx.state === 'suspended') adminAudioCtx.resume().catch(() => {});
 
@@ -266,23 +274,27 @@
             const rate = sampleRate || TARGET_SAMPLE_RATE;
             const audioBuffer = adminAudioCtx.createBuffer(1, int16.length, rate);
             const channel = audioBuffer.getChannelData(0);
-            const fadeSamples = Math.min(32, Math.floor(int16.length / 12));
+
+            const now = adminAudioCtx.currentTime;
+            const isNewPhrase = (nextStudentPlayTime < now);
 
             for (let i = 0; i < int16.length; i++) {
-                let val = (int16[i] / 32768.0) * 1.8; // Strong boost so student voice is loud & clear
+                let val = (int16[i] / 32768.0) * 1.6;
                 if (val > 1.0) val = 1.0;
                 else if (val < -1.0) val = -1.0;
 
-                if (i < fadeSamples) val *= (i / fadeSamples);
-                else if (i >= int16.length - fadeSamples) val *= ((int16.length - 1 - i) / fadeSamples);
-
+                // Only soft-fade the very first 24 samples of a brand new speech phrase (never between contiguous chunks!)
+                if (isNewPhrase && i < 24) {
+                    val *= (i / 24);
+                }
                 channel[i] = val;
             }
 
-            const now = adminAudioCtx.currentTime;
-            // Tight 35ms low-latency start; if queue ever drifts > 350ms, snap immediately to real-time
-            if (nextStudentPlayTime < now || (nextStudentPlayTime - now) > 0.35) {
-                nextStudentPlayTime = now + 0.035;
+            // 200ms jitter cushion prevents network fluctuations from breaking voice mid-sentence
+            if (isNewPhrase) {
+                nextStudentPlayTime = now + 0.20;
+            } else if (nextStudentPlayTime - now > 2.5) {
+                nextStudentPlayTime = now + 0.20;
             }
 
             const src = adminAudioCtx.createBufferSource();
@@ -291,9 +303,13 @@
             src.start(nextStudentPlayTime);
             nextStudentPlayTime += audioBuffer.duration;
 
-            // Mark exact timestamp when student audio finishes playing + 450ms acoustic room tail
             const remainingPlayMs = Math.max(0, (nextStudentPlayTime - now) * 1000);
-            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 450;
+            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 500;
+
+            // Broadcast to local machine when Admin speaker is playing Student voice
+            try {
+                localStorage.setItem('pp_admin_speaker_active_until', String(lastStudentAudioPlayedMs));
+            } catch (e) {}
         }
 
         async function ensureMediaSetup() {
@@ -317,7 +333,6 @@
                             }
                         });
 
-                        // Clean up any old nodes before wiring
                         if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} }
                         if (micSource) { try { micSource.disconnect(); } catch (e) {} }
 
@@ -330,27 +345,31 @@
 
                         const hpFilter = adminAudioCtx.createBiquadFilter();
                         hpFilter.type = 'highpass';
-                        hpFilter.frequency.value = 130;
+                        hpFilter.frequency.value = 120;
 
                         const presenceFilter = adminAudioCtx.createBiquadFilter();
                         presenceFilter.type = 'peaking';
                         presenceFilter.frequency.value = 2600;
                         presenceFilter.Q.value = 1.0;
-                        presenceFilter.gain.value = 4.0;
+                        presenceFilter.gain.value = 3.5;
 
                         micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
-                        // Route processor into a dead-end stream sink instead of speakers (adminAudioCtx.destination)
                         silentSink = adminAudioCtx.createMediaStreamDestination();
 
-                        let lastSpeechMs = 0;
+                        let wasSpeaking = false;
+                        let speechHoldUntil = 0;
 
                         micProcessor.onaudioprocess = (e) => {
-                            if (!isBroadcasting || !audioEnabled) return;
+                            if (!isBroadcasting || !audioEnabled) {
+                                preRollBuffers = [];
+                                return;
+                            }
 
-                            // PREVENTS PROBLEM #1 (Student hearing their own voice echo back from Admin's laptop):
-                            // While a student's voice is playing out of Admin speakers, mute Admin mic capture
+                            // Mute Admin mic while Student voice is playing on Admin speakers
                             if (Date.now() < lastStudentAudioPlayedMs) {
                                 pendingPcmSamples = [];
+                                preRollBuffers = [];
+                                wasSpeaking = false;
                                 return;
                             }
 
@@ -360,19 +379,33 @@
                             const rms = Math.sqrt(sumSq / input.length);
                             const nowMs = Date.now();
 
-                            if (rms > 0.006) {
-                                lastSpeechMs = nowMs;
-                            }
-                            if (nowMs - lastSpeechMs > 500) {
-                                return;
+                            const downsampled = downsampleAndEnhance(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.35);
+
+                            if (rms > 0.0045) {
+                                speechHoldUntil = nowMs + 750; // 750ms hangover keeps speech fluid between words
                             }
 
-                            const downsampled = downsampleAndEnhance(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.35);
-                            for (let i = 0; i < downsampled.length; i++) {
-                                pendingPcmSamples.push(downsampled[i]);
-                            }
-                            if (pendingPcmSamples.length > 8000) {
-                                pendingPcmSamples = pendingPcmSamples.slice(-8000);
+                            if (nowMs < speechHoldUntil) {
+                                // Prepend 4-frame Pre-Roll Lookback Buffer when speech starts so 1st syllable is never cut
+                                if (!wasSpeaking && preRollBuffers.length > 0) {
+                                    for (let b = 0; b < preRollBuffers.length; b++) {
+                                        const pre = preRollBuffers[b];
+                                        for (let j = 0; j < pre.length; j++) pendingPcmSamples.push(pre[j]);
+                                    }
+                                    preRollBuffers = [];
+                                }
+                                wasSpeaking = true;
+
+                                for (let i = 0; i < downsampled.length; i++) {
+                                    pendingPcmSamples.push(downsampled[i]);
+                                }
+                                if (pendingPcmSamples.length > 16000) {
+                                    pendingPcmSamples = pendingPcmSamples.slice(-16000);
+                                }
+                            } else {
+                                wasSpeaking = false;
+                                preRollBuffers.push(downsampled);
+                                if (preRollBuffers.length > 4) preRollBuffers.shift();
                             }
                         };
 
@@ -411,6 +444,7 @@
                 if (!isBroadcasting) {
                     isBroadcasting = true;
                     pendingPcmSamples = [];
+                    preRollBuffers = [];
                     await fetch('/api/live/rtc/admin/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -439,11 +473,20 @@
                 }
 
                 isPushing = true;
+                tickCounter += 1;
+
                 try {
                     let frameDataUrl = null;
-                    if (videoEnabled && selfVideo.readyState >= 2) {
-                        captureCtx.drawImage(selfVideo, 0, 0, captureCanvas.width, captureCanvas.height);
-                        frameDataUrl = captureCanvas.toDataURL('image/jpeg', 0.42);
+                    // If audio is active, send video on alternate ticks so audio packets transfer with zero lag
+                    const shouldCaptureVideo = videoEnabled && selfVideo.readyState >= 2 && (!audioEnabled || (tickCounter % 2 === 0) || pendingPcmSamples.length === 0);
+                    if (shouldCaptureVideo) {
+                        // Flip the canvas horizontally to un-mirror the video for students
+                        captureCtx.save();
+                        captureCtx.scale(-1, 1);
+                        captureCtx.drawImage(selfVideo, -captureCanvas.width, 0, captureCanvas.width, captureCanvas.height);
+                        captureCtx.restore();
+                        
+                        frameDataUrl = captureCanvas.toDataURL('image/jpeg', 0.40);
                     }
 
                     let audioChunkB64 = null;
@@ -451,8 +494,6 @@
                         const int16 = new Int16Array(pendingPcmSamples);
                         pendingPcmSamples = [];
                         audioChunkB64 = int16ToBase64(int16);
-                    } else {
-                        pendingPcmSamples = [];
                     }
 
                     const res = await fetch('/api/live/rtc/admin/push', {
@@ -487,15 +528,13 @@
                                     playIncomingPcmBase64(item.pcm, item.rate);
                                 }
                             });
-                        } else if (data.latestStudentSeq && lastStudentSeq === 0) {
-                            lastStudentSeq = data.latestStudentSeq;
                         }
                     }
                 } catch (e) {
                 } finally {
                     isPushing = false;
                 }
-            }, 150);
+            }, 130);
         }
 
         function updateButtonsUI() {
@@ -541,6 +580,7 @@
             videoEnabled = false;
             audioEnabled = false;
             pendingPcmSamples = [];
+            preRollBuffers = [];
             try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
             updateButtonsUI();
             pipBox.style.display = 'none';

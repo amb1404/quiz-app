@@ -192,19 +192,24 @@
         const TARGET_SAMPLE_RATE = 16000;
         let studentAudioCtx = null;
         let lastAdminAudioSeq = 0;
+        let lastFrameSeq = 0;
+        let hasSyncedInitialSeq = false;
         let nextAdminPlayTime = 0;
         let lastAdminAudioPlayedMs = 0;
         let isPulling = false;
 
         let isCallActive = false;
-        let isCallPushing = false; // Prevents overlapping HTTP POSTs from piling up & causing major delay
+        let isCallPushing = false;
         let studentMicStream = null;
         let studentMicSource = null;
         let studentMicProcessor = null;
         let studentSilentSink = null;
         let pendingCallSamples = [];
+        let studentPreRollBuffers = []; // 180ms Lookback Buffer so "Sir..." is never clipped
         let callPushInterval = null;
         let studentActivelySpeakingUntil = 0;
+        let echoReflectionGuardUntil = 0; // Blocks Admin laptop speaker reflection when student is in same room
+        let recentSpeechPeakRms = 0.02;
 
         const pipBox = document.getElementById('student-pip-box');
         const remoteVideoImg = document.getElementById('student-remote-video');
@@ -293,16 +298,13 @@
             return btoa(binary);
         }
 
-        // Smooth Playback for Admin Voice on Student Device (No Duplicate Echo)
+        // Gapless Jitter-Buffered Playback for Admin Voice (No Mid-Sentence Chopping)
         function playAdminPcmBase64(b64Str, sampleRate) {
-            // Same-computer guard
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
 
-            // AUTO-DUCKING DURING CALL: If the student is actively speaking into their mic on a call,
-            // mute speaker output so Admin's voice cannot bleed from Student's speaker into Student's mic
             if (isCallActive && Date.now() < studentActivelySpeakingUntil) {
                 return;
             }
@@ -325,22 +327,26 @@
             const rate = sampleRate || TARGET_SAMPLE_RATE;
             const audioBuffer = studentAudioCtx.createBuffer(1, int16.length, rate);
             const channel = audioBuffer.getChannelData(0);
-            const fadeSamples = Math.min(32, Math.floor(int16.length / 12));
+
+            const now = studentAudioCtx.currentTime;
+            const isNewPhrase = (nextAdminPlayTime < now);
 
             for (let i = 0; i < int16.length; i++) {
-                let val = (int16[i] / 32768.0) * 1.25;
+                let val = (int16[i] / 32768.0) * 1.3;
                 if (val > 1.0) val = 1.0;
                 else if (val < -1.0) val = -1.0;
 
-                if (i < fadeSamples) val *= (i / fadeSamples);
-                else if (i >= int16.length - fadeSamples) val *= ((int16.length - 1 - i) / fadeSamples);
-
+                if (isNewPhrase && i < 24) {
+                    val *= (i / 24);
+                }
                 channel[i] = val;
             }
 
-            const now = studentAudioCtx.currentTime;
-            if (nextAdminPlayTime < now || (nextAdminPlayTime - now) > 0.45) {
-                nextAdminPlayTime = now + 0.04;
+            // 200ms jitter cushion eliminates intermittent breaking
+            if (isNewPhrase) {
+                nextAdminPlayTime = now + 0.20;
+            } else if (nextAdminPlayTime - now > 2.5) {
+                nextAdminPlayTime = now + 0.20;
             }
 
             const src = studentAudioCtx.createBufferSource();
@@ -350,13 +356,15 @@
             nextAdminPlayTime += audioBuffer.duration;
 
             const remainingPlayMs = Math.max(0, (nextAdminPlayTime - now) * 1000);
-            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 400;
+            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 450;
         }
 
         async function stopStudentCall() {
             isCallActive = false;
             isCallPushing = false;
             pendingCallSamples = [];
+            studentPreRollBuffers = [];
+            try { localStorage.removeItem('pp_student_call_same_pc'); } catch (e) {}
             callBtn.textContent = '📞 Call Sir';
             callBtn.classList.remove('on-call');
 
@@ -394,10 +402,12 @@
             pipBox.style.display = 'none';
             remoteVideoImg.style.display = 'none';
             lastAdminAudioSeq = 0;
+            lastFrameSeq = 0;
+            hasSyncedInitialSeq = false;
             if (isCallActive) stopStudentCall();
         }
 
-        // 1-Click Student Call Button Handler (Isolated from Speakers + No Request Pileup)
+        // 1-Click Student Call with Pre-Roll Buffer & Proximity Echo Suppressor
         callBtn.addEventListener('click', async () => {
             ensureStudentAudioCtx();
 
@@ -416,50 +426,89 @@
 
                     const hpFilter = studentAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 130;
+                    hpFilter.frequency.value = 125;
 
                     const presenceFilter = studentAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 2700;
+                    presenceFilter.frequency.value = 2650;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 5.5;
+                    presenceFilter.gain.value = 4.0;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
-                    // CRITICAL FIX FOR PROBLEM #1: Connect processor to a dead-end MediaStreamDestination
-                    // so the student's microphone graph NEVER touches studentAudioCtx.destination (their speaker)!
                     studentSilentSink = studentAudioCtx.createMediaStreamDestination();
 
                     pendingCallSamples = [];
+                    studentPreRollBuffers = [];
+                    let wasStudentSpeaking = false;
+                    // Instant 1.2s warmup when Call button is clicked so immediate "Sir..." is never clipped
+                    const callWarmupUntil = Date.now() + 1200;
 
                     studentMicProcessor.onaudioprocess = (e) => {
                         if (!isCallActive) return;
 
-                        // If Admin's voice is currently playing out of the student's speaker,
-                        // do not record the speaker output into the student's mic
-                        if (Date.now() < lastAdminAudioPlayedMs) {
+                        const nowMs = Date.now();
+
+                        // 1. Block capture while Admin voice is playing on Student speaker
+                        if (nowMs < lastAdminAudioPlayedMs) {
+                            studentPreRollBuffers = [];
+                            wasStudentSpeaking = false;
                             return;
                         }
+
+                        // 2. Same-PC speaker check
+                        try {
+                            const adminSpkUntil = Number(localStorage.getItem('pp_admin_speaker_active_until') || 0);
+                            if (nowMs < adminSpkUntil) {
+                                studentPreRollBuffers = [];
+                                wasStudentSpeaking = false;
+                                return;
+                            }
+                        } catch (err) {}
 
                         const input = e.inputBuffer.getChannelData(0);
                         let sumSq = 0;
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
-                        const nowMs = Date.now();
 
-                        if (rms > 0.004) {
-                            studentActivelySpeakingUntil = nowMs + 450;
+                        // 3. PROXIMITY ECHO SUPPRESSOR (Fixes Problem #3 when student talks near Admin with Admin mic OFF):
+                        // For 650ms after a phrase finishes transmitting, that phrase is playing out of the Admin's laptop speaker.
+                        // Raising the trigger threshold during that echo tail blocks the student's phone from picking up the Admin's laptop speaker!
+                        const inEchoTail = (nowMs >= studentActivelySpeakingUntil) && (nowMs < echoReflectionGuardUntil);
+                        const activeThreshold = inEchoTail
+                            ? Math.max(0.022, recentSpeechPeakRms * 0.55)
+                            : 0.0055;
+
+                        if (rms > activeThreshold || nowMs < callWarmupUntil) {
+                            if (rms > 0.01) {
+                                recentSpeechPeakRms = (0.7 * recentSpeechPeakRms) + (0.3 * rms);
+                            }
+                            studentActivelySpeakingUntil = nowMs + 700; // 700ms hold keeps full sentences unbroken
+                            echoReflectionGuardUntil = nowMs + 1350;    // 650ms post-speech reflection guard
                         }
 
-                        // Transmit whenever student spoke within the last 450ms with 2.2x clarity gain
+                        const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.55);
+
                         if (nowMs < studentActivelySpeakingUntil) {
-                            const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 2.2);
+                            // Prepend 4-frame (180ms) Pre-Roll Lookback Buffer so the first word "Sir" is 100% audible!
+                            if (!wasStudentSpeaking && studentPreRollBuffers.length > 0) {
+                                for (let b = 0; b < studentPreRollBuffers.length; b++) {
+                                    const pre = studentPreRollBuffers[b];
+                                    for (let j = 0; j < pre.length; j++) pendingCallSamples.push(pre[j]);
+                                }
+                                studentPreRollBuffers = [];
+                            }
+                            wasStudentSpeaking = true;
+
                             for (let i = 0; i < down.length; i++) {
                                 pendingCallSamples.push(down[i]);
                             }
-                            // Cap buffer to latest 0.45s so delay can NEVER build up
-                            if (pendingCallSamples.length > 7200) {
-                                pendingCallSamples = pendingCallSamples.slice(-7200);
+                            if (pendingCallSamples.length > 16000) {
+                                pendingCallSamples = pendingCallSamples.slice(-16000);
                             }
+                        } else {
+                            wasStudentSpeaking = false;
+                            studentPreRollBuffers.push(down);
+                            if (studentPreRollBuffers.length > 4) studentPreRollBuffers.shift();
                         }
                     };
 
@@ -474,7 +523,6 @@
                     callBtn.classList.add('on-call');
 
                     callPushInterval = setInterval(async () => {
-                        // In-flight lock prevents request pileups & multi-second voice delay
                         if (!isCallActive || isCallPushing || !liveToken || !currentQuizId) return;
                         isCallPushing = true;
 
@@ -509,7 +557,7 @@
                         } finally {
                             isCallPushing = false;
                         }
-                    }, 150);
+                    }, 130);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
@@ -518,7 +566,7 @@
             }
         });
 
-        // Fast 150ms Pull Loop for Live Video Frames & Admin Audio
+        // Fast 130ms Delta Pull Loop for Fluid Video & Unbroken Audio
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -528,7 +576,8 @@
             isPulling = true;
 
             try {
-                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}?afterSeq=${lastAdminAudioSeq}`, {
+                const syncFlag = hasSyncedInitialSeq ? '1' : '0';
+                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}?afterSeq=${lastAdminAudioSeq}&afterFrameSeq=${lastFrameSeq}&synced=${syncFlag}`, {
                     headers: { 'Authorization': `Bearer ${liveToken}` }
                 });
                 if (!res.ok) return;
@@ -542,22 +591,26 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                if (status.videoEnabled && status.frame) {
-                    const nextFrame = new Image();
-                    nextFrame.onload = () => {
-                        remoteVideoImg.src = nextFrame.src;
-                        remoteVideoImg.style.display = 'block';
-                        videoPlaceholder.style.display = 'none';
-                    };
-                    nextFrame.src = status.frame;
+                if (!hasSyncedInitialSeq) {
+                    lastAdminAudioSeq = status.latestSeq || 0;
+                    hasSyncedInitialSeq = true;
+                }
+
+                if (status.videoEnabled) {
+                    if (status.frame && status.frameSeq > lastFrameSeq) {
+                        lastFrameSeq = status.frameSeq;
+                        const nextFrame = new Image();
+                        nextFrame.onload = () => {
+                            remoteVideoImg.src = nextFrame.src;
+                            remoteVideoImg.style.display = 'block';
+                            videoPlaceholder.style.display = 'none';
+                        };
+                        nextFrame.src = status.frame;
+                    }
                 } else {
                     remoteVideoImg.style.display = 'none';
                     videoPlaceholder.style.display = 'block';
                     videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live HD Audio Active' : '⏸️ Stream Paused';
-                }
-
-                if (lastAdminAudioSeq === 0 && status.latestSeq) {
-                    lastAdminAudioSeq = status.latestSeq;
                 }
 
                 if (Array.isArray(status.audioChunks) && status.audioChunks.length > 0) {
@@ -572,7 +625,7 @@
             } finally {
                 isPulling = false;
             }
-        }, 150);
+        }, 130);
     })();
     </script>
 </body>
