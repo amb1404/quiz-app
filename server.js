@@ -442,6 +442,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https://*.razorpay.com",
+        "media-src 'self' blob:",
         "worker-src 'self' blob:",
         "connect-src 'self' https://api.razorpay.com https://lumberjack-cx.razorpay.com",
         "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
@@ -456,7 +457,7 @@ app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(self), camera=(self)');
     res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
     res.setHeader('Content-Security-Policy', cspPolicy);
     next();
@@ -2887,7 +2888,141 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
+// ============================================================================
+// 9. LIVE WEBRTC STREAMING & 1-CLICK CALL SIGNALING HUB
+// ============================================================================
+const liveRtcRooms = new Map();
 
+function getOrCreateRtcRoom(quizId) {
+    const cleanId = path.basename(String(quizId || '')).trim().replace('.json', '');
+    if (!liveRtcRooms.has(cleanId)) {
+        liveRtcRooms.set(cleanId, {
+            broadcastActive: false,
+            sessionId: Date.now(),
+            students: new Map()
+        });
+    }
+    return liveRtcRooms.get(cleanId);
+}
+
+function verifyLiveStudentHeader(req) {
+    const authHeader = req.get('Authorization');
+    if (!authHeader) return null;
+    const parts = authHeader.replace('Bearer ', '').trim().split('|||');
+    if (parts.length !== 2) return null;
+    const [tokenData, signature] = parts;
+    const expectedSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+    if (!safeCompareHex(signature, expectedSig)) return null;
+    const [, quizId, first, last] = tokenData.split('|');
+    return {
+        quizId: path.basename(String(quizId || '')).trim(),
+        studentName: `${decodeURIComponent(first || '')} ${decodeURIComponent(last || '')}`.trim()
+    };
+}
+
+// 1. Admin starts or stops the live video/audio broadcast
+app.post('/api/live/rtc/admin/toggle', (req, res) => {
+    const { adminKey, quizId, active } = req.body;
+    if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+
+    const room = getOrCreateRtcRoom(quizId);
+    room.broadcastActive = Boolean(active);
+    room.sessionId = Date.now();
+    room.students.clear();
+
+    res.json({ success: true, broadcastActive: room.broadcastActive, sessionId: room.sessionId });
+});
+
+// 2. Admin polls for incoming student WebRTC Offers & active callers
+app.post('/api/live/rtc/admin/poll', (req, res) => {
+    const { adminKey, quizId } = req.body;
+    if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+
+    const room = getOrCreateRtcRoom(quizId);
+    const pendingOffers = [];
+    const activeCallers = [];
+
+    room.students.forEach((data, studentName) => {
+        if (data.offer && !data.answer) {
+            pendingOffers.push({ studentName, offer: data.offer });
+        }
+        if (data.callActive) {
+            activeCallers.push(studentName);
+        }
+    });
+
+    res.json({
+        success: true,
+        broadcastActive: room.broadcastActive,
+        pendingOffers,
+        activeCallers
+    });
+});
+
+// 3. Admin sends back WebRTC Answer to a specific student
+app.post('/api/live/rtc/admin/answer', (req, res) => {
+    const { adminKey, quizId, studentName, answer } = req.body;
+    if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+    const room = getOrCreateRtcRoom(quizId);
+    const studentEntry = room.students.get(studentName);
+    if (studentEntry) {
+        studentEntry.answer = answer;
+        studentEntry.updatedAt = Date.now();
+    }
+    res.json({ success: true });
+});
+
+// 4. Student polls for broadcast status & their WebRTC Answer
+app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
+    const verified = verifyLiveStudentHeader(req);
+    if (!verified) return res.status(401).json({ error: 'Unauthorized' });
+
+    const room = getOrCreateRtcRoom(req.params.quizId);
+    const studentEntry = room.students.get(verified.studentName);
+
+    res.json({
+        broadcastActive: room.broadcastActive,
+        sessionId: room.sessionId,
+        hasOffer: Boolean(studentEntry && studentEntry.offer),
+        answer: studentEntry ? studentEntry.answer : null,
+        callActive: studentEntry ? Boolean(studentEntry.callActive) : false
+    });
+});
+
+// 5. Student submits WebRTC Offer to join the stream
+app.post('/api/live/rtc/student/offer', (req, res) => {
+    const verified = verifyLiveStudentHeader(req);
+    if (!verified) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { quizId, offer } = req.body;
+    const room = getOrCreateRtcRoom(quizId || verified.quizId);
+    room.students.set(verified.studentName, {
+        offer,
+        answer: null,
+        callActive: false,
+        updatedAt: Date.now()
+    });
+
+    res.json({ success: true });
+});
+
+// 6. Student toggles 1-click live voice call state
+app.post('/api/live/rtc/student/call', (req, res) => {
+    const verified = verifyLiveStudentHeader(req);
+    if (!verified) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { quizId, callActive } = req.body;
+    const room = getOrCreateRtcRoom(quizId || verified.quizId);
+    const studentEntry = room.students.get(verified.studentName);
+    if (studentEntry) {
+        studentEntry.callActive = Boolean(callActive);
+        studentEntry.updatedAt = Date.now();
+    }
+    res.json({ success: true, callActive: Boolean(callActive) });
+});
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 

@@ -13,6 +13,86 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
         .time-badge { background: #059669; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+
+        /* Streaming Console & Draggable Self-View Styles */
+        #admin-stream-console {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .stream-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            color: white;
+            background: #475569;
+        }
+        .stream-btn.active-cam { background: #2563eb; }
+        .stream-btn.active-mic { background: #10b981; }
+        .stream-btn.stop-btn { background: #dc2626; }
+        #admin-caller-badge {
+            margin-left: auto;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: #0f172a;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        #admin-caller-badge.calling {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border-color: #10b981;
+        }
+
+        /* Draggable Rectangular Self-View Box */
+        #admin-pip-box {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 240px;
+            height: 165px;
+            background: #0f172a;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.65);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+            touch-action: none;
+            user-select: none;
+        }
+        #admin-pip-header {
+            background: rgba(15, 23, 42, 0.92);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 6px 10px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+        }
+        #admin-pip-header:active { cursor: grabbing; }
+        #admin-self-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+            transform: scaleX(-1);
+        }
     </style>
 </head>
 <body>
@@ -24,6 +104,15 @@
         <input type="text" id="quiz-id" placeholder="Test ID (e.g. mock1)">
         <button id="start-btn">Start Broadcast & Send OTP</button>
         <span id="otp-display" style="margin-left: 15px; color: #f59e0b; font-weight: bold; font-size: 18px;"></span>
+    </div>
+
+    <!-- Streaming Console Bar -->
+    <div id="admin-stream-console">
+        <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & Audio Console:</strong>
+        <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
+        <button id="btn-admin-audio" class="stream-btn" type="button">🎙️ Audio: OFF</button>
+        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
+        <span id="admin-caller-badge">🎧 No active student calls</span>
     </div>
 
     <!-- Panel 2: Control Panel with End Test Button -->
@@ -47,6 +136,259 @@
         </table>
     </div>
 
+    <!-- Draggable Self-View Box -->
+    <div id="admin-pip-box">
+        <div id="admin-pip-header">
+            <span>⠿ Drag Self-View</span>
+            <span style="color: #38bdf8;">● LIVE</span>
+        </div>
+        <video id="admin-self-video" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Hidden container for incoming student voice calls -->
+    <div id="admin-incoming-audio-dock" style="display:none;"></div>
+
     <script src="/js/admin-live.js"></script>
+    <script>
+    (function() {
+        let localStream = null;
+        let videoEnabled = false;
+        let audioEnabled = false;
+        let isBroadcasting = false;
+        let rtcPollInterval = null;
+        const peerConnections = new Map();
+
+        const btnVideo = document.getElementById('btn-admin-video');
+        const btnAudio = document.getElementById('btn-admin-audio');
+        const btnStop = document.getElementById('btn-admin-stop-stream');
+        const pipBox = document.getElementById('admin-pip-box');
+        const selfVideo = document.getElementById('admin-self-video');
+        const callerBadge = document.getElementById('admin-caller-badge');
+        const audioDock = document.getElementById('admin-incoming-audio-dock');
+
+        function getAdminCredentials() {
+            const keyEl = document.getElementById('admin-key');
+            const quizEl = document.getElementById('quiz-id');
+            return {
+                adminKey: keyEl ? keyEl.value.trim() : '',
+                quizId: quizEl ? quizEl.value.trim() : ''
+            };
+        }
+
+        // Pointer-Event Dragging for Self-View Box
+        (function makeDraggable(boxEl, handleEl) {
+            let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+            handleEl.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                handleEl.setPointerCapture(e.pointerId);
+                const rect = boxEl.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                boxEl.style.bottom = 'auto';
+                boxEl.style.right = 'auto';
+                boxEl.style.left = initialLeft + 'px';
+                boxEl.style.top = initialTop + 'px';
+            });
+
+            handleEl.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const maxLeft = window.innerWidth - boxEl.offsetWidth;
+                const maxTop = window.innerHeight - boxEl.offsetHeight;
+                boxEl.style.left = Math.max(0, Math.min(maxLeft, initialLeft + dx)) + 'px';
+                boxEl.style.top = Math.max(0, Math.min(maxTop, initialTop + dy)) + 'px';
+            });
+
+            handleEl.addEventListener('pointerup', (e) => {
+                isDragging = false;
+                handleEl.releasePointerCapture(e.pointerId);
+            });
+        })(pipBox, document.getElementById('admin-pip-header'));
+
+        async function ensureLocalStream() {
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                selfVideo.srcObject = localStream;
+            }
+            localStream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
+            localStream.getAudioTracks().forEach(t => t.enabled = audioEnabled);
+        }
+
+        async function startBroadcastIfNeeded() {
+            const { adminKey, quizId } = getAdminCredentials();
+            if (!adminKey || !quizId) {
+                alert('Please enter your Admin Secret Key and Test ID in the top panel first.');
+                return false;
+            }
+            try {
+                await ensureLocalStream();
+                pipBox.style.display = 'flex';
+                btnStop.style.display = 'inline-block';
+
+                if (!isBroadcasting) {
+                    isBroadcasting = true;
+                    await fetch('/api/live/rtc/admin/toggle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ adminKey, quizId, active: true })
+                    });
+                    startAdminRtcPolling();
+                }
+                return true;
+            } catch (err) {
+                alert('Camera/Microphone access failed: ' + err.message);
+                return false;
+            }
+        }
+
+        function updateButtonsUI() {
+            btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+            btnVideo.classList.toggle('active-cam', videoEnabled);
+            btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+            btnAudio.classList.toggle('active-mic', audioEnabled);
+        }
+
+        btnVideo.addEventListener('click', async () => {
+            videoEnabled = !videoEnabled;
+            const ok = await startBroadcastIfNeeded();
+            if (!ok) videoEnabled = false;
+            updateButtonsUI();
+        });
+
+        btnAudio.addEventListener('click', async () => {
+            audioEnabled = !audioEnabled;
+            const ok = await startBroadcastIfNeeded();
+            if (!ok) audioEnabled = false;
+            updateButtonsUI();
+        });
+
+        btnStop.addEventListener('click', async () => {
+            const { adminKey, quizId } = getAdminCredentials();
+            isBroadcasting = false;
+            videoEnabled = false;
+            audioEnabled = false;
+            updateButtonsUI();
+            pipBox.style.display = 'none';
+            btnStop.style.display = 'none';
+            callerBadge.textContent = '🎧 No active student calls';
+            callerBadge.classList.remove('calling');
+
+            if (rtcPollInterval) clearInterval(rtcPollInterval);
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            await fetch('/api/live/rtc/admin/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, quizId, active: false })
+            }).catch(() => {});
+        });
+
+        function waitForIce(pc, timeout = 2000) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                const timer = setTimeout(resolve, timeout);
+                pc.addEventListener('icegatheringstatechange', () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        clearTimeout(timer);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        function startAdminRtcPolling() {
+            if (rtcPollInterval) clearInterval(rtcPollInterval);
+            rtcPollInterval = setInterval(async () => {
+                if (!isBroadcasting) return;
+                const { adminKey, quizId } = getAdminCredentials();
+                if (!adminKey || !quizId) return;
+
+                try {
+                    const res = await fetch('/api/live/rtc/admin/poll', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ adminKey, quizId })
+                    });
+                    const data = await res.json();
+                    if (!data.success) return;
+
+                    if (data.activeCallers && data.activeCallers.length > 0) {
+                        callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
+                        callerBadge.classList.add('calling');
+                        data.activeCallers.forEach(name => {
+                            const audioEl = document.getElementById(`student-audio-${name}`);
+                            if (audioEl) audioEl.play().catch(() => {});
+                        });
+                    } else {
+                        callerBadge.textContent = '🎧 No active student calls';
+                        callerBadge.classList.remove('calling');
+                    }
+
+                    for (const item of (data.pendingOffers || [])) {
+                        await handleStudentOffer(item.studentName, item.offer, adminKey, quizId);
+                    }
+                } catch (e) {}
+            }, 1500);
+        }
+
+        async function handleStudentOffer(studentName, offer, adminKey, quizId) {
+            if (peerConnections.has(studentName)) {
+                peerConnections.get(studentName).close();
+            }
+
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            peerConnections.set(studentName, pc);
+
+            pc.ontrack = (event) => {
+                if (event.track.kind === 'audio') {
+                    let audioEl = document.getElementById(`student-audio-${studentName}`);
+                    if (!audioEl) {
+                        audioEl = document.createElement('audio');
+                        audioEl.id = `student-audio-${studentName}`;
+                        audioEl.autoplay = true;
+                        audioEl.playsInline = true;
+                        audioDock.appendChild(audioEl);
+                    }
+                    audioEl.srcObject = new MediaStream([event.track]);
+                    event.track.onunmute = () => {
+                        audioEl.play().catch(() => {});
+                    };
+                }
+            };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            }
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await waitForIce(pc, 2000);
+
+            await fetch('/api/live/rtc/admin/answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminKey,
+                    quizId,
+                    studentName,
+                    answer: pc.localDescription
+                })
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

@@ -6,47 +6,123 @@
     <title>Live Test - Pioneers Prep</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; }
-        .live-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; margin: 0; padding: 15px; box-sizing: border-box; }
+        /* Prevents video feed box from overlapping the question container on mobile & desktop */
+        body.rtc-stream-active {
+            align-items: flex-start !important;
+            padding-top: 195px !important;
+            padding-bottom: 40px !important;
+        }
+        .live-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; box-sizing: border-box; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-transform: uppercase;}
         .opt-btn { width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 16px; transition: 0.2s;}
         .opt-btn.locked { opacity: 0.6; cursor: not-allowed; }
         .opt-btn.selected { border-color: #4285f4; background-color: #eff6ff; font-weight: bold; }
+
+        /* Student Draggable Video Box & 1-Click Call Button */
+        #student-pip-box {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            width: 210px;
+            background: #0f172a;
+            border: 2px solid #2563eb;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 9995;
+            display: none;
+            flex-direction: column;
+            touch-action: none;
+            user-select: none;
+        }
+        @media (max-width: 600px) {
+            #student-pip-box {
+                width: 170px;
+                top: 10px;
+                right: 10px;
+            }
+        }
+        #student-pip-header {
+            background: #1e293b;
+            color: #f8fafc;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 6px 10px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #student-pip-header:active { cursor: grabbing; }
+        #student-remote-video {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            background: #000;
+            display: block;
+        }
+        @media (max-width: 600px) {
+            #student-remote-video { height: 95px; }
+        }
+        #student-pip-controls {
+            padding: 6px;
+            background: #0f172a;
+            display: flex;
+            gap: 6px;
+        }
+        #btn-student-call {
+            width: 100%;
+            padding: 7px 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            background: #10b981;
+            color: white;
+        }
+        #btn-student-call.on-call {
+            background: #ef4444;
+        }
+        @media print {
+            #student-pip-box { display: none !important; }
+        }
     </style>
 </head>
 <body>
     <div id="auth-screen" class="live-container">
         <h2 style="color: #4285f4;">Join Live Mock Test</h2>
         <select id="live-quiz-id" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; background-color: white; font-weight: bold; color: #1e293b; cursor: pointer;">
-    <option value="">Loading Tests...</option>
-</select>
+            <option value="">Loading Tests...</option>
+        </select>
 
-<script>
-    // Fetch and populate the live mock dropdown automatically
-    document.addEventListener('DOMContentLoaded', async () => {
-        const dropdown = document.getElementById('live-quiz-id');
-        if (!dropdown) return;
-        
-        try {
-            const res = await fetch('/api/live/list');
-            const data = await res.json();
-            
-            if (data.success && data.tests.length > 0) {
-                dropdown.innerHTML = '<option value="">-- Select a Live Test --</option>';
-                data.tests.forEach(test => {
-                    const option = document.createElement('option');
-                    option.value = test.id;
-                    option.textContent = test.title;
-                    dropdown.appendChild(option);
-                });
-            } else {
-                dropdown.innerHTML = '<option value="">No Live Tests Available</option>';
-            }
-        } catch (e) {
-            dropdown.innerHTML = '<option value="">Error loading tests</option>';
-        }
-    });
-</script>
+        <script>
+            // Fetch and populate the live mock dropdown automatically
+            document.addEventListener('DOMContentLoaded', async () => {
+                const dropdown = document.getElementById('live-quiz-id');
+                if (!dropdown) return;
+                
+                try {
+                    const res = await fetch('/api/live/list');
+                    const data = await res.json();
+                    
+                    if (data.success && data.tests.length > 0) {
+                        dropdown.innerHTML = '<option value="">-- Select a Live Test --</option>';
+                        data.tests.forEach(test => {
+                            const option = document.createElement('option');
+                            option.value = test.id;
+                            option.textContent = test.title;
+                            dropdown.appendChild(option);
+                        });
+                    } else {
+                        dropdown.innerHTML = '<option value="">No Live Tests Available</option>';
+                    }
+                } catch (e) {
+                    dropdown.innerHTML = '<option value="">Error loading tests</option>';
+                }
+            });
+        </script>
         <input type="number" id="live-otp" placeholder="Enter Admin OTP">
         <button id="join-btn" style="width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer;">Join Test</button>
     </div>
@@ -59,8 +135,228 @@
         <h3 id="question-text" style="font-size: 20px; color: #1e293b; margin-bottom: 25px; text-align: left;"></h3>
         <div id="options-container" style="text-align: left;"></div>
     </div>
+
+    <!-- Draggable Instructor Video Feed & 1-Click Call Button -->
+    <div id="student-pip-box" class="no-print">
+        <div id="student-pip-header">
+            <span>⠿ Drag Video</span>
+            <span style="color: #34d399;">● LIVE</span>
+        </div>
+        <video id="student-remote-video" autoplay playsinline></video>
+        <div id="student-pip-controls">
+            <button id="btn-student-call" type="button">📞 Call Sir</button>
+        </div>
+    </div>
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/js/livetest.js"></script>
+    <script>
+    (function() {
+        let studentPc = null;
+        let audioTransceiver = null;
+        let studentMicStream = null;
+        let currentSessionId = null;
+        let isJoiningRtc = false;
+        let isCallActive = false;
+
+        const pipBox = document.getElementById('student-pip-box');
+        const remoteVideo = document.getElementById('student-remote-video');
+        const callBtn = document.getElementById('btn-student-call');
+
+        // Make Student Video Box Draggable on Desktop & Mobile Touch
+        (function makeDraggable(boxEl, handleEl) {
+            let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+            handleEl.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                handleEl.setPointerCapture(e.pointerId);
+                const rect = boxEl.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                boxEl.style.bottom = 'auto';
+                boxEl.style.right = 'auto';
+                boxEl.style.left = initialLeft + 'px';
+                boxEl.style.top = initialTop + 'px';
+            });
+
+            handleEl.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const maxLeft = window.innerWidth - boxEl.offsetWidth;
+                const maxTop = window.innerHeight - boxEl.offsetHeight;
+                boxEl.style.left = Math.max(0, Math.min(maxLeft, initialLeft + dx)) + 'px';
+                boxEl.style.top = Math.max(0, Math.min(maxTop, initialTop + dy)) + 'px';
+            });
+
+            handleEl.addEventListener('pointerup', (e) => {
+                isDragging = false;
+                handleEl.releasePointerCapture(e.pointerId);
+            });
+        })(pipBox, document.getElementById('student-pip-header'));
+
+        function waitForIce(pc, timeout = 2000) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                const timer = setTimeout(resolve, timeout);
+                pc.addEventListener('icegatheringstatechange', () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        clearTimeout(timer);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        async function connectToAdminStream() {
+            if (isJoiningRtc || !liveToken || !currentQuizId) return;
+            isJoiningRtc = true;
+
+            try {
+                if (studentPc) studentPc.close();
+                studentPc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                studentPc.addTransceiver('video', { direction: 'recvonly' });
+                audioTransceiver = studentPc.addTransceiver('audio', { direction: 'sendrecv' });
+
+                const inboundStream = new MediaStream();
+                remoteVideo.srcObject = inboundStream;
+
+                studentPc.ontrack = (event) => {
+                    inboundStream.addTrack(event.track);
+                    remoteVideo.play().catch(() => {});
+                };
+
+                const offer = await studentPc.createOffer();
+                await studentPc.setLocalDescription(offer);
+                await waitForIce(studentPc, 2000);
+
+                await fetch('/api/live/rtc/student/offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${liveToken}`
+                    },
+                    body: JSON.stringify({
+                        quizId: currentQuizId,
+                        offer: studentPc.localDescription
+                    })
+                });
+            } catch (e) {
+                isJoiningRtc = false;
+            }
+        }
+
+        function teardownStream() {
+            document.body.classList.remove('rtc-stream-active');
+            pipBox.style.display = 'none';
+            if (studentPc) {
+                studentPc.close();
+                studentPc = null;
+            }
+            if (studentMicStream) {
+                studentMicStream.getTracks().forEach(t => t.stop());
+                studentMicStream = null;
+            }
+            isCallActive = false;
+            isJoiningRtc = false;
+            callBtn.textContent = '📞 Call Sir';
+            callBtn.classList.remove('on-call');
+        }
+
+        // 1-Click Call Button Handler
+        callBtn.addEventListener('click', async () => {
+            if (!studentPc || !audioTransceiver) return;
+
+            if (!isCallActive) {
+                try {
+                    studentMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const micTrack = studentMicStream.getAudioTracks()[0];
+                    await audioTransceiver.sender.replaceTrack(micTrack);
+
+                    isCallActive = true;
+                    callBtn.textContent = '🔴 End Call';
+                    callBtn.classList.add('on-call');
+
+                    await fetch('/api/live/rtc/student/call', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${liveToken}`
+                        },
+                        body: JSON.stringify({ quizId: currentQuizId, callActive: true })
+                    });
+                } catch (err) {
+                    alert('Please allow microphone access to talk to Sir.');
+                }
+            } else {
+                await audioTransceiver.sender.replaceTrack(null);
+                if (studentMicStream) {
+                    studentMicStream.getTracks().forEach(t => t.stop());
+                    studentMicStream = null;
+                }
+                isCallActive = false;
+                callBtn.textContent = '📞 Call Sir';
+                callBtn.classList.remove('on-call');
+
+                await fetch('/api/live/rtc/student/call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${liveToken}`
+                    },
+                    body: JSON.stringify({ quizId: currentQuizId, callActive: false })
+                }).catch(() => {});
+            }
+        });
+
+        // Ensure audio plays if browser blocked initial unmuted autoplay after refresh
+        document.addEventListener('click', () => {
+            if (pipBox.style.display !== 'none' && remoteVideo.paused) {
+                remoteVideo.play().catch(() => {});
+            }
+        });
+
+        // Poll every 2 seconds for Admin broadcast status
+        setInterval(async () => {
+            if (!liveToken || !currentQuizId || !testActive) {
+                if (pipBox.style.display !== 'none') teardownStream();
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}`, {
+                    headers: { 'Authorization': `Bearer ${liveToken}` }
+                });
+                if (!res.ok) return;
+                const status = await res.json();
+
+                if (!status.broadcastActive) {
+                    if (pipBox.style.display !== 'none') teardownStream();
+                    return;
+                }
+
+                document.body.classList.add('rtc-stream-active');
+                pipBox.style.display = 'flex';
+
+                if (currentSessionId !== status.sessionId) {
+                    currentSessionId = status.sessionId;
+                    isJoiningRtc = false;
+                    await connectToAdminStream();
+                    return;
+                }
+
+                if (status.answer && studentPc && studentPc.signalingState === 'have-local-offer') {
+                    await studentPc.setRemoteDescription(new RTCSessionDescription(status.answer));
+                    isJoiningRtc = false;
+                }
+            } catch (e) {}
+        }, 2000);
+    })();
+    </script>
 </body>
 </html>
