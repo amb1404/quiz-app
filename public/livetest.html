@@ -7,11 +7,12 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; margin: 0; padding: 15px; box-sizing: border-box; }
-        /* Prevents video feed box from overlapping the question container on mobile & desktop */
+        /* Guarantees the top-right video box never overlaps #quiz-screen on mobile or desktop */
         body.rtc-stream-active {
             align-items: flex-start !important;
-            padding-top: 195px !important;
-            padding-bottom: 40px !important;
+        }
+        body.rtc-stream-active #quiz-screen {
+            margin-top: 185px !important;
         }
         .live-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; box-sizing: border-box; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-transform: uppercase;}
@@ -38,7 +39,7 @@
         }
         @media (max-width: 600px) {
             #student-pip-box {
-                width: 170px;
+                width: 175px;
                 top: 10px;
                 right: 10px;
             }
@@ -55,15 +56,46 @@
             align-items: center;
         }
         #student-pip-header:active { cursor: grabbing; }
-        #student-remote-video {
+        #student-video-stage {
+            position: relative;
             width: 100%;
-            height: 110px;
-            object-fit: cover;
+            height: 112px;
             background: #000;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         @media (max-width: 600px) {
-            #student-remote-video { height: 95px; }
+            #student-video-stage { height: 96px; }
+        }
+        #student-remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        #student-video-placeholder {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+        }
+        #btn-unmute-hint {
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(245, 158, 11, 0.95);
+            color: #0f172a;
+            border: none;
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+            white-space: nowrap;
         }
         #student-pip-controls {
             padding: 6px;
@@ -98,7 +130,6 @@
         </select>
 
         <script>
-            // Fetch and populate the live mock dropdown automatically
             document.addEventListener('DOMContentLoaded', async () => {
                 const dropdown = document.getElementById('live-quiz-id');
                 if (!dropdown) return;
@@ -142,7 +173,11 @@
             <span>⠿ Drag Video</span>
             <span style="color: #34d399;">● LIVE</span>
         </div>
-        <video id="student-remote-video" autoplay playsinline></video>
+        <div id="student-video-stage">
+            <img id="student-remote-video" alt="Live Instructor Feed">
+            <div id="student-video-placeholder">🎙️ Live Audio Broadcast</div>
+            <button id="btn-unmute-hint" type="button">🔊 Tap to Enable Audio</button>
+        </div>
         <div id="student-pip-controls">
             <button id="btn-student-call" type="button">📞 Call Sir</button>
         </div>
@@ -152,16 +187,41 @@
     <script src="/js/livetest.js"></script>
     <script>
     (function() {
-        let studentPc = null;
-        let audioTransceiver = null;
-        let studentMicStream = null;
-        let currentSessionId = null;
-        let isJoiningRtc = false;
+        const TARGET_SAMPLE_RATE = 12000;
+        let studentAudioCtx = null;
+        let lastAdminAudioSeq = 0;
+        let nextAdminPlayTime = 0;
+        let isPulling = false;
+
         let isCallActive = false;
+        let studentMicStream = null;
+        let studentMicSource = null;
+        let studentMicProcessor = null;
+        let pendingCallSamples = [];
+        let callPushInterval = null;
 
         const pipBox = document.getElementById('student-pip-box');
-        const remoteVideo = document.getElementById('student-remote-video');
+        const remoteVideoImg = document.getElementById('student-remote-video');
+        const videoPlaceholder = document.getElementById('student-video-placeholder');
+        const unmuteHintBtn = document.getElementById('btn-unmute-hint');
         const callBtn = document.getElementById('btn-student-call');
+
+        function ensureStudentAudioCtx() {
+            if (!studentAudioCtx) {
+                studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (studentAudioCtx.state === 'suspended') {
+                studentAudioCtx.resume().then(() => {
+                    unmuteHintBtn.style.display = 'none';
+                }).catch(() => {});
+            } else {
+                unmuteHintBtn.style.display = 'none';
+            }
+        }
+
+        // Unlock WebAudio automatically on any click or touch
+        document.addEventListener('pointerdown', ensureStudentAudioCtx);
+        unmuteHintBtn.addEventListener('click', ensureStudentAudioCtx);
 
         // Make Student Video Box Draggable on Desktop & Mobile Touch
         (function makeDraggable(boxEl, handleEl) {
@@ -197,112 +257,93 @@
             });
         })(pipBox, document.getElementById('student-pip-header'));
 
-        function waitForIce(pc, timeout = 2000) {
-            return new Promise(resolve => {
-                if (pc.iceGatheringState === 'complete') return resolve();
-                const timer = setTimeout(resolve, timeout);
-                pc.addEventListener('icegatheringstatechange', () => {
-                    if (pc.iceGatheringState === 'complete') {
-                        clearTimeout(timer);
-                        resolve();
-                    }
-                });
-            });
-        }
-
-        async function connectToAdminStream() {
-            if (isJoiningRtc || !liveToken || !currentQuizId) return;
-            isJoiningRtc = true;
-
-            try {
-                if (studentPc) studentPc.close();
-                studentPc = new RTCPeerConnection({
-                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-                });
-
-                studentPc.addTransceiver('video', { direction: 'recvonly' });
-                audioTransceiver = studentPc.addTransceiver('audio', { direction: 'sendrecv' });
-
-                const inboundStream = new MediaStream();
-                remoteVideo.srcObject = inboundStream;
-
-                studentPc.ontrack = (event) => {
-                    inboundStream.addTrack(event.track);
-                    remoteVideo.play().catch(() => {});
-                };
-
-                const offer = await studentPc.createOffer();
-                await studentPc.setLocalDescription(offer);
-                await waitForIce(studentPc, 2000);
-
-                await fetch('/api/live/rtc/student/offer', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${liveToken}`
-                    },
-                    body: JSON.stringify({
-                        quizId: currentQuizId,
-                        offer: studentPc.localDescription
-                    })
-                });
-            } catch (e) {
-                isJoiningRtc = false;
+        function downsampleToInt16(float32Arr, inputRate, outputRate) {
+            if (outputRate >= inputRate) {
+                const out = new Int16Array(float32Arr.length);
+                for (let i = 0; i < float32Arr.length; i++) {
+                    const s = Math.max(-1, Math.min(1, float32Arr[i]));
+                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return out;
             }
+            const ratio = inputRate / outputRate;
+            const newLen = Math.round(float32Arr.length / ratio);
+            const result = new Int16Array(newLen);
+            for (let i = 0; i < newLen; i++) {
+                const idx = Math.min(float32Arr.length - 1, Math.floor(i * ratio));
+                const s = Math.max(-1, Math.min(1, float32Arr[idx]));
+                result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return result;
         }
 
-        function teardownStream() {
-            document.body.classList.remove('rtc-stream-active');
-            pipBox.style.display = 'none';
-            if (studentPc) {
-                studentPc.close();
-                studentPc = null;
+        function int16ToBase64(int16Arr) {
+            const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
+            let binary = '';
+            const chunkSize = 4096;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function playAdminPcmBase64(b64Str, sampleRate) {
+            if (!studentAudioCtx) {
+                studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (studentAudioCtx.state === 'suspended') {
+                unmuteHintBtn.style.display = 'block';
+                return;
+            }
+            unmuteHintBtn.style.display = 'none';
+
+            const raw = atob(b64Str);
+            const bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            const int16 = new Int16Array(bytes.buffer);
+            if (int16.length === 0) return;
+
+            const audioBuffer = studentAudioCtx.createBuffer(1, int16.length, sampleRate || TARGET_SAMPLE_RATE);
+            const channel = audioBuffer.getChannelData(0);
+            for (let i = 0; i < int16.length; i++) {
+                channel[i] = int16[i] / 32768.0;
+            }
+
+            const now = studentAudioCtx.currentTime;
+            if (nextAdminPlayTime < now || (nextAdminPlayTime - now) > 1.2) {
+                nextAdminPlayTime = now + 0.05;
+            }
+            const src = studentAudioCtx.createBufferSource();
+            src.buffer = audioBuffer;
+            src.connect(studentAudioCtx.destination);
+            src.start(nextAdminPlayTime);
+            nextAdminPlayTime += audioBuffer.duration;
+        }
+
+        async function stopStudentCall() {
+            isCallActive = false;
+            pendingCallSamples = [];
+            callBtn.textContent = '📞 Call Sir';
+            callBtn.classList.remove('on-call');
+
+            if (callPushInterval) {
+                clearInterval(callPushInterval);
+                callPushInterval = null;
+            }
+            if (studentMicProcessor) {
+                studentMicProcessor.disconnect();
+                studentMicProcessor = null;
+            }
+            if (studentMicSource) {
+                studentMicSource.disconnect();
+                studentMicSource = null;
             }
             if (studentMicStream) {
                 studentMicStream.getTracks().forEach(t => t.stop());
                 studentMicStream = null;
             }
-            isCallActive = false;
-            isJoiningRtc = false;
-            callBtn.textContent = '📞 Call Sir';
-            callBtn.classList.remove('on-call');
-        }
 
-        // 1-Click Call Button Handler
-        callBtn.addEventListener('click', async () => {
-            if (!studentPc || !audioTransceiver) return;
-
-            if (!isCallActive) {
-                try {
-                    studentMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const micTrack = studentMicStream.getAudioTracks()[0];
-                    await audioTransceiver.sender.replaceTrack(micTrack);
-
-                    isCallActive = true;
-                    callBtn.textContent = '🔴 End Call';
-                    callBtn.classList.add('on-call');
-
-                    await fetch('/api/live/rtc/student/call', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${liveToken}`
-                        },
-                        body: JSON.stringify({ quizId: currentQuizId, callActive: true })
-                    });
-                } catch (err) {
-                    alert('Please allow microphone access to talk to Sir.');
-                }
-            } else {
-                await audioTransceiver.sender.replaceTrack(null);
-                if (studentMicStream) {
-                    studentMicStream.getTracks().forEach(t => t.stop());
-                    studentMicStream = null;
-                }
-                isCallActive = false;
-                callBtn.textContent = '📞 Call Sir';
-                callBtn.classList.remove('on-call');
-
+            if (liveToken && currentQuizId) {
                 await fetch('/api/live/rtc/student/call', {
                     method: 'POST',
                     headers: {
@@ -312,24 +353,93 @@
                     body: JSON.stringify({ quizId: currentQuizId, callActive: false })
                 }).catch(() => {});
             }
-        });
+        }
 
-        // Ensure audio plays if browser blocked initial unmuted autoplay after refresh
-        document.addEventListener('click', () => {
-            if (pipBox.style.display !== 'none' && remoteVideo.paused) {
-                remoteVideo.play().catch(() => {});
+        function teardownStream() {
+            document.body.classList.remove('rtc-stream-active');
+            pipBox.style.display = 'none';
+            remoteVideoImg.style.display = 'none';
+            lastAdminAudioSeq = 0;
+            if (isCallActive) stopStudentCall();
+        }
+
+        // 1-Click Call Button Handler
+        callBtn.addEventListener('click', async () => {
+            ensureStudentAudioCtx();
+
+            if (!isCallActive) {
+                try {
+                    studentMicStream = await navigator.mediaDevices.getUserMedia({
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                    });
+
+                    studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
+                    studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
+                    const zeroGain = studentAudioCtx.createGain();
+                    zeroGain.gain.value = 0;
+
+                    pendingCallSamples = [];
+                    studentMicProcessor.onaudioprocess = (e) => {
+                        if (!isCallActive) return;
+                        const input = e.inputBuffer.getChannelData(0);
+                        const down = downsampleToInt16(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+                        for (let i = 0; i < down.length; i++) {
+                            pendingCallSamples.push(down[i]);
+                        }
+                        if (pendingCallSamples.length > 9600) {
+                            pendingCallSamples = pendingCallSamples.slice(-9600);
+                        }
+                    };
+
+                    studentMicSource.connect(studentMicProcessor);
+                    studentMicProcessor.connect(zeroGain);
+                    zeroGain.connect(studentAudioCtx.destination);
+
+                    isCallActive = true;
+                    callBtn.textContent = '🔴 End Call';
+                    callBtn.classList.add('on-call');
+
+                    callPushInterval = setInterval(async () => {
+                        if (!isCallActive || !liveToken || !currentQuizId) return;
+                        let chunkB64 = null;
+                        if (pendingCallSamples.length > 0) {
+                            const int16 = new Int16Array(pendingCallSamples);
+                            pendingCallSamples = [];
+                            chunkB64 = int16ToBase64(int16);
+                        }
+                        await fetch('/api/live/rtc/student/call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${liveToken}`
+                            },
+                            body: JSON.stringify({
+                                quizId: currentQuizId,
+                                callActive: true,
+                                audioChunk: chunkB64,
+                                rate: TARGET_SAMPLE_RATE
+                            })
+                        }).catch(() => {});
+                    }, 220);
+                } catch (err) {
+                    alert('Please allow microphone access to talk to Sir.');
+                }
+            } else {
+                await stopStudentCall();
             }
         });
 
-        // Poll every 2 seconds for Admin broadcast status
+        // Fast 240ms Pull Loop for Live Video Frames & Admin Audio
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
                 return;
             }
+            if (isPulling) return;
+            isPulling = true;
 
             try {
-                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}`, {
+                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}?afterSeq=${lastAdminAudioSeq}`, {
                     headers: { 'Authorization': `Bearer ${liveToken}` }
                 });
                 if (!res.ok) return;
@@ -343,19 +453,35 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                if (currentSessionId !== status.sessionId) {
-                    currentSessionId = status.sessionId;
-                    isJoiningRtc = false;
-                    await connectToAdminStream();
-                    return;
+                // Render live video frame or audio-only placeholder
+                if (status.videoEnabled && status.frame) {
+                    remoteVideoImg.src = status.frame;
+                    remoteVideoImg.style.display = 'block';
+                    videoPlaceholder.style.display = 'none';
+                } else {
+                    remoteVideoImg.style.display = 'none';
+                    videoPlaceholder.style.display = 'block';
+                    videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live Audio Active' : '⏸️ Stream Paused';
                 }
 
-                if (status.answer && studentPc && studentPc.signalingState === 'have-local-offer') {
-                    await studentPc.setRemoteDescription(new RTCSessionDescription(status.answer));
-                    isJoiningRtc = false;
+                // Initialize sequence pointer on first join so only live audio plays
+                if (lastAdminAudioSeq === 0 && status.latestSeq) {
+                    lastAdminAudioSeq = status.latestSeq;
                 }
-            } catch (e) {}
-        }, 2000);
+
+                if (Array.isArray(status.audioChunks) && status.audioChunks.length > 0) {
+                    status.audioChunks.forEach(chunk => {
+                        if (chunk.seq > lastAdminAudioSeq) {
+                            lastAdminAudioSeq = chunk.seq;
+                            playAdminPcmBase64(chunk.pcm, chunk.rate);
+                        }
+                    });
+                }
+            } catch (e) {
+            } finally {
+                isPulling = false;
+            }
+        }, 240);
     })();
     </script>
 </body>

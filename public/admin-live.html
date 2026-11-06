@@ -58,7 +58,7 @@
         /* Draggable Rectangular Self-View Box */
         #admin-pip-box {
             position: fixed;
-            bottom: 25px;
+            top: 20px;
             right: 25px;
             width: 240px;
             height: 165px;
@@ -145,18 +145,28 @@
         <video id="admin-self-video" autoplay playsinline muted></video>
     </div>
 
-    <!-- Hidden container for incoming student voice calls -->
-    <div id="admin-incoming-audio-dock" style="display:none;"></div>
-
     <script src="/js/admin-live.js"></script>
     <script>
     (function() {
+        const TARGET_SAMPLE_RATE = 12000;
         let localStream = null;
         let videoEnabled = false;
         let audioEnabled = false;
         let isBroadcasting = false;
-        let rtcPollInterval = null;
-        const peerConnections = new Map();
+        let pushInterval = null;
+        let isPushing = false;
+
+        let adminAudioCtx = null;
+        let micProcessor = null;
+        let micSource = null;
+        let pendingPcmSamples = [];
+        let lastStudentSeq = 0;
+        let nextStudentPlayTime = 0;
+
+        const captureCanvas = document.createElement('canvas');
+        captureCanvas.width = 220;
+        captureCanvas.height = 140;
+        const captureCtx = captureCanvas.getContext('2d');
 
         const btnVideo = document.getElementById('btn-admin-video');
         const btnAudio = document.getElementById('btn-admin-audio');
@@ -164,7 +174,6 @@
         const pipBox = document.getElementById('admin-pip-box');
         const selfVideo = document.getElementById('admin-self-video');
         const callerBadge = document.getElementById('admin-caller-badge');
-        const audioDock = document.getElementById('admin-incoming-audio-dock');
 
         function getAdminCredentials() {
             const keyEl = document.getElementById('admin-key');
@@ -209,40 +218,198 @@
             });
         })(pipBox, document.getElementById('admin-pip-header'));
 
-        async function ensureLocalStream() {
-            if (!localStream) {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                selfVideo.srcObject = localStream;
+        function downsampleToInt16(float32Arr, inputRate, outputRate) {
+            if (outputRate >= inputRate) {
+                const out = new Int16Array(float32Arr.length);
+                for (let i = 0; i < float32Arr.length; i++) {
+                    const s = Math.max(-1, Math.min(1, float32Arr[i]));
+                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return out;
             }
+            const ratio = inputRate / outputRate;
+            const newLen = Math.round(float32Arr.length / ratio);
+            const result = new Int16Array(newLen);
+            for (let i = 0; i < newLen; i++) {
+                const idx = Math.min(float32Arr.length - 1, Math.floor(i * ratio));
+                const s = Math.max(-1, Math.min(1, float32Arr[idx]));
+                result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return result;
+        }
+
+        function int16ToBase64(int16Arr) {
+            const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
+            let binary = '';
+            const chunkSize = 4096;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function playIncomingPcmBase64(b64Str, sampleRate) {
+            if (!adminAudioCtx) return;
+            if (adminAudioCtx.state === 'suspended') adminAudioCtx.resume().catch(() => {});
+
+            const raw = atob(b64Str);
+            const bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            const int16 = new Int16Array(bytes.buffer);
+            if (int16.length === 0) return;
+
+            const audioBuffer = adminAudioCtx.createBuffer(1, int16.length, sampleRate || TARGET_SAMPLE_RATE);
+            const channel = audioBuffer.getChannelData(0);
+            for (let i = 0; i < int16.length; i++) {
+                channel[i] = int16[i] / 32768.0;
+            }
+
+            const now = adminAudioCtx.currentTime;
+            if (nextStudentPlayTime < now || (nextStudentPlayTime - now) > 1.2) {
+                nextStudentPlayTime = now + 0.05;
+            }
+            const src = adminAudioCtx.createBufferSource();
+            src.buffer = audioBuffer;
+            src.connect(adminAudioCtx.destination);
+            src.start(nextStudentPlayTime);
+            nextStudentPlayTime += audioBuffer.duration;
+        }
+
+        async function ensureMediaSetup() {
+            if (!adminAudioCtx) {
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (adminAudioCtx.state === 'suspended') {
+                await adminAudioCtx.resume();
+            }
+
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 320 }, height: { ideal: 200 } },
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+                selfVideo.srcObject = localStream;
+                await selfVideo.play().catch(() => {});
+
+                micSource = adminAudioCtx.createMediaStreamSource(localStream);
+                micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
+                const zeroGain = adminAudioCtx.createGain();
+                zeroGain.gain.value = 0;
+
+                micProcessor.onaudioprocess = (e) => {
+                    if (!isBroadcasting || !audioEnabled) return;
+                    const input = e.inputBuffer.getChannelData(0);
+                    const downsampled = downsampleToInt16(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+                    for (let i = 0; i < downsampled.length; i++) {
+                        pendingPcmSamples.push(downsampled[i]);
+                    }
+                    if (pendingPcmSamples.length > 9600) {
+                        pendingPcmSamples = pendingPcmSamples.slice(-9600);
+                    }
+                };
+
+                micSource.connect(micProcessor);
+                micProcessor.connect(zeroGain);
+                zeroGain.connect(adminAudioCtx.destination);
+            }
+
             localStream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
             localStream.getAudioTracks().forEach(t => t.enabled = audioEnabled);
         }
 
-        async function startBroadcastIfNeeded() {
+        async function startOrUpdateBroadcast() {
             const { adminKey, quizId } = getAdminCredentials();
             if (!adminKey || !quizId) {
-                alert('Please enter your Admin Secret Key and Test ID in the top panel first.');
+                alert('Please enter your Admin Secret Key and Test ID first.');
                 return false;
             }
             try {
-                await ensureLocalStream();
+                await ensureMediaSetup();
                 pipBox.style.display = 'flex';
                 btnStop.style.display = 'inline-block';
 
                 if (!isBroadcasting) {
                     isBroadcasting = true;
+                    pendingPcmSamples = [];
                     await fetch('/api/live/rtc/admin/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ adminKey, quizId, active: true })
+                        body: JSON.stringify({ adminKey, quizId, active: true, videoEnabled, audioEnabled })
                     });
-                    startAdminRtcPolling();
+                    startPushLoop();
                 }
                 return true;
             } catch (err) {
-                alert('Camera/Microphone access failed: ' + err.message);
+                alert('Camera/Microphone error: ' + err.message);
                 return false;
             }
+        }
+
+        function startPushLoop() {
+            if (pushInterval) clearInterval(pushInterval);
+            pushInterval = setInterval(async () => {
+                if (!isBroadcasting || isPushing) return;
+                const { adminKey, quizId } = getAdminCredentials();
+                if (!adminKey || !quizId) return;
+
+                isPushing = true;
+                try {
+                    let frameDataUrl = null;
+                    if (videoEnabled && selfVideo.readyState >= 2) {
+                        captureCtx.drawImage(selfVideo, 0, 0, captureCanvas.width, captureCanvas.height);
+                        frameDataUrl = captureCanvas.toDataURL('image/jpeg', 0.55);
+                    }
+
+                    let audioChunkB64 = null;
+                    if (audioEnabled && pendingPcmSamples.length > 0) {
+                        const int16 = new Int16Array(pendingPcmSamples);
+                        pendingPcmSamples = [];
+                        audioChunkB64 = int16ToBase64(int16);
+                    } else {
+                        pendingPcmSamples = [];
+                    }
+
+                    const res = await fetch('/api/live/rtc/admin/push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            adminKey,
+                            quizId,
+                            videoEnabled,
+                            audioEnabled,
+                            frame: frameDataUrl,
+                            audioChunk: audioChunkB64,
+                            rate: TARGET_SAMPLE_RATE,
+                            afterStudentSeq: lastStudentSeq
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (data && data.success) {
+                        if (data.activeCallers && data.activeCallers.length > 0) {
+                            callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
+                            callerBadge.classList.add('calling');
+                        } else {
+                            callerBadge.textContent = '🎧 No active student calls';
+                            callerBadge.classList.remove('calling');
+                        }
+
+                        if (Array.isArray(data.studentAudioChunks) && data.studentAudioChunks.length > 0) {
+                            data.studentAudioChunks.forEach(item => {
+                                if (item.seq > lastStudentSeq) {
+                                    lastStudentSeq = item.seq;
+                                    playIncomingPcmBase64(item.pcm, item.rate);
+                                }
+                            });
+                        } else if (data.latestStudentSeq && lastStudentSeq === 0) {
+                            lastStudentSeq = data.latestStudentSeq;
+                        }
+                    }
+                } catch (e) {
+                } finally {
+                    isPushing = false;
+                }
+            }, 220);
         }
 
         function updateButtonsUI() {
@@ -254,14 +421,14 @@
 
         btnVideo.addEventListener('click', async () => {
             videoEnabled = !videoEnabled;
-            const ok = await startBroadcastIfNeeded();
+            const ok = await startOrUpdateBroadcast();
             if (!ok) videoEnabled = false;
             updateButtonsUI();
         });
 
         btnAudio.addEventListener('click', async () => {
             audioEnabled = !audioEnabled;
-            const ok = await startBroadcastIfNeeded();
+            const ok = await startOrUpdateBroadcast();
             if (!ok) audioEnabled = false;
             updateButtonsUI();
         });
@@ -271,123 +438,25 @@
             isBroadcasting = false;
             videoEnabled = false;
             audioEnabled = false;
+            pendingPcmSamples = [];
             updateButtonsUI();
             pipBox.style.display = 'none';
             btnStop.style.display = 'none';
             callerBadge.textContent = '🎧 No active student calls';
             callerBadge.classList.remove('calling');
 
-            if (rtcPollInterval) clearInterval(rtcPollInterval);
-            peerConnections.forEach(pc => pc.close());
-            peerConnections.clear();
-
+            if (pushInterval) clearInterval(pushInterval);
             if (localStream) {
                 localStream.getTracks().forEach(t => t.stop());
                 localStream = null;
             }
+
             await fetch('/api/live/rtc/admin/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, active: false })
+                body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false })
             }).catch(() => {});
         });
-
-        function waitForIce(pc, timeout = 2000) {
-            return new Promise(resolve => {
-                if (pc.iceGatheringState === 'complete') return resolve();
-                const timer = setTimeout(resolve, timeout);
-                pc.addEventListener('icegatheringstatechange', () => {
-                    if (pc.iceGatheringState === 'complete') {
-                        clearTimeout(timer);
-                        resolve();
-                    }
-                });
-            });
-        }
-
-        function startAdminRtcPolling() {
-            if (rtcPollInterval) clearInterval(rtcPollInterval);
-            rtcPollInterval = setInterval(async () => {
-                if (!isBroadcasting) return;
-                const { adminKey, quizId } = getAdminCredentials();
-                if (!adminKey || !quizId) return;
-
-                try {
-                    const res = await fetch('/api/live/rtc/admin/poll', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ adminKey, quizId })
-                    });
-                    const data = await res.json();
-                    if (!data.success) return;
-
-                    if (data.activeCallers && data.activeCallers.length > 0) {
-                        callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
-                        callerBadge.classList.add('calling');
-                        data.activeCallers.forEach(name => {
-                            const audioEl = document.getElementById(`student-audio-${name}`);
-                            if (audioEl) audioEl.play().catch(() => {});
-                        });
-                    } else {
-                        callerBadge.textContent = '🎧 No active student calls';
-                        callerBadge.classList.remove('calling');
-                    }
-
-                    for (const item of (data.pendingOffers || [])) {
-                        await handleStudentOffer(item.studentName, item.offer, adminKey, quizId);
-                    }
-                } catch (e) {}
-            }, 1500);
-        }
-
-        async function handleStudentOffer(studentName, offer, adminKey, quizId) {
-            if (peerConnections.has(studentName)) {
-                peerConnections.get(studentName).close();
-            }
-
-            const pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            });
-            peerConnections.set(studentName, pc);
-
-            pc.ontrack = (event) => {
-                if (event.track.kind === 'audio') {
-                    let audioEl = document.getElementById(`student-audio-${studentName}`);
-                    if (!audioEl) {
-                        audioEl = document.createElement('audio');
-                        audioEl.id = `student-audio-${studentName}`;
-                        audioEl.autoplay = true;
-                        audioEl.playsInline = true;
-                        audioDock.appendChild(audioEl);
-                    }
-                    audioEl.srcObject = new MediaStream([event.track]);
-                    event.track.onunmute = () => {
-                        audioEl.play().catch(() => {});
-                    };
-                }
-            };
-
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-            if (localStream) {
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            }
-
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await waitForIce(pc, 2000);
-
-            await fetch('/api/live/rtc/admin/answer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    adminKey,
-                    quizId,
-                    studentName,
-                    answer: pc.localDescription
-                })
-            });
-        }
     })();
     </script>
 </body>

@@ -2888,21 +2888,27 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
+// 9. LIVE HTTPS VIDEO & TWO-WAY AUDIO RELAY HUB (FIREWALL & NAT PROOF)
 // ============================================================================
-// 9. LIVE WEBRTC STREAMING & 1-CLICK CALL SIGNALING HUB
-// ============================================================================
-const liveRtcRooms = new Map();
+const liveMediaRooms = new Map();
 
-function getOrCreateRtcRoom(quizId) {
+function getOrCreateMediaRoom(quizId) {
     const cleanId = path.basename(String(quizId || '')).trim().replace('.json', '');
-    if (!liveRtcRooms.has(cleanId)) {
-        liveRtcRooms.set(cleanId, {
+    if (!liveMediaRooms.has(cleanId)) {
+        liveMediaRooms.set(cleanId, {
             broadcastActive: false,
-            sessionId: Date.now(),
-            students: new Map()
+            videoEnabled: false,
+            audioEnabled: false,
+            latestFrame: null,
+            adminAudioSeq: 0,
+            adminAudioBuffer: [],     // Rolling buffer of { seq, pcm, rate }
+            studentAudioSeq: 0,
+            studentAudioBuffer: [],   // Rolling buffer of { seq, studentName, pcm, rate }
+            activeCallers: new Map(), // studentName -> lastSeenTimestamp
+            updatedAt: Date.now()
         });
     }
-    return liveRtcRooms.get(cleanId);
+    return liveMediaRooms.get(cleanId);
 }
 
 function verifyLiveStudentHeader(req) {
@@ -2920,107 +2926,131 @@ function verifyLiveStudentHeader(req) {
     };
 }
 
-// 1. Admin starts or stops the live video/audio broadcast
+// 1. Admin starts or stops the broadcast
 app.post('/api/live/rtc/admin/toggle', (req, res) => {
-    const { adminKey, quizId, active } = req.body;
+    const { adminKey, quizId, active, videoEnabled, audioEnabled } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
     if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
 
-    const room = getOrCreateRtcRoom(quizId);
+    const room = getOrCreateMediaRoom(quizId);
     room.broadcastActive = Boolean(active);
-    room.sessionId = Date.now();
-    room.students.clear();
+    room.videoEnabled = Boolean(videoEnabled);
+    room.audioEnabled = Boolean(audioEnabled);
+    if (!room.broadcastActive) {
+        room.latestFrame = null;
+        room.adminAudioBuffer = [];
+        room.studentAudioBuffer = [];
+        room.activeCallers.clear();
+    }
+    room.updatedAt = Date.now();
 
-    res.json({ success: true, broadcastActive: room.broadcastActive, sessionId: room.sessionId });
+    res.json({ success: true, broadcastActive: room.broadcastActive });
 });
 
-// 2. Admin polls for incoming student WebRTC Offers & active callers
-app.post('/api/live/rtc/admin/poll', (req, res) => {
-    const { adminKey, quizId } = req.body;
+// 2. Admin pushes live video frame + audio chunk AND pulls incoming student call audio
+app.post('/api/live/rtc/admin/push', (req, res) => {
+    const { adminKey, quizId, videoEnabled, audioEnabled, frame, audioChunk, rate, afterStudentSeq } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
     if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
 
-    const room = getOrCreateRtcRoom(quizId);
-    const pendingOffers = [];
-    const activeCallers = [];
+    const room = getOrCreateMediaRoom(quizId);
+    room.broadcastActive = true;
+    room.videoEnabled = Boolean(videoEnabled);
+    room.audioEnabled = Boolean(audioEnabled);
+    room.updatedAt = Date.now();
 
-    room.students.forEach((data, studentName) => {
-        if (data.offer && !data.answer) {
-            pendingOffers.push({ studentName, offer: data.offer });
+    if (room.videoEnabled && typeof frame === 'string' && frame.startsWith('data:image/')) {
+        room.latestFrame = frame;
+    } else if (!room.videoEnabled) {
+        room.latestFrame = null;
+    }
+
+    if (room.audioEnabled && typeof audioChunk === 'string' && audioChunk.length > 0) {
+        room.adminAudioSeq += 1;
+        room.adminAudioBuffer.push({
+            seq: room.adminAudioSeq,
+            pcm: audioChunk,
+            rate: Number(rate) || 12000
+        });
+        if (room.adminAudioBuffer.length > 25) {
+            room.adminAudioBuffer.shift();
         }
-        if (data.callActive) {
-            activeCallers.push(studentName);
+    }
+
+    // Prune students whose call heartbeat expired (> 4 seconds)
+    const now = Date.now();
+    const activeCallers = [];
+    room.activeCallers.forEach((lastSeen, name) => {
+        if (now - lastSeen <= 4000) {
+            activeCallers.push(name);
+        } else {
+            room.activeCallers.delete(name);
         }
     });
+
+    const lastSeq = Number(afterStudentSeq) || 0;
+    const incomingStudentAudio = room.studentAudioBuffer.filter(item => item.seq > lastSeq);
 
     res.json({
         success: true,
-        broadcastActive: room.broadcastActive,
-        pendingOffers,
-        activeCallers
+        activeCallers,
+        latestStudentSeq: room.studentAudioSeq,
+        studentAudioChunks: incomingStudentAudio
     });
 });
 
-// 3. Admin sends back WebRTC Answer to a specific student
-app.post('/api/live/rtc/admin/answer', (req, res) => {
-    const { adminKey, quizId, studentName, answer } = req.body;
-    if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
-
-    const room = getOrCreateRtcRoom(quizId);
-    const studentEntry = room.students.get(studentName);
-    if (studentEntry) {
-        studentEntry.answer = answer;
-        studentEntry.updatedAt = Date.now();
-    }
-    res.json({ success: true });
-});
-
-// 4. Student polls for broadcast status & their WebRTC Answer
+// 3. Student pulls live video frame + admin audio chunks
 app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
 
-    const room = getOrCreateRtcRoom(req.params.quizId);
-    const studentEntry = room.students.get(verified.studentName);
+    const room = getOrCreateMediaRoom(req.params.quizId);
+    // Auto-pause if admin closed tab for > 10 seconds
+    if (room.broadcastActive && (Date.now() - room.updatedAt > 10000)) {
+        room.broadcastActive = false;
+    }
+
+    const afterSeq = Number(req.query.afterSeq) || 0;
+    const audioChunks = (afterSeq > 0 && room.audioEnabled)
+        ? room.adminAudioBuffer.filter(c => c.seq > afterSeq)
+        : [];
 
     res.json({
         broadcastActive: room.broadcastActive,
-        sessionId: room.sessionId,
-        hasOffer: Boolean(studentEntry && studentEntry.offer),
-        answer: studentEntry ? studentEntry.answer : null,
-        callActive: studentEntry ? Boolean(studentEntry.callActive) : false
+        videoEnabled: room.videoEnabled,
+        audioEnabled: room.audioEnabled,
+        frame: room.videoEnabled ? room.latestFrame : null,
+        latestSeq: room.adminAudioSeq,
+        audioChunks
     });
 });
 
-// 5. Student submits WebRTC Offer to join the stream
-app.post('/api/live/rtc/student/offer', (req, res) => {
-    const verified = verifyLiveStudentHeader(req);
-    if (!verified) return res.status(401).json({ error: 'Unauthorized' });
-
-    const { quizId, offer } = req.body;
-    const room = getOrCreateRtcRoom(quizId || verified.quizId);
-    room.students.set(verified.studentName, {
-        offer,
-        answer: null,
-        callActive: false,
-        updatedAt: Date.now()
-    });
-
-    res.json({ success: true });
-});
-
-// 6. Student toggles 1-click live voice call state
+// 4. Student 1-click call state & voice chunk upload
 app.post('/api/live/rtc/student/call', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { quizId, callActive } = req.body;
-    const room = getOrCreateRtcRoom(quizId || verified.quizId);
-    const studentEntry = room.students.get(verified.studentName);
-    if (studentEntry) {
-        studentEntry.callActive = Boolean(callActive);
-        studentEntry.updatedAt = Date.now();
+    const { quizId, callActive, audioChunk, rate } = req.body;
+    const room = getOrCreateMediaRoom(quizId || verified.quizId);
+
+    if (callActive) {
+        room.activeCallers.set(verified.studentName, Date.now());
+        if (typeof audioChunk === 'string' && audioChunk.length > 0) {
+            room.studentAudioSeq += 1;
+            room.studentAudioBuffer.push({
+                seq: room.studentAudioSeq,
+                studentName: verified.studentName,
+                pcm: audioChunk,
+                rate: Number(rate) || 12000
+            });
+            if (room.studentAudioBuffer.length > 25) {
+                room.studentAudioBuffer.shift();
+            }
+        }
+    } else {
+        room.activeCallers.delete(verified.studentName);
     }
+
     res.json({ success: true, callActive: Boolean(callActive) });
 });
 app.get(/.*/, (req, res) => {
