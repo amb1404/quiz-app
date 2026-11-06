@@ -420,6 +420,27 @@
                                 rate: TARGET_SAMPLE_RATE
                             })
                         }).catch(() => {});
+                    const callRes = await fetch('/api/live/rtc/student/call', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${liveToken}`
+                            },
+                            body: JSON.stringify({
+                                quizId: currentQuizId,
+                                callActive: true,
+                                audioChunk: chunkB64,
+                                rate: TARGET_SAMPLE_RATE
+                            })
+                        }).catch(() => {});
+
+                        // If server indicates the stream ended, cleanly stop student call immediately
+                        if (callRes && callRes.ok) {
+                            const callData = await callRes.json().catch(() => ({}));
+                            if (callData.streamEnded && isCallActive) {
+                                await stopStudentCall();
+                            }
+                        }
                     }, 220);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
