@@ -164,9 +164,9 @@
         let nextStudentPlayTime = 0;
 
         const captureCanvas = document.createElement('canvas');
-        captureCanvas.width = 220;
-        captureCanvas.height = 140;
-        const captureCtx = captureCanvas.getContext('2d');
+        captureCanvas.width = 200;
+        captureCanvas.height = 125;
+        const captureCtx = captureCanvas.getContext('2d', { alpha: false });
 
         const btnVideo = document.getElementById('btn-admin-video');
         const btnAudio = document.getElementById('btn-admin-audio');
@@ -357,7 +357,7 @@
                     let frameDataUrl = null;
                     if (videoEnabled && selfVideo.readyState >= 2) {
                         captureCtx.drawImage(selfVideo, 0, 0, captureCanvas.width, captureCanvas.height);
-                        frameDataUrl = captureCanvas.toDataURL('image/jpeg', 0.55);
+                        frameDataUrl = captureCanvas.toDataURL('image/jpeg', 0.42);
                     }
 
                     let audioChunkB64 = null;
@@ -409,7 +409,7 @@
                 } finally {
                     isPushing = false;
                 }
-            }, 220);
+            }, 160);
         }
 
         function updateButtonsUI() {

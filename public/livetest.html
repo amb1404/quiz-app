@@ -73,6 +73,9 @@
             height: 100%;
             object-fit: cover;
             display: none;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            will-change: contents;
         }
         #student-video-placeholder {
             color: #94a3b8;
@@ -474,11 +477,15 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                // Render live video frame or audio-only placeholder
+                // Smooth double-buffer swap to prevent flicker and choppiness
                 if (status.videoEnabled && status.frame) {
-                    remoteVideoImg.src = status.frame;
-                    remoteVideoImg.style.display = 'block';
-                    videoPlaceholder.style.display = 'none';
+                    const nextFrame = new Image();
+                    nextFrame.onload = () => {
+                        remoteVideoImg.src = nextFrame.src;
+                        remoteVideoImg.style.display = 'block';
+                        videoPlaceholder.style.display = 'none';
+                    };
+                    nextFrame.src = status.frame;
                 } else {
                     remoteVideoImg.style.display = 'none';
                     videoPlaceholder.style.display = 'block';
@@ -502,7 +509,7 @@
             } finally {
                 isPulling = false;
             }
-        }, 240);
+        }, 160);
     })();
     </script>
 </body>
