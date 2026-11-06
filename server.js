@@ -2888,7 +2888,7 @@ app.post('/api/live/student/submit', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
 // ============================================================================
-// 9. HYBRID ENGINE: 30FPS WEBRTC VIDEO + 16kHz HD HTTP AUDIO RELAY
+// 9. HYBRID ENGINE: 30FPS DUAL-TRACK WEBRTC (CAM + PPT) & 16kHz HD AUDIO RELAY
 // ============================================================================
 const liveMediaRooms = new Map();
 
@@ -2899,6 +2899,7 @@ function getOrCreateMediaRoom(quizId) {
             broadcastActive: false,
             videoEnabled: false,
             audioEnabled: false,
+            broadcastMode: 'question', // 'question' or 'presentation'
             adminAudioSeq: 0,
             adminAudioBuffer: [],
             lastAdminVoiceAt: 0,
@@ -2929,7 +2930,7 @@ function verifyLiveStudentHeader(req) {
 
 // 1. Admin starts or stops the broadcast
 app.post('/api/live/rtc/admin/toggle', (req, res) => {
-    const { adminKey, quizId, active, videoEnabled, audioEnabled } = req.body;
+    const { adminKey, quizId, active, videoEnabled, audioEnabled, broadcastMode } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
     if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
 
@@ -2937,7 +2938,11 @@ app.post('/api/live/rtc/admin/toggle', (req, res) => {
     room.broadcastActive = Boolean(active);
     room.videoEnabled = Boolean(videoEnabled);
     room.audioEnabled = Boolean(audioEnabled);
+    if (broadcastMode === 'presentation' || broadcastMode === 'question') {
+        room.broadcastMode = broadcastMode;
+    }
     if (!room.broadcastActive) {
+        room.broadcastMode = 'question';
         room.adminAudioBuffer = [];
         room.studentAudioBuffer = [];
         room.activeCallers.clear();
@@ -2945,12 +2950,25 @@ app.post('/api/live/rtc/admin/toggle', (req, res) => {
     }
     room.updatedAt = Date.now();
 
-    res.json({ success: true, broadcastActive: room.broadcastActive });
+    res.json({ success: true, broadcastActive: room.broadcastActive, broadcastMode: room.broadcastMode });
+});
+
+// 1B. Admin swaps between Question Card and Presentation mid-session
+app.post('/api/live/rtc/admin/mode', (req, res) => {
+    const { adminKey, quizId, broadcastMode } = req.body;
+    if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+
+    const room = getOrCreateMediaRoom(quizId);
+    room.broadcastMode = (broadcastMode === 'presentation') ? 'presentation' : 'question';
+    room.updatedAt = Date.now();
+
+    res.json({ success: true, broadcastMode: room.broadcastMode });
 });
 
 // 2. Admin pushes 16kHz audio AND polls for WebRTC Video Offers
 app.post('/api/live/rtc/admin/push', (req, res) => {
-    const { adminKey, quizId, videoEnabled, audioEnabled, audioChunk, rate, afterStudentSeq } = req.body;
+    const { adminKey, quizId, videoEnabled, audioEnabled, broadcastMode, audioChunk, rate, afterStudentSeq } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
     if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
 
@@ -2958,6 +2976,9 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     room.broadcastActive = true;
     room.videoEnabled = Boolean(videoEnabled);
     room.audioEnabled = Boolean(audioEnabled);
+    if (broadcastMode === 'presentation' || broadcastMode === 'question') {
+        room.broadcastMode = broadcastMode;
+    }
     room.updatedAt = Date.now();
 
     if (room.audioEnabled && typeof audioChunk === 'string' && audioChunk.length > 0) {
@@ -2991,6 +3012,7 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     res.json({
         success: true,
         activeCallers,
+        broadcastMode: room.broadcastMode,
         latestStudentSeq: room.studentAudioSeq,
         studentAudioChunks: incomingStudentAudio,
         pendingOffers
@@ -3010,7 +3032,7 @@ app.post('/api/live/rtc/admin/webrtc-answer', (req, res) => {
     res.json({ success: true });
 });
 
-// 4. Student pulls admin audio chunks & WebRTC Video Answer
+// 4. Student pulls admin audio chunks, Broadcast Mode & WebRTC Video Answer
 app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3031,6 +3053,7 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
         broadcastActive: room.broadcastActive,
         videoEnabled: room.videoEnabled,
         audioEnabled: room.audioEnabled,
+        broadcastMode: room.broadcastMode || 'question',
         webrtcAnswer: student ? student.answer : null,
         latestSeq: room.adminAudioSeq,
         audioChunks

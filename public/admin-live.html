@@ -114,7 +114,14 @@
         <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
         <span id="admin-caller-badge">🎧 No active student calls</span>
     </div>
-
+<!-- Broadcast Mode Selection Console (Question Card vs MS PowerPoint) -->
+    <div id="admin-broadcast-mode-console" style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+        <strong style="font-size: 14px; color: #c4b5fd;">📺 Student Main Screen:</strong>
+        <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Broadcast: Question Card</button>
+        <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Broadcast: Presentation (PPT)</button>
+        <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
+        <span id="admin-mode-badge" style="margin-left: auto; font-size: 13px; font-weight: bold; padding: 6px 14px; border-radius: 20px; background: #0f172a; color: #60a5fa; border: 1px solid #334155;">📌 Showing: Question Card</span>
+    </div>
     <!-- Panel 2: Control Panel with End Test Button -->
     <div class="panel" id="control-panel" style="display: none;">
         <h3 id="dash-title"></h3>
@@ -146,7 +153,7 @@
     </div>
 
     <script src="/js/admin-live.js"></script>
-   <script>
+<script>
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
         let localStream = null;
@@ -154,6 +161,9 @@
         let videoEnabled = false;
         let audioEnabled = false;
         let isBroadcasting = false;
+        let broadcastMode = 'question'; // 'question' or 'presentation'
+        let screenStream = null;
+        let idlePptStream = null;
         let pushInterval = null;
         let isPushing = false;
 
@@ -177,6 +187,11 @@
         const selfVideo = document.getElementById('admin-self-video');
         const callerBadge = document.getElementById('admin-caller-badge');
 
+        const btnModeQuestion = document.getElementById('btn-mode-question');
+        const btnModePpt = document.getElementById('btn-mode-ppt');
+        const btnReselectPpt = document.getElementById('btn-reselect-ppt');
+        const modeBadge = document.getElementById('admin-mode-badge');
+
         function getAdminCredentials() {
             const keyEl = document.getElementById('admin-key');
             const quizEl = document.getElementById('quiz-id');
@@ -185,6 +200,136 @@
                 quizId: quizEl ? quizEl.value.trim() : ''
             };
         }
+
+        // Creates a silent, low-CPU standby video track so WebRTC Channel 2 is always pre-negotiated
+        // and ready to hot-swap PowerPoint slides in 0ms mid-session
+        function getIdlePptTrack() {
+            if (!idlePptStream) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 360;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                idlePptStream = canvas.captureStream(1);
+            }
+            return idlePptStream.getVideoTracks()[0];
+        }
+
+        function getActivePptTrack() {
+            if (screenStream) {
+                const track = screenStream.getVideoTracks()[0];
+                if (track && track.readyState === 'live') {
+                    return track;
+                }
+            }
+            return getIdlePptTrack();
+        }
+
+        function hotSwapPresentationTrack(newTrack) {
+            peerConnections.forEach((pc) => {
+                if (pc._pptSender) {
+                    pc._pptSender.replaceTrack(newTrack).catch(() => {});
+                }
+            });
+        }
+
+        function updateModeConsoleUI() {
+            if (broadcastMode === 'presentation') {
+                btnModePpt.style.background = '#7c3aed';
+                btnModePpt.style.borderColor = '#c4b5fd';
+                btnModeQuestion.style.background = '#475569';
+                btnModeQuestion.style.borderColor = 'transparent';
+                modeBadge.textContent = '📌 Showing: Live Presentation (PPT)';
+                modeBadge.style.color = '#c4b5fd';
+            } else {
+                btnModeQuestion.style.background = '#2563eb';
+                btnModeQuestion.style.borderColor = '#60a5fa';
+                btnModePpt.style.background = '#475569';
+                btnModePpt.style.borderColor = 'transparent';
+                modeBadge.textContent = '📌 Showing: Question Card';
+                modeBadge.style.color = '#60a5fa';
+            }
+            const hasLivePpt = screenStream && screenStream.getVideoTracks()[0] && screenStream.getVideoTracks()[0].readyState === 'live';
+            btnReselectPpt.style.display = hasLivePpt ? 'inline-block' : 'none';
+        }
+
+        async function syncModeToServer() {
+            const { adminKey, quizId } = getAdminCredentials();
+            if (!adminKey || !quizId) return;
+            await fetch('/api/live/rtc/admin/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, quizId, broadcastMode })
+            }).catch(() => {});
+        }
+
+        async function acquireScreenShareStream(forceNewPicker) {
+            const hasLivePpt = screenStream && screenStream.getVideoTracks()[0] && screenStream.getVideoTracks()[0].readyState === 'live';
+            if (hasLivePpt && !forceNewPicker) {
+                return true;
+            }
+            if (screenStream) {
+                screenStream.getTracks().forEach(t => t.stop());
+                screenStream = null;
+            }
+            try {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+                    audio: false
+                });
+                const screenTrack = screenStream.getVideoTracks()[0];
+                hotSwapPresentationTrack(screenTrack);
+
+                // If Admin clicks the browser's native "Stop sharing" bar, revert cleanly to Question Card
+                screenTrack.onended = () => {
+                    screenStream = null;
+                    hotSwapPresentationTrack(getIdlePptTrack());
+                    broadcastMode = 'question';
+                    updateModeConsoleUI();
+                    syncModeToServer();
+                };
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        btnModeQuestion.addEventListener('click', async () => {
+            broadcastMode = 'question';
+            updateModeConsoleUI();
+            await syncModeToServer();
+        });
+
+        btnModePpt.addEventListener('click', async () => {
+            const { adminKey, quizId } = getAdminCredentials();
+            if (!adminKey || !quizId) {
+                alert('Please enter your Admin Secret Key and Test ID first.');
+                return;
+            }
+            // Grab PPT window if not already captured in memory
+            const hasScreen = await acquireScreenShareStream(false);
+            if (!hasScreen) return;
+
+            broadcastMode = 'presentation';
+            updateModeConsoleUI();
+
+            // If stream wasn't started yet, start broadcast tunnel automatically
+            if (!isBroadcasting) {
+                await startOrUpdateBroadcast();
+            } else {
+                await syncModeToServer();
+            }
+        });
+
+        btnReselectPpt.addEventListener('click', async () => {
+            const switched = await acquireScreenShareStream(true);
+            if (switched) {
+                broadcastMode = 'presentation';
+                updateModeConsoleUI();
+                await syncModeToServer();
+            }
+        });
 
         (function makeDraggable(boxEl, handleEl) {
             let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
@@ -390,7 +535,6 @@
             }
         }
 
-        // WebRTC Dynamic P2P Video Setup
         function waitForIce(pc, timeout = 2500) {
             return new Promise(resolve => {
                 if (pc.iceGatheringState === 'complete') return resolve();
@@ -404,6 +548,7 @@
             });
         }
 
+        // Dual-Track WebRTC Setup: Transceiver 0 = Webcam PIP, Transceiver 1 = Presentation Main Screen
         async function handleStudentOffer(studentName, offer, adminKey, quizId) {
             if (peerConnections.has(studentName)) {
                 peerConnections.get(studentName).close();
@@ -414,12 +559,15 @@
             });
             peerConnections.set(studentName, pc);
 
-            if (localStream) {
-                const videoTrack = localStream.getVideoTracks()[0];
-                if (videoTrack) pc.addTrack(videoTrack, localStream);
-            }
-
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+            const camTrack = (localStream && localStream.getVideoTracks()[0]) ? localStream.getVideoTracks()[0] : getIdlePptTrack();
+            const pptTrack = getActivePptTrack();
+
+            // 1st video track binds to Student PIP Webcam; 2nd video track binds to Student Main PPT Screen
+            pc._camSender = pc.addTrack(camTrack, localStream || idlePptStream);
+            pc._pptSender = pc.addTrack(pptTrack, screenStream || idlePptStream);
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             await waitForIce(pc, 2500);
@@ -439,7 +587,7 @@
             }
             try {
                 await ensureMediaSetup();
-                pipBox.style.display = 'flex';
+                pipBox.style.display = videoEnabled ? 'flex' : 'none';
                 btnStop.style.display = 'inline-block';
 
                 if (!isBroadcasting) {
@@ -449,7 +597,7 @@
                     await fetch('/api/live/rtc/admin/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ adminKey, quizId, active: true, videoEnabled, audioEnabled })
+                        body: JSON.stringify({ adminKey, quizId, active: true, videoEnabled, audioEnabled, broadcastMode })
                     });
                     startPushLoop();
                 }
@@ -462,7 +610,6 @@
 
         function startPushLoop() {
             if (pushInterval) clearInterval(pushInterval);
-            // PRE-WARM: Instantly check for student offers as soon as stream starts
             fetch('/api/live/rtc/admin/push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -471,10 +618,12 @@
                     quizId: getAdminCredentials().quizId,
                     videoEnabled,
                     audioEnabled,
+                    broadcastMode,
                     rate: TARGET_SAMPLE_RATE,
                     afterStudentSeq: lastStudentSeq
                 })
             }).catch(() => {});
+
             pushInterval = setInterval(async () => {
                 if (!isBroadcasting || isPushing) return;
                 const { adminKey, quizId } = getAdminCredentials();
@@ -504,6 +653,7 @@
                             quizId,
                             videoEnabled,
                             audioEnabled,
+                            broadcastMode,
                             audioChunk: audioChunkB64,
                             rate: TARGET_SAMPLE_RATE,
                             afterStudentSeq: lastStudentSeq
@@ -562,7 +712,7 @@
         }
 
         async function handleStreamToggle() {
-            if (!videoEnabled && !audioEnabled) {
+            if (!videoEnabled && !audioEnabled && broadcastMode !== 'presentation') {
                 if (btnStop) btnStop.click();
                 resetCallerBadge();
                 return;
@@ -591,10 +741,16 @@
             isBroadcasting = false;
             videoEnabled = false;
             audioEnabled = false;
+            broadcastMode = 'question';
             pendingPcmSamples = [];
             preRollBuffers = [];
             try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
+            if (screenStream) {
+                screenStream.getTracks().forEach(t => t.stop());
+                screenStream = null;
+            }
             updateButtonsUI();
+            updateModeConsoleUI();
             pipBox.style.display = 'none';
             btnStop.style.display = 'none';
             resetCallerBadge();
@@ -615,7 +771,7 @@
             await fetch('/api/live/rtc/admin/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false })
+                body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false, broadcastMode: 'question' })
             }).catch(() => {});
         });
     })();
