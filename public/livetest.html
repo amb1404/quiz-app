@@ -719,6 +719,10 @@
                 try { studentMicSource.disconnect(); } catch (e) {}
                 studentMicSource = null;
             }
+            if (studentSilentSink) {
+                try { studentSilentSink.disconnect(); } catch (e) {}
+                studentSilentSink = null;
+            }
             if (studentMicStream) {
                 studentMicStream.getTracks().forEach(t => t.stop());
                 studentMicStream = null;
@@ -813,74 +817,45 @@
                     compressor.release.value = 0.15;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
-                    studentSilentSink = studentAudioCtx.createMediaStreamDestination();
+                    // Zero-gain node connected to hardware destination forces browser to pull mic samples continuously
+                    studentSilentSink = studentAudioCtx.createGain();
+                    studentSilentSink.gain.value = 0;
 
                     pendingCallSamples = [];
                     studentPreRollBuffers = [];
-                    let wasStudentSpeaking = false;
-                    const callWarmupUntil = Date.now() + 900;
+                    studentActivelySpeakingUntil = Date.now() + 1200;
 
                     studentMicProcessor.onaudioprocess = (e) => {
                         if (!isCallActive) return;
                         const nowMs = Date.now();
-
-                        // Strict Acoustic Echo Gate while Admin's voice is playing on student's speaker
-                        if (nowMs < lastAdminAudioPlayedMs) {
-                            studentPreRollBuffers = [];
-                            wasStudentSpeaking = false;
-                            studentGateGain = 0.0;
-                            return;
-                        }
-
-                        try {
-                            const adminSpkUntil = Number(localStorage.getItem('pp_admin_speaker_active_until') || 0);
-                            if (nowMs < adminSpkUntil) {
-                                studentPreRollBuffers = [];
-                                wasStudentSpeaking = false;
-                                studentGateGain = 0.0;
-                                return;
-                            }
-                        } catch (err) {}
-
                         const input = e.inputBuffer.getChannelData(0);
+
                         let sumSq = 0;
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
 
                         if (rms < studentNoiseFloorRms * 1.5) {
-                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.max(0.001, rms));
+                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.max(0.0008, rms));
                         }
-                        const openThreshold = Math.max(0.005, studentNoiseFloorRms * 2.5);
-                        if (rms > openThreshold || nowMs < callWarmupUntil) {
-                            studentActivelySpeakingUntil = nowMs + 850;
+                        const openThreshold = Math.max(0.0018, studentNoiseFloorRms * 1.8);
+                        if (rms > openThreshold) {
+                            studentActivelySpeakingUntil = nowMs + 1000;
                         }
 
                         const isGateOpen = (nowMs < studentActivelySpeakingUntil);
-                        const targetGain = isGateOpen ? 1.0 : 0.0;
+                        const targetGain = isGateOpen ? 1.0 : 0.15;
                         const gatedFloat = new Float32Array(input.length);
                         for (let i = 0; i < input.length; i++) {
-                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.08 : 0.004);
+                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.12 : 0.01);
                             gatedFloat[i] = input[i] * studentGateGain;
                         }
 
                         const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
-
-                        if (isGateOpen) {
-                            if (!wasStudentSpeaking && studentPreRollBuffers.length > 0) {
-                                for (let b = 0; b < studentPreRollBuffers.length; b++) {
-                                    const pre = studentPreRollBuffers[b];
-                                    for (let j = 0; j < pre.length; j++) pendingCallSamples.push(pre[j]);
-                                }
-                                studentPreRollBuffers = [];
-                            }
-                            wasStudentSpeaking = true;
-
-                            for (let i = 0; i < down.length; i++) pendingCallSamples.push(down[i]);
-                            if (pendingCallSamples.length > 24000) pendingCallSamples = pendingCallSamples.slice(-24000);
-                        } else {
-                            wasStudentSpeaking = false;
-                            studentPreRollBuffers.push(down);
-                            if (studentPreRollBuffers.length > 4) studentPreRollBuffers.shift();
+                        for (let i = 0; i < down.length; i++) {
+                            pendingCallSamples.push(down[i]);
+                        }
+                        if (pendingCallSamples.length > 24000) {
+                            pendingCallSamples = pendingCallSamples.slice(-24000);
                         }
                     };
 
@@ -891,6 +866,7 @@
                     presenceFilter.connect(compressor);
                     compressor.connect(studentMicProcessor);
                     studentMicProcessor.connect(studentSilentSink);
+                    studentSilentSink.connect(studentAudioCtx.destination);
 
                     isCallActive = true;
                     isCallPushing = false;
@@ -902,9 +878,8 @@
                         isCallPushing = true;
 
                         try {
-                            try { localStorage.setItem('pp_student_call_same_pc', String(Date.now())); } catch (e) {}
                             let chunkB64 = null;
-                            if (pendingCallSamples.length >= 1600) {
+                            if (pendingCallSamples.length > 0) {
                                 const int16 = new Int16Array(pendingCallSamples);
                                 pendingCallSamples = [];
                                 chunkB64 = int16ToBase64(int16);

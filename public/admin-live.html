@@ -569,7 +569,14 @@
             }
             return btoa(binary);
         }
-
+document.addEventListener('pointerdown', () => {
+            if (!adminAudioCtx) {
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (adminAudioCtx.state === 'suspended') {
+                adminAudioCtx.resume().catch(() => {});
+            }
+        });
         // Jitter-Free Crossfaded Student Voice Playback
         function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             try {
@@ -580,7 +587,9 @@
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (adminAudioCtx.state === 'suspended') adminAudioCtx.resume().catch(() => {});
+            if (adminAudioCtx.state === 'suspended') {
+                adminAudioCtx.resume().catch(() => {});
+            }
 
             const raw = atob(b64Str);
             const bytes = new Uint8Array(raw.length);
@@ -765,7 +774,7 @@
 
                     micProcessor.onaudioprocess = (e) => {
                         const output = e.outputBuffer.getChannelData(0);
-                        if (!isBroadcasting || !audioEnabled || Date.now() < lastStudentAudioPlayedMs) {
+                        if (!isBroadcasting || !audioEnabled) {
                             for (let i = 0; i < output.length; i++) output[i] = 0;
                             preRollBuffers = [];
                             wasSpeaking = false;
@@ -1068,11 +1077,6 @@
         }
 
         async function handleStreamToggle() {
-            if (!videoEnabled && !audioEnabled && broadcastMode !== 'presentation' && broadcastMode !== 'both') {
-                if (btnStop) btnStop.click();
-                resetCallerBadge();
-                return;
-            }
             await startOrUpdateBroadcast();
             updateButtonsUI();
         }
