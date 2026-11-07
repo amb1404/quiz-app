@@ -460,19 +460,26 @@
             }
         }
 
-        let lastAdminSampleVal = 0;
+       let lastAdminSampleVal = 0;
 
         function playAdminPcmBase64(b64Str, sampleRate) {
-            lastAdminAudioPlayedMs = Date.now() + 500;
+            lastAdminAudioPlayedMs = Date.now() + 450;
 
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
 
-            // Step 4 Fix: Mute duplicate WebRTC audio element so all voice plays through one unified, sample-stitched clock
-            if (rtcOpusAudioEl && !rtcOpusAudioEl.muted) {
-                rtcOpusAudioEl.muted = true;
+            // CRITICAL ANTI-ECHO FIX: When 48kHz WebRTC Opus is active, NEVER play the delayed 16kHz PCM copy!
+            if (
+                isRtcOpusFlowing &&
+                rtcOpusAudioEl &&
+                !rtcOpusAudioEl.paused &&
+                studentPc &&
+                (studentPc.connectionState === 'connected' || studentPc.iceConnectionState === 'connected')
+            ) {
+                stopAllPcmNodes();
+                return;
             }
 
             if (!studentAudioCtx) {
@@ -499,10 +506,9 @@
 
             const now = studentAudioCtx.currentTime;
             const isUnderrun = (nextAdminPlayTime < now);
-            const isNewTalkSpurt = isUnderrun && (Date.now() - lastAdminChunkEndMs > 450);
+            const isNewTalkSpurt = isUnderrun && (Date.now() - lastAdminChunkEndMs > 500);
             const prevSample = isNewTalkSpurt ? 0 : lastAdminSampleVal;
 
-            // Step 4 Fix: Stitch consecutive chunks across a 16-sample (1ms) bridge with zero end-of-chunk fade-out notch
             const stitchLen = Math.min(16, int16.length);
             for (let i = 0; i < int16.length; i++) {
                 let val = int16[i] / 32768.0;
@@ -515,12 +521,12 @@
             lastAdminSampleVal = channel[int16.length - 1];
 
             if (isNewTalkSpurt) {
-                nextAdminPlayTime = now + 0.18; // 180ms initial talkspurt cushion
+                nextAdminPlayTime = now + 0.24; // 240ms cushion prevents mid-sentence starvation
             } else if (isUnderrun) {
-                nextAdminPlayTime = now + 0.09; // 90ms elastic recovery prevents mid-sentence breaks
-            } else if (nextAdminPlayTime - now > 2.2) {
+                nextAdminPlayTime = now + 0.005; // 5ms instant stitch (eliminates 90ms silence breaks)
+            } else if (nextAdminPlayTime - now > 2.4) {
                 stopAllPcmNodes();
-                nextAdminPlayTime = now + 0.15;
+                nextAdminPlayTime = now + 0.18;
             }
 
             const src = studentAudioCtx.createBufferSource();
@@ -716,6 +722,8 @@
                 try { studentSilentSink.disconnect(); } catch (e) {}
                 studentSilentSink = null;
             }
+            if (rtcOpusAudioEl) rtcOpusAudioEl.volume = 1.0;
+            if (aecAudioElement) aecAudioElement.volume = 1.0;
             if (studentMicStream) {
                 studentMicStream.getTracks().forEach(t => t.stop());
                 studentMicStream = null;
@@ -765,7 +773,7 @@
 
             if (!isCallActive) {
                 try {
-                    studentMicStream = await navigator.mediaDevices.getUserMedia({
+                   studentMicStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
@@ -782,7 +790,7 @@
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
 
-                    // 5-Stage Student Active Noise Cancellation Filter Chain
+                    // 5-Stage Near-Field Voice Filter Chain (Rejects Distant Room Noise Without Distortion)
                     const humNotch = studentAudioCtx.createBiquadFilter();
                     humNotch.type = 'notch';
                     humNotch.frequency.value = 50;
@@ -790,35 +798,37 @@
 
                     const hpFilter = studentAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 160;
+                    hpFilter.frequency.value = 180;
                     hpFilter.Q.value = 0.707;
 
                     const lpFilter = studentAudioCtx.createBiquadFilter();
                     lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 5600;
+                    lpFilter.frequency.value = 6000;
                     lpFilter.Q.value = 0.707;
 
                     const presenceFilter = studentAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 2400;
+                    presenceFilter.frequency.value = 2500;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 1.5;
+                    presenceFilter.gain.value = 2.0;
 
                     const compressor = studentAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -20;
+                    compressor.threshold.value = -22;
                     compressor.knee.value = 12;
-                    compressor.ratio.value = 4;
+                    compressor.ratio.value = 3.5;
                     compressor.attack.value = 0.003;
-                    compressor.release.value = 0.12;
+                    compressor.release.value = 0.15;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
-                    studentSilentSink = studentAudioCtx.createMediaStreamDestination();
+                    // Zero-gain node connected to hardware destination guarantees unthrottled audio callbacks
+                    studentSilentSink = studentAudioCtx.createGain();
+                    studentSilentSink.gain.value = 0;
 
                     pendingCallSamples = [];
                     studentPreRollBuffers = [];
                     let wasStudentSpeaking = false;
-                    let studentLpSample = 0;
-                    const callWarmupUntil = Date.now() + 600;
+                    studentNoiseFloorRms = 0.0025;
+                    studentActivelySpeakingUntil = Date.now() + 700;
 
                     studentMicProcessor.onaudioprocess = (e) => {
                         if (!isCallActive) return;
@@ -829,32 +839,31 @@
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
 
-                        if (rms < studentNoiseFloorRms * 1.6 || !wasStudentSpeaking) {
-                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.min(0.012, Math.max(0.001, rms)));
+                        if (!wasStudentSpeaking || rms < studentNoiseFloorRms * 1.5) {
+                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.min(0.01, Math.max(0.0008, rms)));
                         }
 
-                        // Full-duplex double-talk detection
-                        const isAdminPlayingNow = (nowMs < lastAdminAudioPlayedMs);
-                        const baseOpenThresh = Math.max(0.008, studentNoiseFloorRms * 2.8);
-                        const effectiveThreshold = isAdminPlayingNow ? Math.max(0.014, baseOpenThresh * 1.45) : baseOpenThresh;
+                        // Close-talk proximity threshold (ignores far-field noise; 900ms hold keeps sentences unbroken)
+                        const openThreshold = Math.max(0.0065, studentNoiseFloorRms * 2.6);
+                        const continueThreshold = Math.max(0.0035, studentNoiseFloorRms * 1.5);
 
-                        if (rms > effectiveThreshold || nowMs < callWarmupUntil) {
-                            studentActivelySpeakingUntil = nowMs + 450;
+                        if (rms > openThreshold || (wasStudentSpeaking && rms > continueThreshold)) {
+                            studentActivelySpeakingUntil = nowMs + 900;
                         }
 
                         const isGateOpen = (nowMs < studentActivelySpeakingUntil);
-                        const expanderRatio = isGateOpen ? Math.min(1.0, Math.max(0.4, rms / effectiveThreshold)) : 0.0;
-                        const targetGain = isGateOpen ? (1.3 * expanderRatio) : 0.0;
-                        const noiseSubFloor = studentNoiseFloorRms * 1.75;
+
+                        // Duck speaker output to 20% while student speaks so Admin voice cannot echo back into student mic
+                        const duckVol = isGateOpen ? 0.20 : 1.0;
+                        if (rtcOpusAudioEl && rtcOpusAudioEl.volume !== duckVol) rtcOpusAudioEl.volume = duckVol;
+                        if (aecAudioElement && aecAudioElement.volume !== duckVol) aecAudioElement.volume = duckVol;
+
+                        const targetGain = isGateOpen ? 1.35 : 0.0;
                         const gatedFloat = new Float32Array(input.length);
 
                         for (let i = 0; i < input.length; i++) {
-                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.06 : 0.007);
-                            const raw = input[i];
-                            const subtractedMag = Math.max(0.0, Math.abs(raw) - noiseSubFloor);
-                            const denoised = (raw < 0 ? -subtractedMag : subtractedMag) * studentGateGain;
-                            studentLpSample = (0.25 * studentLpSample) + (0.75 * denoised);
-                            gatedFloat[i] = Math.tanh(studentLpSample);
+                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.08 : 0.005);
+                            gatedFloat[i] = Math.tanh(input[i] * studentGateGain);
                         }
 
                         const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
@@ -874,17 +883,18 @@
                         } else {
                             wasStudentSpeaking = false;
                             studentPreRollBuffers.push(down);
-                            if (studentPreRollBuffers.length > 3) studentPreRollBuffers.shift();
+                            if (studentPreRollBuffers.length > 4) studentPreRollBuffers.shift();
                         }
                     };
 
                     studentMicSource.connect(humNotch);
                     humNotch.connect(hpFilter);
                     hpFilter.connect(lpFilter);
-                    lpFilter.connect(presenceFilter);
+                    hpFilter.connect(presenceFilter);
                     presenceFilter.connect(compressor);
                     compressor.connect(studentMicProcessor);
                     studentMicProcessor.connect(studentSilentSink);
+                    studentSilentSink.connect(studentAudioCtx.destination);
 
                     isCallActive = true;
                     isCallPushing = false;
@@ -897,8 +907,8 @@
 
                         try {
                             let chunkB64 = null;
-                            // Step 4 Fix: Flush all available student voice samples on every 120ms tick without waiting for 1600 samples
-                            if (pendingCallSamples.length > 0) {
+                            const isStillSpeaking = (Date.now() < studentActivelySpeakingUntil);
+                            if (pendingCallSamples.length >= 1600 || (!isStillSpeaking && pendingCallSamples.length > 0)) {
                                 const int16 = new Int16Array(pendingCallSamples);
                                 pendingCallSamples = [];
                                 chunkB64 = int16ToBase64(int16);
