@@ -840,50 +840,43 @@
                         const rms = Math.sqrt(sumSq / input.length);
 
                         if (!wasStudentSpeaking || rms < studentNoiseFloorRms * 1.5) {
-                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.min(0.01, Math.max(0.0008, rms)));
+                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.min(0.008, Math.max(0.0008, rms)));
                         }
 
-                        // Close-talk proximity threshold (ignores far-field noise; 900ms hold keeps sentences unbroken)
-                        const openThreshold = Math.max(0.0065, studentNoiseFloorRms * 2.6);
-                        const continueThreshold = Math.max(0.0035, studentNoiseFloorRms * 1.5);
+                        // Close-talk detection with 1100ms hold so syllables never clip
+                        const openThreshold = Math.max(0.0045, studentNoiseFloorRms * 2.2);
+                        const continueThreshold = Math.max(0.0025, studentNoiseFloorRms * 1.4);
 
                         if (rms > openThreshold || (wasStudentSpeaking && rms > continueThreshold)) {
-                            studentActivelySpeakingUntil = nowMs + 900;
+                            studentActivelySpeakingUntil = nowMs + 1100;
                         }
 
                         const isGateOpen = (nowMs < studentActivelySpeakingUntil);
+                        wasStudentSpeaking = isGateOpen;
 
-                        // Duck speaker output to 20% while student speaks so Admin voice cannot echo back into student mic
+                        // Duck Admin speaker to 20% while student speaks to prevent echo
                         const duckVol = isGateOpen ? 0.20 : 1.0;
                         if (rtcOpusAudioEl && rtcOpusAudioEl.volume !== duckVol) rtcOpusAudioEl.volume = duckVol;
                         if (aecAudioElement && aecAudioElement.volume !== duckVol) aecAudioElement.volume = duckVol;
 
-                        const targetGain = isGateOpen ? 1.35 : 0.0;
+                        // Smooth downward expander: boosts voice (1.45x) and attenuates background noise (0.03x)
+                        // WITHOUT stopping the sample stream, so Admin playback never starves mid-sentence!
+                        const targetGain = isGateOpen ? 1.45 : 0.03;
                         const gatedFloat = new Float32Array(input.length);
 
                         for (let i = 0; i < input.length; i++) {
-                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.08 : 0.005);
+                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.10 : 0.006);
                             gatedFloat[i] = Math.tanh(input[i] * studentGateGain);
                         }
 
                         const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
 
-                        if (isGateOpen) {
-                            if (!wasStudentSpeaking && studentPreRollBuffers.length > 0) {
-                                for (let b = 0; b < studentPreRollBuffers.length; b++) {
-                                    const pre = studentPreRollBuffers[b];
-                                    for (let j = 0; j < pre.length; j++) pendingCallSamples.push(pre[j]);
-                                }
-                                studentPreRollBuffers = [];
-                            }
-                            wasStudentSpeaking = true;
-
-                            for (let i = 0; i < down.length; i++) pendingCallSamples.push(down[i]);
-                            if (pendingCallSamples.length > 24000) pendingCallSamples = pendingCallSamples.slice(-24000);
-                        } else {
-                            wasStudentSpeaking = false;
-                            studentPreRollBuffers.push(down);
-                            if (studentPreRollBuffers.length > 4) studentPreRollBuffers.shift();
+                        // Push every frame continuously while on call so the 16kHz timeline never breaks
+                        for (let i = 0; i < down.length; i++) {
+                            pendingCallSamples.push(down[i]);
+                        }
+                        if (pendingCallSamples.length > 32000) {
+                            pendingCallSamples = pendingCallSamples.slice(-32000);
                         }
                     };
 
@@ -907,8 +900,7 @@
 
                         try {
                             let chunkB64 = null;
-                            const isStillSpeaking = (Date.now() < studentActivelySpeakingUntil);
-                            if (pendingCallSamples.length >= 1600 || (!isStillSpeaking && pendingCallSamples.length > 0)) {
+                            if (pendingCallSamples.length >= 1024) {
                                 const int16 = new Int16Array(pendingCallSamples);
                                 pendingCallSamples = [];
                                 chunkB64 = int16ToBase64(int16);
@@ -937,7 +929,7 @@
                         } finally {
                             isCallPushing = false;
                         }
-                    }, 120);
+                    }, 100);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
