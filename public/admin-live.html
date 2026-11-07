@@ -582,7 +582,33 @@ document.addEventListener('pointerdown', () => {
         // Jitter-Free Crossfaded Student Voice Playback
         const studentLastSample = new Map();
 
-       function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
+       let adminAecDest = null;
+        let adminAecAudioEl = null;
+
+        function getAdminSpeakerDestination() {
+            if (!adminAudioCtx) {
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (!adminAecDest) {
+                try {
+                    adminAecDest = adminAudioCtx.createMediaStreamDestination();
+                    adminAecAudioEl = document.createElement('audio');
+                    adminAecAudioEl.autoplay = true;
+                    adminAecAudioEl.playsInline = true;
+                    adminAecAudioEl.srcObject = adminAecDest.stream;
+                    adminAecAudioEl.play().catch(() => {});
+                } catch (e) {
+                    return adminAudioCtx.destination;
+                }
+            }
+            if (adminAecAudioEl && adminAecAudioEl.paused) {
+                adminAecAudioEl.play().catch(() => {});
+                return adminAudioCtx.destination;
+            }
+            return adminAecDest ? adminAecDest : adminAudioCtx.destination;
+        }
+
+        function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -604,10 +630,9 @@ document.addEventListener('pointerdown', () => {
             let nextPlayTime = studentPlayTimes.get(callerKey) || 0;
             const lastEndMs = studentLastChunkEnd.get(callerKey) || 0;
             const isUnderrun = (nextPlayTime < now);
-            const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 600);
+            const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 500);
             const prevSample = isNewTalkSpurt ? 0 : (studentLastSample.get(callerKey) || 0);
 
-            // 16-sample (1ms) sample-level stitch prevents boundary clicks
             const stitchLen = Math.min(16, int16.length);
             for (let i = 0; i < int16.length; i++) {
                 let val = int16[i] / 32768.0;
@@ -620,19 +645,19 @@ document.addEventListener('pointerdown', () => {
             studentLastSample.set(callerKey, channel[int16.length - 1]);
 
             if (isNewTalkSpurt) {
-                nextPlayTime = now + 0.28; // 280ms initial cushion covers >2 full 130ms poll cycles
+                nextPlayTime = now + 0.24; // 240ms talkspurt cushion prevents mid-sentence starvation
             } else if (isUnderrun) {
-                nextPlayTime = now + 0.16; // 160ms cushion (>130ms poll interval) prevents chain-reaction underruns!
-            } else if (nextPlayTime - now > 2.5) {
+                nextPlayTime = now + 0.005; // 5ms instant stitch (eliminates 90ms silence breaks)
+            } else if (nextPlayTime - now > 2.2) {
                 const existingNodes = studentActiveNodes.get(callerKey) || [];
                 existingNodes.forEach(n => { try { n.stop(); } catch (e) {} });
                 studentActiveNodes.set(callerKey, []);
-                nextPlayTime = now + 0.22;
+                nextPlayTime = now + 0.18;
             }
 
             const src = adminAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
-            src.connect(adminAudioCtx.destination);
+            src.connect(getAdminSpeakerDestination());
 
             const callerNodes = studentActiveNodes.get(callerKey) || [];
             callerNodes.push(src);
