@@ -304,36 +304,20 @@
                 if (!params.encodings || params.encodings.length === 0) {
                     params.encodings = [{}];
                 }
-                // Lock degradation preference to framing instead of resolution dropping
-                params.degradationPreference = 'maintain-framerate';
-                params.encodings[0].maxFramerate = 30;
-                params.encodings[0].minFramerate = 30;
-                params.encodings[0].maxBitrate = isPresentation ? 3500000 : 1200000;
-                params.encodings[0].scaleResolutionDownBy = 1.0;
-                params.encodings[0].networkPriority = 'high';
-                params.encodings[0].priority = 'high';
-                sender.setParameters(params).catch(() => {});
-            } catch (e) {}
-        }
-
-        function optimizeAudioSender(sender) {
-            if (!sender || typeof sender.getParameters !== 'function') return;
-            try {
-                const params = sender.getParameters();
-                if (!params.encodings || params.encodings.length === 0) {
-                    params.encodings = [{}];
-                }
-                params.encodings[0].maxBitrate = 64000;
+               params.encodings[0].maxBitrate = 96000;
                 params.encodings[0].priority = 'high';
                 params.encodings[0].networkPriority = 'high';
                 sender.setParameters(params).catch(() => {});
             } catch (e) {}
         }
 
-        // Inject Google Meet Opus parameters (In-Band FEC + DTX + 64kbps Voice Clarity) into SDP
+        // Inject Google Meet HD 96kbps Fullband Opus parameters into SDP
         function enhanceOpusSdp(sdp) {
             if (!sdp) return sdp;
-            return sdp.replace(/a=fmtp:(\d+) minptime=10;useinbandfec=1/g, 'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=64000;cbr=1');
+            return sdp.replace(
+                /a=fmtp:(\d+) minptime=10;useinbandfec=1/g,
+                'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=96000;maxplaybackrate=48000;sprop-maxcapturerate=48000;cbr=1'
+            );
         }
 
         function hotSwapCameraTrack(newCamTrack) {
@@ -536,10 +520,10 @@
 
         // Linear-interpolated anti-aliasing downsampler with soft-limiter (Unity gain: no room reverb boost)
         function downsampleClean(float32Arr, inputRate, outputRate) {
-            if (inputRate === outputRate) {
+        if (inputRate === outputRate) {
                 const out = new Int16Array(float32Arr.length);
                 for (let i = 0; i < float32Arr.length; i++) {
-                    let s = Math.tanh(float32Arr[i]);
+                    let s = Math.max(-1, Math.min(1, float32Arr[i]));
                     out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
                 return out;
@@ -555,12 +539,11 @@
                 const s0 = float32Arr[idx] || 0;
                 const s1 = float32Arr[Math.min(float32Arr.length - 1, idx + 1)] || s0;
                 let sample = s0 + frac * (s1 - s0);
-                // Soft-knee tanh limiter prevents harsh digital clipping
-                sample = Math.tanh(sample);
+                sample = Math.max(-1, Math.min(1, sample));
                 result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
-        }
+        }   
 
         function int16ToBase64(int16Arr) {
             const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
@@ -816,7 +799,7 @@ document.addEventListener('pointerdown', () => {
                         const gatedFloat = new Float32Array(input.length);
                         for (let i = 0; i < input.length; i++) {
                             currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.005);
-                            gatedFloat[i] = Math.tanh(input[i] * currentGateGain);
+                          gatedFloat[i] = Math.max(-1, Math.min(1, input[i] * currentGateGain));
                         }
 
                         const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
