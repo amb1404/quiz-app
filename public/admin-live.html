@@ -578,12 +578,9 @@ document.addEventListener('pointerdown', () => {
             }
         });
         // Jitter-Free Crossfaded Student Voice Playback
-        function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
-            try {
-                const samePcCall = Number(localStorage.getItem('pp_student_call_same_pc') || 0);
-                if (Date.now() - samePcCall < 2000) return;
-            } catch (e) {}
+        const studentLastSample = new Map();
 
+        function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -606,29 +603,29 @@ document.addEventListener('pointerdown', () => {
             const lastEndMs = studentLastChunkEnd.get(callerKey) || 0;
             const isUnderrun = (nextPlayTime < now);
             const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 450);
+            const prevSample = isNewTalkSpurt ? 0 : (studentLastSample.get(callerKey) || 0);
 
-            const fadeLen = Math.min(32, Math.floor(int16.length / 4));
+            // Step 4 Fix: Stitch consecutive chunks across a 16-sample (1ms) bridge with zero end-of-chunk volume drop
+            const stitchLen = Math.min(16, int16.length);
             for (let i = 0; i < int16.length; i++) {
                 let val = int16[i] / 32768.0;
-                // Smooth raised-cosine de-clicking at chunk boundaries
-                if (isUnderrun && i < fadeLen) {
-                    val *= 0.5 * (1 - Math.cos(Math.PI * (i / fadeLen)));
-                } else if (i >= int16.length - fadeLen) {
-                    const rem = int16.length - 1 - i;
-                    val *= 0.5 * (1 - Math.cos(Math.PI * (rem / fadeLen)));
+                if (i < stitchLen) {
+                    const alpha = i / stitchLen;
+                    val = prevSample + alpha * (val - prevSample);
                 }
                 channel[i] = val;
             }
+            studentLastSample.set(callerKey, channel[int16.length - 1]);
 
             if (isNewTalkSpurt) {
-                nextPlayTime = now + 0.14; // Initial talkspurt jitter cushion
+                nextPlayTime = now + 0.18; // 180ms talkspurt buffer absorbs network jitter
             } else if (isUnderrun) {
-                nextPlayTime = now + 0.025; // Micro-recovery (25ms) prevents mid-word gaps!
-            } else if (nextPlayTime - now > 1.8) {
+                nextPlayTime = now + 0.09; // 90ms elastic recovery prevents rapid re-underrun cutouts
+            } else if (nextPlayTime - now > 2.0) {
                 const existingNodes = studentActiveNodes.get(callerKey) || [];
                 existingNodes.forEach(n => { try { n.stop(); } catch (e) {} });
                 studentActiveNodes.set(callerKey, []);
-                nextPlayTime = now + 0.12;
+                nextPlayTime = now + 0.15;
             }
 
             const src = adminAudioCtx.createBufferSource();
@@ -652,8 +649,7 @@ document.addEventListener('pointerdown', () => {
 
             const remainingPlayMs = Math.max(0, (nextPlayTime - now) * 1000);
             studentLastChunkEnd.set(callerKey, Date.now() + remainingPlayMs);
-            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 350;
-            try { localStorage.setItem('pp_admin_speaker_active_until', String(lastStudentAudioPlayedMs)); } catch (e) {}
+            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 250;
         }
 
         // Pipeline 1: Dedicated Camera Stream Setup
@@ -719,11 +715,13 @@ document.addEventListener('pointerdown', () => {
                         audio: {
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
-                            autoGainControl: { ideal: true },
+                            voiceIsolation: { ideal: true },
+                            autoGainControl: false,
                             channelCount: { ideal: 1 },
                             googEchoCancellation: true,
-                            googAutoGainControl: true,
+                            googAutoGainControl: false,
                             googNoiseSuppression: true,
+                            googExperimentalNoiseSuppression: true,
                             googHighpassFilter: true
                         }
                     });
@@ -733,44 +731,45 @@ document.addEventListener('pointerdown', () => {
 
                     micSource = adminAudioCtx.createMediaStreamSource(micStream);
 
-                    // Stage 1: 50Hz AC Mains Hum Notch Filter
+                    // Stage 1: 50Hz AC Mains Hum & 100Hz Harmonic Notch Filters
                     const humNotch = adminAudioCtx.createBiquadFilter();
                     humNotch.type = 'notch';
                     humNotch.frequency.value = 50;
                     humNotch.Q.value = 10.0;
 
-                    // Stage 2: 150Hz Sub-Vocal Rumble & Plosive High-Pass Filter
+                    // Stage 2: 165Hz Near-Field High-Pass Filter (Strips distant room resonance)
                     const hpFilter = adminAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 150;
+                    hpFilter.frequency.value = 165;
                     hpFilter.Q.value = 0.707;
 
-                    // Stage 3: 6200Hz High-Frequency Fan/Hiss Low-Pass Filter
+                    // Stage 3: 5600Hz Low-Pass Filter (Strips high-frequency fan whine & hiss)
                     const lpFilter = adminAudioCtx.createBiquadFilter();
                     lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 6200;
+                    lpFilter.frequency.value = 5600;
                     lpFilter.Q.value = 0.707;
 
-                    // Stage 4: Subtle Vocal Clarity EQ (+1.5dB instead of +3.5dB so room reverb is not boosted)
+                    // Stage 4: Vocal Presence Clarity Filter
                     const presenceFilter = adminAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
                     presenceFilter.frequency.value = 2400;
                     presenceFilter.Q.value = 1.0;
                     presenceFilter.gain.value = 1.5;
 
-                    // Stage 5: Broadcast Dynamics Compressor (Smooths volume without clipping)
+                    // Stage 5: Broadcast Peak Limiter
                     const compressor = adminAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -26;
-                    compressor.knee.value = 15;
+                    compressor.threshold.value = -18;
+                    compressor.knee.value = 10;
                     compressor.ratio.value = 4;
                     compressor.attack.value = 0.003;
-                    compressor.release.value = 0.15;
+                    compressor.release.value = 0.12;
 
                     micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
                     silentSink = adminAudioCtx.createMediaStreamDestination();
 
                     let wasSpeaking = false;
                     let speechHoldUntil = 0;
+                    let lpSampleState = 0;
 
                     micProcessor.onaudioprocess = (e) => {
                         const output = e.outputBuffer.getChannelData(0);
@@ -788,25 +787,38 @@ document.addEventListener('pointerdown', () => {
                         const rms = Math.sqrt(sumSq / input.length);
                         const nowMs = Date.now();
 
-                        // Adaptive noise floor tracker & soft-knee hysteresis gate
-                        if (rms < noiseFloorRms * 1.5) {
-                            noiseFloorRms = (0.95 * noiseFloorRms) + (0.05 * Math.max(0.001, rms));
+                        // Track stationary background noise floor during silence & pauses
+                        if (!wasSpeaking || rms < noiseFloorRms * 1.6) {
+                            noiseFloorRms = (0.96 * noiseFloorRms) + (0.04 * Math.min(0.014, Math.max(0.001, rms)));
                         }
-                        const openThreshold = Math.max(0.004, noiseFloorRms * 2.4);
-                        if (rms > openThreshold) {
-                            speechHoldUntil = nowMs + 950; // 950ms hold prevents mid-sentence gate dropouts
+
+                        // Near-field proximity thresholds (ignores distant room noise)
+                        const openThreshold = Math.max(0.015, noiseFloorRms * 3.4);
+                        const continueThreshold = Math.max(0.009, noiseFloorRms * 2.2);
+
+                        if (rms > openThreshold || (wasSpeaking && rms > continueThreshold)) {
+                            speechHoldUntil = nowMs + 420; // Smooth 420ms syllable bridge prevents mid-sentence gate breaks
                         }
 
                         const isGateOpen = (nowMs < speechHoldUntil);
-                        const targetGain = isGateOpen ? 1.0 : 0.0;
+                        // Step 3 Fix: Downward Expander ratio attenuates soft background sounds between syllables
+                        const expanderRatio = isGateOpen ? Math.min(1.0, Math.max(0.35, rms / openThreshold)) : 0.0;
+                        const targetGain = isGateOpen ? (1.35 * expanderRatio) : 0.0;
+                        const noiseSubFloor = noiseFloorRms * 1.85;
                         const gatedFloat = new Float32Array(input.length);
 
                         for (let i = 0; i < input.length; i++) {
-                            // Smooth per-sample envelope slew eliminates gate clicking
-                            currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.004);
-                            const cleanSample = input[i] * currentGateGain;
+                            currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.05 : 0.006);
+                            const raw = input[i];
+                            const absVal = Math.abs(raw);
+                            // Step 3 Fix: Active Envelope Noise Subtraction strips stationary fan/hiss from active speech
+                            const subtractedMag = Math.max(0.0, absVal - noiseSubFloor);
+                            const denoised = (raw < 0 ? -subtractedMag : subtractedMag) * currentGateGain;
+                            // 1-pole smoothing filter removes any residual digital grain
+                            lpSampleState = (0.25 * lpSampleState) + (0.75 * denoised);
+                            const cleanSample = Math.tanh(lpSampleState);
                             gatedFloat[i] = cleanSample;
-                            output[i] = cleanSample; // Feeds WebRTC Opus stream directly!
+                            output[i] = cleanSample;
                         }
 
                         const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
@@ -825,7 +837,7 @@ document.addEventListener('pointerdown', () => {
                         } else {
                             wasSpeaking = false;
                             preRollBuffers.push(downsampled);
-                            if (preRollBuffers.length > 4) preRollBuffers.shift();
+                            if (preRollBuffers.length > 3) preRollBuffers.shift();
                         }
                     };
 
@@ -835,7 +847,6 @@ document.addEventListener('pointerdown', () => {
                     lpFilter.connect(presenceFilter);
                     presenceFilter.connect(compressor);
                     compressor.connect(micProcessor);
-                    // Feed clean gated audio into both WebRTC Opus destination and silent sink
                     micProcessor.connect(studioOutDest);
                     micProcessor.connect(silentSink);
                 } catch (err) {
@@ -968,8 +979,8 @@ document.addEventListener('pointerdown', () => {
             isPushing = true;
             try {
                 let audioChunkB64 = null;
-                // Only flush PCM when at least 2048 samples (~128ms) are ready to prevent tiny 85ms fragments
-                if (audioEnabled && pendingPcmSamples.length >= 2048) {
+                // Step 4 Fix: Flush all available voice samples on every 130ms tick so no tick ever starves
+                if (audioEnabled && pendingPcmSamples.length > 0) {
                     const int16 = new Int16Array(pendingPcmSamples);
                     pendingPcmSamples = [];
                     audioChunkB64 = int16ToBase64(int16);
