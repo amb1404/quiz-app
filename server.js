@@ -1151,6 +1151,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         // Implementation 4: Added cache busting for livetest.js / admin-live.js & fixed Confetti SRI integrity block
         let dynamicHtml = data
             .replace(/\sonclick="([^"]*)"/gi, ' data-csp-action="$1"')
+            .replace(/Live\s+One\s+to\s+One\s+Test/gi, 'Join Room')
             .replace(/<script(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`)
             .replace(/<head>/i, `<head>\n${headRouteGuardScript}\n${antiCheatScript}`)
             .replace(/<body[^>]*>/i, match => `${match}\n${noscriptBlock}`)
@@ -1158,6 +1159,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
             .replace(/(['"\s=])\/?descriptive\.html/gi, '$1/descriptive-papers')
             .replace(/(['"\s=])\/?index\.html/gi, '$1/')
+            .replace(/Live One to One Test/gi, 'Live Room')
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/quiz\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(src="\/js\/livetest\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
@@ -2457,37 +2459,33 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
     }
 });
 
-// ============================================================================
-// 8. SYNCHRONIZED LIVE MOCK & ADMIN DASHBOARD ENDPOINTS
-// ============================================================================
+const activeLiveRooms = new Map(); // Tracks active rooms for 1-click student joining
+
 function getLiveMockContent(rawId) {
+    if (!rawId) return null;
     const cleanId = path.basename(String(rawId)).trim().replace('.json', '');
     const liveDir = path.join(__dirname, 'livemock');
     if (!fs.existsSync(liveDir)) fs.mkdirSync(liveDir, { recursive: true });
-    
-    // Use your existing recursive scanner to search all subfolders
+
     const allLiveFiles = getAllJsonFiles(liveDir);
     const targetFileName = cleanId + '.json';
-    
-    // Find the file regardless of how deep it is nested in class folders
     const matchedPath = allLiveFiles.find(filePath => path.basename(filePath) === targetFileName);
-    
+
     if (!matchedPath) return null;
     return JSON.parse(fs.readFileSync(matchedPath, 'utf8'));
 }
-// Automatically list all available Live Mock Tests for dropdowns
+
+// Automatically list all available Live Mock Question Sets for the Admin Dropdown
 app.get('/api/live/list', (req, res) => {
     try {
         const liveDir = path.join(__dirname, 'livemock');
         if (!fs.existsSync(liveDir)) return res.json({ success: true, tests: [] });
 
         const allLiveFiles = getAllJsonFiles(liveDir);
-        
         const tests = allLiveFiles.map(filePath => {
             const fileName = path.basename(filePath, '.json');
             try {
                 const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                // Returns the filename as the ID, and the real title for display
                 return { id: fileName, title: content.title || fileName };
             } catch (err) {
                 return { id: fileName, title: fileName };
@@ -2499,56 +2497,184 @@ app.get('/api/live/list', (req, res) => {
         res.status(500).json({ error: 'Failed to list live tests.' });
     }
 });
-// Admin: Start Quiz & Generate OTP
-app.post('/api/live/admin/start', async (req, res) => {
+// Step 4: Return Active Rooms for the Student 1-Click "Join Room" Lobby
+app.get('/api/live/rooms', async (req, res) => {
     try {
-        const { adminKey, quizId } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
-
-        const cleanId = path.basename(String(quizId)).trim();
-        const content = getLiveMockContent(cleanId);
-        if (!content) return res.status(404).json({ error: 'Live Mock not found in /livemock folder.' });
-
-        const otp = crypto.randomInt(100000, 1000000).toString();
-        await stateStore.set(`live:otp:${cleanId}`, otp, 60 * 60 * 3);
-        await stateStore.set(`live:state:${cleanId}`, { currentIndex: 0, status: 'active', title: content.title }, 60 * 60 * 3);
-        
-        // ADMIN HEARTBEAT INITIALIZATION
-        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
-        await stateStore.del(`live:board:${cleanId}`);
-
-        if (process.env.APP_SCRIPT_URL && APPS_SECRET) {
-            fetch(process.env.APP_SCRIPT_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'otp', targetEmail: ADMIN_EMAIL, subject: `LIVE QUIZ OTP - ${cleanId}`, secretKey: APPS_SECRET,
-                    breakdown: `<h2>Live Quiz OTP: ${otp}</h2><p>Share this with your students to enter ${cleanId}.</p>`
-                })
-            }).catch(() => {});
+        const now = Date.now();
+        const rooms = [];
+        for (const [id, info] of activeLiveRooms.entries()) {
+            // Keep rooms active up to 4 hours
+            if (now - info.lastSeen <= 4 * 60 * 60 * 1000) {
+                rooms.push({ id: info.id, name: info.name });
+            } else {
+                activeLiveRooms.delete(id);
+            }
         }
-        res.json({ success: true, otp, totalQuestions: content.questions.length });
-    } catch (err) { res.status(500).json({ error: 'Failed to start live quiz.' }); }
+        res.json({ success: true, rooms });
+    } catch (err) {
+        res.status(500).json({ success: false, rooms: [] });
+    }
 });
 
-// Admin: End Test (Triggered on Admin Exit or Close)
+// Step 5: Admin Mute / Unmute / Remove (Kick) Student Control
+app.post('/api/live/admin/moderate-student', async (req, res) => {
+    try {
+        const { adminKey, quizId, studentName, action } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const cleanId = path.basename(String(quizId || '')).trim();
+        const targetName = String(studentName || '').trim();
+        if (!cleanId || !targetName) return res.status(400).json({ error: 'Missing room or student name.' });
+
+        const mediaRoom = getOrCreateMediaRoom(cleanId);
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (!board[targetName]) {
+                board[targetName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+            }
+            if (action === 'mute') {
+                board[targetName].muted = true;
+                mediaRoom.mutedStudents.add(targetName);
+                mediaRoom.activeCallers.delete(targetName);
+            } else if (action === 'unmute') {
+                board[targetName].muted = false;
+                mediaRoom.mutedStudents.delete(targetName);
+            } else if (action === 'kick') {
+                board[targetName].kicked = true;
+                board[targetName].disconnected = true;
+                mediaRoom.kickedStudents.add(targetName);
+                mediaRoom.mutedStudents.add(targetName);
+                mediaRoom.activeCallers.delete(targetName);
+                mediaRoom.students.delete(targetName);
+            }
+            return board;
+        });
+
+        res.json({ success: true, studentName: targetName, action });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to moderate student.' });
+    }
+});
+
+// Step 1: Admin Creates a Named Room (Does not require a question JSON file upfront)
+app.post('/api/live/admin/start', async (req, res) => {
+    try {
+        const { adminKey, quizId, questionFile } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const rawRoomName = String(quizId || '').trim();
+        const cleanId = path.basename(rawRoomName).trim();
+        if (!cleanId) return res.status(400).json({ error: 'Room name is required.' });
+
+        let activeQuizFile = '';
+        let totalQuestions = 0;
+        let displayTitle = rawRoomName;
+
+        if (questionFile) {
+            const content = getLiveMockContent(questionFile);
+            if (content && Array.isArray(content.questions)) {
+                activeQuizFile = path.basename(String(questionFile)).trim().replace('.json', '');
+                totalQuestions = content.questions.length;
+                displayTitle = `${rawRoomName} — ${content.title || activeQuizFile}`;
+            }
+        }
+
+        const roomState = {
+            roomName: rawRoomName,
+            currentIndex: 0,
+            status: 'active',
+            activeQuizFile,
+            title: displayTitle,
+            totalQuestions
+        };
+
+        await stateStore.set(`live:state:${cleanId}`, roomState, 60 * 60 * 4);
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 4);
+        await stateStore.del(`live:board:${cleanId}`);
+
+        activeLiveRooms.set(cleanId, {
+            id: cleanId,
+            name: rawRoomName,
+            createdAt: Date.now(),
+            lastSeen: Date.now()
+        });
+
+        res.json({
+            success: true,
+            roomName: rawRoomName,
+            activeQuizFile,
+            totalQuestions
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to create room.' });
+    }
+});
+
+// Step 2: Admin Dynamically Selects or Switches Question Set from /livemock Dropdown
+app.post('/api/live/admin/select-quiz', async (req, res) => {
+    try {
+        const { adminKey, quizId, questionFile } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const cleanId = path.basename(String(quizId || '')).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Room is not active.' });
+
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+
+        if (!questionFile || String(questionFile).trim() === '') {
+            state.activeQuizFile = '';
+            state.currentIndex = 0;
+            state.totalQuestions = 0;
+            state.title = state.roomName || cleanId;
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+            return res.json({ success: true, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
+        }
+
+        const cleanQuizFile = path.basename(String(questionFile)).trim().replace('.json', '');
+        const content = getLiveMockContent(cleanQuizFile);
+        if (!content || !Array.isArray(content.questions) || content.questions.length === 0) {
+            return res.status(404).json({ error: 'Selected question file has no questions or was not found.' });
+        }
+
+        state.activeQuizFile = cleanQuizFile;
+        state.currentIndex = 0;
+        state.totalQuestions = content.questions.length;
+        state.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
+
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+
+        res.json({
+            success: true,
+            activeQuizFile: cleanQuizFile,
+            title: state.title,
+            totalQuestions: state.totalQuestions,
+            currentIndex: 0
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load question set.' });
+    }
+});
+
+// Admin: End Room
 app.post('/api/live/admin/end', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
         if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
         const cleanId = path.basename(String(quizId)).trim();
-        
+
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (stateStr) {
             const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
             state.status = 'ended';
-            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
         }
-        
-        // KILL THE OTP IMMEDIATELY
+
+        activeLiveRooms.delete(cleanId);
         await stateStore.del(`live:otp:${cleanId}`);
-        
+
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: 'Failed to end quiz.' }); }
+    } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }
 });
 
 // Admin: Change Question Index
@@ -2556,18 +2682,19 @@ app.post('/api/live/admin/set-index', async (req, res) => {
     try {
         const { adminKey, quizId, index } = req.body;
         if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
-        
+
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
-        if (!stateStr) return res.status(400).json({ error: 'Quiz not active.' });
-        
+        if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
+
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
         state.currentIndex = parseInt(index, 10);
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
-        
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+
         res.json({ success: true, currentIndex: state.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
+
 // Admin: Clear current question responses for all students
 app.post('/api/live/admin/clear-question', async (req, res) => {
     try {
@@ -2576,8 +2703,8 @@ app.post('/api/live/admin/clear-question', async (req, res) => {
 
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
-        if (!stateStr) return res.status(400).json({ error: 'Quiz not active.' });
-        
+        if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
+
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
         const currentIndex = state.currentIndex;
 
@@ -2589,7 +2716,7 @@ app.post('/api/live/admin/clear-question', async (req, res) => {
                     modified = true;
                 }
             });
-            return modified ? board : null; // Only update Redis if something was actually deleted
+            return modified ? board : null;
         });
 
         res.json({ success: true });
@@ -2605,48 +2732,61 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        
-        // ADMIN ONGOING HEARTBEAT
-        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 3);
-        
+
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 4);
+        if (state && state.status === 'active') {
+            activeLiveRooms.set(cleanId, {
+                id: cleanId,
+                name: state.roomName || cleanId,
+                createdAt: activeLiveRooms.get(cleanId)?.createdAt || Date.now(),
+                lastSeen: Date.now()
+            });
+        }
+
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-        
-        // Fetch the active OTP to send back to the dashboard
-        const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
 
         const activeStudents = {};
         const now = Date.now();
         Object.keys(board).forEach(name => {
             const student = board[name];
-            // 5-second grace period for refreshes before hiding from dashboard
+            if (student.kicked) return;
             if (student.disconnected && student.leaveTime && (now - student.leaveTime > 5000)) {
-                return; 
+                return;
             }
             activeStudents[name] = student;
         });
 
-        const students = Object.keys(activeStudents).map(name => ({
-            name, data: activeStudents[name]
-        })).sort((a, b) => {
-            const timeA = a.data.answers[state?.currentIndex] ? a.data.answers[state.currentIndex].time : 0;
-            const timeB = b.data.answers[state?.currentIndex] ? b.data.answers[state.currentIndex].time : 0;
+        const mediaRoom = getOrCreateMediaRoom(cleanId);
+        const students = Object.keys(activeStudents).map(name => {
+            const sData = activeStudents[name];
+            const isMuted = mediaRoom.mutedStudents.has(name) || Boolean(sData.muted);
+            const lastCallSeen = mediaRoom.activeCallers.get(name) || 0;
+            const isCalling = !isMuted && (now - lastCallSeen <= 4000);
+            return {
+                name,
+                data: {
+                    ...sData,
+                    muted: isMuted,
+                    isCalling
+                }
+            };
+        }).sort((a, b) => {
+            const timeA = a.data.answers?.[state?.currentIndex] ? a.data.answers[state.currentIndex].time : 0;
+            const timeB = b.data.answers?.[state?.currentIndex] ? b.data.answers[state.currentIndex].time : 0;
             if (timeA === 0 && timeB !== 0) return 1;
             if (timeB === 0 && timeA !== 0) return -1;
             return timeA - timeB;
         });
 
-        // Add `otp: activeOtp` to the JSON response
-        res.json({ success: true, state, students, otp: activeOtp });
+        res.json({ success: true, state, students, roomName: state?.roomName || cleanId });
     } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
 });
 
-// === ATOMIC MUTEX LOCK FOR DATA INTEGRITY ===
-// Prevents "lost answers" caused by race conditions during simultaneous submissions
 async function updateBoardSecurely(cleanId, updateFn) {
     const lockKey = `live:lock:${cleanId}`;
     let acquired = false;
-    for (let i = 0; i < 50; i++) { // Safely queue simultaneous requests for up to 5 seconds
+    for (let i = 0; i < 50; i++) {
         acquired = await stateStore.setNx(lockKey, '1', 5);
         if (acquired) break;
         await new Promise(r => setTimeout(r, 100));
@@ -2657,13 +2797,13 @@ async function updateBoardSecurely(cleanId, updateFn) {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const newBoard = updateFn(board);
-        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 3);
+        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 4);
     } finally {
         await stateStore.del(lockKey);
     }
 }
 
-// Implementation 8: Student Verify Admin OTP & Join Live Mock (Preserves answers on refresh & supports unlimited live mocks)
+// Student Join Room (Supports joining without OTP)
 app.post('/api/live/student/verify', async (req, res) => {
     try {
         const token = extractAuthToken(req);
@@ -2671,18 +2811,14 @@ app.post('/api/live/student/verify', async (req, res) => {
         if (!authCheck.valid) return res.status(401).json({ error: 'Unauthorized. Please sign in globally first.' });
         syncAuthCookieIfNeeded(req, res, token);
 
-        const { quizId, otp } = req.body;
-        const cleanId = path.basename(String(quizId)).trim();
-        
-        // Enforce whitelist for live mocks too
-        const isUltra = cleanId.toUpperCase().startsWith('ULTRA_');
-        const isPremium = isUltra || cleanId.toUpperCase().startsWith('PRO_');
-        const hasAccess = await checkContentAccess(authCheck.email, cleanId, isPremium, isUltra);
-        if (!hasAccess) return res.status(403).json({ error: 'Your email is not whitelisted for this Premium Live Mock.' });
+        const { quizId } = req.body;
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!cleanId) return res.status(400).json({ error: 'Please select a Room to join.' });
 
-        const activeOtp = await stateStore.get(`live:otp:${cleanId}`);
-        if (!activeOtp || String(activeOtp).trim() !== String(otp).trim()) {
-            return res.status(400).json({ error: 'Invalid or expired Admin OTP.' });
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        if (!state || state.status !== 'active') {
+            return res.status(400).json({ error: 'This room is no longer active.' });
         }
 
         const fName = String(authCheck.firstName).trim().toUpperCase();
@@ -2690,19 +2826,28 @@ app.post('/api/live/student/verify', async (req, res) => {
         const fullName = `${fName} ${lName}`;
         const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
-        
+
+        let isKicked = false;
         await updateBoardSecurely(cleanId, (board) => {
+            if (board[fullName]?.kicked) {
+                isKicked = true;
+                return null;
+            }
             if (!board[fullName]) {
-                board[fullName] = { joinedAt: Date.now(), answers: {} };
+                board[fullName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
             } else {
-                // Preserve existing answers if they are re-joining / refreshing mid-test
+                board[fullName].disconnected = false;
                 board[fullName].lastReconnectedAt = Date.now();
             }
             return board;
         });
 
+        if (isKicked) {
+            return res.status(403).json({ error: 'You have been removed from this room by the instructor.' });
+        }
+
         res.json({ success: true, token: `${tokenData}|||${signature}` });
-    } catch (err) { res.status(500).json({ error: 'Verification failed.' }); }
+    } catch (err) { res.status(500).json({ error: 'Failed to join room.' }); }
 });
 
 // Student: Heartbeat Ping
@@ -2714,14 +2859,11 @@ app.post('/api/live/student/heartbeat', async (req, res) => {
         if (!safeCompareHex(signature, crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex'))) {
             return res.status(401).json({ error: 'Invalid token' });
         }
-        
-        // SECURITY FIX: Heartbeat no longer overwrites the database.
-        // This eliminates 95% of data collision risks (missing answers).
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Heartbeat failed.' }); }
 });
 
-// Student: Explicit Leave / Disconnect (Marks disconnected instead of deleting)
+// Student: Explicit Leave / Disconnect
 app.post('/api/live/student/leave', async (req, res) => {
     try {
         const authHeader = req.get('Authorization');
@@ -2742,6 +2884,7 @@ app.post('/api/live/student/leave', async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Leave failed.' }); }
 });
+
 // Student: Rejoin instantly after a page refresh
 app.post('/api/live/student/rejoin', async (req, res) => {
     try {
@@ -2758,14 +2901,14 @@ app.post('/api/live/student/rejoin', async (req, res) => {
                 delete board[fullName].leaveTime;
                 return board;
             }
-            board[fullName] = { joinedAt: Date.now(), answers: {}, disconnected: false };
+            board[fullName] = { joinedAt: Date.now(), answers: {}, disconnected: false, muted: false, kicked: false };
             return board;
         });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Rejoin failed.' }); }
 });
 
-// Student: Synchronized Pull & Scorecard Evaluation
+// Student: Synchronized Pull & Scorecard Evaluation (Handles rooms with or without an active question file)
 app.get('/api/live/student/sync/:id', async (req, res) => {
     try {
         const authHeader = req.get('Authorization');
@@ -2779,35 +2922,39 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (!stateStr) return res.json({ status: 'waiting' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
-        // AUTO-END TEST IF ADMIN DASHBOARD TAB IS CLOSED
-        const lastAdminSeen = await stateStore.get(`live:admin_seen:${cleanId}`);
-        if (state.status === 'active' && lastAdminSeen && (Date.now() - Number(lastAdminSeen) > 10000)) {
-            state.status = 'ended';
-            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 3);
-            await stateStore.del(`live:otp:${cleanId}`);
+
+        const [, , first, last] = tokenData.split('|');
+        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+
+        const boardKey = `live:board:${cleanId}`;
+        const rawBoard = await stateStore.get(boardKey);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+
+        if (board[fullName]?.kicked) {
+            return res.json({ status: 'kicked' });
         }
 
-        const content = getLiveMockContent(cleanId);
-        
+        const content = state.activeQuizFile ? getLiveMockContent(state.activeQuizFile) : null;
+
         if (state.status === 'ended') {
-            const [, , first, last] = tokenData.split('|');
-            const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
-            const boardKey = `live:board:${cleanId}`;
-            const rawBoard = await stateStore.get(boardKey);
-            let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-            
+            if (!content || !Array.isArray(content.questions) || content.questions.length === 0) {
+                return res.json({
+                    status: 'ended',
+                    scorecard: { correct: 0, incorrect: 0, skipped: 0, total: 1 },
+                    breakdown: []
+                });
+            }
+
             let studentAnswers = board[fullName]?.answers || {};
             let correct = 0, attempted = 0;
             const total = content.questions.length;
-            
-            // Generate detailed breakdown array
             const breakdown = [];
 
             content.questions.forEach((q, idx) => {
                 const ansObj = studentAnswers[idx];
                 const hasAnswer = (ansObj !== undefined && ansObj.answer !== undefined);
                 let isCorrect = false;
-                
+
                 if (hasAnswer) {
                     attempted++;
                     if (Number(ansObj.answer) === Number(q.answer)) {
@@ -2829,27 +2976,35 @@ app.get('/api/live/student/sync/:id', async (req, res) => {
             return res.json({
                 status: 'ended',
                 scorecard: { correct, incorrect: attempted - correct, skipped: total - attempted, total },
-                breakdown: breakdown
+                breakdown
             });
         }
 
-        const [, , first, last] = tokenData.split('|');
-        const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
+        // If room is active but no question file has been selected by Admin yet
+        if (!content || !Array.isArray(content.questions) || content.questions.length === 0) {
+            return res.json({
+                status: 'active',
+                quizLoaded: false,
+                roomName: state.roomName || cleanId
+            });
+        }
 
-        const boardKey = `live:board:${cleanId}`;
-        const rawBoard = await stateStore.get(boardKey);
-        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const savedAnswerObj = board[fullName]?.answers?.[state.currentIndex];
         const savedAnswer = (savedAnswerObj !== undefined && savedAnswerObj.answer !== undefined) ? savedAnswerObj.answer : null;
 
-        const q = content.questions[state.currentIndex];
+        const q = content.questions[state.currentIndex] || content.questions[0];
         const singleUseKey = crypto.randomBytes(12).toString('hex');
         const sanitized = { question: q.question, options: q.options || [], type: q.type || 'mcq' };
 
-        // Restored correct payload structure with total and singleUseKey
         res.json({
-            status: 'active', currentIndex: state.currentIndex, total: content.questions.length,
-            savedAnswer, payload: xorCipher(JSON.stringify(sanitized), singleUseKey), key: singleUseKey
+            status: 'active',
+            quizLoaded: true,
+            activeQuizFile: state.activeQuizFile,
+            currentIndex: state.currentIndex,
+            total: content.questions.length,
+            savedAnswer,
+            payload: xorCipher(JSON.stringify(sanitized), singleUseKey),
+            key: singleUseKey
         });
     } catch (err) { res.status(500).json({ error: 'Sync failed.' }); }
 });
@@ -2861,12 +3016,12 @@ app.post('/api/live/student/submit', async (req, res) => {
         const [tokenData] = authHeader.replace('Bearer ', '').split('|||');
         const [, quizId, first, last] = tokenData.split('|');
         const fullName = `${decodeURIComponent(first)} ${decodeURIComponent(last)}`;
-        
+
         const { index, answer } = req.body;
         const cleanId = path.basename(String(quizId)).trim();
-        
+
         let status = 'error';
-        
+
         await updateBoardSecurely(cleanId, (board) => {
             if (board[fullName]) {
                 if (board[fullName].answers[index] === undefined || board[fullName].answers[index] === null) {
@@ -2875,7 +3030,7 @@ app.post('/api/live/student/submit', async (req, res) => {
                     return board;
                 } else {
                     status = 'locked';
-                    return null; // Don't rewrite data if already answered
+                    return null;
                 }
             }
             status = 'not_found';
@@ -2887,6 +3042,7 @@ app.post('/api/live/student/submit', async (req, res) => {
         res.status(400).json({ error: 'Student not found on board.' });
     } catch (err) { res.status(500).json({ error: 'Submit failed.' }); }
 });
+
 // ============================================================================
 // 9. HYBRID ENGINE: 30FPS DUAL-TRACK WEBRTC (CAM + PPT) & 16kHz HD AUDIO RELAY
 // ============================================================================
@@ -2899,14 +3055,16 @@ function getOrCreateMediaRoom(quizId) {
             broadcastActive: false,
             videoEnabled: false,
             audioEnabled: false,
-            broadcastMode: 'question', // 'question' or 'presentation'
+            broadcastMode: 'question', // 'question', 'presentation', or 'both'
             adminAudioSeq: 0,
             adminAudioBuffer: [],
             lastAdminVoiceAt: 0,
             studentAudioSeq: 0,
             studentAudioBuffer: [],
             activeCallers: new Map(),
-            students: new Map(), // studentName -> { offerId, offer, answer }
+            mutedStudents: new Set(),
+            kickedStudents: new Set(),
+            students: new Map(),
             updatedAt: Date.now()
         });
     }
@@ -2932,13 +3090,13 @@ function verifyLiveStudentHeader(req) {
 app.post('/api/live/rtc/admin/toggle', (req, res) => {
     const { adminKey, quizId, active, videoEnabled, audioEnabled, broadcastMode } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
-    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+    if (!quizId) return res.status(400).json({ error: 'Room name required' });
 
     const room = getOrCreateMediaRoom(quizId);
     room.broadcastActive = Boolean(active);
     room.videoEnabled = Boolean(videoEnabled);
     room.audioEnabled = Boolean(audioEnabled);
-    if (broadcastMode === 'presentation' || broadcastMode === 'question') {
+    if (['question', 'presentation', 'both'].includes(broadcastMode)) {
         room.broadcastMode = broadcastMode;
     }
     if (!room.broadcastActive) {
@@ -2953,15 +3111,17 @@ app.post('/api/live/rtc/admin/toggle', (req, res) => {
     res.json({ success: true, broadcastActive: room.broadcastActive, broadcastMode: room.broadcastMode });
 });
 
-// 1B. Admin swaps between Question Card and Presentation mid-session
+// 1B. Admin swaps between Question Card, Presentation, or Both Together mid-session
 app.post('/api/live/rtc/admin/mode', (req, res) => {
     const { adminKey, quizId, broadcastMode } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
-    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+    if (!quizId) return res.status(400).json({ error: 'Room name required' });
 
     const room = getOrCreateMediaRoom(quizId);
-    room.broadcastMode = (broadcastMode === 'presentation') ? 'presentation' : 'question';
-    if (room.broadcastMode === 'presentation') {
+    if (['question', 'presentation', 'both'].includes(broadcastMode)) {
+        room.broadcastMode = broadcastMode;
+    }
+    if (room.broadcastMode === 'presentation' || room.broadcastMode === 'both') {
         room.broadcastActive = true;
     }
     room.updatedAt = Date.now();
@@ -2973,16 +3133,21 @@ app.post('/api/live/rtc/admin/mode', (req, res) => {
 app.post('/api/live/rtc/admin/push', (req, res) => {
     const { adminKey, quizId, videoEnabled, audioEnabled, broadcastMode, audioChunk, rate, afterStudentSeq } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
-    if (!quizId) return res.status(400).json({ error: 'Quiz ID required' });
+    if (!quizId) return res.status(400).json({ error: 'Room name required' });
 
-    const room = getOrCreateMediaRoom(quizId);
+    const cleanId = path.basename(String(quizId)).trim();
+    const room = getOrCreateMediaRoom(cleanId);
     room.broadcastActive = true;
     room.videoEnabled = Boolean(videoEnabled);
     room.audioEnabled = Boolean(audioEnabled);
-    if (broadcastMode === 'presentation' || broadcastMode === 'question') {
+    if (['question', 'presentation', 'both'].includes(broadcastMode)) {
         room.broadcastMode = broadcastMode;
     }
     room.updatedAt = Date.now();
+
+    if (activeLiveRooms.has(cleanId)) {
+        activeLiveRooms.get(cleanId).lastSeen = Date.now();
+    }
 
     if (room.audioEnabled && typeof audioChunk === 'string' && audioChunk.length > 0) {
         room.adminAudioSeq += 1;
@@ -3000,13 +3165,16 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     const now = Date.now();
     const activeCallers = [];
     room.activeCallers.forEach((lastSeen, name) => {
-        if (now - lastSeen <= 4000) activeCallers.push(name);
-        else room.activeCallers.delete(name);
+        if (now - lastSeen <= 4000 && !room.mutedStudents.has(name) && !room.kickedStudents.has(name)) {
+            activeCallers.push(name);
+        } else {
+            room.activeCallers.delete(name);
+        }
     });
 
     const pendingOffers = [];
     room.students.forEach((data, name) => {
-        if (data.offer && !data.answer) {
+        if (data.offer && !data.answer && !room.kickedStudents.has(name)) {
             pendingOffers.push({ name, offer: data.offer, offerId: data.offerId });
         }
     });
@@ -3024,7 +3192,7 @@ app.post('/api/live/rtc/admin/push', (req, res) => {
     });
 });
 
-// 3. Admin sends WebRTC Video Answer (Matched by offerId so rejoined students never get stale answers)
+// 3. Admin sends WebRTC Video Answer
 app.post('/api/live/rtc/admin/webrtc-answer', (req, res) => {
     const { adminKey, quizId, studentName, answer, offerId } = req.body;
     if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
@@ -3043,8 +3211,13 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
 
     const room = getOrCreateMediaRoom(req.params.quizId);
-    if (room.broadcastActive && (Date.now() - room.updatedAt > 10000)) {
+    // Extended timeout to 120s so backgrounding the Admin tab during PowerPoint never drops the feed
+    if (room.broadcastActive && (Date.now() - room.updatedAt > 120000)) {
         room.broadcastActive = false;
+    }
+
+    if (room.kickedStudents.has(verified.studentName)) {
+        return res.json({ broadcastActive: false, kicked: true });
     }
 
     const afterSeq = Number(req.query.afterSeq) || 0;
@@ -3059,6 +3232,8 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
         videoEnabled: room.videoEnabled,
         audioEnabled: room.audioEnabled,
         broadcastMode: room.broadcastMode || 'question',
+        mutedByAdmin: room.mutedStudents.has(verified.studentName),
+        kicked: false,
         webrtcAnswer: student ? student.answer : null,
         webrtcOfferId: student ? student.offerId : null,
         latestSeq: room.adminAudioSeq,
@@ -3066,13 +3241,16 @@ app.get('/api/live/rtc/student/status/:quizId', (req, res) => {
     });
 });
 
-// 5. Student sends WebRTC Video Offer with unique offerId
+// 5. Student sends WebRTC Video Offer
 app.post('/api/live/rtc/student/webrtc-offer', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
 
     const { quizId, offer, offerId } = req.body;
     const room = getOrCreateMediaRoom(quizId || verified.quizId);
+    if (room.kickedStudents.has(verified.studentName)) {
+        return res.status(403).json({ error: 'Removed from room' });
+    }
     room.students.set(verified.studentName, {
         offerId: offerId || String(Date.now()),
         offer,
@@ -3082,7 +3260,7 @@ app.post('/api/live/rtc/student/webrtc-offer', (req, res) => {
     res.json({ success: true });
 });
 
-// 6. Student 1-click voice chunk upload (Full-duplex: no longer drops chunks when admin mic is open)
+// 6. Student 1-click voice chunk upload
 app.post('/api/live/rtc/student/call', (req, res) => {
     const verified = verifyLiveStudentHeader(req);
     if (!verified) return res.status(401).json({ error: 'Unauthorized' });
@@ -3090,14 +3268,21 @@ app.post('/api/live/rtc/student/call', (req, res) => {
     const { quizId, callActive, audioChunk, rate } = req.body;
     const room = getOrCreateMediaRoom(quizId || verified.quizId);
 
-    if (!room.broadcastActive) {
-        room.activeCallers.clear();
+    if (!room.broadcastActive || room.kickedStudents.has(verified.studentName)) {
+        room.activeCallers.delete(verified.studentName);
         return res.json({ success: true, callActive: false, streamEnded: true });
+    }
+
+    if (room.mutedStudents.has(verified.studentName)) {
+        room.activeCallers.delete(verified.studentName);
+        return res.json({ success: true, callActive: false, mutedByAdmin: true });
     }
 
     if (callActive) {
         room.activeCallers.set(verified.studentName, Date.now());
-        if (typeof audioChunk === 'string' && audioChunk.length > 0) {
+        // Echo gate: suppress student mic chunks while admin voice is actively broadcasting
+        const adminSpeaking = room.audioEnabled && ((Date.now() - room.lastAdminVoiceAt) < 550);
+        if (!adminSpeaking && typeof audioChunk === 'string' && audioChunk.length > 0) {
             room.studentAudioSeq += 1;
             room.studentAudioBuffer.push({
                 seq: room.studentAudioSeq,

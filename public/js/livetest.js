@@ -1,4 +1,4 @@
-// 1. SYNCHRONOUSLY RESTORE SESSION INSTANTLY ON PAGE LOAD (Prevents WebRTC black screen on refresh)
+// 1. SYNCHRONOUSLY RESTORE SESSION INSTANTLY ON PAGE LOAD
 const _savedLiveSession = sessionStorage.getItem('live_student_session');
 let _initialLiveToken = "";
 let _initialQuizId = "";
@@ -17,13 +17,61 @@ if (_savedLiveSession) {
 
 let liveToken = _initialLiveToken;
 let currentQuizId = _initialQuizId;
+let currentActiveQuizFile = "";
 let localIndex = -1;
 let syncInterval;
 let testActive = _hasActiveRestoredSession;
 let lastSavedAnswer = null;
 
-// Immediately hide auth screen and show quiz screen if session was active
+async function loadAvailableRooms() {
+    const listBox = document.getElementById('live-rooms-list');
+    if (!listBox) return;
+
+    try {
+        const res = await fetch('/api/live/rooms');
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.rooms) && data.rooms.length > 0) {
+            listBox.innerHTML = '';
+            data.rooms.forEach(room => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.cssText = 'width: 100%; padding: 16px 20px; background: #eff6ff; border: 2px solid #93c5fd; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: bold; color: #1e3a8a; transition: 0.2s;';
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = `🟢 ${room.name}`;
+                
+                const actionSpan = document.createElement('span');
+                actionSpan.style.cssText = 'background: #2563eb; color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px;';
+                actionSpan.textContent = 'Join Room →';
+
+                btn.appendChild(titleSpan);
+                btn.appendChild(actionSpan);
+                btn.addEventListener('click', () => joinLiveRoom(room.id, btn));
+                listBox.appendChild(btn);
+            });
+        } else {
+            listBox.innerHTML = `
+                <div style="padding: 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; font-weight: bold;">
+                    No active rooms right now. Click Refresh once Sir starts the room.
+                </div>
+            `;
+        }
+    } catch (e) {
+        listBox.innerHTML = `
+            <div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align: center; color: #dc2626; font-weight: bold;">
+                Error loading rooms. Please click Refresh.
+            </div>
+        `;
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+    const refreshBtn = document.getElementById('refresh-rooms-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadAvailableRooms);
+    }
+
     if (_hasActiveRestoredSession) {
         const authScreen = document.getElementById('auth-screen');
         const quizScreen = document.getElementById('quiz-screen');
@@ -37,6 +85,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
         startSync();
         startHeartbeat();
+    } else {
+        loadAvailableRooms();
+        setInterval(() => {
+            if (!testActive) loadAvailableRooms();
+        }, 4000);
     }
 });
 
@@ -48,7 +101,7 @@ function handleExpiredSession() {
     window.location.replace('/');
 }
 
-document.getElementById('join-btn').addEventListener('click', async () => {
+async function joinLiveRoom(selectedRoomId, btnEl) {
     const token = localStorage.getItem('pp_id_token');
     if (!token) {
         sessionStorage.setItem('force_login_open', 'true');
@@ -57,20 +110,22 @@ document.getElementById('join-btn').addEventListener('click', async () => {
         return;
     }
 
-    currentQuizId = document.getElementById('live-quiz-id').value.trim();
-    const otp = document.getElementById('live-otp').value.trim();
+    currentQuizId = String(selectedRoomId || '').trim();
+    if (!currentQuizId) return;
 
-    if (!currentQuizId || !otp) return alert("Test ID and OTP are required.");
-    
-    document.getElementById('join-btn').innerText = "Verifying...";
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.opacity = '0.7';
+    }
+
     try {
         const res = await fetch('/api/live/student/verify', {
-            method: 'POST', 
-            headers: { 
+            method: 'POST',
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ quizId: currentQuizId, otp })
+            body: JSON.stringify({ quizId: currentQuizId })
         });
 
         if (res.status === 401) {
@@ -81,25 +136,32 @@ document.getElementById('join-btn').addEventListener('click', async () => {
         const data = await res.json();
         if (data.success) {
             liveToken = data.token;
-            testActive = true;     // Reset for multiple live tests
-            localIndex = -1;       // Reset question index tracker
-            
-            // 2. SAVE THE ACTIVE SESSION TO SURVIVE BROWSER REFRESHES
+            testActive = true;
+            localIndex = -1;
+            currentActiveQuizFile = "";
+
             sessionStorage.setItem('live_student_session', JSON.stringify({ token: liveToken, quizId: currentQuizId }));
 
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
             startSync();
-            startHeartbeat(); 
-        } else { 
-            alert(data.error); 
-            document.getElementById('join-btn').innerText = "Join Test"; 
+            startHeartbeat();
+        } else {
+            alert(data.error || 'Could not join room.');
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.style.opacity = '1';
+            }
+            loadAvailableRooms();
         }
-    } catch (e) { 
-        alert("Network Error"); 
-        document.getElementById('join-btn').innerText = "Join Test"; 
+    } catch (e) {
+        alert("Network Error joining room.");
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.style.opacity = '1';
+        }
     }
-});
+}
 
 function startHeartbeat() {
     setInterval(() => {
@@ -112,7 +174,6 @@ function startHeartbeat() {
     }, 3000);
 }
 
-// Remove student from admin dashboard ONLY when tab is explicitly closed
 window.addEventListener('beforeunload', () => {
     if (liveToken && testActive) {
         fetch('/api/live/student/leave', {
@@ -133,10 +194,11 @@ function xorDecipher(b64Str, key) {
 }
 
 function startSync() {
+    if (syncInterval) clearInterval(syncInterval);
     syncInterval = setInterval(async () => {
         if (!testActive) return;
         try {
-            const res = await fetch(`/api/live/student/sync/${currentQuizId}`, {
+            const res = await fetch(`/api/live/student/sync/${encodeURIComponent(currentQuizId)}`, {
                 headers: { 'Authorization': `Bearer ${liveToken}` }
             });
 
@@ -148,57 +210,70 @@ function startSync() {
             }
 
             const data = await res.json();
-            
+
+            if (data.status === 'kicked') {
+                testActive = false;
+                clearInterval(syncInterval);
+                sessionStorage.removeItem('live_student_session');
+                alert("You have been removed from the room by the instructor.");
+                window.location.replace('/');
+                return;
+            }
+
             if (data.status === 'ended' && data.scorecard) {
                 testActive = false;
                 clearInterval(syncInterval);
-                
-                // 3. WIPE THE MEMORY BECAUSE THE TEST IS OFFICIALLY OVER
                 sessionStorage.removeItem('live_student_session');
-                
-                alert("Test was ended by admin.");
-                
-                // Inject the advanced scorecard + breakdown UI
+                alert("Room session was ended by instructor.");
                 renderLiveMockResults(data.scorecard, data.breakdown || []);
                 triggerCelebration();
                 return;
             }
 
             if (data.status === 'active') {
-                const indexChanged = data.currentIndex !== localIndex;
+                if (data.quizLoaded === false) {
+                    currentActiveQuizFile = "";
+                    localIndex = -1;
+                    document.getElementById('live-status').innerText = `🟢 Room: ${data.roomName || currentQuizId}`;
+                    document.getElementById('live-progress').innerText = `Live Session`;
+                    document.getElementById('question-text').innerText = "Connected to live classroom. Waiting for instructor to broadcast a question set...";
+                    document.getElementById('options-container').innerHTML = '';
+                    return;
+                }
+
+                const quizFileChanged = (data.activeQuizFile && data.activeQuizFile !== currentActiveQuizFile);
+                const indexChanged = (data.currentIndex !== localIndex);
                 const answerWasClearedByAdmin = (lastSavedAnswer !== null && data.savedAnswer === null);
 
-                if (indexChanged || answerWasClearedByAdmin) {
+                if (quizFileChanged || indexChanged || answerWasClearedByAdmin) {
+                    currentActiveQuizFile = data.activeQuizFile || "";
                     localIndex = data.currentIndex;
                     lastSavedAnswer = data.savedAnswer;
                     renderQuestion(data);
                 } else {
-                    // Just keep our local tracker updated
                     lastSavedAnswer = data.savedAnswer;
                 }
             }
         } catch (e) {}
-    }, 2000);
+    }, 1500);
 }
 
 function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;
-    
-    // Decrypting the payload uses data.key - ensuring it works correctly based on your previous fixes
+
     const q = JSON.parse(xorDecipher(data.payload, data.key));
     document.getElementById('question-text').innerText = `Q${localIndex + 1}. ${q.question}`;
-    
+
     const optsBox = document.getElementById('options-container');
     optsBox.innerHTML = '';
-    
+
     const hasAlreadyAnswered = data.savedAnswer !== null && data.savedAnswer !== undefined;
 
     q.options.forEach((opt, idx) => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
-        
-        // Restore previous selection if student refreshed or reconnected
+
         if (hasAlreadyAnswered && Number(data.savedAnswer) === idx) {
             btn.classList.add('selected');
         }
@@ -214,9 +289,9 @@ function renderQuestion(data) {
                 b.classList.add('locked');
             });
             btn.classList.add('selected');
-            
+
             fetch('/api/live/student/submit', {
-                method: 'POST', 
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
                 body: JSON.stringify({ index: localIndex, answer: idx })
             });

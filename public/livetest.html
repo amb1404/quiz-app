@@ -172,6 +172,38 @@
                 max-height: 68vh;
             }
         }
+        /* Step 3: Simultaneous PPT + Question Card Split-Screen Layout */
+        body.rtc-both-active {
+            justify-content: flex-start !important;
+            align-items: flex-start !important;
+            gap: 16px !important;
+            padding: 12px 16px !important;
+            flex-wrap: wrap !important;
+        }
+        body.rtc-both-active #presentation-screen {
+            display: block !important;
+            width: calc(60vw - 24px) !important;
+            max-width: calc(60vw - 24px) !important;
+            margin: 0 !important;
+        }
+        body.rtc-both-active #quiz-screen {
+            display: block !important;
+            width: calc(40vw - 28px) !important;
+            max-width: calc(40vw - 28px) !important;
+            margin-top: 175px !important;
+        }
+        @media (max-width: 960px) {
+            body.rtc-both-active #presentation-screen {
+                margin-top: 175px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            body.rtc-both-active #quiz-screen {
+                margin-top: 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
         @media print {
             #student-pip-box { display: none !important; }
         }
@@ -179,38 +211,16 @@
 </head>
 <body>
     <div id="auth-screen" class="live-container">
-        <h2 style="color: #4285f4;">Join Live Mock Test</h2>
-        <select id="live-quiz-id" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; background-color: white; font-weight: bold; color: #1e293b; cursor: pointer;">
-            <option value="">Loading Tests...</option>
-        </select>
-
-        <script>
-            document.addEventListener('DOMContentLoaded', async () => {
-                const dropdown = document.getElementById('live-quiz-id');
-                if (!dropdown) return;
-                
-                try {
-                    const res = await fetch('/api/live/list');
-                    const data = await res.json();
-                    
-                    if (data.success && data.tests.length > 0) {
-                        dropdown.innerHTML = '<option value="">-- Select a Live Test --</option>';
-                        data.tests.forEach(test => {
-                            const option = document.createElement('option');
-                            option.value = test.id;
-                            option.textContent = test.title;
-                            dropdown.appendChild(option);
-                        });
-                    } else {
-                        dropdown.innerHTML = '<option value="">No Live Tests Available</option>';
-                    }
-                } catch (e) {
-                    dropdown.innerHTML = '<option value="">Error loading tests</option>';
-                }
-            });
-        </script>
-        <input type="number" id="live-otp" placeholder="Enter Admin OTP">
-        <button id="join-btn" style="width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 6px; margin-top: 10px; font-weight: bold; cursor: pointer;">Join Test</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="color: #2563eb; margin: 0;">🚪 Join Room</h2>
+            <button id="refresh-rooms-btn" type="button" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">🔄 Refresh</button>
+        </div>
+        <p style="color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 18px;">Select an active classroom below to join the live session immediately:</p>
+        <div id="live-rooms-list" style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+            <div style="padding: 18px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; font-weight: bold;">
+                Loading available rooms...
+            </div>
+        </div>
     </div>
 <!-- Live PowerPoint Presentation Screen -->
     <!-- Live PowerPoint Presentation Screen -->
@@ -260,10 +270,14 @@
         let lastAdminAudioSeq = 0;
         let hasSyncedInitialSeq = false;
         let nextAdminPlayTime = 0;
+        let lastAdminAudioPlayedMs = 0; // Acoustic echo guard timestamp
+        const activeAdminNodes = [];
         let isPulling = false;
 
         let studentPc = null;
         let isJoiningRtc = false;
+        let joinStartedAt = 0;
+        let disconnectedSince = 0;
         let currentOfferId = null;
         let hasSentCurrentOffer = false;
 
@@ -296,7 +310,7 @@
                     if (document.exitFullscreen) {
                         document.exitFullscreen();
                     } else if (document.webkitExitFullscreen) {
-                        document.exitFullscreen();
+                        document.webkitExitFullscreen();
                     }
                     fullscreenBtn.textContent = '⛶ Fullscreen';
                 }
@@ -323,7 +337,6 @@
         document.addEventListener('pointerdown', ensureStudentAudioCtx);
         unmuteHintBtn.addEventListener('click', ensureStudentAudioCtx);
 
-        // Handle Back-Forward Cache (bfcache) restoration if student navigates back and forward
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
                 teardownStream();
@@ -433,14 +446,33 @@
                 channel[i] = val;
             }
 
-            if (isNewPhrase) nextAdminPlayTime = now + 0.08;
-            else if (nextAdminPlayTime - now > 0.6) nextAdminPlayTime = now + 0.08;
+            // Step 6 Fix: Smooth 160ms jitter cushion & prevent overlapping double-voice echo
+            if (isNewPhrase) {
+                nextAdminPlayTime = now + 0.16;
+            } else if (nextAdminPlayTime - now > 2.5) {
+                while (activeAdminNodes.length > 0) {
+                    const oldNode = activeAdminNodes.shift();
+                    try { oldNode.stop(); } catch (e) {}
+                }
+                nextAdminPlayTime = now + 0.16;
+            }
 
             const src = studentAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
             src.connect(studentAudioCtx.destination);
+
+            activeAdminNodes.push(src);
+            src.onended = () => {
+                const idx = activeAdminNodes.indexOf(src);
+                if (idx !== -1) activeAdminNodes.splice(idx, 1);
+            };
+
             src.start(nextAdminPlayTime);
             nextAdminPlayTime += audioBuffer.duration;
+
+            // Step 6 Fix: Record exact time admin voice finishes playing + 450ms room acoustic tail
+            const remainingPlayMs = Math.max(0, (nextAdminPlayTime - now) * 1000);
+            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 450;
         }
 
         function waitForIce(pc, maxTimeout = 600) {
@@ -483,6 +515,8 @@
         async function connectToAdminVideo() {
             if (isJoiningRtc || !liveToken || !currentQuizId) return;
             isJoiningRtc = true;
+            joinStartedAt = Date.now();
+            disconnectedSince = 0;
             hasSentCurrentOffer = false;
             const myOfferId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             currentOfferId = myOfferId;
@@ -496,8 +530,8 @@
                     iceCandidatePoolSize: 4
                 });
 
-                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 0: Webcam PIP
-                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Track 1: PPT Presentation
+                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Pipeline 1: Webcam PIP
+                studentPc.addTransceiver('video', { direction: 'recvonly' }); // Pipeline 2: PPT Presentation
 
                 let receivedTrackCount = 0;
                 studentPc.ontrack = (event) => {
@@ -517,13 +551,19 @@
                     }
                 };
 
-                // Automatically reconnect if WebRTC connection drops or fails after a page navigation
+                // Step 6 Fix: Do not kill video on brief 1s Wi-Fi 'disconnected' blips; only reset on 'failed'
                 studentPc.onconnectionstatechange = () => {
-                    if (studentPc && (studentPc.connectionState === 'failed' || studentPc.connectionState === 'disconnected')) {
+                    if (!studentPc) return;
+                    if (studentPc.connectionState === 'connected') {
+                        disconnectedSince = 0;
+                    } else if (studentPc.connectionState === 'disconnected') {
+                        if (!disconnectedSince) disconnectedSince = Date.now();
+                    } else if (studentPc.connectionState === 'failed') {
                         try { studentPc.close(); } catch (e) {}
                         studentPc = null;
                         isJoiningRtc = false;
                         hasSentCurrentOffer = false;
+                        disconnectedSince = 0;
                     }
                 };
 
@@ -588,6 +628,7 @@
         function teardownStream() {
             document.body.classList.remove('rtc-stream-active');
             document.body.classList.remove('rtc-presentation-active');
+            document.body.classList.remove('rtc-both-active');
             if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.style.display = 'none'; }
             if (pptVideo) { pptVideo.srcObject = null; }
             if (pipBox) pipBox.style.display = 'none';
@@ -598,6 +639,7 @@
             hasSyncedInitialSeq = false;
             currentOfferId = null;
             hasSentCurrentOffer = false;
+            disconnectedSince = 0;
 
             if (studentPc) {
                 try { studentPc.close(); } catch (e) {}
@@ -645,7 +687,13 @@
                         if (!isCallActive) return;
                         const nowMs = Date.now();
 
-                        // Same-PC echo guard (only triggers if Admin and Student tabs are open on the exact same computer)
+                        // Step 6 Fix: Gate student mic while Admin's voice is playing on student's speaker
+                        if (nowMs < lastAdminAudioPlayedMs) {
+                            studentPreRollBuffers = [];
+                            wasStudentSpeaking = false;
+                            return;
+                        }
+
                         try {
                             const adminSpkUntil = Number(localStorage.getItem('pp_admin_speaker_active_until') || 0);
                             if (nowMs < adminSpkUntil) {
@@ -660,7 +708,7 @@
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
 
-                        if (rms > 0.0045 || nowMs < callWarmupUntil) {
+                        if (rms > 0.0055 || nowMs < callWarmupUntil) {
                             studentActivelySpeakingUntil = nowMs + 750;
                         }
 
@@ -723,7 +771,7 @@
 
                             if (callRes && callRes.ok) {
                                 const callData = await callRes.json().catch(() => ({}));
-                                if (callData.streamEnded && isCallActive) {
+                                if ((callData.streamEnded || callData.mutedByAdmin) && isCallActive) {
                                     await stopStudentCall();
                                 }
                             }
@@ -740,7 +788,7 @@
             }
         });
 
-        // Fast 130ms Pull Loop for Audio, WebRTC State & Seamless Question/Presentation Swapping
+        // Fast 130ms Pull Loop for Audio, WebRTC State, Moderation & Dual-Cast Mode Switching
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -751,11 +799,37 @@
 
             try {
                 const syncFlag = hasSyncedInitialSeq ? '1' : '0';
-                const res = await fetch(`/api/live/rtc/student/status/${currentQuizId}?afterSeq=${lastAdminAudioSeq}&synced=${syncFlag}`, {
+                const res = await fetch(`/api/live/rtc/student/status/${encodeURIComponent(currentQuizId)}?afterSeq=${lastAdminAudioSeq}&synced=${syncFlag}`, {
                     headers: { 'Authorization': `Bearer ${liveToken}` }
                 });
                 if (!res.ok) return;
                 const status = await res.json();
+
+                if (status.kicked) {
+                    teardownStream();
+                    sessionStorage.removeItem('live_student_session');
+                    testActive = false;
+                    alert('You have been removed from this room by the instructor.');
+                    window.location.replace('/');
+                    return;
+                }
+
+                if (status.mutedByAdmin) {
+                    if (isCallActive) {
+                        await stopStudentCall();
+                    }
+                    callBtn.disabled = true;
+                    callBtn.textContent = '🔇 Muted by Sir';
+                    callBtn.style.background = '#64748b';
+                    callBtn.style.cursor = 'not-allowed';
+                } else {
+                    callBtn.disabled = false;
+                    callBtn.style.cursor = 'pointer';
+                    if (!isCallActive) {
+                        callBtn.textContent = '📞 Call Sir';
+                        callBtn.style.background = '#10b981';
+                    }
+                }
 
                 if (!status.broadcastActive) {
                     if (pipBox.style.display !== 'none') teardownStream();
@@ -765,11 +839,20 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
+                // Self-healing check if WebRTC handshake or disconnect hangs past 8 seconds
+                if (isJoiningRtc && (Date.now() - joinStartedAt > 8000)) {
+                    isJoiningRtc = false;
+                }
+                if (disconnectedSince && (Date.now() - disconnectedSince > 6000)) {
+                    if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
+                    isJoiningRtc = false;
+                    disconnectedSince = 0;
+                }
+
                 if (!studentPc && !isJoiningRtc) {
                     connectToAdminVideo();
                 }
 
-                // Only apply the WebRTC Answer if it matches the exact offerId sent in this page session
                 if (
                     hasSentCurrentOffer &&
                     status.webrtcAnswer &&
@@ -781,8 +864,17 @@
                     isJoiningRtc = false;
                 }
 
-                // Swap Main Screen between Question Card & Left-Aligned Large Presentation
-                if (status.broadcastMode === 'presentation') {
+                // Swap Student Screen between Question Only, Presentation Only, or Both Together
+                if (status.broadcastMode === 'both') {
+                    document.body.classList.remove('rtc-presentation-active');
+                    document.body.classList.add('rtc-both-active');
+                    if (presentationScreen) presentationScreen.style.display = 'block';
+                    if (quizScreen) quizScreen.style.display = 'block';
+                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
+                        pptVideo.play().catch(() => {});
+                    }
+                } else if (status.broadcastMode === 'presentation') {
+                    document.body.classList.remove('rtc-both-active');
                     document.body.classList.add('rtc-presentation-active');
                     if (quizScreen) quizScreen.style.display = 'none';
                     if (presentationScreen) presentationScreen.style.display = 'block';
@@ -791,6 +883,7 @@
                     }
                 } else {
                     document.body.classList.remove('rtc-presentation-active');
+                    document.body.classList.remove('rtc-both-active');
                     if (presentationScreen) presentationScreen.style.display = 'none';
                     if (quizScreen) quizScreen.style.display = 'block';
                 }
@@ -826,6 +919,6 @@
             }
         }, 130);
     })();
-    </script>
+</script>
 </body>
 </html>
