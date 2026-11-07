@@ -182,7 +182,7 @@
     <script src="/js/admin-live.js"></script>
 <script>
     (function() {
-        const TARGET_SAMPLE_RATE = 16000;
+        const TARGET_SAMPLE_RATE = 24000;
 
         // 3 Strictly Separate Media Pipelines
         let camStream = null;      // Pipeline 1: Dedicated Webcam Video Stream
@@ -741,32 +741,31 @@ document.addEventListener('pointerdown', () => {
                     humNotch.frequency.value = 50;
                     humNotch.Q.value = 10.0;
 
-                    // Stage 2: 180Hz Near-Field High-Pass Filter (Strips distant room resonance & boom)
+                   // Stage 2: 240Hz High-Pass Filter (Cuts 150-240Hz close-mic bass boom that makes voice sound deep)
                     const hpFilter = adminAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 180;
+                    hpFilter.frequency.value = 240;
                     hpFilter.Q.value = 0.707;
 
-                    // Stage 3: 6000Hz Low-Pass Filter (Strips high-frequency fan hiss while preserving crisp voice)
+                    // Stage 3: 9000Hz Low-Pass Filter (Preserves full natural vocal brightness & upper harmonics)
                     const lpFilter = adminAudioCtx.createBiquadFilter();
                     lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 6000;
+                    lpFilter.frequency.value = 9000;
                     lpFilter.Q.value = 0.707;
 
-                    // Stage 4: Vocal Presence Clarity Filter
+                    // Stage 4: High-Shelf Crispness Filter (+4.5dB above 2800Hz restores natural voice timbre)
                     const presenceFilter = adminAudioCtx.createBiquadFilter();
-                    presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 2500;
-                    presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 2.0;
+                    presenceFilter.type = 'highshelf';
+                    presenceFilter.frequency.value = 2800;
+                    presenceFilter.gain.value = 4.5;
 
-                    // Stage 5: Smooth Broadcast Compressor
+                    // Stage 5: Transparent Leveller (No bass-thickening compression)
                     const compressor = adminAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -22;
-                    compressor.knee.value = 12;
-                    compressor.ratio.value = 3.5;
-                    compressor.attack.value = 0.003;
-                    compressor.release.value = 0.15;
+                    compressor.threshold.value = -16;
+                    compressor.knee.value = 10;
+                    compressor.ratio.value = 2.0;
+                    compressor.attack.value = 0.005;
+                    compressor.release.value = 0.12;
 
                     // Native C++ Thread Gate Node for WebRTC Opus (Zero main-thread frame drops!)
                     const studioGateNode = adminAudioCtx.createGain();
