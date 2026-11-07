@@ -267,9 +267,15 @@
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
         let studentAudioCtx = null;
+        let aecReferenceDest = null;
+        let aecAudioElement = null;
+        let rtcOpusAudioEl = null;
+        let isRtcOpusFlowing = false;
+
         let lastAdminAudioSeq = 0;
         let hasSyncedInitialSeq = false;
         let nextAdminPlayTime = 0;
+        let lastAdminChunkEndMs = 0;
         let lastAdminAudioPlayedMs = 0; // Acoustic echo guard timestamp
         const activeAdminNodes = [];
         let isPulling = false;
@@ -291,6 +297,8 @@
         let studentPreRollBuffers = [];
         let callPushInterval = null;
         let studentActivelySpeakingUntil = 0;
+        let studentNoiseFloorRms = 0.0025;
+        let studentGateGain = 0.0;
 
         const pipBox = document.getElementById('student-pip-box');
         const remoteVideo = document.getElementById('student-remote-video');
@@ -321,6 +329,30 @@
         const unmuteHintBtn = document.getElementById('btn-unmute-hint');
         const callBtn = document.getElementById('btn-student-call');
 
+        // Binds WebAudio output to an HTML <audio> element so OS/Browser AEC3 cancels speaker echo
+        function getStudentAudioDestination() {
+            if (!studentAudioCtx) {
+                studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (!aecReferenceDest) {
+                try {
+                    aecReferenceDest = studentAudioCtx.createMediaStreamDestination();
+                    aecAudioElement = document.createElement('audio');
+                    aecAudioElement.autoplay = true;
+                    aecAudioElement.playsInline = true;
+                    aecAudioElement.srcObject = aecReferenceDest.stream;
+                    aecAudioElement.play().catch(() => {});
+                } catch (e) {
+                    return studentAudioCtx.destination;
+                }
+            }
+            if (aecAudioElement && aecAudioElement.paused) {
+                aecAudioElement.play().catch(() => {});
+                return studentAudioCtx.destination;
+            }
+            return aecReferenceDest ? aecReferenceDest. : studentAudioCtx.destination;
+        }
+
         function ensureStudentAudioCtx() {
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -331,6 +363,15 @@
                 }).catch(() => {});
             } else {
                 unmuteHintBtn.style.display = 'none';
+            }
+            if (aecAudioElement && aecAudioElement.paused) {
+                aecAudioElement.play().catch(() => {});
+            }
+            if (rtcOpusAudioEl && rtcOpusAudioEl.paused && rtcOpusAudioEl.srcObject) {
+                rtcOpusAudioEl.play().then(() => {
+                    isRtcOpusFlowing = true;
+                    unmuteHintBtn.style.display = 'none';
+                }).catch(() => {});
             }
         }
 
@@ -376,22 +417,27 @@
             });
         })(pipBox, document.getElementById('student-pip-header'));
 
-        function downsampleAndEnhance(float32Arr, inputRate, outputRate, gainMultiplier) {
+        function downsampleClean(float32Arr, inputRate, outputRate) {
+            if (inputRate === outputRate) {
+                const out = new Int16Array(float32Arr.length);
+                for (let i = 0; i < float32Arr.length; i++) {
+                    let s = Math.tanh(float32Arr[i]);
+                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return out;
+            }
             const ratio = inputRate / outputRate;
-            const newLen = Math.floor(float32Arr.length / ratio);
+            const newLen = Math.round(float32Arr.length / ratio);
             const result = new Int16Array(newLen);
 
             for (let i = 0; i < newLen; i++) {
-                const start = Math.floor(i * ratio);
-                const end = Math.min(float32Arr.length, Math.ceil((i + 1) * ratio));
-                let sum = 0, count = 0;
-                for (let j = start; j < end; j++) {
-                    sum += float32Arr[j];
-                    count++;
-                }
-                let sample = (count > 0 ? sum / count : float32Arr[start]) * gainMultiplier;
-                if (sample > 1.0) sample = 1.0;
-                else if (sample < -1.0) sample = -1.0;
+                const pos = i * ratio;
+                const idx = Math.floor(pos);
+                const frac = pos - idx;
+                const s0 = float32Arr[idx] || 0;
+                const s1 = float32Arr[Math.min(float32Arr.length - 1, idx + 1)] || s0;
+                let sample = s0 + frac * (s1 - s0);
+                sample = Math.tanh(sample);
                 result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
@@ -407,11 +453,33 @@
             return btoa(binary);
         }
 
+        function stopAllPcmNodes() {
+            while (activeAdminNodes.length > 0) {
+                const oldNode = activeAdminNodes.shift();
+                try { oldNode.stop(); } catch (e) {}
+            }
+        }
+
         function playAdminPcmBase64(b64Str, sampleRate) {
+            // Always update the acoustic echo lock timestamp (850ms tail) when Admin speaks
+            lastAdminAudioPlayedMs = Date.now() + 850;
+
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
+
+            // If native WebRTC Opus audio is actively playing, never play duplicate PCM (prevents echo)
+            if (
+                isRtcOpusFlowing &&
+                rtcOpusAudioEl &&
+                !rtcOpusAudioEl.paused &&
+                studentPc &&
+                studentPc.connectionState === 'connected'
+            ) {
+                stopAllPcmNodes();
+                return;
+            }
 
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -436,30 +504,48 @@
             const channel = audioBuffer.getChannelData(0);
 
             const now = studentAudioCtx.currentTime;
-            const isNewPhrase = (nextAdminPlayTime < now);
+            const isUnderrun = (nextAdminPlayTime < now);
+            const isNewTalkSpurt = isUnderrun && (Date.now() - lastAdminChunkEndMs > 450);
 
+            const fadeLen = Math.min(32, Math.floor(int16.length / 4));
             for (let i = 0; i < int16.length; i++) {
-                let val = (int16[i] / 32768.0) * 1.3;
-                if (val > 1.0) val = 1.0;
-                else if (val < -1.0) val = -1.0;
-                if (isNewPhrase && i < 24) val *= (i / 24);
+                // Unity gain (1.0x instead of 1.3x) prevents clipping & room reverb echo
+                let val = int16[i] / 32768.0;
+                if (isUnderrun && i < fadeLen) {
+                    val *= 0.5 * (1 - Math.cos(Math.PI * (i / fadeLen)));
+                } else if (i >= int16.length - fadeLen) {
+                    const rem = int16.length - 1 - i;
+                    val *= 0.5 * (1 - Math.cos(Math.PI * (rem / fadeLen)));
+                }
                 channel[i] = val;
             }
 
-            // Step 6 Fix: Smooth 160ms jitter cushion & prevent overlapping double-voice echo
-            if (isNewPhrase) {
-                nextAdminPlayTime = now + 0.16;
-            } else if (nextAdminPlayTime - now > 2.5) {
-                while (activeAdminNodes.length > 0) {
-                    const oldNode = activeAdminNodes.shift();
-                    try { oldNode.stop(); } catch (e) {}
-                }
-                nextAdminPlayTime = now + 0.16;
+            if (isNewTalkSpurt) {
+                nextAdminPlayTime = now + 0.15; // Smooth initial talkspurt cushion
+            } else if (isUnderrun) {
+                nextAdminPlayTime = now + 0.025; // 25ms micro-recovery eliminates mid-word 160ms silence breaks!
+            } else if (nextAdminPlayTime - now > 2.0) {
+                stopAllPcmNodes();
+                nextAdminPlayTime = now + 0.14;
             }
 
             const src = studentAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
-            src.connect(studentAudioCtx.destination);
+            if (!aecReferenceDest) {
+                try {
+                    aecReferenceDest = studentAudioCtx.createMediaStreamDestination();
+                    aecAudioElement = document.createElement('audio');
+                    aecAudioElement.autoplay = true;
+                    aecAudioElement.playsInline = true;
+                    aecAudioElement.srcObject = aecReferenceDest.stream;
+                    aecAudioElement.play().catch(() => {});
+                } catch (e) {}
+            }
+            if (aecReferenceDest && aecAudioElement && !aecAudioElement.paused) {
+                src.connect(aecReferenceDest);
+            } else {
+                src.connect(studentAudioCtx.destination);
+            }
 
             activeAdminNodes.push(src);
             src.onended = () => {
@@ -470,9 +556,9 @@
             src.start(nextAdminPlayTime);
             nextAdminPlayTime += audioBuffer.duration;
 
-            // Step 6 Fix: Record exact time admin voice finishes playing + 450ms room acoustic tail
             const remainingPlayMs = Math.max(0, (nextAdminPlayTime - now) * 1000);
-            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 450;
+            lastAdminChunkEndMs = Date.now() + remainingPlayMs;
+            lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 850;
         }
 
         function waitForIce(pc, maxTimeout = 600) {
@@ -512,9 +598,45 @@
             videoEl.play().catch(() => {});
         }
 
+        function attachOpusAudioTrack(track, receiver) {
+            if (receiver) {
+                try {
+                    // 80ms adaptive NetEQ target absorbs network jitter smoothly without dropouts
+                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.08;
+                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 80;
+                } catch (e) {}
+            }
+            if (!rtcOpusAudioEl) {
+                rtcOpusAudioEl = document.createElement('audio');
+                rtcOpusAudioEl.autoplay = true;
+                rtcOpusAudioEl.playsInline = true;
+            }
+            // Mute if Admin and Student are testing on the exact same PC
+            try {
+                const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
+                rtcOpusAudioEl.muted = (Date.now() - adminLocalStamp < 2000);
+            } catch (e) {}
+
+            rtcOpusAudioEl.srcObject = new MediaStream([track]);
+            rtcOpusAudioEl.onplaying = () => {
+                isRtcOpusFlowing = true;
+                stopAllPcmNodes();
+                unmuteHintBtn.style.display = 'none';
+            };
+            rtcOpusAudioEl.play().then(() => {
+                isRtcOpusFlowing = true;
+                stopAllPcmNodes();
+                unmuteHintBtn.style.display = 'none';
+            }).catch(() => {
+                isRtcOpusFlowing = false;
+                unmuteHintBtn.style.display = 'block';
+            });
+        }
+
         async function connectToAdminVideo() {
             if (isJoiningRtc || !liveToken || !currentQuizId) return;
             isJoiningRtc = true;
+            isRtcOpusFlowing = false;
             joinStartedAt = Date.now();
             disconnectedSince = 0;
             hasSentCurrentOffer = false;
@@ -532,16 +654,21 @@
 
                 studentPc.addTransceiver('video', { direction: 'recvonly' }); // Pipeline 1: Webcam PIP
                 studentPc.addTransceiver('video', { direction: 'recvonly' }); // Pipeline 2: PPT Presentation
+                studentPc.addTransceiver('audio', { direction: 'recvonly' }); // Pipeline 3: Native Opus Audio
 
-                let receivedTrackCount = 0;
+                let receivedVideoCount = 0;
                 studentPc.ontrack = (event) => {
+                    if (event.track.kind === 'audio') {
+                        attachOpusAudioTrack(event.track, event.receiver);
+                        return;
+                    }
                     if (event.track.kind === 'video') {
-                        const transceivers = studentPc.getTransceivers();
-                        let trackIndex = transceivers.findIndex(t => t.receiver === event.receiver);
+                        const videoTransceivers = studentPc.getTransceivers().filter(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
+                        let trackIndex = videoTransceivers.findIndex(t => t.receiver === event.receiver);
                         if (trackIndex === -1) {
-                            trackIndex = receivedTrackCount;
+                            trackIndex = receivedVideoCount;
                         }
-                        receivedTrackCount++;
+                        receivedVideoCount++;
 
                         if (trackIndex === 0) {
                             attachLowLatencyVideo(remoteVideo, event.track, event.receiver);
@@ -551,7 +678,6 @@
                     }
                 };
 
-                // Step 6 Fix: Do not kill video on brief 1s Wi-Fi 'disconnected' blips; only reset on 'failed'
                 studentPc.onconnectionstatechange = () => {
                     if (!studentPc) return;
                     if (studentPc.connectionState === 'connected') {
@@ -562,6 +688,7 @@
                         try { studentPc.close(); } catch (e) {}
                         studentPc = null;
                         isJoiningRtc = false;
+                        isRtcOpusFlowing = false;
                         hasSentCurrentOffer = false;
                         disconnectedSince = 0;
                     }
@@ -592,6 +719,7 @@
             isCallPushing = false;
             pendingCallSamples = [];
             studentPreRollBuffers = [];
+            studentGateGain = 0.0;
             try { localStorage.removeItem('pp_student_call_same_pc'); } catch (e) {}
             callBtn.textContent = '📞 Call Sir';
             callBtn.classList.remove('on-call');
@@ -631,6 +759,9 @@
             document.body.classList.remove('rtc-both-active');
             if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.style.display = 'none'; }
             if (pptVideo) { pptVideo.srcObject = null; }
+            if (rtcOpusAudioEl) { rtcOpusAudioEl.srcObject = null; }
+            isRtcOpusFlowing = false;
+            stopAllPcmNodes();
             if (pipBox) pipBox.style.display = 'none';
             if (presentationScreen) presentationScreen.style.display = 'none';
             if (quizScreen && testActive) quizScreen.style.display = 'block';
@@ -656,24 +787,47 @@
                 try {
                     studentMicStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true,
-                            channelCount: 1
+                            echoCancellation: { ideal: true },
+                            noiseSuppression: { ideal: true },
+                            autoGainControl: { ideal: true },
+                            channelCount: { ideal: 1 },
+                            googEchoCancellation: true,
+                            googAutoGainControl: true,
+                            googNoiseSuppression: true,
+                            googHighpassFilter: true
                         }
                     });
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
 
+                    // 5-Stage Student Noise Cancellation & Anti-Echo Filter Chain
+                    const humNotch = studentAudioCtx.createBiquadFilter();
+                    humNotch.type = 'notch';
+                    humNotch.frequency.value = 50;
+                    humNotch.Q.value = 10.0;
+
                     const hpFilter = studentAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 125;
+                    hpFilter.frequency.value = 150;
+                    hpFilter.Q.value = 0.707;
+
+                    const lpFilter = studentAudioCtx.createBiquadFilter();
+                    lpFilter.type = 'lowpass';
+                    lpFilter.frequency.value = 6200;
+                    lpFilter.Q.value = 0.707;
 
                     const presenceFilter = studentAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 2650;
+                    presenceFilter.frequency.value = 2400;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 4.0;
+                    presenceFilter.gain.value = 1.5;
+
+                    const compressor = studentAudioCtx.createDynamicsCompressor();
+                    compressor.threshold.value = -26;
+                    compressor.knee.value = 15;
+                    compressor.ratio.value = 4;
+                    compressor.attack.value = 0.003;
+                    compressor.release.value = 0.15;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
                     studentSilentSink = studentAudioCtx.createMediaStreamDestination();
@@ -681,16 +835,17 @@
                     pendingCallSamples = [];
                     studentPreRollBuffers = [];
                     let wasStudentSpeaking = false;
-                    const callWarmupUntil = Date.now() + 1200;
+                    const callWarmupUntil = Date.now() + 900;
 
                     studentMicProcessor.onaudioprocess = (e) => {
                         if (!isCallActive) return;
                         const nowMs = Date.now();
 
-                        // Step 6 Fix: Gate student mic while Admin's voice is playing on student's speaker
+                        // Strict Acoustic Echo Gate while Admin's voice is playing on student's speaker
                         if (nowMs < lastAdminAudioPlayedMs) {
                             studentPreRollBuffers = [];
                             wasStudentSpeaking = false;
+                            studentGateGain = 0.0;
                             return;
                         }
 
@@ -699,6 +854,7 @@
                             if (nowMs < adminSpkUntil) {
                                 studentPreRollBuffers = [];
                                 wasStudentSpeaking = false;
+                                studentGateGain = 0.0;
                                 return;
                             }
                         } catch (err) {}
@@ -708,13 +864,25 @@
                         for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
                         const rms = Math.sqrt(sumSq / input.length);
 
-                        if (rms > 0.0055 || nowMs < callWarmupUntil) {
-                            studentActivelySpeakingUntil = nowMs + 750;
+                        if (rms < studentNoiseFloorRms * 1.5) {
+                            studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.max(0.001, rms));
+                        }
+                        const openThreshold = Math.max(0.005, studentNoiseFloorRms * 2.5);
+                        if (rms > openThreshold || nowMs < callWarmupUntil) {
+                            studentActivelySpeakingUntil = nowMs + 850;
                         }
 
-                        const down = downsampleAndEnhance(input, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.55);
+                        const isGateOpen = (nowMs < studentActivelySpeakingUntil);
+                        const targetGain = isGateOpen ? 1.0 : 0.0;
+                        const gatedFloat = new Float32Array(input.length);
+                        for (let i = 0; i < input.length; i++) {
+                            studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.08 : 0.004);
+                            gatedFloat[i] = input[i] * studentGateGain;
+                        }
 
-                        if (nowMs < studentActivelySpeakingUntil) {
+                        const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+
+                        if (isGateOpen) {
                             if (!wasStudentSpeaking && studentPreRollBuffers.length > 0) {
                                 for (let b = 0; b < studentPreRollBuffers.length; b++) {
                                     const pre = studentPreRollBuffers[b];
@@ -725,7 +893,7 @@
                             wasStudentSpeaking = true;
 
                             for (let i = 0; i < down.length; i++) pendingCallSamples.push(down[i]);
-                            if (pendingCallSamples.length > 16000) pendingCallSamples = pendingCallSamples.slice(-16000);
+                            if (pendingCallSamples.length > 24000) pendingCallSamples = pendingCallSamples.slice(-24000);
                         } else {
                             wasStudentSpeaking = false;
                             studentPreRollBuffers.push(down);
@@ -733,9 +901,12 @@
                         }
                     };
 
-                    studentMicSource.connect(hpFilter);
-                    hpFilter.connect(presenceFilter);
-                    presenceFilter.connect(studentMicProcessor);
+                    studentMicSource.connect(humNotch);
+                    humNotch.connect(hpFilter);
+                    hpFilter.connect(lpFilter);
+                    lpFilter.connect(presenceFilter);
+                    presenceFilter.connect(compressor);
+                    compressor.connect(studentMicProcessor);
                     studentMicProcessor.connect(studentSilentSink);
 
                     isCallActive = true;
@@ -750,7 +921,7 @@
                         try {
                             try { localStorage.setItem('pp_student_call_same_pc', String(Date.now())); } catch (e) {}
                             let chunkB64 = null;
-                            if (pendingCallSamples.length > 0) {
+                            if (pendingCallSamples.length >= 1600) {
                                 const int16 = new Int16Array(pendingCallSamples);
                                 pendingCallSamples = [];
                                 chunkB64 = int16ToBase64(int16);
@@ -779,7 +950,7 @@
                         } finally {
                             isCallPushing = false;
                         }
-                    }, 100);
+                    }, 120);
                 } catch (err) {
                     alert('Please allow microphone access to talk to Sir.');
                 }
@@ -839,13 +1010,13 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                // Self-healing check if WebRTC handshake or disconnect hangs past 8 seconds
                 if (isJoiningRtc && (Date.now() - joinStartedAt > 8000)) {
                     isJoiningRtc = false;
                 }
                 if (disconnectedSince && (Date.now() - disconnectedSince > 6000)) {
                     if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
                     isJoiningRtc = false;
+                    isRtcOpusFlowing = false;
                     disconnectedSince = 0;
                 }
 
@@ -862,6 +1033,15 @@
                 ) {
                     await studentPc.setRemoteDescription(new RTCSessionDescription(status.webrtcAnswer));
                     isJoiningRtc = false;
+                }
+
+                if (rtcOpusAudioEl) {
+                    try {
+                        const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
+                        rtcOpusAudioEl.muted = !status.audioEnabled || (Date.now() - adminLocalStamp < 2000);
+                    } catch (e) {
+                        rtcOpusAudioEl.muted = !status.audioEnabled;
+                    }
                 }
 
                 // Swap Student Screen between Question Only, Presentation Only, or Both Together

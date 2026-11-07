@@ -184,13 +184,16 @@
     (function() {
         const TARGET_SAMPLE_RATE = 16000;
 
-        // Step 7: 3 Strictly Separate Media Pipelines
+        // 3 Strictly Separate Media Pipelines
         let camStream = null;      // Pipeline 1: Dedicated Webcam Video Stream
         let screenStream = null;   // Pipeline 2: Dedicated PPT Presentation Stream
         let micStream = null;      // Pipeline 3: Dedicated HD Microphone Stream
 
         let idlePptStream = null;
         let idleCanvasCtx = null;
+        let studioOutDest = null;  // Clean Noise-Cancelled WebRTC Opus Output Stream
+        let silentOsc = null;
+
         let videoEnabled = false;
         let audioEnabled = false;
         let isBroadcasting = false;
@@ -207,10 +210,13 @@
         let pendingPcmSamples = [];
         let preRollBuffers = [];
         let lastStudentSeq = 0;
+        let noiseFloorRms = 0.0025;
+        let currentGateGain = 0.0;
 
         // Per-student low-latency audio playback timelines
         const studentPlayTimes = new Map();
         const studentActiveNodes = new Map();
+        const studentLastChunkEnd = new Map();
         let lastStudentAudioPlayedMs = 0;
 
         const peerConnections = new Map();
@@ -257,6 +263,24 @@
             return idlePptStream.getVideoTracks()[0];
         }
 
+        // Ensures a continuous WebRTC Opus Audio Track exists for every student connection
+        function getStudioOpusTrack() {
+            if (!adminAudioCtx) {
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (!studioOutDest) {
+                studioOutDest = adminAudioCtx.createMediaStreamDestination();
+                // Keep stream clock active with an inaudible zero-gain oscillator
+                silentOsc = adminAudioCtx.createOscillator();
+                const zeroGain = adminAudioCtx.createGain();
+                zeroGain.gain.value = 0.0;
+                silentOsc.connect(zeroGain);
+                zeroGain.connect(studioOutDest);
+                silentOsc.start();
+            }
+            return studioOutDest.stream.getAudioTracks()[0];
+        }
+
         function getActiveCamTrack() {
             if (videoEnabled && camStream) {
                 const track = camStream.getVideoTracks()[0];
@@ -288,6 +312,26 @@
                 params.encodings[0].networkPriority = 'high';
                 sender.setParameters(params).catch(() => {});
             } catch (e) {}
+        }
+
+        function optimizeAudioSender(sender) {
+            if (!sender || typeof sender.getParameters !== 'function') return;
+            try {
+                const params = sender.getParameters();
+                if (!params.encodings || params.encodings.length === 0) {
+                    params.encodings = [{}];
+                }
+                params.encodings[0].maxBitrate = 64000;
+                params.encodings[0].priority = 'high';
+                params.encodings[0].networkPriority = 'high';
+                sender.setParameters(params).catch(() => {});
+            } catch (e) {}
+        }
+
+        // Inject Google Meet Opus parameters (In-Band FEC + DTX + 64kbps Voice Clarity) into SDP
+        function enhanceOpusSdp(sdp) {
+            if (!sdp) return sdp;
+            return sdp.replace(/a=fmtp:(\d+) minptime=10;useinbandfec=1/g, 'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=1;stereo=0;maxaveragebitrate=64000;cbr=1');
         }
 
         function hotSwapCameraTrack(newCamTrack) {
@@ -488,22 +532,29 @@
             });
         })(pipBox, document.getElementById('admin-pip-header'));
 
-        function downsampleAndEnhance(float32Arr, inputRate, outputRate, gainMultiplier) {
+        // Linear-interpolated anti-aliasing downsampler with soft-limiter (Unity gain: no room reverb boost)
+        function downsampleClean(float32Arr, inputRate, outputRate) {
+            if (inputRate === outputRate) {
+                const out = new Int16Array(float32Arr.length);
+                for (let i = 0; i < float32Arr.length; i++) {
+                    let s = Math.tanh(float32Arr[i]);
+                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return out;
+            }
             const ratio = inputRate / outputRate;
-            const newLen = Math.floor(float32Arr.length / ratio);
+            const newLen = Math.round(float32Arr.length / ratio);
             const result = new Int16Array(newLen);
 
             for (let i = 0; i < newLen; i++) {
-                const start = Math.floor(i * ratio);
-                const end = Math.min(float32Arr.length, Math.ceil((i + 1) * ratio));
-                let sum = 0, count = 0;
-                for (let j = start; j < end; j++) {
-                    sum += float32Arr[j];
-                    count++;
-                }
-                let sample = (count > 0 ? sum / count : float32Arr[start]) * gainMultiplier;
-                if (sample > 1.0) sample = 1.0;
-                else if (sample < -1.0) sample = -1.0;
+                const pos = i * ratio;
+                const idx = Math.floor(pos);
+                const frac = pos - idx;
+                const s0 = float32Arr[idx] || 0;
+                const s1 = float32Arr[Math.min(float32Arr.length - 1, idx + 1)] || s0;
+                let sample = s0 + frac * (s1 - s0);
+                // Soft-knee tanh limiter prevents harsh digital clipping
+                sample = Math.tanh(sample);
                 result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
@@ -519,6 +570,7 @@
             return btoa(binary);
         }
 
+        // Jitter-Free Crossfaded Student Voice Playback
         function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             try {
                 const samePcCall = Number(localStorage.getItem('pp_student_call_same_pc') || 0);
@@ -542,24 +594,32 @@
             const now = adminAudioCtx.currentTime;
             const callerKey = studentName || 'default';
             let nextPlayTime = studentPlayTimes.get(callerKey) || 0;
-            const isNewPhrase = (nextPlayTime < now);
+            const lastEndMs = studentLastChunkEnd.get(callerKey) || 0;
+            const isUnderrun = (nextPlayTime < now);
+            const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 450);
 
+            const fadeLen = Math.min(32, Math.floor(int16.length / 4));
             for (let i = 0; i < int16.length; i++) {
-                let val = (int16[i] / 32768.0) * 1.6;
-                if (val > 1.0) val = 1.0;
-                else if (val < -1.0) val = -1.0;
-                if (isNewPhrase && i < 24) val *= (i / 24);
+                let val = int16[i] / 32768.0;
+                // Smooth raised-cosine de-clicking at chunk boundaries
+                if (isUnderrun && i < fadeLen) {
+                    val *= 0.5 * (1 - Math.cos(Math.PI * (i / fadeLen)));
+                } else if (i >= int16.length - fadeLen) {
+                    const rem = int16.length - 1 - i;
+                    val *= 0.5 * (1 - Math.cos(Math.PI * (rem / fadeLen)));
+                }
                 channel[i] = val;
             }
 
-            if (isNewPhrase) {
-                nextPlayTime = now + 0.14;
-            } else if (nextPlayTime - now > 2.2) {
-                // Stop stale queued nodes before resyncing so voices never overlap
+            if (isNewTalkSpurt) {
+                nextPlayTime = now + 0.14; // Initial talkspurt jitter cushion
+            } else if (isUnderrun) {
+                nextPlayTime = now + 0.025; // Micro-recovery (25ms) prevents mid-word gaps!
+            } else if (nextPlayTime - now > 1.8) {
                 const existingNodes = studentActiveNodes.get(callerKey) || [];
                 existingNodes.forEach(n => { try { n.stop(); } catch (e) {} });
                 studentActiveNodes.set(callerKey, []);
-                nextPlayTime = now + 0.14;
+                nextPlayTime = now + 0.12;
             }
 
             const src = adminAudioCtx.createBufferSource();
@@ -582,11 +642,12 @@
             studentPlayTimes.set(callerKey, nextPlayTime);
 
             const remainingPlayMs = Math.max(0, (nextPlayTime - now) * 1000);
+            studentLastChunkEnd.set(callerKey, Date.now() + remainingPlayMs);
             lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 350;
             try { localStorage.setItem('pp_admin_speaker_active_until', String(lastStudentAudioPlayedMs)); } catch (e) {}
         }
 
-        // Pipeline 1: Dedicated Camera Stream Setup (Completely decoupled from Mic & PPT)
+        // Pipeline 1: Dedicated Camera Stream Setup
         async function syncCameraPipeline() {
             if (!videoEnabled) {
                 if (camStream) {
@@ -622,10 +683,11 @@
             return true;
         }
 
-        // Pipeline 3: Dedicated HD Microphone Stream Setup (Completely decoupled from Camera & PPT)
+        // Pipeline 3: Google Meet-Grade 5-Stage Noise-Cancelled Audio Pipeline
         async function syncAudioPipeline() {
             if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (adminAudioCtx.state === 'suspended') await adminAudioCtx.resume();
+            getStudioOpusTrack();
 
             if (!audioEnabled) {
                 if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
@@ -636,6 +698,7 @@
                 }
                 pendingPcmSamples = [];
                 preRollBuffers = [];
+                currentGateGain = 0.0;
                 return true;
             }
 
@@ -644,7 +707,16 @@
                 try {
                     micStream = await navigator.mediaDevices.getUserMedia({
                         video: false,
-                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+                        audio: {
+                            echoCancellation: { ideal: true },
+                            noiseSuppression: { ideal: true },
+                            autoGainControl: { ideal: true },
+                            channelCount: { ideal: 1 },
+                            googEchoCancellation: true,
+                            googAutoGainControl: true,
+                            googNoiseSuppression: true,
+                            googHighpassFilter: true
+                        }
                     });
 
                     if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} }
@@ -652,15 +724,38 @@
 
                     micSource = adminAudioCtx.createMediaStreamSource(micStream);
 
+                    // Stage 1: 50Hz AC Mains Hum Notch Filter
+                    const humNotch = adminAudioCtx.createBiquadFilter();
+                    humNotch.type = 'notch';
+                    humNotch.frequency.value = 50;
+                    humNotch.Q.value = 10.0;
+
+                    // Stage 2: 150Hz Sub-Vocal Rumble & Plosive High-Pass Filter
                     const hpFilter = adminAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 120;
+                    hpFilter.frequency.value = 150;
+                    hpFilter.Q.value = 0.707;
 
+                    // Stage 3: 6200Hz High-Frequency Fan/Hiss Low-Pass Filter
+                    const lpFilter = adminAudioCtx.createBiquadFilter();
+                    lpFilter.type = 'lowpass';
+                    lpFilter.frequency.value = 6200;
+                    lpFilter.Q.value = 0.707;
+
+                    // Stage 4: Subtle Vocal Clarity EQ (+1.5dB instead of +3.5dB so room reverb is not boosted)
                     const presenceFilter = adminAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 2600;
+                    presenceFilter.frequency.value = 2400;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 3.5;
+                    presenceFilter.gain.value = 1.5;
+
+                    // Stage 5: Broadcast Dynamics Compressor (Smooths volume without clipping)
+                    const compressor = adminAudioCtx.createDynamicsCompressor();
+                    compressor.threshold.value = -26;
+                    compressor.knee.value = 15;
+                    compressor.ratio.value = 4;
+                    compressor.attack.value = 0.003;
+                    compressor.release.value = 0.15;
 
                     micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
                     silentSink = adminAudioCtx.createMediaStreamDestination();
@@ -669,15 +764,12 @@
                     let speechHoldUntil = 0;
 
                     micProcessor.onaudioprocess = (e) => {
-                        if (!isBroadcasting || !audioEnabled) {
-                            preRollBuffers = [];
-                            return;
-                        }
-                        // Prevent admin speakers from echoing incoming student calls back to the room
-                        if (Date.now() < lastStudentAudioPlayedMs) {
-                            pendingPcmSamples = [];
+                        const output = e.outputBuffer.getChannelData(0);
+                        if (!isBroadcasting || !audioEnabled || Date.now() < lastStudentAudioPlayedMs) {
+                            for (let i = 0; i < output.length; i++) output[i] = 0;
                             preRollBuffers = [];
                             wasSpeaking = false;
+                            currentGateGain = 0.0;
                             return;
                         }
 
@@ -687,11 +779,30 @@
                         const rms = Math.sqrt(sumSq / input.length);
                         const nowMs = Date.now();
 
-                        const downsampled = downsampleAndEnhance(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE, 1.35);
+                        // Adaptive noise floor tracker & soft-knee hysteresis gate
+                        if (rms < noiseFloorRms * 1.5) {
+                            noiseFloorRms = (0.95 * noiseFloorRms) + (0.05 * Math.max(0.001, rms));
+                        }
+                        const openThreshold = Math.max(0.004, noiseFloorRms * 2.4);
+                        if (rms > openThreshold) {
+                            speechHoldUntil = nowMs + 950; // 950ms hold prevents mid-sentence gate dropouts
+                        }
 
-                        if (rms > 0.0045) speechHoldUntil = nowMs + 750;
+                        const isGateOpen = (nowMs < speechHoldUntil);
+                        const targetGain = isGateOpen ? 1.0 : 0.0;
+                        const gatedFloat = new Float32Array(input.length);
 
-                        if (nowMs < speechHoldUntil) {
+                        for (let i = 0; i < input.length; i++) {
+                            // Smooth per-sample envelope slew eliminates gate clicking
+                            currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.004);
+                            const cleanSample = input[i] * currentGateGain;
+                            gatedFloat[i] = cleanSample;
+                            output[i] = cleanSample; // Feeds WebRTC Opus stream directly!
+                        }
+
+                        const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
+
+                        if (isGateOpen) {
                             if (!wasSpeaking && preRollBuffers.length > 0) {
                                 for (let b = 0; b < preRollBuffers.length; b++) {
                                     const pre = preRollBuffers[b];
@@ -701,7 +812,7 @@
                             }
                             wasSpeaking = true;
                             for (let i = 0; i < downsampled.length; i++) pendingPcmSamples.push(downsampled[i]);
-                            if (pendingPcmSamples.length > 16000) pendingPcmSamples = pendingPcmSamples.slice(-16000);
+                            if (pendingPcmSamples.length > 24000) pendingPcmSamples = pendingPcmSamples.slice(-24000);
                         } else {
                             wasSpeaking = false;
                             preRollBuffers.push(downsampled);
@@ -709,9 +820,14 @@
                         }
                     };
 
-                    micSource.connect(hpFilter);
-                    hpFilter.connect(presenceFilter);
-                    presenceFilter.connect(micProcessor);
+                    micSource.connect(humNotch);
+                    humNotch.connect(hpFilter);
+                    hpFilter.connect(lpFilter);
+                    lpFilter.connect(presenceFilter);
+                    presenceFilter.connect(compressor);
+                    compressor.connect(micProcessor);
+                    // Feed clean gated audio into both WebRTC Opus destination and silent sink
+                    micProcessor.connect(studioOutDest);
                     micProcessor.connect(silentSink);
                 } catch (err) {
                     alert('Microphone error: ' + err.message);
@@ -763,18 +879,27 @@
 
             const camTrack = getActiveCamTrack();
             const pptTrack = getActivePptTrack();
+            const opusTrack = getStudioOpusTrack();
 
             if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
             if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
 
             pc._camSender = pc.addTrack(camTrack, camStream || idlePptStream);
             pc._pptSender = pc.addTrack(pptTrack, screenStream || idlePptStream);
+            if (opusTrack && studioOutDest) {
+                pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
+                optimizeAudioSender(pc._audioSender);
+            }
 
             optimizeVideoSender(pc._camSender, false);
             optimizeVideoSender(pc._pptSender, true);
 
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            const rawAnswer = await pc.createAnswer();
+            const enhancedAnswer = {
+                type: rawAnswer.type,
+                sdp: enhanceOpusSdp(rawAnswer.sdp)
+            };
+            await pc.setLocalDescription(enhancedAnswer);
             await waitForIce(pc, 600);
 
             await fetch('/api/live/rtc/admin/webrtc-answer', {
@@ -820,7 +945,6 @@
             const { adminKey, quizId } = getAdminCredentials();
             if (!adminKey || !quizId) return;
 
-            // Keep idle canvas alive so browsers never suspend inactive tracks during 1+ hour sessions
             if (idleCanvasCtx) {
                 idleCanvasCtx.fillStyle = '#0f172a';
                 idleCanvasCtx.fillRect(0, 0, 8, 8);
@@ -835,13 +959,13 @@
             isPushing = true;
             try {
                 let audioChunkB64 = null;
-                if (audioEnabled && pendingPcmSamples.length > 0) {
+                // Only flush PCM when at least 2048 samples (~128ms) are ready to prevent tiny 85ms fragments
+                if (audioEnabled && pendingPcmSamples.length >= 2048) {
                     const int16 = new Int16Array(pendingPcmSamples);
                     pendingPcmSamples = [];
                     audioChunkB64 = int16ToBase64(int16);
                 }
 
-                // Keep room heartbeat alive in Redis even when Admin tab is backgrounded behind PowerPoint
                 if (Date.now() - lastHeartbeatAt > 4000) {
                     lastHeartbeatAt = Date.now();
                     fetch(`/api/live/admin/dashboard?adminKey=${encodeURIComponent(adminKey)}&quizId=${encodeURIComponent(quizId)}`).catch(() => {});
@@ -901,7 +1025,6 @@
             }
         }
 
-        // Step 6 Fix: Unthrottled Web Worker keeps pushing every 130ms even when PowerPoint is focused for 1+ hours
         function startUnthrottledPushWorker() {
             if (pushWorker) {
                 try { pushWorker.terminate(); } catch (e) {}
@@ -925,7 +1048,6 @@
                 pushWorker.onmessage = executeAdminPushTick;
                 pushWorker.postMessage('start');
             } catch (err) {
-                // Fallback if Worker is blocked
                 pushWorker = {
                     _id: setInterval(executeAdminPushTick, 130),
                     terminate() { clearInterval(this._id); }
@@ -975,6 +1097,7 @@
             preRollBuffers = [];
             studentPlayTimes.clear();
             studentActiveNodes.clear();
+            studentLastChunkEnd.clear();
             try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
 
             if (screenStream) {

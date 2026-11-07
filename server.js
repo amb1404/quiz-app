@@ -3281,7 +3281,8 @@ app.post('/api/live/rtc/student/call', (req, res) => {
     if (callActive) {
         room.activeCallers.set(verified.studentName, Date.now());
         // Echo gate: suppress student mic chunks while admin voice is actively broadcasting
-        const adminSpeaking = room.audioEnabled && ((Date.now() - room.lastAdminVoiceAt) < 550);
+       // Suppress student mic upload while Admin voice is broadcasting + 1200ms network/acoustic tail
+        const adminSpeaking = room.audioEnabled && ((Date.now() - room.lastAdminVoiceAt) < 1200);
         if (!adminSpeaking && typeof audioChunk === 'string' && audioChunk.length > 0) {
             room.studentAudioSeq += 1;
             room.studentAudioBuffer.push({
