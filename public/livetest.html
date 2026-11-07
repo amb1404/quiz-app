@@ -350,7 +350,7 @@
                 aecAudioElement.play().catch(() => {});
                 return studentAudioCtx.destination;
             }
-            return aecReferenceDest ? aecReferenceDest. : studentAudioCtx.destination;
+            return aecReferenceDest ? aecReferenceDest : studentAudioCtx.destination;
         }
 
         function ensureStudentAudioCtx() {
@@ -509,7 +509,6 @@
 
             const fadeLen = Math.min(32, Math.floor(int16.length / 4));
             for (let i = 0; i < int16.length; i++) {
-                // Unity gain (1.0x instead of 1.3x) prevents clipping & room reverb echo
                 let val = int16[i] / 32768.0;
                 if (isUnderrun && i < fadeLen) {
                     val *= 0.5 * (1 - Math.cos(Math.PI * (i / fadeLen)));
@@ -521,9 +520,9 @@
             }
 
             if (isNewTalkSpurt) {
-                nextAdminPlayTime = now + 0.15; // Smooth initial talkspurt cushion
+                nextAdminPlayTime = now + 0.15;
             } else if (isUnderrun) {
-                nextAdminPlayTime = now + 0.025; // 25ms micro-recovery eliminates mid-word 160ms silence breaks!
+                nextAdminPlayTime = now + 0.025;
             } else if (nextAdminPlayTime - now > 2.0) {
                 stopAllPcmNodes();
                 nextAdminPlayTime = now + 0.14;
@@ -531,21 +530,7 @@
 
             const src = studentAudioCtx.createBufferSource();
             src.buffer = audioBuffer;
-            if (!aecReferenceDest) {
-                try {
-                    aecReferenceDest = studentAudioCtx.createMediaStreamDestination();
-                    aecAudioElement = document.createElement('audio');
-                    aecAudioElement.autoplay = true;
-                    aecAudioElement.playsInline = true;
-                    aecAudioElement.srcObject = aecReferenceDest.stream;
-                    aecAudioElement.play().catch(() => {});
-                } catch (e) {}
-            }
-            if (aecReferenceDest && aecAudioElement && !aecAudioElement.paused) {
-                src.connect(aecReferenceDest);
-            } else {
-                src.connect(studentAudioCtx.destination);
-            }
+            src.connect(getStudentAudioDestination());
 
             activeAdminNodes.push(src);
             src.onended = () => {
@@ -601,7 +586,6 @@
         function attachOpusAudioTrack(track, receiver) {
             if (receiver) {
                 try {
-                    // 80ms adaptive NetEQ target absorbs network jitter smoothly without dropouts
                     if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.08;
                     if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 80;
                 } catch (e) {}
@@ -611,7 +595,6 @@
                 rtcOpusAudioEl.autoplay = true;
                 rtcOpusAudioEl.playsInline = true;
             }
-            // Mute if Admin and Student are testing on the exact same PC
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
                 rtcOpusAudioEl.muted = (Date.now() - adminLocalStamp < 2000);
