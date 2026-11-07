@@ -304,12 +304,14 @@
                 if (!params.encodings || params.encodings.length === 0) {
                     params.encodings = [{}];
                 }
+                // Lock degradation preference to framing instead of resolution dropping
                 params.degradationPreference = 'maintain-framerate';
                 params.encodings[0].maxFramerate = 30;
-                params.encodings[0].maxBitrate = isPresentation ? 2500000 : 900000;
+                params.encodings[0].minFramerate = 30;
+                params.encodings[0].maxBitrate = isPresentation ? 3500000 : 1200000;
                 params.encodings[0].scaleResolutionDownBy = 1.0;
-                params.encodings[0].priority = 'high';
                 params.encodings[0].networkPriority = 'high';
+                params.encodings[0].priority = 'high';
                 sender.setParameters(params).catch(() => {});
             } catch (e) {}
         }

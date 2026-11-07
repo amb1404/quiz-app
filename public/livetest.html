@@ -634,21 +634,19 @@
                 studentPc.addTransceiver('video', { direction: 'recvonly' }); // Pipeline 2: PPT Presentation
                 studentPc.addTransceiver('audio', { direction: 'recvonly' }); // Pipeline 3: Native Opus Audio
 
-                let receivedVideoCount = 0;
                 studentPc.ontrack = (event) => {
                     if (event.track.kind === 'audio') {
                         attachOpusAudioTrack(event.track, event.receiver);
                         return;
                     }
                     if (event.track.kind === 'video') {
-                        const videoTransceivers = studentPc.getTransceivers().filter(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
-                        let trackIndex = videoTransceivers.findIndex(t => t.receiver === event.receiver);
-                        if (trackIndex === -1) {
-                            trackIndex = receivedVideoCount;
-                        }
-                        receivedVideoCount++;
+                        // Directly assign based on transceiver order to eliminate frame stuttering
+                        const transceivers = studentPc.getTransceivers();
+                        const videoTransceivers = transceivers.filter(t => t.mid !== null);
+                        const videoIndex = videoTransceivers.findIndex(t => t.receiver === event.receiver);
 
-                        if (trackIndex === 0) {
+                        event.track.enabled = true;
+                        if (videoIndex === 0 || videoTransceivers.length === 1) {
                             attachLowLatencyVideo(remoteVideo, event.track, event.receiver);
                         } else {
                             attachLowLatencyVideo(pptVideo, event.track, event.receiver);
