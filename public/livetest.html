@@ -470,7 +470,7 @@
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
 
-            // CRITICAL ANTI-ECHO FIX: When 48kHz WebRTC Opus is active, NEVER play the delayed 16kHz PCM copy!
+            // When WebRTC Opus is actively playing, skip PCM decoding completely
             if (
                 isRtcOpusFlowing &&
                 rtcOpusAudioEl &&
@@ -521,10 +521,11 @@
             lastAdminSampleVal = channel[int16.length - 1];
 
             if (isNewTalkSpurt) {
-                nextAdminPlayTime = now + 0.24; // 240ms cushion prevents mid-sentence starvation
+                nextAdminPlayTime = now + 0.24; // Initial 240ms cushion
             } else if (isUnderrun) {
-                nextAdminPlayTime = now + 0.005; // 5ms instant stitch (eliminates 90ms silence breaks)
-            } else if (nextAdminPlayTime - now > 2.4) {
+                // FIX: 160ms cushion (>130ms HTTP poll interval) prevents chain-reaction underruns & deep/stretched voice
+                nextAdminPlayTime = now + 0.16;
+            } else if (nextAdminPlayTime - now > 1.5) {
                 stopAllPcmNodes();
                 nextAdminPlayTime = now + 0.18;
             }
@@ -585,12 +586,7 @@
         }
 
         function attachOpusAudioTrack(track, receiver) {
-            if (receiver) {
-                try {
-                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0.08;
-                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 80;
-                } catch (e) {}
-            }
+            // FIX: Do NOT force an 80ms jitterBufferTarget on audio; let WebRTC adapt naturally without WSOLA time-stretching
             if (!rtcOpusAudioEl) {
                 rtcOpusAudioEl = document.createElement('audio');
                 rtcOpusAudioEl.autoplay = true;
@@ -601,11 +597,23 @@
                 rtcOpusAudioEl.muted = (Date.now() - adminLocalStamp < 2000);
             } catch (e) {}
 
+            track.onmute = () => { isRtcOpusFlowing = false; };
+            track.onended = () => { isRtcOpusFlowing = false; };
+            track.onunmute = () => {
+                if (rtcOpusAudioEl && !rtcOpusAudioEl.paused) {
+                    isRtcOpusFlowing = true;
+                    stopAllPcmNodes();
+                }
+            };
+
             rtcOpusAudioEl.srcObject = new MediaStream([track]);
             rtcOpusAudioEl.onplaying = () => {
                 isRtcOpusFlowing = true;
                 stopAllPcmNodes();
                 unmuteHintBtn.style.display = 'none';
+            };
+            rtcOpusAudioEl.onpause = () => {
+                isRtcOpusFlowing = false;
             };
             rtcOpusAudioEl.play().then(() => {
                 isRtcOpusFlowing = true;
