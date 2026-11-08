@@ -329,28 +329,11 @@
         const unmuteHintBtn = document.getElementById('btn-unmute-hint');
         const callBtn = document.getElementById('btn-student-call');
 
-        // Binds WebAudio output to an HTML <audio> element so OS/Browser AEC3 cancels speaker echo
         function getStudentAudioDestination() {
             if (!studentAudioCtx) {
                 studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (!aecReferenceDest) {
-                try {
-                    aecReferenceDest = studentAudioCtx.createMediaStreamDestination();
-                    aecAudioElement = document.createElement('audio');
-                    aecAudioElement.autoplay = true;
-                    aecAudioElement.playsInline = true;
-                    aecAudioElement.srcObject = aecReferenceDest.stream;
-                    aecAudioElement.play().catch(() => {});
-                } catch (e) {
-                    return studentAudioCtx.destination;
-                }
-            }
-            if (aecAudioElement && aecAudioElement.paused) {
-                aecAudioElement.play().catch(() => {});
-                return studentAudioCtx.destination;
-            }
-            return aecReferenceDest ? aecReferenceDest : studentAudioCtx.destination;
+            return studentAudioCtx.destination;
         }
 
         function ensureStudentAudioCtx() {

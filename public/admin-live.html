@@ -189,10 +189,13 @@
         let screenStream = null;   // Pipeline 2: Dedicated PPT Presentation Stream
         let micStream = null;      // Pipeline 3: Dedicated HD Microphone Stream
 
-        let idlePptStream = null;
-        let idleCanvasCtx = null;
+        let idleCamStream = null;  // Separate idle stream for Camera sender
+        let idlePptStream = null;  // Separate idle stream for PPT sender
         let studioOutDest = null;  // Clean Noise-Cancelled WebRTC Opus Output Stream
         let silentOsc = null;
+        let studioGateNode = null;
+        let micAnalyser = null;
+        let gateInterval = null;
 
         let videoEnabled = false;
         let audioEnabled = false;
@@ -250,15 +253,31 @@
             return { adminKey: keyVal, quizId: quizVal };
         }
 
+        // Separate Idle Track 1: For Camera Sender (prevents duplicate-track DOMException in Audio-Only mode)
+        function getIdleCamTrack() {
+            if (!idleCamStream) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 160;
+                canvas.height = 90;
+                const ctx = canvas.getContext('2d', { alpha: false });
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                idleCamStream = canvas.captureStream(1);
+            }
+            const track = idleCamStream.getVideoTracks()[0];
+            if (track) track._isIdleTrack = true;
+            return track;
+        }
+
+        // Separate Idle Track 2: For PPT Sender (prevents duplicate-track DOMException in Audio-Only mode)
         function getIdlePptTrack() {
             if (!idlePptStream) {
                 const canvas = document.createElement('canvas');
-                // FIX: Use lightweight 160x90 @ 1fps idle canvas so dummy video never starves audio encoding
                 canvas.width = 160;
                 canvas.height = 90;
-                idleCanvasCtx = canvas.getContext('2d', { alpha: false });
-                idleCanvasCtx.fillStyle = '#0f172a';
-                idleCanvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+                const ctx = canvas.getContext('2d', { alpha: false });
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
                 idlePptStream = canvas.captureStream(1);
             }
             const track = idlePptStream.getVideoTracks()[0];
@@ -266,10 +285,10 @@
             return track;
         }
 
-        // Silent placeholder audio track used only when Admin Mic is OFF
+        // Continuous Noise-Gated WebRTC Opus Audio Track
         function getStudioOpusTrack() {
             if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
             }
             if (!studioOutDest) {
                 studioOutDest = adminAudioCtx.createMediaStreamDestination();
@@ -283,21 +302,12 @@
             return studioOutDest.stream.getAudioTracks()[0];
         }
 
-        // FIX: Route the native hardware-clocked micStream track directly to WebRTC when Audio is ON
-        function getActiveAudioTrack() {
-            if (audioEnabled && micStream) {
-                const track = micStream.getAudioTracks()[0];
-                if (track && track.readyState === 'live') return track;
-            }
-            return getStudioOpusTrack();
-        }
-
         function getActiveCamTrack() {
             if (videoEnabled && camStream) {
                 const track = camStream.getVideoTracks()[0];
                 if (track && track.readyState === 'live') return track;
             }
-            return getIdlePptTrack();
+            return getIdleCamTrack();
         }
 
         function getActivePptTrack() {
@@ -350,16 +360,6 @@
         function enhanceOpusSdp(sdp) {
             if (!sdp) return sdp;
             return sdp.replace(/a=fmtp:(\d+) minptime=10;useinbandfec=1/g, 'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=96000;maxplaybackrate=48000;cbr=1');
-        }
-
-        function hotSwapAudioTrack(newAudioTrack) {
-            peerConnections.forEach((pc) => {
-                if (pc._audioSender) {
-                    pc._audioSender.replaceTrack(newAudioTrack).then(() => {
-                        optimizeAudioSender(pc._audioSender);
-                    }).catch(() => {});
-                }
-            });
         }
 
         function hotSwapCameraTrack(newCamTrack) {
@@ -430,7 +430,6 @@
             }).catch(() => {});
         }
 
-        // Pipeline 2: Dedicated PowerPoint Screen/Window Capture
         async function acquireScreenShareStream(forceNewPicker) {
             const hasLivePpt = screenStream && screenStream.getVideoTracks()[0] && screenStream.getVideoTracks()[0].readyState === 'live';
             if (hasLivePpt && !forceNewPicker) {
@@ -560,9 +559,8 @@
             });
         })(pipBox, document.getElementById('admin-pip-header'));
 
-        // Linear-interpolated anti-aliasing downsampler with soft-limiter (Unity gain: no room reverb boost)
         function downsampleClean(float32Arr, inputRate, outputRate) {
-        if (inputRate === outputRate) {
+            if (inputRate === outputRate) {
                 const out = new Int16Array(float32Arr.length);
                 for (let i = 0; i < float32Arr.length; i++) {
                     let s = Math.max(-1, Math.min(1, float32Arr[i]));
@@ -585,7 +583,7 @@
                 result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
             }
             return result;
-        }   
+        }
 
         function int16ToBase64(int16Arr) {
             const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
@@ -596,20 +594,21 @@
             }
             return btoa(binary);
         }
-document.addEventListener('pointerdown', () => {
+
+        document.addEventListener('pointerdown', () => {
             if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
             }
             if (adminAudioCtx.state === 'suspended') {
                 adminAudioCtx.resume().catch(() => {});
             }
         });
-        // Jitter-Free Crossfaded Student Voice Playback
+
         const studentLastSample = new Map();
 
-       function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
+        function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
             if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
             }
             if (adminAudioCtx.state === 'suspended') {
                 adminAudioCtx.resume().catch(() => {});
@@ -632,7 +631,6 @@ document.addEventListener('pointerdown', () => {
             const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 600);
             const prevSample = isNewTalkSpurt ? 0 : (studentLastSample.get(callerKey) || 0);
 
-            // 16-sample (1ms) sample-level stitch prevents boundary clicks
             const stitchLen = Math.min(16, int16.length);
             for (let i = 0; i < int16.length; i++) {
                 let val = int16[i] / 32768.0;
@@ -645,9 +643,9 @@ document.addEventListener('pointerdown', () => {
             studentLastSample.set(callerKey, channel[int16.length - 1]);
 
             if (isNewTalkSpurt) {
-                nextPlayTime = now + 0.28; // 280ms initial cushion covers >2 full 130ms poll cycles
+                nextPlayTime = now + 0.28;
             } else if (isUnderrun) {
-                nextPlayTime = now + 0.16; // 160ms cushion (>130ms poll interval) prevents chain-reaction underruns!
+                nextPlayTime = now + 0.16;
             } else if (nextPlayTime - now > 2.5) {
                 const existingNodes = studentActiveNodes.get(callerKey) || [];
                 existingNodes.forEach(n => { try { n.stop(); } catch (e) {} });
@@ -687,7 +685,7 @@ document.addEventListener('pointerdown', () => {
                     camStream = null;
                 }
                 selfVideo.srcObject = null;
-                hotSwapCameraTrack(getIdlePptTrack());
+                hotSwapCameraTrack(getIdleCamTrack());
                 return true;
             }
 
@@ -715,21 +713,47 @@ document.addEventListener('pointerdown', () => {
             return true;
         }
 
-        // Pipeline 3: Google Meet-Grade 5-Stage Noise-Cancelled Audio Pipeline
+        function cleanupMicNodes() {
+            if (gateInterval) {
+                clearInterval(gateInterval);
+                gateInterval = null;
+            }
+            if (studioGateNode) {
+                try { studioGateNode.disconnect(); } catch (e) {}
+                studioGateNode = null;
+            }
+            if (micAnalyser) {
+                try { micAnalyser.disconnect(); } catch (e) {}
+                micAnalyser = null;
+            }
+            if (micProcessor) {
+                try { micProcessor.disconnect(); } catch (e) {}
+                micProcessor = null;
+            }
+            if (micSource) {
+                try { micSource.disconnect(); } catch (e) {}
+                micSource = null;
+            }
+            if (silentSink) {
+                try { silentSink.disconnect(); } catch (e) {}
+                silentSink = null;
+            }
+        }
+
+        // Pipeline 3: Pure C++ WebAudio 5-Stage EQ + Close-Talk Noise Gate (Blocks Distant Sounds in ALL Modes)
         async function syncAudioPipeline() {
-            if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!adminAudioCtx) {
+                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+            }
             if (adminAudioCtx.state === 'suspended') await adminAudioCtx.resume();
             getStudioOpusTrack();
 
             if (!audioEnabled) {
-                if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
-                if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
-                if (silentSink) { try { silentSink.disconnect(); } catch (e) {} silentSink = null; }
+                cleanupMicNodes();
                 if (micStream) {
                     micStream.getTracks().forEach(t => t.stop());
                     micStream = null;
                 }
-                hotSwapAudioTrack(getStudioOpusTrack());
                 pendingPcmSamples = [];
                 preRollBuffers = [];
                 currentGateGain = 0.0;
@@ -739,108 +763,125 @@ document.addEventListener('pointerdown', () => {
             const hasLiveMic = micStream && micStream.getAudioTracks()[0] && micStream.getAudioTracks()[0].readyState === 'live';
             if (!hasLiveMic) {
                 try {
+                    cleanupMicNodes();
+
+                    // autoGainControl: false is critical so Chrome never amplifies distant room sounds
                     micStream = await navigator.mediaDevices.getUserMedia({
                         video: false,
                         audio: {
-                            sampleRate: { ideal: 48000 },
+                            sampleRate: { ideal: 48000, min: 44100 },
                             sampleSize: { ideal: 16 },
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
                             voiceIsolation: { ideal: true },
-                            autoGainControl: { ideal: true },
-                            channelCount: { ideal: 1 }
+                            autoGainControl: false,
+                            channelCount: { ideal: 1 },
+                            googEchoCancellation: true,
+                            googAutoGainControl: false,
+                            googNoiseSuppression: true,
+                            googExperimentalNoiseSuppression: true,
+                            googHighpassFilter: true
                         }
                     });
 
-                    // Swap the native hardware mic track directly into all active WebRTC peer connections
-                    const liveAudioTrack = micStream.getAudioTracks()[0];
-                    if (liveAudioTrack) {
-                        hotSwapAudioTrack(liveAudioTrack);
-                    }
-
-                    // Keep lightweight PCM fallback only for students whose WebRTC handshake is still connecting
-                    if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} }
-                    if (micSource) { try { micSource.disconnect(); } catch (e) {} }
-                    if (silentSink) { try { silentSink.disconnect(); } catch (e) {} }
-
                     micSource = adminAudioCtx.createMediaStreamSource(micStream);
-                    micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
-                    silentSink = adminAudioCtx.createGain();
-                    silentSink.gain.value = 0;
 
-                    let wasSpeaking = false;
+                    // Stage 1: 50Hz AC Mains Hum Notch Filter
+                    const humNotch = adminAudioCtx.createBiquadFilter();
+                    humNotch.type = 'notch';
+                    humNotch.frequency.value = 50;
+                    humNotch.Q.value = 10.0;
+
+                    // Stage 2: 240Hz High-Pass Filter (Cuts low-frequency room rumble & close-mic bass boom)
+                    const hpFilter = adminAudioCtx.createBiquadFilter();
+                    hpFilter.type = 'highpass';
+                    hpFilter.frequency.value = 240;
+                    hpFilter.Q.value = 0.707;
+
+                    // Stage 3: 9000Hz Low-Pass Filter (Preserves full vocal clarity)
+                    const lpFilter = adminAudioCtx.createBiquadFilter();
+                    lpFilter.type = 'lowpass';
+                    lpFilter.frequency.value = 9000;
+                    lpFilter.Q.value = 0.707;
+
+                    // Stage 4: High-Shelf Crispness Filter (+4.5dB above 2800Hz for natural vocal timbre)
+                    const presenceFilter = adminAudioCtx.createBiquadFilter();
+                    presenceFilter.type = 'highshelf';
+                    presenceFilter.frequency.value = 2800;
+                    presenceFilter.gain.value = 4.5;
+
+                    // Stage 5: Transparent Dynamics Leveller
+                    const compressor = adminAudioCtx.createDynamicsCompressor();
+                    compressor.threshold.value = -16;
+                    compressor.knee.value = 10;
+                    compressor.ratio = 2.0;
+                    compressor.attack.value = 0.005;
+                    compressor.release.value = 0.12;
+
+                    // Hardware-Thread Close-Talk Gate for WebRTC Opus (Rejects distant background sounds)
+                    studioGateNode = adminAudioCtx.createGain();
+                    studioGateNode.gain.value = 0.0;
+
+                    micAnalyser = adminAudioCtx.createAnalyser();
+                    micAnalyser.fftSize = 512;
+                    const analyserBuf = new Float32Array(micAnalyser.fftSize);
+
+                    micSource.connect(humNotch);
+                    humNotch.connect(hpFilter);
+                    hpFilter.connect(lpFilter);
+                    lpFilter.connect(presenceFilter);
+                    presenceFilter.connect(compressor);
+
+                    // Pure C++ audio thread path to WebRTC Opus (No ScriptProcessorNode in the WebRTC signal path!)
+                    compressor.connect(micAnalyser);
+                    compressor.connect(studioGateNode);
+                    studioGateNode.connect(studioOutDest);
+
+                    let wasGateOpen = false;
                     let speechHoldUntil = 0;
                     noiseFloorRms = 0.0025;
 
-                    micProcessor.onaudioprocess = (e) => {
-                        if (!isBroadcasting || !audioEnabled) {
-                            preRollBuffers = [];
-                            wasSpeaking = false;
-                            currentGateGain = 0.0;
-                            return;
-                        }
-
-                        // Skip CPU downsampling if all connected students are already on native WebRTC Opus
-                        let allPeersConnected = peerConnections.size > 0;
-                        peerConnections.forEach((pc) => {
-                            if (pc.connectionState !== 'connected' && pc.iceConnectionState !== 'connected') {
-                                allPeersConnected = false;
+                    // 25ms Analyser loop controls the close-talk gate cleanly without stacking automation events
+                    gateInterval = setInterval(() => {
+                        if (!isBroadcasting || !audioEnabled || !micAnalyser || !studioGateNode || !adminAudioCtx) {
+                            if (wasGateOpen && studioGateNode && adminAudioCtx) {
+                                studioGateNode.gain.cancelScheduledValues(adminAudioCtx.currentTime);
+                                studioGateNode.gain.setTargetAtTime(0.0, adminAudioCtx.currentTime, 0.02);
+                                wasGateOpen = false;
                             }
-                        });
-                        if (allPeersConnected) {
-                            pendingPcmSamples = [];
                             return;
                         }
 
-                        const input = e.inputBuffer.getChannelData(0);
+                        micAnalyser.getFloatTimeDomainData(analyserBuf);
                         let sumSq = 0;
-                        for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
-                        const rms = Math.sqrt(sumSq / input.length);
+                        for (let i = 0; i < analyserBuf.length; i++) {
+                            sumSq += analyserBuf[i] * analyserBuf[i];
+                        }
+                        const rms = Math.sqrt(sumSq / analyserBuf.length);
                         const nowMs = Date.now();
 
-                        if (!wasSpeaking || rms < noiseFloorRms * 1.5) {
+                        if (!wasGateOpen || rms < noiseFloorRms * 1.5) {
                             noiseFloorRms = (0.95 * noiseFloorRms) + (0.05 * Math.min(0.01, Math.max(0.0008, rms)));
                         }
 
-                        const openThreshold = Math.max(0.0055, noiseFloorRms * 2.4);
-                        const continueThreshold = Math.max(0.003, noiseFloorRms * 1.4);
+                        // Close-talk proximity threshold rejects distant background noise
+                        const openThreshold = Math.max(0.0065, noiseFloorRms * 2.6);
+                        const continueThreshold = Math.max(0.0035, noiseFloorRms * 1.5);
 
-                        if (rms > openThreshold || (wasSpeaking && rms > continueThreshold)) {
+                        if (rms > openThreshold || (wasGateOpen && rms > continueThreshold)) {
                             speechHoldUntil = nowMs + 900;
                         }
 
                         const isGateOpen = (nowMs < speechHoldUntil);
-                        const targetGain = isGateOpen ? 1.0 : 0.0;
-
-                        const gatedFloat = new Float32Array(input.length);
-                        for (let i = 0; i < input.length; i++) {
-                            currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.005);
-                            gatedFloat[i] = Math.tanh(input[i] * currentGateGain);
+                        if (isGateOpen !== wasGateOpen) {
+                            wasGateOpen = isGateOpen;
+                            const nowAudio = adminAudioCtx.currentTime;
+                            studioGateNode.gain.cancelScheduledValues(nowAudio);
+                            studioGateNode.gain.setValueAtTime(studioGateNode.gain.value, nowAudio);
+                            studioGateNode.gain.setTargetAtTime(isGateOpen ? 1.0 : 0.0, nowAudio, isGateOpen ? 0.012 : 0.05);
                         }
+                    }, 25);
 
-                        const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
-
-                        if (isGateOpen) {
-                            if (!wasSpeaking && preRollBuffers.length > 0) {
-                                for (let b = 0; b < preRollBuffers.length; b++) {
-                                    const pre = preRollBuffers[b];
-                                    for (let j = 0; j < pre.length; j++) pendingPcmSamples.push(pre[j]);
-                                }
-                                preRollBuffers = [];
-                            }
-                            wasSpeaking = true;
-                            for (let i = 0; i < downsampled.length; i++) pendingPcmSamples.push(downsampled[i]);
-                            if (pendingPcmSamples.length > 24000) pendingPcmSamples = pendingPcmSamples.slice(-24000);
-                        } else {
-                            wasSpeaking = false;
-                            preRollBuffers.push(downsampled);
-                            if (preRollBuffers.length > 4) preRollBuffers.shift();
-                        }
-                    };
-
-                    micSource.connect(micProcessor);
-                    micProcessor.connect(silentSink);
-                    silentSink.connect(adminAudioCtx.destination);
                 } catch (err) {
                     alert('Microphone error: ' + err.message);
                     audioEnabled = false;
@@ -889,17 +930,18 @@ document.addEventListener('pointerdown', () => {
 
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
+            // camTrack and pptTrack are guaranteed to be two distinct track instances even when both Video & PPT are OFF
             const camTrack = getActiveCamTrack();
             const pptTrack = getActivePptTrack();
-            const opusTrack = getActiveAudioTrack();
+            const opusTrack = getStudioOpusTrack();
 
             if (camTrack && !camTrack._isIdleTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
             if (pptTrack && !pptTrack._isIdleTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
 
-            pc._camSender = pc.addTrack(camTrack, camStream || idlePptStream);
+            pc._camSender = pc.addTrack(camTrack, camStream || idleCamStream);
             pc._pptSender = pc.addTrack(pptTrack, screenStream || idlePptStream);
-            if (opusTrack) {
-                pc._audioSender = pc.addTrack(opusTrack, micStream || studioOutDest.stream);
+            if (opusTrack && studioOutDest) {
+                pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
                 optimizeAudioSender(pc._audioSender);
             }
 
@@ -957,11 +999,6 @@ document.addEventListener('pointerdown', () => {
             const { adminKey, quizId } = getAdminCredentials();
             if (!adminKey || !quizId) return;
 
-            if (idleCanvasCtx) {
-                idleCanvasCtx.fillStyle = '#0f172a';
-                idleCanvasCtx.fillRect(0, 0, 8, 8);
-            }
-
             if (audioEnabled) {
                 try { localStorage.setItem('pp_admin_mic_same_pc', String(Date.now())); } catch (e) {}
             } else {
@@ -970,13 +1007,6 @@ document.addEventListener('pointerdown', () => {
 
             isPushing = true;
             try {
-                let audioChunkB64 = null;
-                if (audioEnabled && pendingPcmSamples.length >= 1600) {
-                    const int16 = new Int16Array(pendingPcmSamples);
-                    pendingPcmSamples = [];
-                    audioChunkB64 = int16ToBase64(int16);
-                }
-
                 if (Date.now() - lastHeartbeatAt > 4000) {
                     lastHeartbeatAt = Date.now();
                     fetch(`/api/live/admin/dashboard?adminKey=${encodeURIComponent(adminKey)}&quizId=${encodeURIComponent(quizId)}`).catch(() => {});
@@ -991,7 +1021,7 @@ document.addEventListener('pointerdown', () => {
                         videoEnabled,
                         audioEnabled,
                         broadcastMode,
-                        audioChunk: audioChunkB64,
+                        audioChunk: null,
                         rate: TARGET_SAMPLE_RATE,
                         afterStudentSeq: lastStudentSeq
                     })
@@ -1101,7 +1131,6 @@ document.addEventListener('pointerdown', () => {
             callerBadge.classList.remove('calling');
         }
 
-        // Exposed so admin-live.js can instantly silence & remove a muted/kicked student from the badge
         window.cutStudentAudioImmediately = function(studentName) {
             stopAllStudentAudioNodes(studentName);
             if (!callerBadge) return;
@@ -1142,6 +1171,7 @@ document.addEventListener('pointerdown', () => {
             pendingPcmSamples = [];
             preRollBuffers = [];
             stopAllStudentAudioNodes();
+            cleanupMicNodes();
             try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
 
             if (screenStream) {
@@ -1172,9 +1202,6 @@ document.addEventListener('pointerdown', () => {
             peerConnections.forEach(pc => { try { pc.close(); } catch (e) {} });
             peerConnections.clear();
             answeringStudents.clear();
-
-            if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
-            if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
 
             await fetch('/api/live/rtc/admin/toggle', {
                 method: 'POST',
