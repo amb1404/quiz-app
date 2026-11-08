@@ -267,8 +267,6 @@
     (function() {
         const TARGET_SAMPLE_RATE = 24000;
         let studentAudioCtx = null;
-        let aecReferenceDest = null;
-        let aecAudioElement = null;
         let rtcOpusAudioEl = null;
         let isRtcOpusFlowing = false;
 
@@ -276,7 +274,7 @@
         let hasSyncedInitialSeq = false;
         let nextAdminPlayTime = 0;
         let lastAdminChunkEndMs = 0;
-        let lastAdminAudioPlayedMs = 0; // Acoustic echo guard timestamp
+        let lastAdminAudioPlayedMs = 0;
         const activeAdminNodes = [];
         let isPulling = false;
 
@@ -347,9 +345,6 @@
             } else {
                 unmuteHintBtn.style.display = 'none';
             }
-            if (aecAudioElement && aecAudioElement.paused) {
-                aecAudioElement.play().catch(() => {});
-            }
             if (rtcOpusAudioEl && rtcOpusAudioEl.paused && rtcOpusAudioEl.srcObject) {
                 rtcOpusAudioEl.play().then(() => {
                     isRtcOpusFlowing = true;
@@ -401,7 +396,7 @@
         })(pipBox, document.getElementById('student-pip-header'));
 
         function downsampleClean(float32Arr, inputRate, outputRate) {
-           if (inputRate === outputRate) {
+            if (inputRate === outputRate) {
                 const out = new Int16Array(float32Arr.length);
                 for (let i = 0; i < float32Arr.length; i++) {
                     let s = Math.max(-1, Math.min(1, float32Arr[i]));
@@ -443,7 +438,7 @@
             }
         }
 
-       let lastAdminSampleVal = 0;
+        let lastAdminSampleVal = 0;
 
         function playAdminPcmBase64(b64Str, sampleRate) {
             lastAdminAudioPlayedMs = Date.now() + 450;
@@ -453,7 +448,6 @@
                 if (Date.now() - adminLocalStamp < 2000) return;
             } catch (e) {}
 
-            // When WebRTC Opus is actively playing, skip PCM decoding completely
             if (
                 isRtcOpusFlowing &&
                 rtcOpusAudioEl &&
@@ -504,9 +498,8 @@
             lastAdminSampleVal = channel[int16.length - 1];
 
             if (isNewTalkSpurt) {
-                nextAdminPlayTime = now + 0.24; // Initial 240ms cushion
+                nextAdminPlayTime = now + 0.24;
             } else if (isUnderrun) {
-                // FIX: 160ms cushion (>130ms HTTP poll interval) prevents chain-reaction underruns & deep/stretched voice
                 nextAdminPlayTime = now + 0.16;
             } else if (nextAdminPlayTime - now > 1.5) {
                 stopAllPcmNodes();
@@ -569,7 +562,6 @@
         }
 
         function attachOpusAudioTrack(track, receiver) {
-            // FIX: Do NOT force an 80ms jitterBufferTarget on audio; let WebRTC adapt naturally without WSOLA time-stretching
             if (!rtcOpusAudioEl) {
                 rtcOpusAudioEl = document.createElement('audio');
                 rtcOpusAudioEl.autoplay = true;
@@ -580,23 +572,11 @@
                 rtcOpusAudioEl.muted = (Date.now() - adminLocalStamp < 2000);
             } catch (e) {}
 
-            track.onmute = () => { isRtcOpusFlowing = false; };
-            track.onended = () => { isRtcOpusFlowing = false; };
-            track.onunmute = () => {
-                if (rtcOpusAudioEl && !rtcOpusAudioEl.paused) {
-                    isRtcOpusFlowing = true;
-                    stopAllPcmNodes();
-                }
-            };
-
             rtcOpusAudioEl.srcObject = new MediaStream([track]);
             rtcOpusAudioEl.onplaying = () => {
                 isRtcOpusFlowing = true;
                 stopAllPcmNodes();
                 unmuteHintBtn.style.display = 'none';
-            };
-            rtcOpusAudioEl.onpause = () => {
-                isRtcOpusFlowing = false;
             };
             rtcOpusAudioEl.play().then(() => {
                 isRtcOpusFlowing = true;
@@ -637,9 +617,9 @@
                         return;
                     }
                     if (event.track.kind === 'video') {
-                        // Directly assign based on transceiver order to eliminate frame stuttering
-                        const transceivers = studentPc.getTransceivers();
-                        const videoTransceivers = transceivers.filter(t => t.mid !== null);
+                        const videoTransceivers = studentPc.getTransceivers().filter(
+                            t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video'
+                        );
                         const videoIndex = videoTransceivers.findIndex(t => t.receiver === event.receiver);
 
                         event.track.enabled = true;
@@ -651,13 +631,14 @@
                     }
                 };
 
-                studentPc.onconnectionstatechange = () => {
+                const handleStateChange = () => {
                     if (!studentPc) return;
-                    if (studentPc.connectionState === 'connected') {
+                    const state = studentPc.connectionState || studentPc.iceConnectionState;
+                    if (state === 'connected' || state === 'completed') {
                         disconnectedSince = 0;
-                    } else if (studentPc.connectionState === 'disconnected') {
+                    } else if (state === 'disconnected') {
                         if (!disconnectedSince) disconnectedSince = Date.now();
-                    } else if (studentPc.connectionState === 'failed') {
+                    } else if (state === 'failed' || state === 'closed') {
                         try { studentPc.close(); } catch (e) {}
                         studentPc = null;
                         isJoiningRtc = false;
@@ -666,6 +647,9 @@
                         disconnectedSince = 0;
                     }
                 };
+
+                studentPc.onconnectionstatechange = handleStateChange;
+                studentPc.oniceconnectionstatechange = handleStateChange;
 
                 const offer = await studentPc.createOffer();
                 await studentPc.setLocalDescription(offer);
@@ -679,9 +663,12 @@
                 if (res.ok) {
                     hasSentCurrentOffer = true;
                 } else {
+                    try { studentPc.close(); } catch (e) {}
+                    studentPc = null;
                     isJoiningRtc = false;
                 }
             } catch (e) {
+                if (studentPc) { try { studentPc.close(); } catch (err) {} studentPc = null; }
                 isJoiningRtc = false;
                 hasSentCurrentOffer = false;
             }
@@ -713,8 +700,7 @@
                 try { studentSilentSink.disconnect(); } catch (e) {}
                 studentSilentSink = null;
             }
-           if (rtcOpusAudioEl) rtcOpusAudioEl.volume = 1.0;
-            if (aecAudioElement) aecAudioElement.volume = 1.0;
+            if (rtcOpusAudioEl) rtcOpusAudioEl.volume = 1.0;
             if (studentMicStream) {
                 studentMicStream.getTracks().forEach(t => t.stop());
                 studentMicStream = null;
@@ -764,7 +750,7 @@
 
             if (!isCallActive) {
                 try {
-                   studentMicStream = await navigator.mediaDevices.getUserMedia({
+                    studentMicStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
@@ -781,7 +767,6 @@
 
                     studentMicSource = studentAudioCtx.createMediaStreamSource(studentMicStream);
 
-                    // 5-Stage Near-Field Voice Filter Chain (Rejects Distant Room Noise Without Distortion)
                     const humNotch = studentAudioCtx.createBiquadFilter();
                     humNotch.type = 'notch';
                     humNotch.frequency.value = 50;
@@ -811,7 +796,6 @@
                     compressor.release.value = 0.15;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
-                    // Zero-gain node connected to hardware destination guarantees unthrottled audio callbacks
                     studentSilentSink = studentAudioCtx.createGain();
                     studentSilentSink.gain.value = 0;
 
@@ -834,7 +818,6 @@
                             studentNoiseFloorRms = (0.95 * studentNoiseFloorRms) + (0.05 * Math.min(0.008, Math.max(0.0008, rms)));
                         }
 
-                        // Close-talk detection with 1100ms hold so syllables never clip
                         const openThreshold = Math.max(0.0045, studentNoiseFloorRms * 2.2);
                         const continueThreshold = Math.max(0.0025, studentNoiseFloorRms * 1.4);
 
@@ -845,13 +828,9 @@
                         const isGateOpen = (nowMs < studentActivelySpeakingUntil);
                         wasStudentSpeaking = isGateOpen;
 
-                        // Duck Admin speaker to 20% while student speaks to prevent echo
                         const duckVol = isGateOpen ? 0.20 : 1.0;
                         if (rtcOpusAudioEl && rtcOpusAudioEl.volume !== duckVol) rtcOpusAudioEl.volume = duckVol;
-                        if (aecAudioElement && aecAudioElement.volume !== duckVol) aecAudioElement.volume = duckVol;
 
-                        // Smooth downward expander: boosts voice (1.45x) and attenuates background noise (0.03x)
-                        // WITHOUT stopping the sample stream, so Admin playback never starves mid-sentence!
                         const targetGain = isGateOpen ? 1.45 : 0.03;
                         const gatedFloat = new Float32Array(input.length);
 
@@ -862,7 +841,6 @@
 
                         const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
 
-                        // Push every frame continuously while on call so the 16kHz timeline never breaks
                         for (let i = 0; i < down.length; i++) {
                             pendingCallSamples.push(down[i]);
                         }
@@ -929,7 +907,7 @@
             }
         });
 
-        // Fast 130ms Pull Loop for Audio, WebRTC State, Moderation & Dual-Cast Mode Switching
+        // Fast 130ms Pull Loop with Timeout Protection & Automatic WebRTC Reconnection
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -938,10 +916,14 @@
             if (isPulling) return;
             isPulling = true;
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
             try {
                 const syncFlag = hasSyncedInitialSeq ? '1' : '0';
                 const res = await fetch(`/api/live/rtc/student/status/${encodeURIComponent(currentQuizId)}?afterSeq=${lastAdminAudioSeq}&synced=${syncFlag}`, {
-                    headers: { 'Authorization': `Bearer ${liveToken}` }
+                    headers: { 'Authorization': `Bearer ${liveToken}` },
+                    signal: controller.signal
                 });
                 if (!res.ok) return;
                 const status = await res.json();
@@ -980,13 +962,18 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
+                // FIX: If WebRTC handshake times out after 8s, close & null studentPc so it immediately retries!
                 if (isJoiningRtc && (Date.now() - joinStartedAt > 8000)) {
+                    if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
                     isJoiningRtc = false;
+                    isRtcOpusFlowing = false;
+                    hasSentCurrentOffer = false;
                 }
                 if (disconnectedSince && (Date.now() - disconnectedSince > 6000)) {
                     if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
                     isJoiningRtc = false;
                     isRtcOpusFlowing = false;
+                    hasSentCurrentOffer = false;
                     disconnectedSince = 0;
                 }
 
@@ -1014,7 +1001,6 @@
                     }
                 }
 
-                // Swap Student Screen between Question Only, Presentation Only, or Both Together
                 if (status.broadcastMode === 'both') {
                     document.body.classList.remove('rtc-presentation-active');
                     document.body.classList.add('rtc-both-active');
@@ -1065,6 +1051,7 @@
                 }
             } catch (e) {
             } finally {
+                clearTimeout(timeoutId);
                 isPulling = false;
             }
         }, 130);
