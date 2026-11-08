@@ -2547,6 +2547,11 @@ app.post('/api/live/admin/moderate-student', async (req, res) => {
                 mediaRoom.activeCallers.delete(targetName);
                 mediaRoom.students.delete(targetName);
             }
+            if (action === 'mute' || action === 'kick') {
+                mediaRoom.studentAudioBuffer = mediaRoom.studentAudioBuffer.filter(
+                    chunk => chunk.studentName !== targetName
+                );
+            }
             return board;
         });
 
@@ -2779,7 +2784,15 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
             return timeA - timeB;
         });
 
-        res.json({ success: true, state, students, roomName: state?.roomName || cleanId });
+        const activeCallers = students.filter(s => s.data.isCalling).map(s => s.name);
+        res.json({
+            success: true,
+            state,
+            students,
+            activeCallers: mediaRoom.broadcastActive ? activeCallers : [],
+            broadcastActive: mediaRoom.broadcastActive,
+            roomName: state?.roomName || cleanId
+        });
     } catch (err) { res.status(500).json({ error: 'Dashboard error.' }); }
 });
 

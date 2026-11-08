@@ -1007,6 +1007,10 @@ document.addEventListener('pointerdown', () => {
                 });
 
                 const data = await res.json();
+                if (!isBroadcasting) {
+                    resetCallerBadge();
+                    return;
+                }
                 if (data && data.success) {
                     if (data.activeCallers && data.activeCallers.length > 0) {
                         callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
@@ -1082,10 +1086,46 @@ document.addEventListener('pointerdown', () => {
             btnAudio.classList.toggle('active-mic', audioEnabled);
         }
 
+        function stopAllStudentAudioNodes(targetStudent = null) {
+            if (targetStudent) {
+                const nodes = studentActiveNodes.get(targetStudent) || [];
+                nodes.forEach(n => { try { n.stop(); } catch (e) {} });
+                studentActiveNodes.delete(targetStudent);
+                studentPlayTimes.delete(targetStudent);
+                studentLastChunkEnd.delete(targetStudent);
+                studentLastSample.delete(targetStudent);
+            } else {
+                studentActiveNodes.forEach(nodes => {
+                    nodes.forEach(n => { try { n.stop(); } catch (e) {} });
+                });
+                studentActiveNodes.clear();
+                studentPlayTimes.clear();
+                studentLastChunkEnd.clear();
+                studentLastSample.clear();
+            }
+        }
+
         function resetCallerBadge() {
             callerBadge.textContent = '🎧 No active student calls';
             callerBadge.classList.remove('calling');
         }
+
+        // Exposed so admin-live.js can instantly silence & remove a muted/kicked student from the badge
+        window.cutStudentAudioImmediately = function(studentName) {
+            stopAllStudentAudioNodes(studentName);
+            if (!callerBadge) return;
+            const currentText = callerBadge.textContent || '';
+            if (currentText.includes('Student Speaking:')) {
+                const rawList = currentText.replace(/^.*Student Speaking:\s*/i, '');
+                const remaining = rawList.split(',').map(s => s.trim()).filter(s => s && s !== studentName);
+                if (remaining.length > 0 && isBroadcasting) {
+                    callerBadge.textContent = `🟢 Student Speaking: ${remaining.join(', ')}`;
+                    callerBadge.classList.add('calling');
+                } else {
+                    resetCallerBadge();
+                }
+            }
+        };
 
         async function handleStreamToggle() {
             await startOrUpdateBroadcast();
@@ -1110,9 +1150,7 @@ document.addEventListener('pointerdown', () => {
             broadcastMode = 'question';
             pendingPcmSamples = [];
             preRollBuffers = [];
-            studentPlayTimes.clear();
-            studentActiveNodes.clear();
-            studentLastChunkEnd.clear();
+            stopAllStudentAudioNodes();
             try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
 
             if (screenStream) {
