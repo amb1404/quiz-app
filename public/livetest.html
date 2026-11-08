@@ -722,7 +722,7 @@
                 try { studentSilentSink.disconnect(); } catch (e) {}
                 studentSilentSink = null;
             }
-            if (rtcOpusAudioEl) rtcOpusAudioEl.volume = 1.0;
+           if (rtcOpusAudioEl) rtcOpusAudioEl.volume = 1.0;
             if (aecAudioElement) aecAudioElement.volume = 1.0;
             if (studentMicStream) {
                 studentMicStream.getTracks().forEach(t => t.stop());
@@ -798,26 +798,26 @@
 
                     const hpFilter = studentAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 200;
+                    hpFilter.frequency.value = 180;
                     hpFilter.Q.value = 0.707;
 
                     const lpFilter = studentAudioCtx.createBiquadFilter();
                     lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 10000;
+                    lpFilter.frequency.value = 6000;
                     lpFilter.Q.value = 0.707;
 
                     const presenceFilter = studentAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'peaking';
-                    presenceFilter.frequency.value = 3200;
+                    presenceFilter.frequency.value = 2500;
                     presenceFilter.Q.value = 1.0;
-                    presenceFilter.gain.value = 3.5;
+                    presenceFilter.gain.value = 2.0;
 
                     const compressor = studentAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -18;
-                    compressor.knee.value = 8;
-                    compressor.ratio.value = 2.5;
-                    compressor.attack.value = 0.005;
-                    compressor.release.value = 0.12;
+                    compressor.threshold.value = -22;
+                    compressor.knee.value = 12;
+                    compressor.ratio.value = 3.5;
+                    compressor.attack.value = 0.003;
+                    compressor.release.value = 0.15;
 
                     studentMicProcessor = studentAudioCtx.createScriptProcessor(2048, 1, 1);
                     // Zero-gain node connected to hardware destination guarantees unthrottled audio callbacks
@@ -866,7 +866,7 @@
 
                         for (let i = 0; i < input.length; i++) {
                             studentGateGain += (targetGain - studentGateGain) * (isGateOpen ? 0.10 : 0.006);
-                            gatedFloat[i] = Math.max(-1, Math.min(1, input[i] * studentGateGain));
+                            gatedFloat[i] = Math.tanh(input[i] * studentGateGain);
                         }
 
                         const down = downsampleClean(gatedFloat, studentAudioCtx.sampleRate, TARGET_SAMPLE_RATE);

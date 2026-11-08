@@ -314,10 +314,7 @@
         // Inject Google Meet HD 96kbps Fullband Opus parameters into SDP
         function enhanceOpusSdp(sdp) {
             if (!sdp) return sdp;
-            return sdp.replace(
-                /a=fmtp:(\d+) minptime=10;useinbandfec=1/g,
-                'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=96000;maxplaybackrate=48000;sprop-maxcapturerate=48000;cbr=1'
-            );
+            return sdp.replace(/a=fmtp:(\d+) minptime=10;useinbandfec=1/g, 'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=64000;cbr=1');
         }
 
         function hotSwapCameraTrack(newCamTrack) {
@@ -675,7 +672,7 @@ document.addEventListener('pointerdown', () => {
 
         // Pipeline 3: Google Meet-Grade 5-Stage Noise-Cancelled Audio Pipeline
         async function syncAudioPipeline() {
-           if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (adminAudioCtx.state === 'suspended') await adminAudioCtx.resume();
             getStudioOpusTrack();
 
@@ -724,7 +721,7 @@ document.addEventListener('pointerdown', () => {
                     humNotch.frequency.value = 50;
                     humNotch.Q.value = 10.0;
 
-                   // Stage 2: 240Hz High-Pass Filter (Cuts 150-240Hz close-mic bass boom that makes voice sound deep)
+                    // Stage 2: 240Hz High-Pass Filter (Cuts 150-240Hz close-mic bass boom that makes voice sound deep)
                     const hpFilter = adminAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
                     hpFilter.frequency.value = 240;
@@ -791,7 +788,7 @@ document.addEventListener('pointerdown', () => {
                         }
 
                         const isGateOpen = (nowMs < speechHoldUntil);
-                        const targetGain = isGateOpen ? 1.35 : 0.0;
+                        const targetGain = isGateOpen ? 1.0 : 0.0;
 
                         // Smoothly open/close the native WebRTC Opus hardware gate node
                         studioGateNode.gain.setTargetAtTime(targetGain, adminAudioCtx.currentTime, isGateOpen ? 0.012 : 0.06);
@@ -799,7 +796,7 @@ document.addEventListener('pointerdown', () => {
                         const gatedFloat = new Float32Array(input.length);
                         for (let i = 0; i < input.length; i++) {
                             currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.005);
-                          gatedFloat[i] = Math.max(-1, Math.min(1, input[i] * currentGateGain));
+                            gatedFloat[i] = Math.tanh(input[i] * currentGateGain);
                         }
 
                         const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
