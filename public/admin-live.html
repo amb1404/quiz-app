@@ -689,7 +689,7 @@ document.addEventListener('pointerdown', () => {
 
         // Pipeline 3: Google Meet-Grade 5-Stage Noise-Cancelled Audio Pipeline
         async function syncAudioPipeline() {
-            if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (!adminAudioCtx) adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (adminAudioCtx.state === 'suspended') await adminAudioCtx.resume();
             getStudioOpusTrack();
 
@@ -703,23 +703,26 @@ document.addEventListener('pointerdown', () => {
                 }
                 pendingPcmSamples = [];
                 preRollBuffers = [];
+                currentGateGain = 0.0;
                 return true;
             }
 
             const hasLiveMic = micStream && micStream.getAudioTracks()[0] && micStream.getAudioTracks()[0].readyState === 'live';
             if (!hasLiveMic) {
                 try {
-                    // Request pure, uncolored hardware audio with browser echo cancellation and noise suppression
                     micStream = await navigator.mediaDevices.getUserMedia({
                         video: false,
                         audio: {
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
-                            autoGainControl: { ideal: true },
+                            voiceIsolation: { ideal: true },
+                            autoGainControl: false,
                             channelCount: { ideal: 1 },
                             googEchoCancellation: true,
-                            googAutoGainControl: true,
-                            googNoiseSuppression: true
+                            googAutoGainControl: false,
+                            googNoiseSuppression: true,
+                            googExperimentalNoiseSuppression: true,
+                            googHighpassFilter: true
                         }
                     });
 
@@ -729,56 +732,11 @@ document.addEventListener('pointerdown', () => {
 
                     micSource = adminAudioCtx.createMediaStreamSource(micStream);
 
-                    // Transparent compressor for balanced broadcast volume without coloring your voice tone
-                    const transparentLimiter = adminAudioCtx.createDynamicsCompressor();
-                    transparentLimiter.threshold.value = -14;
-                    transparentLimiter.knee.value = 6;
-                    transparentLimiter.ratio.value = 2.5;
-                    transparentLimiter.attack.value = 0.003;
-                    transparentLimiter.release.value = 0.10;
-
-                    micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
-                    silentSink = adminAudioCtx.createGain();
-                    silentSink.gain.value = 0;
-
-                    micProcessor.onaudioprocess = (e) => {
-                        const output = e.outputBuffer.getChannelData(0);
-                        if (!isBroadcasting || !audioEnabled) {
-                            for (let i = 0; i < output.length; i++) output[i] = 0;
-                            preRollBuffers = [];
-                            return;
-                        }
-
-                        const input = e.inputBuffer.getChannelData(0);
-                        for (let i = 0; i < input.length; i++) {
-                            output[i] = input[i];
-                        }
-
-                        const downsampled = downsampleClean(input, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
-                        for (let i = 0; i < downsampled.length; i++) {
-                            pendingPcmSamples.push(downsampled[i]);
-                        }
-                        if (pendingPcmSamples.length > 24000) {
-                            pendingPcmSamples = pendingPcmSamples.slice(-24000);
-                        }
-                    };
-
-                    // Direct, uncolored routing to WebRTC Opus stream
-                    micSource.connect(transparentLimiter);
-                    transparentLimiter.connect(studioOutDest);
-
-                    // Parallel path for PCM fallback buffer
-                    transparentLimiter.connect(micProcessor);
-                    micProcessor.connect(silentSink);
-                    silentSink.connect(adminAudioCtx.destination);
-                } catch (err) {
-                    alert('Microphone error: ' + err.message);
-                    audioEnabled = false;
-                    return false;
-                }
-            }
-            return true;
-        }
+                    // Stage 1: 50Hz AC Mains Hum Notch Filter
+                    const humNotch = adminAudioCtx.createBiquadFilter();
+                    humNotch.type = 'notch';
+                    humNotch.frequency.value = 50;
+                    humNotch.Q.value = 10.0;
 
                     // Stage 2: 240Hz High-Pass Filter (Cuts 150-240Hz close-mic bass boom that makes voice sound deep)
                     const hpFilter = adminAudioCtx.createBiquadFilter();
