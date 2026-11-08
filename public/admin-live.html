@@ -925,8 +925,11 @@
             if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
             if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
 
-            pc._camSender = pc.addTrack(camTrack, new MediaStream([camTrack]));
-            pc._pptSender = pc.addTrack(pptTrack, new MediaStream([pptTrack]));
+            const camStreamObj = camStream || new MediaStream([camTrack]);
+            const pptStreamObj = screenStream || new MediaStream([pptTrack]);
+
+            pc._camSender = pc.addTrack(camTrack, camStreamObj);
+            pc._pptSender = pc.addTrack(pptTrack, pptStreamObj);
             if (opusTrack && studioOutDest) {
                 pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
                 optimizeAudioSender(pc._audioSender);

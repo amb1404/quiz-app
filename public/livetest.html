@@ -552,19 +552,31 @@
         }
 
         function attachLowLatencyVideo(videoEl, track, receiver) {
+            if (receiver) {
+                try {
+                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0;
+                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0;
+                } catch (e) {}
+            }
+            
+            track.enabled = true;
             const stream = new MediaStream([track]);
             videoEl.srcObject = stream;
             videoEl.muted = true;
+            videoEl.autoplay = true;
             videoEl.playsInline = true;
 
-            const tryPlay = () => {
-                if (videoEl.srcObject) {
-                    videoEl.play().catch(() => {});
-                }
+            const forcePlay = () => {
+                videoEl.play().catch(() => {
+                    setTimeout(forcePlay, 200);
+                });
             };
-            track.onunmute = tryPlay;
-            videoEl.onloadedmetadata = tryPlay;
-            tryPlay();
+
+            track.onunmute = forcePlay;
+            track.onmute = forcePlay;
+            videoEl.onloadeddata = forcePlay;
+            videoEl.oncanplay = forcePlay;
+            forcePlay();
         }
 
         function attachOpusAudioTrack(track, receiver) {
