@@ -453,7 +453,7 @@
                 rtcOpusAudioEl &&
                 !rtcOpusAudioEl.paused &&
                 studentPc &&
-                (studentPc.connectionState === 'connected' || studentPc.iceConnectionState === 'connected')
+                (studentPc.connectionState === 'connected' || studentPc.iceConnectionState === 'connected' || studentPc.iceConnectionState === 'completed')
             ) {
                 stopAllPcmNodes();
                 return;
@@ -524,7 +524,8 @@
             lastAdminAudioPlayedMs = Date.now() + remainingPlayMs + 350;
         }
 
-        function waitForIce(pc, maxTimeout = 600) {
+        // Wait for STUN (srflx) candidate or complete gathering so public IP candidates are never cut off early
+        function waitForIce(pc, maxTimeout = 1000) {
             return new Promise(resolve => {
                 if (pc.iceGatheringState === 'complete') return resolve();
                 let resolved = false;
@@ -540,8 +541,8 @@
                 pc.addEventListener('icecandidate', (e) => {
                     if (!e.candidate) {
                         done();
-                    } else if (e.candidate.candidate && (e.candidate.candidate.includes('srflx') || e.candidate.candidate.includes('host'))) {
-                        if (!quickTimer) quickTimer = setTimeout(done, 120);
+                    } else if (e.candidate.candidate && e.candidate.candidate.includes('srflx')) {
+                        if (!quickTimer) quickTimer = setTimeout(done, 150);
                     }
                 });
                 pc.addEventListener('icegatheringstatechange', () => {
@@ -551,14 +552,19 @@
         }
 
         function attachLowLatencyVideo(videoEl, track, receiver) {
-            if (receiver) {
-                try {
-                    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0;
-                    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0;
-                } catch (e) {}
-            }
-            videoEl.srcObject = new MediaStream([track]);
-            videoEl.play().catch(() => {});
+            const stream = new MediaStream([track]);
+            videoEl.srcObject = stream;
+            videoEl.muted = true;
+            videoEl.playsInline = true;
+
+            const tryPlay = () => {
+                if (videoEl.srcObject) {
+                    videoEl.play().catch(() => {});
+                }
+            };
+            track.onunmute = tryPlay;
+            videoEl.onloadedmetadata = tryPlay;
+            tryPlay();
         }
 
         function attachOpusAudioTrack(track, receiver) {
@@ -603,7 +609,10 @@
                     try { studentPc.close(); } catch (e) {}
                 }
                 studentPc = new RTCPeerConnection({
-                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ],
                     iceCandidatePoolSize: 4
                 });
 
@@ -617,9 +626,8 @@
                         return;
                     }
                     if (event.track.kind === 'video') {
-                        const videoTransceivers = studentPc.getTransceivers().filter(
-                            t => t.receiver && t.receiver.track && t.receiver.track.kind === 'video'
-                        );
+                        const transceivers = studentPc.getTransceivers();
+                        const videoTransceivers = transceivers.filter(t => t.mid !== null && t.receiver && t.receiver.track && t.receiver.track.kind === 'video');
                         const videoIndex = videoTransceivers.findIndex(t => t.receiver === event.receiver);
 
                         event.track.enabled = true;
@@ -653,7 +661,7 @@
 
                 const offer = await studentPc.createOffer();
                 await studentPc.setLocalDescription(offer);
-                await waitForIce(studentPc, 600);
+                await waitForIce(studentPc, 1000);
 
                 const res = await fetch('/api/live/rtc/student/webrtc-offer', {
                     method: 'POST',
@@ -907,7 +915,6 @@
             }
         });
 
-        // Fast 130ms Pull Loop with Timeout Protection & Automatic WebRTC Reconnection
         setInterval(async () => {
             if (!liveToken || !currentQuizId || !testActive) {
                 if (pipBox.style.display !== 'none') teardownStream();
@@ -962,14 +969,28 @@
                 document.body.classList.add('rtc-stream-active');
                 pipBox.style.display = 'flex';
 
-                // FIX: If WebRTC handshake times out after 8s, close & null studentPc so it immediately retries!
-                if (isJoiningRtc && (Date.now() - joinStartedAt > 8000)) {
+                // If Admin restarted broadcast (clearing room.students on server), immediately re-offer
+                if (hasSentCurrentOffer && status.webrtcOfferId !== currentOfferId) {
                     if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
                     isJoiningRtc = false;
                     isRtcOpusFlowing = false;
                     hasSentCurrentOffer = false;
                 }
-                if (disconnectedSince && (Date.now() - disconnectedSince > 6000)) {
+
+                // If WebRTC has not reached connected/completed within 7s, retry cleanly
+                const isPcConnected = studentPc && (
+                    studentPc.connectionState === 'connected' ||
+                    studentPc.iceConnectionState === 'connected' ||
+                    studentPc.iceConnectionState === 'completed'
+                );
+                if (studentPc && !isPcConnected && (Date.now() - joinStartedAt > 7000)) {
+                    try { studentPc.close(); } catch (e) {}
+                    studentPc = null;
+                    isJoiningRtc = false;
+                    isRtcOpusFlowing = false;
+                    hasSentCurrentOffer = false;
+                }
+                if (disconnectedSince && (Date.now() - disconnectedSince > 5000)) {
                     if (studentPc) { try { studentPc.close(); } catch (e) {} studentPc = null; }
                     isJoiningRtc = false;
                     isRtcOpusFlowing = false;
@@ -1006,7 +1027,7 @@
                     document.body.classList.add('rtc-both-active');
                     if (presentationScreen) presentationScreen.style.display = 'block';
                     if (quizScreen) quizScreen.style.display = 'block';
-                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
+                    if (pptVideo && pptVideo.srcObject) {
                         pptVideo.play().catch(() => {});
                     }
                 } else if (status.broadcastMode === 'presentation') {
@@ -1014,7 +1035,7 @@
                     document.body.classList.add('rtc-presentation-active');
                     if (quizScreen) quizScreen.style.display = 'none';
                     if (presentationScreen) presentationScreen.style.display = 'block';
-                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
+                    if (pptVideo && pptVideo.srcObject) {
                         pptVideo.play().catch(() => {});
                     }
                 } else {
@@ -1027,7 +1048,7 @@
                 if (status.videoEnabled) {
                     remoteVideo.style.display = 'block';
                     videoPlaceholder.style.display = 'none';
-                    if (remoteVideo.paused && remoteVideo.srcObject) {
+                    if (remoteVideo.srcObject) {
                         remoteVideo.play().catch(() => {});
                     }
                 } else {

@@ -225,6 +225,7 @@
 
         const peerConnections = new Map();
         const answeringStudents = new Set();
+        const answeredOfferIds = new Set();
 
         const btnVideo = document.getElementById('btn-admin-video');
         const btnAudio = document.getElementById('btn-admin-audio');
@@ -254,7 +255,6 @@
             return { adminKey: keyVal, quizId: quizVal };
         }
 
-        // Separate Idle Track 1: For Camera Sender (640x360 matches webcam resolution so replaceTrack never stalls)
         function getIdleCamTrack() {
             if (!idleCamStream) {
                 const canvas = document.createElement('canvas');
@@ -269,7 +269,6 @@
             return idleCamStream.getVideoTracks()[0];
         }
 
-        // Separate Idle Track 2: For PPT Sender (1280x720 matches HD slide resolution so replaceTrack never stalls)
         function getIdlePptTrack() {
             if (!idlePptStream) {
                 const canvas = document.createElement('canvas');
@@ -284,7 +283,6 @@
             return idlePptStream.getVideoTracks()[0];
         }
 
-        // Continuous WebRTC Opus Audio Track (Uses native hardware sample rate so Firefox/Chrome never throw)
         function getStudioOpusTrack() {
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -302,6 +300,7 @@
         }
 
         function getActiveCamTrack() {
+            getIdleCamTrack();
             if (videoEnabled && camStream) {
                 const track = camStream.getVideoTracks()[0];
                 if (track && track.readyState === 'live') return track;
@@ -310,6 +309,7 @@
         }
 
         function getActivePptTrack() {
+            getIdlePptTrack();
             if (screenStream) {
                 const track = screenStream.getVideoTracks()[0];
                 if (track && track.readyState === 'live') return track;
@@ -668,8 +668,8 @@
             lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 250;
         }
 
-        // Pipeline 1: Dedicated Camera Stream Setup
         async function syncCameraPipeline() {
+            getIdleCamTrack();
             if (!videoEnabled) {
                 if (camStream) {
                     camStream.getTracks().forEach(t => t.stop());
@@ -704,7 +704,6 @@
             return true;
         }
 
-        // Pipeline 3: 5-Stage EQ + Unthrottled Audio-Thread Noise Gate (Rejects Distant Sounds & Works When Alt-Tabbed)
         async function syncAudioPipeline() {
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -751,39 +750,33 @@
 
                     micSource = adminAudioCtx.createMediaStreamSource(micStream);
 
-                    // Stage 1: 50Hz AC Mains Hum Notch Filter
                     const humNotch = adminAudioCtx.createBiquadFilter();
                     humNotch.type = 'notch';
                     humNotch.frequency.value = 50;
                     humNotch.Q.value = 10.0;
 
-                    // Stage 2: 220Hz High-Pass Filter (Cuts low-frequency rumble & close-mic bass boom)
                     const hpFilter = adminAudioCtx.createBiquadFilter();
                     hpFilter.type = 'highpass';
                     hpFilter.frequency.value = 220;
                     hpFilter.Q.value = 0.707;
 
-                    // Stage 3: 9000Hz Low-Pass Filter (Preserves full vocal clarity)
                     const lpFilter = adminAudioCtx.createBiquadFilter();
                     lpFilter.type = 'lowpass';
                     lpFilter.frequency.value = 9000;
                     lpFilter.Q.value = 0.707;
 
-                    // Stage 4: High-Shelf Crispness Filter (+4.5dB above 2800Hz for natural vocal timbre)
                     const presenceFilter = adminAudioCtx.createBiquadFilter();
                     presenceFilter.type = 'highshelf';
                     presenceFilter.frequency.value = 2800;
                     presenceFilter.gain.value = 4.5;
 
-                    // Stage 5: Transparent Dynamics Leveller
                     const compressor = adminAudioCtx.createDynamicsCompressor();
                     compressor.threshold.value = -16;
                     compressor.knee.value = 10;
-                    compressor.ratio = 2.0;
+                    compressor.ratio.value = 2.0;
                     compressor.attack.value = 0.005;
                     compressor.release.value = 0.12;
 
-                    // Native C++ Gate Node for WebRTC Opus (Only updates on state transitions so automation never stacks)
                     const studioGateNode = adminAudioCtx.createGain();
                     studioGateNode.gain.value = 0.04;
 
@@ -818,7 +811,6 @@
                             noiseFloorRms = (0.95 * noiseFloorRms) + (0.05 * Math.min(0.008, Math.max(0.0008, rms)));
                         }
 
-                        // Close-talk proximity threshold rejects distant background noise; 1100ms hold prevents mid-sentence cuts
                         const openThreshold = Math.max(0.0048, noiseFloorRms * 2.2);
                         const continueThreshold = Math.max(0.0025, noiseFloorRms * 1.4);
 
@@ -828,7 +820,6 @@
 
                         const isGateOpen = (nowMs < speechHoldUntil);
 
-                        // Only schedule gain transitions when gate state flips (prevents WebAudio event stacking!)
                         if (isGateOpen !== wasSpeaking) {
                             const nowAudio = adminAudioCtx.currentTime;
                             studioGateNode.gain.cancelScheduledValues(nowAudio);
@@ -869,11 +860,9 @@
                     lpFilter.connect(presenceFilter);
                     presenceFilter.connect(compressor);
 
-                    // Direct C++ WebAudio path for WebRTC Opus
                     compressor.connect(studioGateNode);
                     studioGateNode.connect(studioOutDest);
 
-                    // Parallel path for PCM fallback & unthrottled audio-thread level detection
                     compressor.connect(micProcessor);
                     micProcessor.connect(silentSink);
                     silentSink.connect(adminAudioCtx.destination);
@@ -886,7 +875,8 @@
             return true;
         }
 
-        function waitForIce(pc, maxTimeout = 600) {
+        // Wait for STUN (srflx) candidate or complete gathering so public IP candidates are never cut off early
+        function waitForIce(pc, maxTimeout = 1000) {
             return new Promise(resolve => {
                 if (pc.iceGatheringState === 'complete') return resolve();
                 let resolved = false;
@@ -902,8 +892,8 @@
                 pc.addEventListener('icecandidate', (e) => {
                     if (!e.candidate) {
                         done();
-                    } else if (e.candidate.candidate && (e.candidate.candidate.includes('srflx') || e.candidate.candidate.includes('host'))) {
-                        if (!quickTimer) quickTimer = setTimeout(done, 120);
+                    } else if (e.candidate.candidate && e.candidate.candidate.includes('srflx')) {
+                        if (!quickTimer) quickTimer = setTimeout(done, 150);
                     }
                 });
                 pc.addEventListener('icegatheringstatechange', () => {
@@ -918,14 +908,16 @@
             }
 
             const pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ],
                 iceCandidatePoolSize: 4
             });
             peerConnections.set(studentName, pc);
 
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
-            // camTrack and pptTrack are guaranteed to be two separate track objects even when both Video & PPT are OFF
             const camTrack = getActiveCamTrack();
             const pptTrack = getActivePptTrack();
             const opusTrack = getStudioOpusTrack();
@@ -933,8 +925,8 @@
             if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
             if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
 
-            pc._camSender = pc.addTrack(camTrack, camStream || idleCamStream);
-            pc._pptSender = pc.addTrack(pptTrack, screenStream || idlePptStream);
+            pc._camSender = pc.addTrack(camTrack, new MediaStream([camTrack]));
+            pc._pptSender = pc.addTrack(pptTrack, new MediaStream([pptTrack]));
             if (opusTrack && studioOutDest) {
                 pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
                 optimizeAudioSender(pc._audioSender);
@@ -944,18 +936,24 @@
             optimizeVideoSender(pc._pptSender, true);
 
             const rawAnswer = await pc.createAnswer();
-            const enhancedAnswer = {
-                type: rawAnswer.type,
-                sdp: enhanceOpusSdp(rawAnswer.sdp)
-            };
-            await pc.setLocalDescription(enhancedAnswer);
-            await waitForIce(pc, 600);
+            try {
+                await pc.setLocalDescription({
+                    type: rawAnswer.type,
+                    sdp: enhanceOpusSdp(rawAnswer.sdp)
+                });
+            } catch (sdpErr) {
+                await pc.setLocalDescription(rawAnswer);
+            }
+            await waitForIce(pc, 1000);
 
-            await fetch('/api/live/rtc/admin/webrtc-answer', {
+            const res = await fetch('/api/live/rtc/admin/webrtc-answer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminKey, quizId, studentName, answer: pc.localDescription, offerId })
             });
+            if (res.ok && offerId) {
+                answeredOfferIds.add(`${studentName}_${offerId}`);
+            }
         }
 
         async function startOrUpdateBroadcast() {
@@ -969,6 +967,17 @@
                 await syncAudioPipeline();
                 pipBox.style.display = videoEnabled ? 'flex' : 'none';
                 btnStop.style.display = 'inline-block';
+
+                // If starting a fresh broadcast session (e.g. after Admin page reload), clear stale student offers on server first
+                if (!isBroadcasting) {
+                    answeredOfferIds.clear();
+                    answeringStudents.clear();
+                    await fetch('/api/live/rtc/admin/toggle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false, broadcastMode })
+                    }).catch(() => {});
+                }
 
                 await fetch('/api/live/rtc/admin/toggle', {
                     method: 'POST',
@@ -994,15 +1003,14 @@
             const { adminKey, quizId } = getAdminCredentials();
             if (!adminKey || !quizId) return;
 
-            // Keep both idle canvases emitting valid frames so WebRTC video decoders never stall
             const nowMs = Date.now();
-            if (nowMs - lastIdleDrawAt > 400) {
+            if (nowMs - lastIdleDrawAt > 300) {
                 lastIdleDrawAt = nowMs;
-                if (idleCamCtx && !videoEnabled) {
+                if (idleCamCtx) {
                     idleCamCtx.fillStyle = '#0f172a';
                     idleCamCtx.fillRect(0, 0, 8, 8);
                 }
-                if (idlePptCtx && !screenStream) {
+                if (idlePptCtx) {
                     idlePptCtx.fillStyle = '#0f172a';
                     idlePptCtx.fillRect(0, 0, 8, 8);
                 }
@@ -1062,15 +1070,17 @@
                     }
 
                     if (Array.isArray(data.pendingOffers)) {
-                        data.pendingOffers.forEach(item => {
+                        for (const item of data.pendingOffers) {
                             const offerLockKey = `${item.name}_${item.offerId || ''}`;
-                            if (!answeringStudents.has(offerLockKey)) {
+                            if (!answeringStudents.has(offerLockKey) && !answeredOfferIds.has(offerLockKey)) {
                                 answeringStudents.add(offerLockKey);
-                                handleStudentOffer(item.name, item.offer, item.offerId, adminKey, quizId).finally(() => {
-                                    answeringStudents.delete(offerLockKey);
-                                });
+                                handleStudentOffer(item.name, item.offer, item.offerId, adminKey, quizId)
+                                    .catch(() => {})
+                                    .finally(() => {
+                                        answeringStudents.delete(offerLockKey);
+                                    });
                             }
-                        });
+                        }
                     }
 
                     if (Array.isArray(data.studentAudioChunks) && data.studentAudioChunks.length > 0) {
@@ -1222,6 +1232,7 @@
             peerConnections.forEach(pc => { try { pc.close(); } catch (e) {} });
             peerConnections.clear();
             answeringStudents.clear();
+            answeredOfferIds.clear();
 
             if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
             if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
