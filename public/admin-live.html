@@ -714,15 +714,13 @@ document.addEventListener('pointerdown', () => {
                     micStream = await navigator.mediaDevices.getUserMedia({
                         video: false,
                         audio: {
-                            sampleRate: { ideal: 48000, min: 44100 },
-                            sampleSize: { ideal: 16 },
                             echoCancellation: { ideal: true },
                             noiseSuppression: { ideal: true },
                             voiceIsolation: { ideal: true },
-                            autoGainControl:{ ideal: true },
+                            autoGainControl: false,
                             channelCount: { ideal: 1 },
                             googEchoCancellation: true,
-                            googAutoGainControl: true,
+                            googAutoGainControl: false,
                             googNoiseSuppression: true,
                             googExperimentalNoiseSuppression: true,
                             googHighpassFilter: true
