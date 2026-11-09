@@ -584,6 +584,8 @@
                 rtcOpusAudioEl = document.createElement('audio');
                 rtcOpusAudioEl.autoplay = true;
                 rtcOpusAudioEl.playsInline = true;
+                rtcOpusAudioEl.style.display = 'none';
+                document.body.appendChild(rtcOpusAudioEl);
             }
             try {
                 const adminLocalStamp = Number(localStorage.getItem('pp_admin_mic_same_pc') || 0);
@@ -653,12 +655,19 @@
 
                 const handleStateChange = () => {
                     if (!studentPc) return;
-                    const state = studentPc.connectionState || studentPc.iceConnectionState;
-                    if (state === 'connected' || state === 'completed') {
+                    const iceState = studentPc.iceConnectionState;
+                    const connState = studentPc.connectionState;
+
+                    if (
+                        connState === 'connected' ||
+                        iceState === 'connected' ||
+                        iceState === 'completed' ||
+                        iceState === 'checking'
+                    ) {
                         disconnectedSince = 0;
-                    } else if (state === 'disconnected') {
+                    } else if (iceState === 'disconnected' || connState === 'disconnected') {
                         if (!disconnectedSince) disconnectedSince = Date.now();
-                    } else if (state === 'failed' || state === 'closed') {
+                    } else if (iceState === 'failed' || connState === 'failed' || iceState === 'closed' || connState === 'closed') {
                         try { studentPc.close(); } catch (e) {}
                         studentPc = null;
                         isJoiningRtc = false;
@@ -1039,7 +1048,7 @@
                     document.body.classList.add('rtc-both-active');
                     if (presentationScreen) presentationScreen.style.display = 'block';
                     if (quizScreen) quizScreen.style.display = 'block';
-                    if (pptVideo && pptVideo.srcObject) {
+                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
                         pptVideo.play().catch(() => {});
                     }
                 } else if (status.broadcastMode === 'presentation') {
@@ -1047,7 +1056,7 @@
                     document.body.classList.add('rtc-presentation-active');
                     if (quizScreen) quizScreen.style.display = 'none';
                     if (presentationScreen) presentationScreen.style.display = 'block';
-                    if (pptVideo && pptVideo.srcObject) {
+                    if (pptVideo && pptVideo.paused && pptVideo.srcObject) {
                         pptVideo.play().catch(() => {});
                     }
                 } else {
@@ -1060,7 +1069,7 @@
                 if (status.videoEnabled) {
                     remoteVideo.style.display = 'block';
                     videoPlaceholder.style.display = 'none';
-                    if (remoteVideo.srcObject) {
+                    if (remoteVideo.paused && remoteVideo.srcObject) {
                         remoteVideo.play().catch(() => {});
                     }
                 } else {
