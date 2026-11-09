@@ -71,9 +71,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
+            opacity: 0;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 2;
             transform: scaleX(-1);
             will-change: contents;
+            transition: opacity 0.3s;
         }
         #student-video-placeholder {
             color: #94a3b8;
@@ -81,6 +85,9 @@
             font-weight: bold;
             text-align: center;
             padding: 8px;
+            position: relative;
+            z-index: 1;
+            transition: opacity 0.3s;
         }
         #btn-unmute-hint {
             position: absolute;
