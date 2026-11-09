@@ -189,11 +189,8 @@
         let screenStream = null;   // Pipeline 2: Dedicated PPT Presentation Stream
         let micStream = null;      // Pipeline 3: Dedicated HD Microphone Stream
 
-        let idleCamStream = null;
-        let idleCamCtx = null;
-        let idlePptStream = null;
-        let idlePptCtx = null;
-        let lastIdleDrawAt = 0;
+        // Anchor nodes to the window so Chrome V8 Garbage Collector never kills audio mid-lecture
+        window._adminLiveAudioNodes = [];
 
         let studioOutDest = null;  // Clean Noise-Cancelled WebRTC Opus Output Stream
         let silentOsc = null;
@@ -255,34 +252,6 @@
             return { adminKey: keyVal, quizId: quizVal };
         }
 
-        function getIdleCamTrack() {
-            if (!idleCamStream) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 360;
-                idleCamCtx = canvas.getContext('2d', { alpha: false });
-                idleCamCtx.fillStyle = '#0f172a';
-                idleCamCtx.fillRect(0, 0, canvas.width, canvas.height);
-                idleCamStream = canvas.captureStream(15);
-                idleCamCtx.fillRect(0, 0, 8, 8);
-            }
-            return idleCamStream.getVideoTracks()[0];
-        }
-
-        function getIdlePptTrack() {
-            if (!idlePptStream) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1280;
-                canvas.height = 720;
-                idlePptCtx = canvas.getContext('2d', { alpha: false });
-                idlePptCtx.fillStyle = '#0f172a';
-                idlePptCtx.fillRect(0, 0, canvas.width, canvas.height);
-                idlePptStream = canvas.captureStream(15);
-                idlePptCtx.fillRect(0, 0, 8, 8);
-            }
-            return idlePptStream.getVideoTracks()[0];
-        }
-
         function getStudioOpusTrack() {
             if (!adminAudioCtx) {
                 adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -300,21 +269,19 @@
         }
 
         function getActiveCamTrack() {
-            getIdleCamTrack();
             if (videoEnabled && camStream) {
                 const track = camStream.getVideoTracks()[0];
                 if (track && track.readyState === 'live') return track;
             }
-            return getIdleCamTrack();
+            return null; // Return null instead of a fake canvas track when camera is off
         }
 
         function getActivePptTrack() {
-            getIdlePptTrack();
             if (screenStream) {
                 const track = screenStream.getVideoTracks()[0];
                 if (track && track.readyState === 'live') return track;
             }
-            return getIdlePptTrack();
+            return null; // Return null instead of a fake canvas track when PPT is off
         }
 
         function optimizeVideoSender(sender, isPresentation) {
@@ -776,8 +743,8 @@
                     silentSink = adminAudioCtx.createGain();
                     silentSink.gain.value = 0;
 
-                    // Anchor all nodes on window so Chrome V8 Garbage Collector never kills audio mid-lecture
-                    window._adminLiveAudioNodes = [micSource, humNotch, hpFilter, studioGateNode, micProcessor, silentSink];
+                    // Step 3 Fix: Anchor all nodes to the window so Chrome V8 Garbage Collector never kills audio mid-lecture
+                    window._adminLiveAudioNodes = [micSource, humNotch, hpFilter, lpFilter, presenceFilter, compressor, micProcessor, silentSink, studioGateNode];
 
                     let wasSpeaking = false;
                     let speechHoldUntil = 0;
@@ -936,11 +903,12 @@
             if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
             if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
 
-            const camStreamObj = camStream || new MediaStream([camTrack]);
-            const pptStreamObj = screenStream || new MediaStream([pptTrack]);
-
-            pc._camSender = pc.addTrack(camTrack, camStreamObj);
-            pc._pptSender = pc.addTrack(pptTrack, pptStreamObj);
+            // Use addTransceiver so the RTP pipeline is always established, even if video starts completely turned off (null)
+            pc._camTransceiver = pc.addTransceiver(camTrack || 'video', { direction: 'sendonly' });
+            pc._pptTransceiver = pc.addTransceiver(pptTrack || 'video', { direction: 'sendonly' });
+            pc._camSender = pc._camTransceiver.sender;
+            pc._pptSender = pc._pptTransceiver.sender;
+            
             if (opusTrack && studioOutDest) {
                 pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
                 optimizeAudioSender(pc._audioSender);
@@ -1016,19 +984,6 @@
             if (!isBroadcasting || isPushing) return;
             const { adminKey, quizId } = getAdminCredentials();
             if (!adminKey || !quizId) return;
-
-            const nowMs = Date.now();
-            if (nowMs - lastIdleDrawAt > 300) {
-                const toggleColor = (Math.floor(nowMs / 300) % 2 === 0) ? '#0f172a' : '#10182b';
-                if (idleCamCtx) {
-                    idleCamCtx.fillStyle = toggleColor;
-                    idleCamCtx.fillRect(0, 0, 16, 16);
-                }
-                if (idlePptCtx) {
-                    idlePptCtx.fillStyle = toggleColor;
-                    idlePptCtx.fillRect(0, 0, 16, 16);
-                }
-            }
 
             if (audioEnabled) {
                 try { localStorage.setItem('pp_admin_mic_same_pc', String(Date.now())); } catch (e) {}

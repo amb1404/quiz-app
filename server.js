@@ -2748,8 +2748,14 @@ app.get('/api/live/admin/dashboard', async (req, res) => {
             });
         }
 
+        if (state && state.status === 'active') {
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 6);
+        }
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        if (rawBoard && state && state.status === 'active') {
+            await stateStore.set(`live:board:${cleanId}`, board, 60 * 60 * 6);
+        }
         if (state && state.status === 'active') {
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 6);
             if (rawBoard) await stateStore.set(`live:board:${cleanId}`, board, 60 * 60 * 6);
