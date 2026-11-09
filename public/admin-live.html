@@ -414,7 +414,7 @@
 
                     screenTrack.onended = () => {
                         screenStream = null;
-                        hotSwapPresentationTrack(getIdlePptTrack());
+                        hotSwapPresentationTrack(null);
                         broadcastMode = 'question';
                         updateModeConsoleUI();
                         syncModeToServer();
@@ -636,14 +636,13 @@
         }
 
         async function syncCameraPipeline() {
-            getIdleCamTrack();
             if (!videoEnabled) {
                 if (camStream) {
                     camStream.getTracks().forEach(t => t.stop());
                     camStream = null;
                 }
                 selfVideo.srcObject = null;
-                hotSwapCameraTrack(getIdleCamTrack());
+                hotSwapCameraTrack(null);
                 return true;
             }
 
