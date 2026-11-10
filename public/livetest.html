@@ -257,7 +257,7 @@
             <button id="btn-unmute-hint" type="button">🔊 Tap to Enable Audio</button>
         </div>
         <div id="student-pip-controls">
-            <button id="btn-student-call" type="button">📞 Call Sir</button>
+            <button id="btn-student-call" type="button">📞 Speak</button>
         </div>
     </div>
     
@@ -701,7 +701,7 @@
             studentPreRollBuffers = [];
             studentGateGain = 0.0;
             try { localStorage.removeItem('pp_student_call_same_pc'); } catch (e) {}
-            callBtn.textContent = '📞 Call Sir';
+            callBtn.textContent = '📞 Speak';
             callBtn.classList.remove('on-call');
 
             if (callPushInterval) {
@@ -880,7 +880,7 @@
 
                     isCallActive = true;
                     isCallPushing = false;
-                    callBtn.textContent = '🔴 End Call';
+                    callBtn.textContent = '🔴 Mute Mic';
                     callBtn.classList.add('on-call');
 
                     callPushInterval = setInterval(async () => {
@@ -968,7 +968,7 @@
                     callBtn.disabled = false;
                     callBtn.style.cursor = 'pointer';
                     if (!isCallActive) {
-                        callBtn.textContent = '📞 Call Sir';
+                        callBtn.textContent = '📞 Speak';
                         callBtn.style.background = '#10b981';
                     }
                 }
@@ -1066,7 +1066,7 @@
                 } else {
                     remoteVideo.style.display = 'none';
                     videoPlaceholder.style.display = 'block';
-                    videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live HD Audio Active' : '🎧 Sir is Listening (Mic Off)';
+                    videoPlaceholder.textContent = status.audioEnabled ? '🎙️ Live HD Audio Active' : '🎧 Admin mic muted';
                 }
 
                 if (!hasSyncedInitialSeq) {
