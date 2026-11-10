@@ -418,13 +418,19 @@ if (typeof io !== 'undefined') {
                 speedHtml = `<span class="time-badge">${ansObj.timeSec}s</span>`;
             }
 
+            const isMuted = info.muted === true;
+            const muteAction = isMuted ? 'unmute' : 'mute';
+            const muteText = isMuted ? 'Unmute' : 'Mute';
+            const muteBg = isMuted ? '#64748b' : '#f59e0b'; 
+
             return `
                 <tr>
                     <td style="font-weight: bold;">${studentName}</td>
                     <td>${statusHtml}</td>
                     <td>${speedHtml}</td>
-                    <td>
-                        <button class="btn-student-moderate" data-student="${studentName}" data-action="kick" style="background: #dc2626; padding: 6px 12px; font-size: 12px;">Remove</button>
+                    <td style="display: flex; gap: 8px;">
+                        <button class="btn-student-moderate" data-student="${studentName}" data-action="${muteAction}" style="background: ${muteBg}; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer; min-width: 70px;">${muteText}</button>
+                        <button class="btn-student-moderate" data-student="${studentName}" data-action="kick" style="background: #dc2626; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Remove</button>
                     </td>
                 </tr>
             `;
