@@ -1,165 +1,73 @@
-// 1. SYNCHRONOUSLY RESTORE SESSION INSTANTLY ON PAGE LOAD
-const _savedLiveSession = sessionStorage.getItem('live_student_session');
-let _initialLiveToken = "";
-let _initialQuizId = "";
-let _hasActiveRestoredSession = false;
-
-if (_savedLiveSession) {
-    try {
-        const _parsedLive = JSON.parse(_savedLiveSession);
-        _initialLiveToken = _parsedLive.token || "";
-        _initialQuizId = _parsedLive.quizId || "";
-        if (_initialLiveToken && _initialQuizId) {
-            _hasActiveRestoredSession = true;
-        }
-    } catch (e) {}
-}
-
-let liveToken = _initialLiveToken;
-let currentQuizId = _initialQuizId;
+let liveToken = "";
+let currentQuizId = "";
 let currentActiveQuizFile = "";
 let localIndex = -1;
-let syncInterval;
-let testActive = _hasActiveRestoredSession;
-let lastSavedAnswer = null;
+let testActive = false;
 
-async function loadAvailableRooms() {
-    const listBox = document.getElementById('live-rooms-list');
-    if (!listBox) return;
-
-    try {
-        const res = await fetch('/api/live/rooms');
-        const data = await res.json();
-
-        if (data.success && Array.isArray(data.rooms) && data.rooms.length > 0) {
-            listBox.innerHTML = '';
-            data.rooms.forEach(room => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.style.cssText = 'width: 100%; padding: 16px 20px; background: #eff6ff; border: 2px solid #93c5fd; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: bold; color: #1e3a8a; transition: 0.2s;';
-                
-                const titleSpan = document.createElement('span');
-                titleSpan.textContent = `🟢 ${room.name}`;
-                
-                const actionSpan = document.createElement('span');
-                actionSpan.style.cssText = 'background: #2563eb; color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px;';
-                actionSpan.textContent = 'Join Room →';
-
-                btn.appendChild(titleSpan);
-                btn.appendChild(actionSpan);
-                btn.addEventListener('click', () => joinLiveRoom(room.id, btn));
-                listBox.appendChild(btn);
-            });
-        } else {
-            listBox.innerHTML = `
-                <div style="padding: 20px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; font-weight: bold;">
-                    No active rooms right now. Click Refresh once Sir starts the room.
-                </div>
-            `;
-        }
-    } catch (e) {
-        listBox.innerHTML = `
-            <div style="padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align: center; color: #dc2626; font-weight: bold;">
-                Error loading rooms. Please click Refresh.
-            </div>
-        `;
-    }
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-    const refreshBtn = document.getElementById('refresh-rooms-btn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', loadAvailableRooms);
-    }
-
-    if (_hasActiveRestoredSession) {
-        const authScreen = document.getElementById('auth-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        if (authScreen) authScreen.style.display = 'none';
-        if (quizScreen) quizScreen.style.display = 'block';
-
-        fetch('/api/live/student/rejoin', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${liveToken}` }
-        }).catch(() => {});
-
-        startSync();
-        startHeartbeat();
-    } else {
-        loadAvailableRooms();
-        setInterval(() => {
-            if (!testActive) loadAvailableRooms();
-        }, 4000);
-    }
+document.addEventListener("DOMContentLoaded", () => {
+    fetchLiveRooms();
+    const refBtn = document.getElementById('refresh-rooms-btn');
+    if (refBtn) refBtn.addEventListener('click', fetchLiveRooms);
 });
 
-function handleExpiredSession() {
-    localStorage.clear();
-    sessionStorage.removeItem('pioneers_prep_state');
-    sessionStorage.setItem('force_login_open', 'true');
-    alert('Session expired. Please sign in again.');
-    window.location.replace('/');
-}
-
-async function joinLiveRoom(selectedRoomId, btnEl) {
-    const token = localStorage.getItem('pp_id_token');
-    if (!token) {
-        sessionStorage.setItem('force_login_open', 'true');
-        alert('Please sign in on the homepage first.');
-        window.location.replace('/');
-        return;
-    }
-
-    currentQuizId = String(selectedRoomId || '').trim();
-    if (!currentQuizId) return;
-
-    if (btnEl) {
-        btnEl.disabled = true;
-        btnEl.style.opacity = '0.7';
-    }
-
+async function fetchLiveRooms() {
+    const listDiv = document.getElementById('live-rooms-list');
+    if (!listDiv) return;
     try {
-        const res = await fetch('/api/live/student/verify', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ quizId: currentQuizId })
-        });
-
-        if (res.status === 401) {
-            handleExpiredSession();
+        listDiv.innerHTML = '<div style="padding: 18px; text-align: center; color: #64748b;">Checking for active classes...</div>';
+        const res = await fetch('/api/live/rooms');
+        const data = await res.json();
+        
+        if (!data.success || data.rooms.length === 0) {
+            listDiv.innerHTML = '<div style="padding: 18px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; font-weight: bold;">No live classes are currently active.</div>';
             return;
         }
 
+        listDiv.innerHTML = data.rooms.map(r => `
+            <div style="background: white; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 10px;">
+                <div style="font-weight: bold; color: #1e293b; font-size: 15px; display: flex; align-items: center;">
+                    <span style="display: inline-block; width: 10px; height: 10px; background: #10b981; border-radius: 50%; margin-right: 8px;"></span>
+                    ${r.name}
+                </div>
+                <button onclick="joinLiveRoom('${r.id}')" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">Join Room</button>
+            </div>
+        `).join('');
+    } catch (err) {
+        listDiv.innerHTML = '<div style="color: #ef4444; padding: 15px; font-weight: bold;">Failed to load rooms. Please refresh.</div>';
+    }
+}
+
+async function joinLiveRoom(roomId) {
+    try {
+        const token = localStorage.getItem('pp_id_token') || sessionStorage.getItem('pp_id_token') || "";
+        if (!token) {
+            alert("Please sign in from the homepage first.");
+            window.location.replace('/');
+            return;
+        }
+
+        const res = await fetch('/api/live/student/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ quizId: roomId })
+        });
         const data = await res.json();
-        if (data.success) {
-            liveToken = data.token;
-            testActive = true;
-            localIndex = -1;
-            currentActiveQuizFile = "";
-
-            sessionStorage.setItem('live_student_session', JSON.stringify({ token: liveToken, quizId: currentQuizId }));
-
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('quiz-screen').style.display = 'block';
-            startSync();
-            startHeartbeat();
-        } else {
-            alert(data.error || 'Could not join room.');
-            if (btnEl) {
-                btnEl.disabled = false;
-                btnEl.style.opacity = '1';
-            }
-            loadAvailableRooms();
+        
+        if (!data.success) {
+            alert(data.error || "Failed to join room.");
+            return;
         }
-    } catch (e) {
-        alert("Network Error joining room.");
-        if (btnEl) {
-            btnEl.disabled = false;
-            btnEl.style.opacity = '1';
-        }
+
+        liveToken = data.token;
+        currentQuizId = roomId;
+        testActive = true;
+        
+        const authScreen = document.getElementById('auth-screen');
+        if (authScreen) authScreen.style.display = 'none';
+        
+        startSync();
+    } catch (err) {
+        alert("Connection error. Please try again.");
     }
 }
 
@@ -181,51 +89,114 @@ function applyBroadcastModeUI(mode) {
         if (quizScreen) quizScreen.style.display = 'block';
     } else {
         if (presScreen) presScreen.style.display = 'none';
-        if (quizScreen && testActive) quizScreen.style.display = 'block';
+        if (quizScreen && typeof testActive !== 'undefined' && testActive) quizScreen.style.display = 'block';
     }
 }
 window.applyBroadcastModeUI = applyBroadcastModeUI;
 
 if (typeof io !== 'undefined') {
     socket = io();
+    
     socket.on("room-state", (data) => {
         if (!data) return;
-        socket.on("moderation-event", async (data) => {
-        if (!data || !data.targetName) return;
 
-        const tokenObj = localStorage.getItem('pp_id_token') || "";
-        let myName = "";
-        if (tokenObj) {
-            const parts = tokenObj.split('|||')[0].split('|');
-            if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
-        }
-
-        if (data.targetName.toLowerCase() === myName.trim().toLowerCase()) {
-            if (data.action === 'mute') {
-                if (studentMicTrack) {
-                    try {
-                        if (room && room.state === 'connected') {
-                            await room.localParticipant.unpublishTrack(studentMicTrack);
-                        }
-                        studentMicTrack.stop();
-                    } catch(e) {}
-                    studentMicTrack = null;
-                    const speakBtn = document.getElementById('btn-student-call');
-                    if (speakBtn) {
-                        speakBtn.textContent = '📞 Speak';
-                        speakBtn.classList.remove('on-call');
-                    }
-                }
-            } else if (data.action === 'kick') {
-                if (room) room.disconnect();
-                sessionStorage.removeItem('live_student_session');
-                alert("You have been removed from the session by the instructor.");
-                window.location.replace('/');
+        if (data.status === 'ended') {
+            sessionStorage.removeItem('live_student_session');
+            
+            // 1. Disconnect LiveKit and hide PIP box immediately
+            if (typeof room !== 'undefined' && room) {
+                room.disconnect();
             }
-        }
-    });
+            const pipBox = document.getElementById('student-pip-box');
+            if (pipBox) pipBox.style.display = 'none';
 
-        
+            // 2. Fetch scorecard data and render UI directly
+            fetch(`/api/live/student/scorecard?quizId=${encodeURIComponent(currentQuizId)}`, {
+                headers: { 'Authorization': `Bearer ${liveToken}` }
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    // Hide active testing screens
+                    const quizScreen = document.getElementById('quiz-screen');
+                    const presScreen = document.getElementById('presentation-screen');
+                    if (quizScreen) quizScreen.style.display = 'none';
+                    if (presScreen) presScreen.style.display = 'none';
+                    document.body.classList.remove('rtc-presentation-active', 'rtc-both-active', 'rtc-stream-active');
+
+                    // Build detailed table
+                    const sc = result.scorecard;
+                    const pct = sc.total > 0 ? ((sc.correct / sc.total) * 100).toFixed(1) : "0.0";
+                    
+                    let breakdownHtml = `<div style="overflow-x: auto; margin-top: 20px;"><table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="background: #1e293b; color: white;">
+                                <th style="padding: 12px; border-top-left-radius: 8px;">#</th>
+                                <th style="padding: 12px;">Question</th>
+                                <th style="padding: 12px;">Your Answer</th>
+                                <th style="padding: 12px; border-top-right-radius: 8px;">Correct Answer</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                    result.breakdown.forEach(item => {
+                        let bg = item.status === 'Correct' ? '#f0fdf4' : (item.status === 'Incorrect' ? '#fef2f2' : '#fefce8');
+                        let text = item.status === 'Correct' ? '#166534' : (item.status === 'Incorrect' ? '#991b1b' : '#854d0e');
+                        breakdownHtml += `
+                            <tr style="border-bottom: 1px solid #e2e8f0; background: ${bg}; color: ${text};">
+                                <td style="padding: 12px; font-weight: bold;">${item.qNum}</td>
+                                <td style="padding: 12px;">${item.question} <br> <span style="font-size: 13px; color: #475569; display: block; margin-top: 4px;">${item.explanation}</span></td>
+                                <td style="padding: 12px; font-weight: bold;">${item.selectedText}</td>
+                                <td style="padding: 12px; font-weight: bold;">${item.correctText}</td>
+                            </tr>`;
+                    });
+                    breakdownHtml += `</tbody></table></div>`;
+
+                    // Inject the scorecard into the DOM
+                    let resultContainer = document.getElementById('live-result-screen');
+                    if (!resultContainer) {
+                        resultContainer = document.createElement('div');
+                        resultContainer.id = 'live-result-screen';
+                        resultContainer.className = 'live-container';
+                        resultContainer.style.maxWidth = '800px';
+                        resultContainer.style.margin = '20px auto';
+                        resultContainer.style.width = '100%';
+                        document.body.appendChild(resultContainer);
+                    }
+
+                    resultContainer.innerHTML = `
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <h2 style="color: #1e293b; font-size: 26px; margin-bottom: 5px;">Final Scorecard</h2>
+                            <div style="font-size: 60px; font-weight: bold; color: #2563eb; margin: 15px 0;">${pct}%</div>
+                            <div style="font-size: 18px; color: #475569; font-weight: bold; margin-bottom: 25px;">${sc.correct} / ${sc.total} Correct</div>
+                            
+                            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                                <span style="background: #dcfce7; color: #166534; padding: 8px 16px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">✅ Correct: ${sc.correct}</span>
+                                <span style="background: #fee2e2; color: #991b1b; padding: 8px 16px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">❌ Incorrect: ${sc.incorrect}</span>
+                                <span style="background: #fef9c3; color: #854d0e; padding: 8px 16px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">⚠️ Skipped: ${sc.skipped}</span>
+                            </div>
+                        </div>
+                        <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 30px; text-align: left;">Detailed Question Breakdown</h3>
+                        ${breakdownHtml}
+                        <button onclick="window.location.replace('/')" style="margin-top: 30px; background: #2563eb; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">Return to Dashboard</button>
+                    `;
+                    
+                    resultContainer.style.display = 'block';
+                    
+                    if (typeof confetti === 'function') {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                    }
+                } else {
+                    alert("The instructor has ended the live session.");
+                    window.location.replace('/');
+                }
+            })
+            .catch(() => {
+                alert("The instructor has ended the live session.");
+                window.location.replace('/');
+            });
+            return;
+        }
 
         applyBroadcastModeUI(data.broadcastMode || 'question');
 
@@ -252,13 +223,49 @@ if (typeof io !== 'undefined') {
             renderQuestion(data);
         }
     });
+
+    // Moderation event listener (Mute/Kick)
+    socket.on("moderation-event", async (data) => {
+        if (!data || !data.targetName) return;
+        
+        const tokenObj = localStorage.getItem('pp_id_token') || "";
+        let myName = "";
+        if (tokenObj) {
+            const parts = tokenObj.split('|||')[0].split('|');
+            if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+        }
+        
+        if (data.targetName.toLowerCase() === myName.trim().toLowerCase()) {
+            if (data.action === 'mute') {
+                if (typeof studentMicTrack !== 'undefined' && studentMicTrack) {
+                    try {
+                        if (typeof room !== 'undefined' && room && room.state === 'connected') {
+                            await room.localParticipant.unpublishTrack(studentMicTrack);
+                        }
+                        studentMicTrack.stop();
+                    } catch(e) {}
+                    studentMicTrack = null;
+                    const speakBtn = document.getElementById('btn-student-call');
+                    if (speakBtn) {
+                        speakBtn.textContent = '📞 Speak';
+                        speakBtn.classList.remove('on-call');
+                    }
+                }
+            } else if (data.action === 'kick') {
+                if (typeof room !== 'undefined' && room) room.disconnect();
+                sessionStorage.removeItem('live_student_session');
+                alert("You have been removed from the session by the instructor.");
+                window.location.replace('/');
+            }
+        }
+    });
 }
 
 function startSync() {
-    if (socket && currentQuizId && liveToken) {
+    if (socket && typeof currentQuizId !== 'undefined' && typeof liveToken !== 'undefined') {
         socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
     }
-    if (typeof window.connectLiveKit === 'function' && currentQuizId) {
+    if (typeof window.connectLiveKit === 'function' && typeof currentQuizId !== 'undefined') {
         window.connectLiveKit(currentQuizId);
     }
 }
@@ -314,134 +321,4 @@ function renderQuestion(data) {
         };
         optsBox.appendChild(btn);
     });
-}
-
-function renderLiveMockResults(scorecard, breakdown) {
-    const percentage = ((scorecard.correct / scorecard.total) * 100).toFixed(1);
-    
-    // Fallback escaper
-    const esc = str => {
-        const div = document.createElement('div');
-        div.textContent = String(str);
-        return div.innerHTML;
-    };
-
-    let html = `
-        <div style="max-width: 900px; margin: 0 auto; padding: 20px; font-family: sans-serif; background: #fff;">
-            
-            <!-- Print Header (Hidden on screen, visible on PDF) -->
-            <div class="print-only-header" style="display: none; text-align: center; margin-bottom: 25px;">
-                <h1 style="color: #1e3a8a; margin: 0;">Pioneers Prep - Live Mock Report</h1>
-                <p style="color: #64748b; margin-top: 5px;">Candidate Performance Breakdown</p>
-            </div>
-
-            <!-- Action Bar (Hidden on print) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;" class="no-print">
-                <button id="btn-exit-dashboard" style="padding: 10px 18px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #475569;">&larr; Exit Dashboard</button>
-                <button id="btn-print-pdf" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
-                    Print / Save as PDF
-                </button>
-            </div>
-
-            <!-- Scorecard -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 35px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                <h2 style="margin: 0 0 10px 0; color: #334155;">Final Scorecard</h2>
-                <h1 style="font-size: 54px; margin: 0; color: #2563eb; line-height: 1;">${percentage}%</h1>
-                <p style="font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 8px;">${scorecard.correct} / ${scorecard.total} Correct</p>
-                
-                <div style="display: flex; justify-content: center; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
-                    <span style="background: #dcfce7; color: #166534; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">✅ Correct: ${scorecard.correct}</span>
-                    <span style="background: #fee2e2; color: #991b1b; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">❌ Incorrect: ${scorecard.incorrect}</span>
-                    <span style="background: #fef9c3; color: #854d0e; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 15px;">⚠️ Skipped: ${scorecard.skipped}</span>
-                </div>
-            </div>
-
-            <h3 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 0;">Detailed Question Breakdown</h3>
-            
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
-                    <tr style="background: #1e293b; color: white;">
-                        <th style="padding: 14px; border-radius: 6px 0 0 0; width: 5%;">#</th>
-                        <th style="padding: 14px; width: 45%;">Question</th>
-                        <th style="padding: 14px; width: 20%;">Your Answer</th>
-                        <th style="padding: 14px; width: 20%;">Correct Answer</th>
-                        <th style="padding: 14px; border-radius: 0 6px 0 0; width: 10%; text-align: center;">Status</th>
-                    </tr>
-    `;
-
-    breakdown.forEach(item => {
-        let statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
-        let statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
-        let selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
-        
-        html += `
-                    <tr style="border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 16px; vertical-align: top; font-weight: bold; color: #475569;">${item.qNum}</td>
-                        <td style="padding: 16px; vertical-align: top;">
-                            <div style="color: #1e293b; font-weight: 500; font-size: 15px;">${esc(item.question)}</div>
-                            ${item.explanation ? `<div style="margin-top: 10px; font-size: 13px; color: #15803d; background: #f0fdf4; padding: 10px; border-radius: 6px; border-left: 4px solid #16a34a;"><strong>Explanation:</strong> ${esc(item.explanation)}</div>` : ''}
-                        </td>
-                        <td style="padding: 16px; vertical-align: top; color: ${selColor}; font-weight: ${item.status === 'Skipped' ? 'normal' : '600'};">${esc(item.selectedText)}</td>
-                        <td style="padding: 16px; vertical-align: top; color: #15803d; font-weight: 600;">${esc(item.correctText)}</td>
-                        <td style="padding: 16px; vertical-align: top; text-align: center;">
-                            <span style="background: ${statusBg}; color: ${statusColor}; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid ${statusColor}40;">${item.status}</span>
-                        </td>
-                    </tr>
-        `;
-    });
-
-    html += `
-                </table>
-            </div>
-        </div>
-        <style>
-            @media print {
-                body * { visibility: hidden; }
-                #quiz-screen { display: none !important; }
-                #result-screen, #result-screen * { visibility: visible; }
-                #result-screen { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; }
-                .no-print { display: none !important; }
-                .print-only-header { display: block !important; }
-                .app-screen, main { display: block !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
-                table { page-break-inside: auto; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-                td, th { border: 1px solid #cbd5e1 !important; }
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            }
-        </style>
-    `;
-    
-    // Inject and display
-    const quizScreen = document.getElementById('quiz-screen');
-    const resultScreen = document.createElement('div');
-    resultScreen.id = 'result-screen';
-    resultScreen.innerHTML = html;
-    
-    // Replace the quiz screen with the result screen seamlessly
-    quizScreen.replaceWith(resultScreen);
-
-    // Add Event Listeners for the Action Buttons
-    document.getElementById('btn-exit-dashboard').addEventListener('click', () => {
-        window.location.href = '/';
-    });
-    
-    document.getElementById('btn-print-pdf').addEventListener('click', () => {
-        window.print();
-    });
-}
-
-function triggerCelebration() {
-    if (typeof confetti !== 'function') return;
-    const duration = 3000;
-    const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-    const interval = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
-        if (timeLeft <= 0) return clearInterval(interval);
-        const particleCount = 50 * (timeLeft / duration);
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
-    }, 250);
 }
