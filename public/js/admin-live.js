@@ -378,146 +378,16 @@ async function setQuestionIndex(newIndex) {
 document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
 document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
 
-async function fetchAndRenderDashboard() {
-    try {
-        const creds = getActiveAdminCreds();
-        if (!creds.adminKey || !creds.quizId) return;
+const socket = io(); 
+const creds = getActiveAdminCreds();
+if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
 
-        const res = await fetch(`/api/live/admin/dashboard?adminKey=${encodeURIComponent(creds.adminKey)}&quizId=${encodeURIComponent(creds.quizId)}`);
-        const data = await res.json();
+socket.on("student-answered", (data) => {
+    // Update the specific student's row locally to prevent full table redraws
+    console.log("Student answered:", data);
+});
 
-        if (data.success) {
-            if (data.state) {
-                currentIndex = data.state.currentIndex || 0;
-                activeQuizFile = data.state.activeQuizFile || "";
-                totalQuestions = data.state.totalQuestions || 0;
-                const selectEl = document.getElementById('admin-quiz-select');
-                if (selectEl && selectEl.value !== activeQuizFile) {
-                    selectEl.value = activeQuizFile;
-                }
-                updateQuestionControlsUI();
-            }
-            if (data.roomName) {
-                document.getElementById('otp-display').innerText = `🟢 Active Room: ${data.roomName}`;
-            }
-            const callerBadge = document.getElementById('admin-caller-badge');
-            if (callerBadge) {
-                if (data.broadcastActive && Array.isArray(data.activeCallers) && data.activeCallers.length > 0) {
-                    callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
-                    callerBadge.classList.add('calling');
-                } else {
-                    callerBadge.textContent = '🎧 No active student calls';
-                    callerBadge.classList.remove('calling');
-                }
-            }
-
-            const tbody = document.getElementById('board-body');
-            tbody.innerHTML = '';
-
-            data.students.forEach(student => {
-                const ansData = student.data.answers ? student.data.answers[currentIndex] : null;
-                const isMuted = Boolean(student.data.muted);
-                const isCalling = Boolean(student.data.isCalling);
-                const tr = document.createElement('tr');
-
-                let timeStr = "-";
-                if (ansData) {
-                    const date = new Date(ansData.time);
-                    timeStr = `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-                }
-
-                const tdName = document.createElement('td');
-                tdName.style.fontWeight = 'bold';
-                tdName.textContent = student.name + (isCalling ? ' 🎙️ (Speaking)' : '') + (isMuted ? ' 🔇 (Muted)' : '');
-                if (isCalling) tdName.style.color = '#34d399';
-
-                const tdOption = document.createElement('td');
-                tdOption.style.fontWeight = 'bold';
-                tdOption.style.color = ansData ? '#38bdf8' : '#94a3b8';
-                tdOption.textContent = !activeQuizFile
-                    ? 'Joined (Lecture / PPT Mode)'
-                    : (ansData ? `Option ${ansData.answer + 1}` : 'Waiting...');
-
-                const tdTime = document.createElement('td');
-                if (ansData) {
-                    const badge = document.createElement('span');
-                    badge.className = 'time-badge';
-                    badge.textContent = timeStr;
-                    tdTime.appendChild(badge);
-                } else {
-                    tdTime.textContent = '-';
-                }
-
-                const tdControls = document.createElement('td');
-                tdControls.style.display = 'flex';
-                tdControls.style.gap = '8px';
-
-                // Mute / Unmute Button (Preserves state across 2s table redraws)
-                const muteAction = isMuted ? 'unmute' : 'mute';
-                const muteState = studentModUIState.get(`${student.name}_${muteAction}`);
-                const muteBtn = document.createElement('button');
-                muteBtn.type = 'button';
-                muteBtn.className = 'btn-student-moderate';
-                muteBtn.setAttribute('data-student', student.name);
-                muteBtn.setAttribute('data-action', muteAction);
-                muteBtn.style.padding = '8px 14px';
-                muteBtn.style.fontSize = '12px';
-                muteBtn.style.borderRadius = '6px';
-                muteBtn.style.fontWeight = 'bold';
-                muteBtn.style.cursor = 'pointer';
-
-                if (muteState && muteState.phase === 'loading') {
-                    muteBtn.disabled = true;
-                    muteBtn.style.background = '#475569';
-                    muteBtn.style.color = '#ffffff';
-                    muteBtn.textContent = muteAction === 'mute' ? 'Muting...' : 'Unmuting...';
-                } else {
-                    muteBtn.style.background = isMuted ? '#059669' : '#eab308';
-                    muteBtn.style.color = isMuted ? '#ffffff' : '#0f172a';
-                    muteBtn.textContent = isMuted ? '🔊 Unmute' : '🔇 Mute';
-                }
-
-                // Remove Button (Preserves 2-click confirmation state across 2s table redraws)
-                const kickState = studentModUIState.get(`${student.name}_kick`);
-                const kickBtn = document.createElement('button');
-                kickBtn.type = 'button';
-                kickBtn.className = 'btn-student-moderate';
-                kickBtn.setAttribute('data-student', student.name);
-                kickBtn.setAttribute('data-action', 'kick');
-                kickBtn.style.padding = '8px 14px';
-                kickBtn.style.fontSize = '12px';
-                kickBtn.style.borderRadius = '6px';
-                kickBtn.style.fontWeight = 'bold';
-                kickBtn.style.cursor = 'pointer';
-                kickBtn.style.color = '#ffffff';
-
-                if (kickState && kickState.phase === 'confirm') {
-                    kickBtn.style.background = '#991b1b';
-                    kickBtn.textContent = 'Click Again to REMOVE';
-                } else if (kickState && kickState.phase === 'loading') {
-                    kickBtn.disabled = true;
-                    kickBtn.style.background = '#475569';
-                    kickBtn.textContent = 'Removing...';
-                } else {
-                    kickBtn.style.background = '#dc2626';
-                    kickBtn.textContent = '🚫 Remove';
-                }
-
-                tdControls.appendChild(muteBtn);
-                tdControls.appendChild(kickBtn);
-
-                tr.appendChild(tdName);
-                tr.appendChild(tdOption);
-                tr.appendChild(tdTime);
-                tr.appendChild(tdControls);
-                tbody.appendChild(tr);
-            });
-        }
-    } catch (e) {}
-}
-
-function startDashboardSync() {
-    if (dashInterval) clearInterval(dashInterval);
-    fetchAndRenderDashboard();
-    dashInterval = setInterval(fetchAndRenderDashboard, 2000);
-}
+socket.on("room-state", (data) => {
+    // Re-render table data locally
+    console.log("State updated:", data);
+});

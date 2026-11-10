@@ -163,101 +163,20 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
     }
 }
 
-function startHeartbeat() {
-    setInterval(() => {
-        if (liveToken && testActive) {
-            fetch('/api/live/student/heartbeat', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${liveToken}` }
-            }).catch(() => {});
-        }
-    }, 3000);
-}
+// Connect WebSockets
+const socket = io(); // Requires <script src="/socket.io/socket.io.js"></script> in HTML
+socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
 
-window.addEventListener('beforeunload', () => {
-    if (liveToken && testActive) {
-        fetch('/api/live/student/leave', {
-            method: 'POST',
-            keepalive: true,
-            headers: { 'Authorization': `Bearer ${liveToken}` }
-        }).catch(() => {});
+socket.on("room-state", (data) => {
+    if (data.currentIndex !== localIndex || data.activeQuizFile !== currentActiveQuizFile) {
+        currentActiveQuizFile = data.activeQuizFile || "";
+        localIndex = data.currentIndex;
+        renderQuestion(data);
     }
 });
 
-function xorDecipher(b64Str, key) {
-    const raw = atob(b64Str);
-    const buf = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-    const k = new TextEncoder().encode(key);
-    for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
-    return new TextDecoder().decode(buf);
-}
-
-function startSync() {
-    if (syncInterval) clearInterval(syncInterval);
-    syncInterval = setInterval(async () => {
-        if (!testActive) return;
-        try {
-            const res = await fetch(`/api/live/student/sync/${encodeURIComponent(currentQuizId)}`, {
-                headers: { 'Authorization': `Bearer ${liveToken}` }
-            });
-
-            if (res.status === 401) {
-                testActive = false;
-                clearInterval(syncInterval);
-                handleExpiredSession();
-                return;
-            }
-
-            const data = await res.json();
-
-            if (data.status === 'kicked') {
-                testActive = false;
-                clearInterval(syncInterval);
-                sessionStorage.removeItem('live_student_session');
-                alert("You have been removed from the room by the instructor.");
-                window.location.replace('/');
-                return;
-            }
-
-            if (data.status === 'ended' && data.scorecard) {
-                testActive = false;
-                clearInterval(syncInterval);
-                sessionStorage.removeItem('live_student_session');
-                alert("Room session was ended by instructor.");
-                renderLiveMockResults(data.scorecard, data.breakdown || []);
-                triggerCelebration();
-                return;
-            }
-
-            if (data.status === 'active') {
-                if (data.quizLoaded === false) {
-                    currentActiveQuizFile = "";
-                    localIndex = -1;
-                    document.getElementById('live-status').innerText = `🟢 Room: ${data.roomName || currentQuizId}`;
-                    document.getElementById('live-progress').innerText = `Live Session`;
-                    document.getElementById('question-text').innerText = "Connected to live classroom. Waiting for instructor to broadcast a question set...";
-                    document.getElementById('options-container').innerHTML = '';
-                    return;
-                }
-
-                const quizFileChanged = (data.activeQuizFile && data.activeQuizFile !== currentActiveQuizFile);
-                const indexChanged = (data.currentIndex !== localIndex);
-                const answerWasClearedByAdmin = (lastSavedAnswer !== null && data.savedAnswer === null);
-
-                if (quizFileChanged || indexChanged || answerWasClearedByAdmin) {
-                    currentActiveQuizFile = data.activeQuizFile || "";
-                    localIndex = data.currentIndex;
-                    lastSavedAnswer = data.savedAnswer;
-                    renderQuestion(data);
-                } else {
-                    lastSavedAnswer = data.savedAnswer;
-                }
-            }
-        } catch (e) {}
-    }, 1500);
-}
-
+// Replace the old fetch('/api/live/student/submit') inside renderQuestion() with:
+// socket.emit("submit-answer", currentQuizId, { index: localIndex, answer: idx });
 function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;

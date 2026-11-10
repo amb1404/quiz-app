@@ -902,237 +902,28 @@
             });
         }
 
-        async function handleStudentOffer(studentName, offer, offerId, adminKey, quizId) {
-            if (peerConnections.has(studentName)) {
-                try { peerConnections.get(studentName).close(); } catch (e) {}
-            }
+        const room = new LivekitClient.Room();
 
-            const pc = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ],
-                iceCandidatePoolSize: 4
-            });
-            peerConnections.set(studentName, pc);
+    async function startOrUpdateBroadcast() {
+        const { adminKey, quizId } = getAdminCredentials();
+        if (!adminKey || !quizId) return false;
 
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        await syncCameraPipeline();
+        await syncAudioPipeline();
 
-            const camTrack = getActiveCamTrack();
-            const pptTrack = getActivePptTrack();
-            const opusTrack = getStudioOpusTrack();
+        const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
+        const { token } = await res.json();
+        await room.connect('wss://your-livekit-url', token);
 
-            if (camTrack && 'contentHint' in camTrack) camTrack.contentHint = 'motion';
-            if (pptTrack && 'contentHint' in pptTrack) pptTrack.contentHint = 'motion';
+        if (camStream) await room.localParticipant.publishTrack(camStream.getVideoTracks()[0], { name: 'camera' });
+        if (screenStream) await room.localParticipant.publishTrack(screenStream.getVideoTracks()[0], { name: 'screen' });
+        if (micStream) await room.localParticipant.publishTrack(micStream.getAudioTracks()[0], { name: 'mic' });
 
-            const camStreamObj = camStream || new MediaStream([camTrack]);
-            const pptStreamObj = screenStream || new MediaStream([pptTrack]);
-
-            pc._camSender = pc.addTrack(camTrack, camStreamObj);
-            pc._pptSender = pc.addTrack(pptTrack, pptStreamObj);
-            if (opusTrack && studioOutDest) {
-                pc._audioSender = pc.addTrack(opusTrack, studioOutDest.stream);
-                optimizeAudioSender(pc._audioSender);
-            }
-
-            optimizeVideoSender(pc._camSender, false);
-            optimizeVideoSender(pc._pptSender, true);
-
-            const rawAnswer = await pc.createAnswer();
-            try {
-                await pc.setLocalDescription({
-                    type: rawAnswer.type,
-                    sdp: enhanceOpusSdp(rawAnswer.sdp)
-                });
-            } catch (sdpErr) {
-                await pc.setLocalDescription(rawAnswer);
-            }
-            await waitForIce(pc, 1000);
-
-            const res = await fetch('/api/live/rtc/admin/webrtc-answer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, studentName, answer: pc.localDescription, offerId })
-            });
-            if (res.ok && offerId) {
-                answeredOfferIds.add(`${studentName}_${offerId}`);
-            }
-        }
-
-        async function startOrUpdateBroadcast() {
-            const { adminKey, quizId } = getAdminCredentials();
-            if (!adminKey || !quizId) {
-                alert('Please enter your Admin Secret Key and create a Room first.');
-                return false;
-            }
-            try {
-                await syncCameraPipeline();
-                await syncAudioPipeline();
-                pipBox.style.display = videoEnabled ? 'flex' : 'none';
-                btnStop.style.display = 'inline-block';
-
-                // If starting a fresh broadcast session (e.g. after Admin page reload), clear stale student offers on server first
-                if (!isBroadcasting) {
-                    answeredOfferIds.clear();
-                    answeringStudents.clear();
-                    await fetch('/api/live/rtc/admin/toggle', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false, broadcastMode })
-                    }).catch(() => {});
-                }
-
-                await fetch('/api/live/rtc/admin/toggle', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ adminKey, quizId, active: true, videoEnabled, audioEnabled, broadcastMode })
-                });
-
-                if (!isBroadcasting) {
-                    isBroadcasting = true;
-                    pendingPcmSamples = [];
-                    preRollBuffers = [];
-                    startUnthrottledPushWorker();
-                }
-                return true;
-            } catch (err) {
-                alert('Broadcast error: ' + err.message);
-                return false;
-            }
-        }
-
-        async function executeAdminPushTick() {
-            if (!isBroadcasting || isPushing) return;
-            const { adminKey, quizId } = getAdminCredentials();
-            if (!adminKey || !quizId) return;
-
-            const nowMs = Date.now();
-            if (nowMs - lastIdleDrawAt > 300) {
-                lastIdleDrawAt = nowMs;
-                if (idleCamCtx) {
-                    idleCamCtx.fillStyle = '#0f172a';
-                    idleCamCtx.fillRect(0, 0, 8, 8);
-                }
-                if (idlePptCtx) {
-                    idlePptCtx.fillStyle = '#0f172a';
-                    idlePptCtx.fillRect(0, 0, 8, 8);
-                }
-            }
-
-            if (audioEnabled) {
-                try { localStorage.setItem('pp_admin_mic_same_pc', String(Date.now())); } catch (e) {}
-            } else {
-                try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
-            }
-
-            isPushing = true;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-            try {
-                let audioChunkB64 = null;
-                if (audioEnabled && pendingPcmSamples.length >= 1600) {
-                    const int16 = new Int16Array(pendingPcmSamples);
-                    pendingPcmSamples = [];
-                    audioChunkB64 = int16ToBase64(int16);
-                }
-
-                if (nowMs - lastHeartbeatAt > 4000) {
-                    lastHeartbeatAt = nowMs;
-                    fetch(`/api/live/admin/dashboard?adminKey=${encodeURIComponent(adminKey)}&quizId=${encodeURIComponent(quizId)}`).catch(() => {});
-                }
-
-                const res = await fetch('/api/live/rtc/admin/push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        adminKey,
-                        quizId,
-                        videoEnabled,
-                        audioEnabled,
-                        broadcastMode,
-                        audioChunk: audioChunkB64,
-                        rate: TARGET_SAMPLE_RATE,
-                        afterStudentSeq: lastStudentSeq
-                    })
-                });
-
-                const data = await res.json();
-                if (!isBroadcasting) {
-                    resetCallerBadge();
-                    return;
-                }
-                if (data && data.success) {
-                    if (data.activeCallers && data.activeCallers.length > 0) {
-                        callerBadge.textContent = `🟢 Student Speaking: ${data.activeCallers.join(', ')}`;
-                        callerBadge.classList.add('calling');
-                    } else {
-                        callerBadge.textContent = '🎧 No active student calls';
-                        callerBadge.classList.remove('calling');
-                    }
-
-                    if (Array.isArray(data.pendingOffers)) {
-                        for (const item of data.pendingOffers) {
-                            const offerLockKey = `${item.name}_${item.offerId || ''}`;
-                            if (!answeringStudents.has(offerLockKey) && !answeredOfferIds.has(offerLockKey)) {
-                                answeringStudents.add(offerLockKey);
-                                handleStudentOffer(item.name, item.offer, item.offerId, adminKey, quizId)
-                                    .catch(() => {})
-                                    .finally(() => {
-                                        answeringStudents.delete(offerLockKey);
-                                    });
-                            }
-                        }
-                    }
-
-                    if (Array.isArray(data.studentAudioChunks) && data.studentAudioChunks.length > 0) {
-                        data.studentAudioChunks.forEach(item => {
-                            if (item.seq > lastStudentSeq) {
-                                lastStudentSeq = item.seq;
-                                playIncomingPcmBase64(item.pcm, item.rate, item.studentName);
-                            }
-                        });
-                    } else if (data.latestStudentSeq && lastStudentSeq === 0) {
-                        lastStudentSeq = data.latestStudentSeq;
-                    }
-                }
-            } catch (e) {
-            } finally {
-                clearTimeout(timeoutId);
-                isPushing = false;
-            }
-        }
-
-        function startUnthrottledPushWorker() {
-            if (pushWorker) {
-                try { pushWorker.terminate(); } catch (e) {}
-                pushWorker = null;
-            }
-            try {
-                const workerCode = `
-                    let t = null;
-                    self.onmessage = function(e) {
-                        if (e.data === 'start') {
-                            if (t) clearInterval(t);
-                            t = setInterval(() => self.postMessage('tick'), 130);
-                        } else if (e.data === 'stop') {
-                            if (t) clearInterval(t);
-                            t = null;
-                        }
-                    };
-                `;
-                const blob = new Blob([workerCode], { type: 'application/javascript' });
-                pushWorker = new Worker(URL.createObjectURL(blob));
-                pushWorker.onmessage = executeAdminPushTick;
-                pushWorker.postMessage('start');
-            } catch (err) {
-                pushWorker = {
-                    _id: setInterval(executeAdminPushTick, 130),
-                    terminate() { clearInterval(this._id); }
-                };
-            }
-        }
+        pipBox.style.display = videoEnabled ? 'flex' : 'none';
+        btnStop.style.display = 'inline-block';
+        isBroadcasting = true;
+        return true;
+    }
 
         function updateButtonsUI() {
             btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
