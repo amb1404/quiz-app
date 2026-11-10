@@ -190,6 +190,40 @@ if (typeof io !== 'undefined') {
     socket = io();
     socket.on("room-state", (data) => {
         if (!data) return;
+        socket.on("moderation-event", async (data) => {
+        if (!data || !data.targetName) return;
+
+        const tokenObj = localStorage.getItem('pp_id_token') || "";
+        let myName = "";
+        if (tokenObj) {
+            const parts = tokenObj.split('|||')[0].split('|');
+            if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+        }
+
+        if (data.targetName.toLowerCase() === myName.trim().toLowerCase()) {
+            if (data.action === 'mute') {
+                if (studentMicTrack) {
+                    try {
+                        if (room && room.state === 'connected') {
+                            await room.localParticipant.unpublishTrack(studentMicTrack);
+                        }
+                        studentMicTrack.stop();
+                    } catch(e) {}
+                    studentMicTrack = null;
+                    const speakBtn = document.getElementById('btn-student-call');
+                    if (speakBtn) {
+                        speakBtn.textContent = '📞 Speak';
+                        speakBtn.classList.remove('on-call');
+                    }
+                }
+            } else if (data.action === 'kick') {
+                if (room) room.disconnect();
+                sessionStorage.removeItem('live_student_session');
+                alert("You have been removed from the session by the instructor.");
+                window.location.replace('/');
+            }
+        }
+    });
 
         
 

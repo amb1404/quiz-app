@@ -2879,7 +2879,41 @@ app.post('/api/live/admin/set-index', async (req, res) => {
         res.json({ success: true, currentIndex: state.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
+// Admin: Mute, Unmute, or Kick Student
+app.post('/api/live/admin/moderate-student', async (req, res) => {
+    try {
+        const { adminKey, quizId, studentName, action } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
 
+        const cleanId = path.basename(String(quizId || '')).trim();
+        const targetName = String(studentName || '').trim();
+        if (!cleanId || !targetName) return res.status(400).json({ error: 'Missing room or student name.' });
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (!board[targetName]) return board;
+
+            if (action === 'mute') {
+                board[targetName].muted = true;
+            } else if (action === 'unmute') {
+                board[targetName].muted = false;
+            } else if (action === 'kick') {
+                board[targetName].kicked = true;
+                board[targetName].disconnected = true;
+            }
+            return board;
+        });
+
+        // Immediately broadcast the updated board to the admin UI
+        await emitAdminBoard(cleanId);
+
+        // Broadcast the exact moderation action to the room so the target student's UI updates
+        io.to(cleanId).emit('moderation-event', { targetName, action });
+
+        res.json({ success: true, studentName: targetName, action });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to moderate student.' });
+    }
+});
 // Student Join Room Verification
 app.post('/api/live/student/verify', async (req, res) => {
     try {
