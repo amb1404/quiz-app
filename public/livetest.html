@@ -106,114 +106,131 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/js/livetest.js"></script>
     <script>
-        const room = new LivekitClient.Room();
+    const room = new LivekitClient.Room();
+    let activeAudioEl = null;
 
-        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-            if (track.kind === 'video') {
-                if (publication.trackName === 'screen') {
-                    track.attach(document.getElementById('student-ppt-video'));
-                    document.getElementById('presentation-screen').style.display = 'block';
-                    document.body.classList.add('rtc-both-active');
-                } else {
-                    const videoEl = document.getElementById('student-remote-video');
-                    track.attach(videoEl);
-                    videoEl.style.display = 'block';
-                    document.getElementById('student-pip-box').style.display = 'flex';
-                    document.getElementById('student-video-placeholder').style.display = 'none';
-                    document.body.classList.add('rtc-stream-active');
-                }
-            } else if (track.kind === 'audio') {
-                const audioEl = document.createElement('audio');
-                track.attach(audioEl);
-                audioEl.play().catch(() => {
-                    document.getElementById('btn-unmute-hint').style.display = 'block';
-                });
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        if (track.kind === 'video') {
+            if (publication.trackName === 'screen') {
+                const pptVideo = document.getElementById('student-ppt-video');
+                track.attach(pptVideo);
+                pptVideo.play().catch(() => {});
+            } else {
+                const videoEl = document.getElementById('student-remote-video');
+                track.attach(videoEl);
+                videoEl.style.display = 'block';
+                document.getElementById('student-pip-box').style.display = 'flex';
+                document.getElementById('student-video-placeholder').style.display = 'none';
+                document.body.classList.add('rtc-stream-active');
             }
-        });
+        } else if (track.kind === 'audio') {
+            if (activeAudioEl) activeAudioEl.remove();
+            activeAudioEl = document.createElement('audio');
+            activeAudioEl.autoplay = true;
+            track.attach(activeAudioEl);
+            document.body.appendChild(activeAudioEl);
+            document.getElementById('student-pip-box').style.display = 'flex';
 
-        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
-            if (track.kind === 'video') {
-                if (publication.trackName === 'screen') {
-                    document.getElementById('student-ppt-video').srcObject = null;
-                    document.getElementById('presentation-screen').style.display = 'none';
-                    document.body.classList.remove('rtc-both-active');
-                } else {
-                    document.getElementById('student-remote-video').srcObject = null;
-                    document.getElementById('student-remote-video').style.display = 'none';
-                    document.getElementById('student-video-placeholder').style.display = 'block';
-                }
-            }
-        });
+            activeAudioEl.play().catch(() => {
+                document.getElementById('btn-unmute-hint').style.display = 'block';
+            });
+        }
+    });
 
-        document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
-            e.target.style.display = 'none';
-            if (room.audioContext && room.audioContext.state === 'suspended') {
-                room.audioContext.resume();
-            }
-        });
-
-        async function connectLiveKit(quizId) {
-            try {
-                if (room.state === 'connected') return;
-                const tokenObj = localStorage.getItem('pp_id_token') || "";
-                let myName = "Student";
-                if (tokenObj) {
-                   const parts = tokenObj.split('|||')[0].split('|');
-                   if(parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
-                }
-
-                const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=${encodeURIComponent(myName)}`);
-                if (!res.ok) return;
-                const { token } = await res.json();
-                
-                await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
-            } catch (err) {
-                console.error("LiveKit connection failed:", err);
+    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
+        if (track.kind === 'video') {
+            if (publication.trackName === 'screen') {
+                document.getElementById('student-ppt-video').srcObject = null;
+            } else {
+                document.getElementById('student-remote-video').srcObject = null;
+                document.getElementById('student-remote-video').style.display = 'none';
+                document.getElementById('student-video-placeholder').style.display = 'block';
             }
         }
+    });
 
-        setInterval(() => {
-            if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
-                connectLiveKit(currentQuizId);
-            }
-        }, 3000);
+    document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
+        e.target.style.display = 'none';
+        if (activeAudioEl) activeAudioEl.play().catch(() => {});
+    });
 
-        let studentMicTrack = null;
-        document.getElementById('btn-student-call').addEventListener('click', async (e) => {
-            if (!studentMicTrack) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-                    studentMicTrack = stream.getAudioTracks()[0];
-                    await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
-                    e.target.textContent = '🔴 Mute Mic';
-                    e.target.classList.add('on-call');
-                } catch(err) { alert('Mic access denied'); }
+    const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
+    const presentationScreen = document.getElementById('presentation-screen');
+    if (fullscreenBtn && presentationScreen) {
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                presentationScreen.requestFullscreen().catch(() => {});
+                fullscreenBtn.textContent = '✕ Exit Fullscreen';
             } else {
-                await room.localParticipant.unpublishTrack(studentMicTrack);
-                studentMicTrack.stop();
-                studentMicTrack = null;
-                e.target.textContent = '📞 Speak';
-                e.target.classList.remove('on-call');
+                document.exitFullscreen().catch(() => {});
+                fullscreenBtn.textContent = '⛶ Fullscreen';
             }
         });
+    }
 
-        const boxEl = document.getElementById('student-pip-box');
-        const handleEl = document.getElementById('student-pip-header');
-        let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-        handleEl.addEventListener('pointerdown', (e) => {
-            isDragging = true; handleEl.setPointerCapture(e.pointerId);
-            const rect = boxEl.getBoundingClientRect();
-            startX = e.clientX; startY = e.clientY;
-            initialLeft = rect.left; initialTop = rect.top;
-            boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
-            boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
-        });
-        handleEl.addEventListener('pointermove', (e) => {
-            if (!isDragging) return;
-            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-        });
-        handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
-    </script>
+    async function connectLiveKit(quizId) {
+        try {
+            if (room.state === 'connected' || room.state === 'connecting') return;
+            const tokenObj = localStorage.getItem('pp_id_token') || "";
+            let myName = "Student";
+            if (tokenObj) {
+                const parts = tokenObj.split('|||')[0].split('|');
+                if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+            }
+
+            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=${encodeURIComponent(myName)}`);
+            if (!res.ok) return;
+            const { token } = await res.json();
+
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
+        } catch (err) {
+            console.error("LiveKit connection failed:", err);
+        }
+    }
+    window.connectLiveKit = connectLiveKit;
+
+    setInterval(() => {
+        if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+            connectLiveKit(currentQuizId);
+        }
+    }, 3000);
+
+    let studentMicTrack = null;
+    document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+        if (!studentMicTrack) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                studentMicTrack = stream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+                e.target.textContent = '🔴 Mute Mic';
+                e.target.classList.add('on-call');
+            } catch (err) { alert('Mic access denied'); }
+        } else {
+            await room.localParticipant.unpublishTrack(studentMicTrack);
+            studentMicTrack.stop();
+            studentMicTrack = null;
+            e.target.textContent = '📞 Speak';
+            e.target.classList.remove('on-call');
+        }
+    });
+
+    const boxEl = document.getElementById('student-pip-box');
+    const handleEl = document.getElementById('student-pip-header');
+    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handleEl.addEventListener('pointerdown', (e) => {
+        isDragging = true; handleEl.setPointerCapture(e.pointerId);
+        const rect = boxEl.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+    });
+    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+</script>
 </body>
 </html>

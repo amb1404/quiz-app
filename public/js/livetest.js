@@ -164,13 +164,63 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
 }
 
 let socket = null;
+let lastRenderedKey = "";
+
+function applyBroadcastModeUI(mode) {
+    const presScreen = document.getElementById('presentation-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    document.body.classList.remove('rtc-presentation-active', 'rtc-both-active');
+
+    if (mode === 'presentation') {
+        document.body.classList.add('rtc-presentation-active');
+        if (presScreen) presScreen.style.display = 'block';
+        if (quizScreen) quizScreen.style.display = 'none';
+    } else if (mode === 'both') {
+        document.body.classList.add('rtc-both-active');
+        if (presScreen) presScreen.style.display = 'block';
+        if (quizScreen) quizScreen.style.display = 'block';
+    } else {
+        if (presScreen) presScreen.style.display = 'none';
+        if (quizScreen && testActive) quizScreen.style.display = 'block';
+    }
+}
+window.applyBroadcastModeUI = applyBroadcastModeUI;
+
 if (typeof io !== 'undefined') {
     socket = io();
     socket.on("room-state", (data) => {
-        if (data && (data.currentIndex !== localIndex || data.activeQuizFile !== currentActiveQuizFile)) {
-            currentActiveQuizFile = data.activeQuizFile || "";
+        if (!data) return;
+
+        if (data.status === 'ended') {
+            sessionStorage.removeItem('live_student_session');
+            alert("The instructor has ended the live session.");
+            window.location.replace('/');
+            return;
+        }
+
+        applyBroadcastModeUI(data.broadcastMode || 'question');
+
+        if (!data.activeQuizFile || !data.payload || !data.key) {
+            currentActiveQuizFile = "";
+            localIndex = -1;
+            lastRenderedKey = "";
+            const statusEl = document.getElementById('live-status');
+            const progEl = document.getElementById('live-progress');
+            const qTextEl = document.getElementById('question-text');
+            const optsBox = document.getElementById('options-container');
+            if (statusEl) statusEl.innerText = "🟢 Live Session Active";
+            if (progEl) progEl.innerText = "Lecture Mode";
+            if (qTextEl) qTextEl.innerText = "Waiting for Sir to broadcast a question...";
+            if (optsBox) optsBox.innerHTML = "";
+            return;
+        }
+
+        const stateKey = `${data.activeQuizFile}:${data.currentIndex}:${data.forceRefresh ? Date.now() : ''}`;
+        if (stateKey !== lastRenderedKey) {
+            lastRenderedKey = stateKey;
+            currentActiveQuizFile = data.activeQuizFile;
             localIndex = data.currentIndex;
-            if (data.payload && data.key) renderQuestion(data);
+            renderQuestion(data);
         }
     });
 }
@@ -178,6 +228,9 @@ if (typeof io !== 'undefined') {
 function startSync() {
     if (socket && currentQuizId && liveToken) {
         socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+    }
+    if (typeof window.connectLiveKit === 'function' && currentQuizId) {
+        window.connectLiveKit(currentQuizId);
     }
 }
 
@@ -191,6 +244,7 @@ function xorDecipher(b64Str, key) {
     for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
     return new TextDecoder().decode(buf);
 }
+
 function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;

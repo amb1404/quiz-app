@@ -378,15 +378,58 @@ async function setQuestionIndex(newIndex) {
 document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
 document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
 
-// --- BULLETPROOF SOCKET INITIALIZATION & STUBS ---
+// --- BULLETPROOF SOCKET INITIALIZATION & LIVE ROSTER RENDERER ---
 let socket;
 if (typeof io !== 'undefined') {
     socket = io();
     const creds = getActiveAdminCreds();
     if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
 
-    socket.on("student-answered", (data) => console.log("Answered:", data));
-    socket.on("room-state", (data) => console.log("State:", data));
+    socket.on("room-state", (data) => {
+        if (!data) return;
+        activeQuizFile = data.activeQuizFile || "";
+        currentIndex = Number(data.currentIndex) || 0;
+        totalQuestions = Number(data.totalQuestions) || 0;
+        updateQuestionControlsUI();
+    });
+
+    socket.on("admin-board", (data) => {
+        if (!data || !data.board) return;
+        const tbody = document.getElementById('board-body');
+        if (!tbody) return;
+
+        const qIdx = Number(data.currentIndex) || 0;
+        const entries = Object.entries(data.board).filter(([_, info]) => !info.kicked);
+
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color: #94a3b8; text-align: center;">No students in room yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = entries.map(([studentName, info]) => {
+            const ansObj = info.answers ? info.answers[qIdx] : null;
+            let statusHtml = '<span style="color: #94a3b8;">⏳ Thinking / Listening...</span>';
+            let speedHtml = '-';
+
+            if (ansObj) {
+                const badgeColor = ansObj.isCorrect === true ? '#10b981' : (ansObj.isCorrect === false ? '#ef4444' : '#3b82f6');
+                const icon = ansObj.isCorrect === true ? '✅' : (ansObj.isCorrect === false ? '❌' : '☑️');
+                statusHtml = `<span style="color: ${badgeColor}; font-weight: bold;">${icon} ${ansObj.optionLabel || ('Option ' + (ansObj.answer + 1))}</span>`;
+                speedHtml = `<span class="time-badge">${ansObj.timeSec}s</span>`;
+            }
+
+            return `
+                <tr>
+                    <td style="font-weight: bold;">${studentName}</td>
+                    <td>${statusHtml}</td>
+                    <td>${speedHtml}</td>
+                    <td>
+                        <button class="btn-student-moderate" data-student="${studentName}" data-action="kick" style="background: #dc2626; padding: 6px 12px; font-size: 12px;">Remove</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    });
 }
 
 window.startDashboardSync = function() {
@@ -395,5 +438,5 @@ window.startDashboardSync = function() {
 };
 
 window.fetchAndRenderDashboard = function() {
-    // Handled by WebSockets natively
+    window.startDashboardSync();
 };

@@ -2579,7 +2579,98 @@ app.post('/api/live/admin/moderate-student', async (req, res) => {
     }
 });
 
-// Step 1: Admin Creates a Named Room (Does not require a question JSON file upfront)
+function verifyLiveRoomToken(liveToken) {
+    if (!liveToken || typeof liveToken !== 'string' || !liveToken.includes('|||')) return null;
+    const [tokenData, sig] = liveToken.split('|||');
+    const expectedSig = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+    if (!safeCompareHex(sig, expectedSig)) return null;
+
+    const parts = tokenData.split('|');
+    if (parts[0] === 'LIVE' && parts.length >= 5) {
+        const quizId = parts[1];
+        const firstName = decodeURIComponent(parts[2] || '');
+        const lastName = decodeURIComponent(parts[3] || '');
+        return {
+            valid: true,
+            quizId,
+            studentName: `${firstName} ${lastName}`.trim() || 'Student'
+        };
+    }
+    return null;
+}
+
+async function buildLiveStatePayload(cleanId, studentName = null) {
+    const stateStr = await stateStore.get(`live:state:${cleanId}`);
+    if (!stateStr) return null;
+    const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+
+    const out = {
+        roomName: state.roomName || cleanId,
+        status: state.status || 'active',
+        activeQuizFile: state.activeQuizFile || '',
+        currentIndex: Number(state.currentIndex) || 0,
+        total: Number(state.totalQuestions) || 0,
+        totalQuestions: Number(state.totalQuestions) || 0,
+        broadcastMode: state.broadcastMode || 'question',
+        title: state.title || state.roomName || cleanId,
+        payload: null,
+        key: null,
+        savedAnswer: null
+    };
+
+    if (out.activeQuizFile) {
+        const content = getLiveMockContent(out.activeQuizFile);
+        if (content && Array.isArray(content.questions) && content.questions[out.currentIndex]) {
+            const q = content.questions[out.currentIndex];
+            const key = crypto.createHmac('sha256', SECRET)
+                .update(`${cleanId}:${out.activeQuizFile}:${out.currentIndex}`)
+                .digest('hex')
+                .slice(0, 16);
+            const sanitized = {
+                type: q.type || 'mcq',
+                question: q.question,
+                options: q.options || []
+            };
+            out.payload = xorCipher(JSON.stringify(sanitized), key);
+            out.key = key;
+            out.total = content.questions.length;
+            out.totalQuestions = content.questions.length;
+        }
+    }
+
+    if (studentName) {
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const studentRecord = board[studentName];
+        if (studentRecord && studentRecord.answers && studentRecord.answers[out.currentIndex] !== undefined) {
+            out.savedAnswer = studentRecord.answers[out.currentIndex].answer;
+        }
+    }
+
+    return out;
+}
+
+async function emitRoomStateToAll(cleanId) {
+    const payload = await buildLiveStatePayload(cleanId);
+    if (payload) {
+        io.to(cleanId).emit('room-state', payload);
+        io.to(`admin-${cleanId}`).emit('room-state', payload);
+    }
+}
+
+async function emitAdminBoard(cleanId) {
+    const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+    const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+    const payload = await buildLiveStatePayload(cleanId);
+    io.to(`admin-${cleanId}`).emit('admin-board', {
+        board,
+        currentIndex: payload ? payload.currentIndex : 0,
+        activeQuizFile: payload ? payload.activeQuizFile : '',
+        totalQuestions: payload ? payload.totalQuestions : 0
+    });
+}
+
+// Step 1: Admin Creates a Named Room
 app.post('/api/live/admin/start', async (req, res) => {
     try {
         const { adminKey, quizId, questionFile } = req.body;
@@ -2607,8 +2698,10 @@ app.post('/api/live/admin/start', async (req, res) => {
             currentIndex: 0,
             status: 'active',
             activeQuizFile,
+            broadcastMode: 'question',
             title: displayTitle,
-            totalQuestions
+            totalQuestions,
+            questionStartTime: Date.now()
         };
 
         await stateStore.set(`live:state:${cleanId}`, roomState, 60 * 60 * 4);
@@ -2622,6 +2715,9 @@ app.post('/api/live/admin/start', async (req, res) => {
             lastSeen: Date.now()
         });
 
+        await emitRoomStateToAll(cleanId);
+        await emitAdminBoard(cleanId);
+
         res.json({
             success: true,
             roomName: rawRoomName,
@@ -2633,7 +2729,7 @@ app.post('/api/live/admin/start', async (req, res) => {
     }
 });
 
-// Step 2: Admin Dynamically Selects or Switches Question Set from /livemock Dropdown
+// Step 2: Admin Selects or Switches Question Set from /livemock Dropdown
 app.post('/api/live/admin/select-quiz', async (req, res) => {
     try {
         const { adminKey, quizId, questionFile } = req.body;
@@ -2651,6 +2747,8 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
             state.totalQuestions = 0;
             state.title = state.roomName || cleanId;
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+            await emitRoomStateToAll(cleanId);
+            await emitAdminBoard(cleanId);
             return res.json({ success: true, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
         }
 
@@ -2664,8 +2762,11 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
         state.currentIndex = 0;
         state.totalQuestions = content.questions.length;
         state.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
+        state.questionStartTime = Date.now();
 
         await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+        await emitRoomStateToAll(cleanId);
+        await emitAdminBoard(cleanId);
 
         res.json({
             success: true,
@@ -2676,6 +2777,63 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: 'Failed to load question set.' });
+    }
+});
+
+// Admin: Switch Student Main Screen Mode ('question', 'presentation', 'both')
+app.post('/api/live/rtc/admin/mode', async (req, res) => {
+    try {
+        const { adminKey, quizId, broadcastMode } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+        const cleanId = path.basename(String(quizId || '')).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
+
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        state.broadcastMode = ['question', 'presentation', 'both'].includes(broadcastMode) ? broadcastMode : 'question';
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+
+        await emitRoomStateToAll(cleanId);
+        res.json({ success: true, broadcastMode: state.broadcastMode });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update broadcast mode.' });
+    }
+});
+
+// Admin: Clear Current Question Responses
+app.post('/api/live/admin/clear-question', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+
+        const cleanId = path.basename(String(quizId || '')).trim();
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
+        const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        const idx = Number(state.currentIndex) || 0;
+
+        state.questionStartTime = Date.now();
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+
+        await updateBoardSecurely(cleanId, (board) => {
+            Object.keys(board).forEach(student => {
+                if (board[student] && board[student].answers) {
+                    delete board[student].answers[idx];
+                }
+            });
+            return board;
+        });
+
+        const payload = await buildLiveStatePayload(cleanId);
+        if (payload) {
+            payload.forceRefresh = true;
+            io.to(cleanId).emit('room-state', payload);
+        }
+        await emitAdminBoard(cleanId);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to clear responses.' });
     }
 });
 
@@ -2695,6 +2853,7 @@ app.post('/api/live/admin/end', async (req, res) => {
 
         activeLiveRooms.delete(cleanId);
         await stateStore.del(`live:otp:${cleanId}`);
+        await emitRoomStateToAll(cleanId);
 
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }
@@ -2712,11 +2871,16 @@ app.post('/api/live/admin/set-index', async (req, res) => {
 
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
         state.currentIndex = parseInt(index, 10);
+        state.questionStartTime = Date.now();
         await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+
+        await emitRoomStateToAll(cleanId);
+        await emitAdminBoard(cleanId);
 
         res.json({ success: true, currentIndex: state.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
+
 // Student Join Room Verification
 app.post('/api/live/student/verify', async (req, res) => {
     try {
@@ -2737,12 +2901,81 @@ app.post('/api/live/student/verify', async (req, res) => {
 
         const fName = String(authCheck.firstName).trim().toUpperCase();
         const lName = String(authCheck.lastName).trim().toUpperCase();
+        const studentName = `${fName} ${lName}`.trim() || 'Student';
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (!board[studentName]) {
+                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+            }
+            board[studentName].disconnected = false;
+            return board;
+        });
+
+        await emitAdminBoard(cleanId);
+
         const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
 
         res.json({ success: true, token: `${tokenData}|||${signature}` });
     } catch (err) {
         res.status(500).json({ error: 'Failed to join room.' });
+    }
+});
+
+app.post('/api/live/student/rejoin', async (req, res) => {
+    const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
+    if (!liveCheck) return res.status(401).json({ error: 'Invalid session' });
+    await emitAdminBoard(liveCheck.quizId);
+    res.json({ success: true });
+});
+
+// Student Submit Answer in Live Room
+app.post('/api/live/student/submit', async (req, res) => {
+    try {
+        const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
+        if (!liveCheck) return res.status(401).json({ error: 'Unauthorized live session.' });
+
+        const { index, answer } = req.body;
+        const cleanId = liveCheck.quizId;
+        const studentName = liveCheck.studentName;
+
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        const qStart = (state && state.questionStartTime) ? state.questionStartTime : Date.now() - 2000;
+        const timeSec = Math.max(0.1, ((Date.now() - qStart) / 1000)).toFixed(1);
+
+        let isCorrect = null;
+        let optionLabel = `Option ${Number(answer) + 1}`;
+        if (state && state.activeQuizFile) {
+            const content = getLiveMockContent(state.activeQuizFile);
+            const q = content?.questions?.[index];
+            if (q) {
+                isCorrect = (Number(answer) === Number(q.answer));
+                if (q.options && q.options[answer] !== undefined) {
+                    optionLabel = q.options[answer];
+                }
+            }
+        }
+
+        await updateBoardSecurely(cleanId, (board) => {
+            if (!board[studentName]) {
+                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+            }
+            board[studentName].answers = board[studentName].answers || {};
+            board[studentName].answers[index] = {
+                answer: Number(answer),
+                optionLabel,
+                isCorrect,
+                timeSec,
+                submittedAt: Date.now()
+            };
+            return board;
+        });
+
+        await emitAdminBoard(cleanId);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to submit answer.' });
     }
 });
 
@@ -2807,28 +3040,33 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 io.on("connection", (socket) => {
     socket.on("join-room", async ({ quizId, token }) => {
-        const authCheck = await verifyAuthToken(token, null, false);
-        if (!authCheck.valid) return socket.disconnect();
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!cleanId) return;
 
-        socket.join(quizId);
-        socket.user = authCheck;
-        const stateStr = await stateStore.get(`live:state:${quizId}`);
-        if (stateStr) socket.emit("room-state", typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr);
+        const liveAuth = verifyLiveRoomToken(token);
+        const ssoAuth = !liveAuth ? await verifyAuthToken(token, null, false) : null;
+        if (!liveAuth && (!ssoAuth || !ssoAuth.valid)) return;
+
+        const studentName = liveAuth
+            ? liveAuth.studentName
+            : `${ssoAuth.firstName || ''} ${ssoAuth.lastName || ''}`.trim();
+
+        socket.join(cleanId);
+        socket.studentName = studentName;
+        socket.quizId = cleanId;
+
+        const payload = await buildLiveStatePayload(cleanId, studentName);
+        if (payload) socket.emit("room-state", payload);
+        await emitAdminBoard(cleanId);
     });
 
-    socket.on("join-admin-room", ({ quizId }) => {
-        socket.join(`admin-${quizId}`);
-    });
-
-    socket.on("admin-update-state", (quizId, newState) => {
-        io.to(quizId).emit("room-state", newState);
-    });
-
-    socket.on("submit-answer", (quizId, answerData) => {
-        io.to(`admin-${quizId}`).emit("student-answered", {
-            student: socket.user.email,
-            answer: answerData
-        });
+    socket.on("join-admin-room", async ({ quizId }) => {
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!cleanId) return;
+        socket.join(`admin-${cleanId}`);
+        const payload = await buildLiveStatePayload(cleanId);
+        if (payload) socket.emit("room-state", payload);
+        await emitAdminBoard(cleanId);
     });
 });
 

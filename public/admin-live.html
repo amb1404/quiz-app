@@ -173,7 +173,7 @@
 
     <script src="/js/admin-live.js"></script>
     <script>
-        const room = new LivekitClient.Room();
+    const room = new LivekitClient.Room();
     let videoEnabled = false;
     let audioEnabled = false;
     let broadcastMode = 'question';
@@ -181,6 +181,20 @@
     let currentMicTrack = null;
     let currentScreenTrack = null;
     let connectingPromise = null;
+    const activeStudentAudioEls = new Map();
+
+    function getAdminCreds() {
+        let adminKey = document.getElementById('admin-key')?.value.trim() || '';
+        let quizId = document.getElementById('quiz-id')?.value.trim() || '';
+        if (!adminKey || !quizId) {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
+                if (!adminKey && saved.adminKey) adminKey = saved.adminKey;
+                if (!quizId && saved.quizId) quizId = saved.quizId;
+            } catch (e) {}
+        }
+        return { adminKey, quizId };
+    }
 
     async function ensureRoomConnected(quizId) {
         if (room.state === 'connected') return;
@@ -190,7 +204,7 @@
             const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin`);
             if (!res.ok) throw new Error("API Keys missing on server.");
             const { token } = await res.json();
-            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
         })();
 
         try {
@@ -200,117 +214,264 @@
         }
     }
 
-    async function startOrUpdateBroadcast() {
-        const adminKey = document.getElementById('admin-key').value.trim();
-        const quizId = document.getElementById('quiz-id').value.trim();
-        if (!adminKey || !quizId) return false;
+    // Listen for students speaking in the room
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        if (track.kind === 'audio') {
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            track.attach(audioEl);
+            document.body.appendChild(audioEl);
+            activeStudentAudioEls.set(participant.identity, audioEl);
+
+            const badge = document.getElementById('admin-caller-badge');
+            if (badge) {
+                badge.textContent = `🟢 Student Speaking: ${participant.identity.replace(/_[a-z0-9]{4}$/i, '')}`;
+                badge.classList.add('calling');
+            }
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        if (track.kind === 'audio') {
+            const el = activeStudentAudioEls.get(participant.identity);
+            if (el) {
+                track.detach(el);
+                el.remove();
+                activeStudentAudioEls.delete(participant.identity);
+            }
+            if (activeStudentAudioEls.size === 0) {
+                const badge = document.getElementById('admin-caller-badge');
+                if (badge) {
+                    badge.textContent = '🎧 No active student calls';
+                    badge.classList.remove('calling');
+                }
+            }
+        }
+    });
+
+    function updateMediaButtonsUI() {
+        const btnVideo = document.getElementById('btn-admin-video');
+        const btnAudio = document.getElementById('btn-admin-audio');
+        const btnStop = document.getElementById('btn-admin-stop-stream');
+        const pipBox = document.getElementById('admin-pip-box');
+
+        btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+        btnVideo.classList.toggle('active-cam', videoEnabled);
+
+        btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+        btnAudio.classList.toggle('active-mic', audioEnabled);
+
+        pipBox.style.display = videoEnabled ? 'flex' : 'none';
+        const anyActive = videoEnabled || audioEnabled || Boolean(currentScreenTrack);
+        btnStop.style.display = anyActive ? 'inline-block' : 'none';
+    }
+
+    function updateModeConsoleUI() {
+        const btnQ = document.getElementById('btn-mode-question');
+        const btnPpt = document.getElementById('btn-mode-ppt');
+        const btnBoth = document.getElementById('btn-mode-both');
+        const btnReselect = document.getElementById('btn-reselect-ppt');
+        const modeBadge = document.getElementById('admin-mode-badge');
+
+        [btnQ, btnPpt, btnBoth].forEach(b => {
+            if (!b) return;
+            b.style.background = '#475569';
+            b.style.borderColor = 'transparent';
+        });
+
+        if (broadcastMode === 'presentation') {
+            btnPpt.style.background = '#7c3aed';
+            btnPpt.style.borderColor = '#c4b5fd';
+            modeBadge.textContent = '📌 Showing: Live Presentation (PPT)';
+            modeBadge.style.color = '#c4b5fd';
+        } else if (broadcastMode === 'both') {
+            btnBoth.style.background = '#059669';
+            btnBoth.style.borderColor = '#6ee7b7';
+            modeBadge.textContent = '📌 Showing: PPT + Question Together';
+            modeBadge.style.color = '#6ee7b7';
+        } else {
+            btnQ.style.background = '#2563eb';
+            btnQ.style.borderColor = '#60a5fa';
+            modeBadge.textContent = '📌 Showing: Question Card';
+            modeBadge.style.color = '#60a5fa';
+        }
+
+        btnReselect.style.display = (currentScreenTrack && currentScreenTrack.readyState === 'live') ? 'inline-block' : 'none';
+        updateMediaButtonsUI();
+    }
+
+    async function syncModeToServer() {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return;
+        await fetch('/api/live/rtc/admin/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId, broadcastMode })
+        }).catch(() => {});
+    }
+
+    // 1. Dedicated Camera Button Handler (Never calls getDisplayMedia)
+    document.getElementById('btn-admin-video').addEventListener('click', async () => {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
 
         try {
-            await ensureRoomConnected(quizId);
-
-            if (videoEnabled && !currentCamTrack) {
+            if (!videoEnabled) {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+                await ensureRoomConnected(quizId);
                 currentCamTrack = stream.getVideoTracks()[0];
                 await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
                 document.getElementById('admin-self-video').srcObject = stream;
-            } else if (!videoEnabled && currentCamTrack) {
-                await room.localParticipant.unpublishTrack(currentCamTrack);
-                currentCamTrack.stop();
-                currentCamTrack = null;
+                videoEnabled = true;
+            } else {
+                if (currentCamTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
+                    currentCamTrack.stop();
+                    currentCamTrack = null;
+                }
                 document.getElementById('admin-self-video').srcObject = null;
+                videoEnabled = false;
             }
+            updateMediaButtonsUI();
+        } catch (err) {
+            videoEnabled = false;
+            updateMediaButtonsUI();
+            alert("Camera Error: " + err.message);
+        }
+    });
 
-            if (audioEnabled && !currentMicTrack) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    // 2. Dedicated Microphone Button Handler (Never calls getDisplayMedia)
+    document.getElementById('btn-admin-audio').addEventListener('click', async () => {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        try {
+            if (!audioEnabled) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true }
+                });
+                await ensureRoomConnected(quizId);
                 currentMicTrack = stream.getAudioTracks()[0];
                 await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
-            } else if (!audioEnabled && currentMicTrack) {
-                await room.localParticipant.unpublishTrack(currentMicTrack);
-                currentMicTrack.stop();
-                currentMicTrack = null;
+                audioEnabled = true;
+            } else {
+                if (currentMicTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentMicTrack);
+                    currentMicTrack.stop();
+                    currentMicTrack = null;
+                }
+                audioEnabled = false;
+            }
+            updateMediaButtonsUI();
+        } catch (err) {
+            audioEnabled = false;
+            updateMediaButtonsUI();
+            alert("Microphone Error: " + err.message);
+        }
+    });
+
+    // 3. Dedicated Screen Share / PPT Helper (Acquires screen IMMEDIATELY on click for Firefox)
+    async function activatePptBroadcastMode(targetMode, forceNewWindow = false) {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        try {
+            let newScreenStream = null;
+            const hasLiveScreen = currentScreenTrack && currentScreenTrack.readyState === 'live';
+
+            if (!hasLiveScreen || forceNewWindow) {
+                // MUST run before any await fetch() so Firefox preserves user gesture
+                newScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
             }
 
-            if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                currentScreenTrack = stream.getVideoTracks()[0];
+            await ensureRoomConnected(quizId);
+
+            if (newScreenStream) {
+                if (currentScreenTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack.stop();
+                }
+                currentScreenTrack = newScreenStream.getVideoTracks()[0];
                 await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
-                currentScreenTrack.onended = () => {
-                    room.localParticipant.unpublishTrack(currentScreenTrack);
+
+                currentScreenTrack.onended = async () => {
+                    try {
+                        if (room.state === 'connected' && currentScreenTrack) {
+                            await room.localParticipant.unpublishTrack(currentScreenTrack);
+                        }
+                    } catch (e) {}
                     currentScreenTrack = null;
                     broadcastMode = 'question';
+                    updateModeConsoleUI();
+                    await syncModeToServer();
                 };
-            } else if (broadcastMode === 'question' && currentScreenTrack) {
-                await room.localParticipant.unpublishTrack(currentScreenTrack);
-                currentScreenTrack.stop();
-                currentScreenTrack = null;
             }
 
-            document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
-            document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
-            return true;
+            broadcastMode = targetMode;
+            updateModeConsoleUI();
+            await syncModeToServer();
         } catch (err) {
-            alert("LiveKit Connection Failed: " + err.message);
-            videoEnabled = audioEnabled = false;
-            document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
-            document.getElementById('btn-admin-video').classList.remove('active-cam');
-            document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
-            document.getElementById('btn-admin-audio').classList.remove('active-mic');
-            return false;
+            alert("Screen Share cancelled or failed: " + err.message);
         }
     }
 
-        document.getElementById('btn-admin-video').addEventListener('click', async (e) => {
-            videoEnabled = !videoEnabled;
-            e.target.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
-            e.target.classList.toggle('active-cam', videoEnabled);
-            await startOrUpdateBroadcast();
-        });
+    document.getElementById('btn-mode-question').addEventListener('click', async () => {
+        if (currentScreenTrack) {
+            try {
+                if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                currentScreenTrack.stop();
+            } catch (e) {}
+            currentScreenTrack = null;
+        }
+        broadcastMode = 'question';
+        updateModeConsoleUI();
+        await syncModeToServer();
+    });
 
-        document.getElementById('btn-admin-audio').addEventListener('click', async (e) => {
-            audioEnabled = !audioEnabled;
-            e.target.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
-            e.target.classList.toggle('active-mic', audioEnabled);
-            await startOrUpdateBroadcast();
-        });
+    document.getElementById('btn-mode-ppt').addEventListener('click', () => {
+        activatePptBroadcastMode('presentation', false);
+    });
 
-        document.getElementById('btn-admin-stop-stream').addEventListener('click', () => {
-            room.disconnect();
-            if (currentCamTrack) currentCamTrack.stop();
-            if (currentMicTrack) currentMicTrack.stop();
-            if (currentScreenTrack) currentScreenTrack.stop();
-            currentCamTrack = currentMicTrack = currentScreenTrack = null;
+    document.getElementById('btn-mode-both').addEventListener('click', () => {
+        activatePptBroadcastMode('both', false);
+    });
 
-            document.getElementById('admin-pip-box').style.display = 'none';
-            document.getElementById('btn-admin-stop-stream').style.display = 'none';
-            videoEnabled = audioEnabled = false;
-            document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
-            document.getElementById('btn-admin-video').classList.remove('active-cam');
-            document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
-            document.getElementById('btn-admin-audio').classList.remove('active-mic');
-        });
+    document.getElementById('btn-reselect-ppt').addEventListener('click', () => {
+        const modeToKeep = (broadcastMode === 'both') ? 'both' : 'presentation';
+        activatePptBroadcastMode(modeToKeep, true);
+    });
 
-        document.getElementById('btn-mode-question').addEventListener('click', async () => { broadcastMode = 'question'; await startOrUpdateBroadcast(); });
-        document.getElementById('btn-mode-ppt').addEventListener('click', async () => { broadcastMode = 'presentation'; await startOrUpdateBroadcast(); });
-        document.getElementById('btn-mode-both').addEventListener('click', async () => { broadcastMode = 'both'; await startOrUpdateBroadcast(); });
-        
-        // Draggable PIP Window
-        const boxEl = document.getElementById('admin-pip-box');
-        const handleEl = document.getElementById('admin-pip-header');
-        let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-        handleEl.addEventListener('pointerdown', (e) => {
-            isDragging = true; handleEl.setPointerCapture(e.pointerId);
-            const rect = boxEl.getBoundingClientRect();
-            startX = e.clientX; startY = e.clientY;
-            initialLeft = rect.left; initialTop = rect.top;
-            boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
-            boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
-        });
-        handleEl.addEventListener('pointermove', (e) => {
-            if (!isDragging) return;
-            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-        });
-        handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
-    </script>
+    document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
+        room.disconnect();
+        if (currentCamTrack) currentCamTrack.stop();
+        if (currentMicTrack) currentMicTrack.stop();
+        if (currentScreenTrack) currentScreenTrack.stop();
+        currentCamTrack = currentMicTrack = currentScreenTrack = null;
+        videoEnabled = audioEnabled = false;
+        broadcastMode = 'question';
+        document.getElementById('admin-self-video').srcObject = null;
+        updateModeConsoleUI();
+        await syncModeToServer();
+    });
+
+    // Draggable PIP Window
+    const boxEl = document.getElementById('admin-pip-box');
+    const handleEl = document.getElementById('admin-pip-header');
+    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handleEl.addEventListener('pointerdown', (e) => {
+        isDragging = true; handleEl.setPointerCapture(e.pointerId);
+        const rect = boxEl.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+    });
+    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+</script>
 </body>
 </html>
