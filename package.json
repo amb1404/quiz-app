@@ -13,7 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.2.1",
-    "livekit-server-sdk": "^2.19.2",
+    "livekit-server-sdk": "^2.19.3",
     "nodemailer": "^10.0.1",
     "razorpay": "^2.9.5",
     "socket.io": "^4.8.4"
