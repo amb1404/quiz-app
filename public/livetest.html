@@ -190,29 +190,92 @@
     window.connectLiveKit = connectLiveKit;
 
     setInterval(() => {
-        if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
-            connectLiveKit(currentQuizId);
-        }
-    }, 3000);
+    if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+        connectLiveKit(currentQuizId);
+    }
+}, 3000);
 
-    let studentMicTrack = null;
-    document.getElementById('btn-student-call').addEventListener('click', async (e) => {
-        if (!studentMicTrack) {
+let studentMicTrack = null;
+window.studentMutedByAdmin = false;
+
+window.setStudentAdminMute = async function(isMuted) {
+    window.studentMutedByAdmin = Boolean(isMuted);
+    const callBtn = document.getElementById('btn-student-call');
+    if (window.studentMutedByAdmin) {
+        if (studentMicTrack) {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-                studentMicTrack = stream.getAudioTracks()[0];
-                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
-                e.target.textContent = '🔴 Mute Mic';
-                e.target.classList.add('on-call');
-            } catch (err) { alert('Mic access denied'); }
-        } else {
-            await room.localParticipant.unpublishTrack(studentMicTrack);
+                if (room.state === 'connected') {
+                    await room.localParticipant.unpublishTrack(studentMicTrack);
+                }
+                studentMicTrack.stop();
+            } catch (e) {}
+            studentMicTrack = null;
+        }
+        if (callBtn) {
+            callBtn.textContent = '🔇 Muted by Admin';
+            callBtn.classList.remove('on-call');
+            callBtn.disabled = true;
+            callBtn.style.opacity = '0.6';
+            callBtn.style.cursor = 'not-allowed';
+        }
+    } else {
+        if (callBtn) {
+            if (!studentMicTrack) {
+                callBtn.textContent = '📞 Speak';
+                callBtn.classList.remove('on-call');
+            }
+            callBtn.disabled = false;
+            callBtn.style.opacity = '1';
+            callBtn.style.cursor = 'pointer';
+        }
+    }
+};
+
+window.stopStudentLiveKit = function() {
+    try {
+        if (studentMicTrack) {
             studentMicTrack.stop();
             studentMicTrack = null;
-            e.target.textContent = '📞 Speak';
-            e.target.classList.remove('on-call');
         }
-    });
+    } catch (e) {}
+    try { room.disconnect(); } catch (e) {}
+    if (activeAudioEl) {
+        try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
+        activeAudioEl = null;
+    }
+    const remoteVid = document.getElementById('student-remote-video');
+    if (remoteVid) {
+        remoteVid.srcObject = null;
+        remoteVid.style.display = 'none';
+    }
+    const pptVid = document.getElementById('student-ppt-video');
+    if (pptVid) pptVid.srcObject = null;
+    const pipBox = document.getElementById('student-pip-box');
+    if (pipBox) pipBox.remove();
+    document.body.classList.remove('rtc-stream-active', 'rtc-presentation-active', 'rtc-both-active');
+};
+
+document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+    if (window.studentMutedByAdmin) {
+        alert('You have been muted by the instructor.');
+        return;
+    }
+    if (!studentMicTrack) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            studentMicTrack = stream.getAudioTracks()[0];
+            await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+            e.target.textContent = '🔴 Mute Mic';
+            e.target.classList.add('on-call');
+        } catch (err) { alert('Mic access denied'); }
+    } else {
+        await room.localParticipant.unpublishTrack(studentMicTrack);
+        studentMicTrack.stop();
+        studentMicTrack = null;
+        e.target.textContent = '📞 Speak';
+        e.target.classList.remove('on-call');
+    }
+});
 
     const boxEl = document.getElementById('student-pip-box');
     const handleEl = document.getElementById('student-pip-header');

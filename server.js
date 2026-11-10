@@ -28,6 +28,16 @@ function loadOrGenerateMasterSecret() {
     if (process.env.TIMER_SECRET && process.env.TIMER_SECRET.trim().length >= 16) {
         return process.env.TIMER_SECRET.trim();
     }
+    const persistentSeed = [
+        process.env.APPS_SCRIPT_SECRET,
+        process.env.LIVEKIT_API_SECRET,
+        process.env.RAZORPAY_KEY_SECRET,
+        process.env.UPSTASH_REDIS_REST_TOKEN,
+        process.env.REDIS_URL
+    ].filter(Boolean).join('|');
+    if (persistentSeed.length >= 8) {
+        return crypto.createHmac('sha512', 'pioneers-prep-master-secret-v1').update(persistentSeed).digest('hex');
+    }
     const secretFilePath = path.join(__dirname, '.runtime_secret');
     try {
         if (fs.existsSync(secretFilePath)) {
@@ -2515,19 +2525,44 @@ app.get('/api/live/list', (req, res) => {
         res.status(500).json({ error: 'Failed to list live tests.' });
     }
 });
+const LIVE_ROOMS_REDIS_KEY = 'live:active_rooms:registry';
+
+async function syncActiveRoomsToRedis() {
+    try {
+        const obj = Object.fromEntries(activeLiveRooms.entries());
+        await stateStore.set(LIVE_ROOMS_REDIS_KEY, obj, 60 * 60 * 4);
+    } catch {}
+}
+
+async function loadActiveRoomsFromRedis() {
+    try {
+        const raw = await stateStore.get(LIVE_ROOMS_REDIS_KEY);
+        if (!raw) return;
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (parsed && typeof parsed === 'object') {
+            for (const [id, info] of Object.entries(parsed)) {
+                if (!activeLiveRooms.has(id)) activeLiveRooms.set(id, info);
+            }
+        }
+    } catch {}
+}
+
 // Step 4: Return Active Rooms for the Student 1-Click "Join Room" Lobby
 app.get('/api/live/rooms', async (req, res) => {
     try {
+        await loadActiveRoomsFromRedis();
         const now = Date.now();
         const rooms = [];
+        let changed = false;
         for (const [id, info] of activeLiveRooms.entries()) {
-            // Keep rooms active up to 4 hours
             if (now - info.lastSeen <= 4 * 60 * 60 * 1000) {
                 rooms.push({ id: info.id, name: info.name });
             } else {
                 activeLiveRooms.delete(id);
+                changed = true;
             }
         }
+        if (changed) await syncActiveRoomsToRedis();
         res.json({ success: true, rooms });
     } catch (err) {
         res.status(500).json({ success: false, rooms: [] });
@@ -2544,34 +2579,23 @@ app.post('/api/live/admin/moderate-student', async (req, res) => {
         const targetName = String(studentName || '').trim();
         if (!cleanId || !targetName) return res.status(400).json({ error: 'Missing room or student name.' });
 
-        const mediaRoom = getOrCreateMediaRoom(cleanId);
-
         await updateBoardSecurely(cleanId, (board) => {
             if (!board[targetName]) {
                 board[targetName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
             }
             if (action === 'mute') {
                 board[targetName].muted = true;
-                mediaRoom.mutedStudents.add(targetName);
-                mediaRoom.activeCallers.delete(targetName);
             } else if (action === 'unmute') {
                 board[targetName].muted = false;
-                mediaRoom.mutedStudents.delete(targetName);
             } else if (action === 'kick') {
                 board[targetName].kicked = true;
                 board[targetName].disconnected = true;
-                mediaRoom.kickedStudents.add(targetName);
-                mediaRoom.mutedStudents.add(targetName);
-                mediaRoom.activeCallers.delete(targetName);
-                mediaRoom.students.delete(targetName);
-            }
-            if (action === 'mute' || action === 'kick') {
-                mediaRoom.studentAudioBuffer = mediaRoom.studentAudioBuffer.filter(
-                    chunk => chunk.studentName !== targetName
-                );
             }
             return board;
         });
+
+        await emitAdminBoard(cleanId);
+        io.to(cleanId).emit('student-moderated', { studentName: targetName, action });
 
         res.json({ success: true, studentName: targetName, action });
     } catch (err) {
@@ -2615,7 +2639,9 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
         title: state.title || state.roomName || cleanId,
         payload: null,
         key: null,
-        savedAnswer: null
+        savedAnswer: null,
+        muted: false,
+        kicked: false
     };
 
     if (out.activeQuizFile) {
@@ -2642,8 +2668,12 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const studentRecord = board[studentName];
-        if (studentRecord && studentRecord.answers && studentRecord.answers[out.currentIndex] !== undefined) {
-            out.savedAnswer = studentRecord.answers[out.currentIndex].answer;
+        if (studentRecord) {
+            out.muted = Boolean(studentRecord.muted);
+            out.kicked = Boolean(studentRecord.kicked);
+            if (studentRecord.answers && studentRecord.answers[out.currentIndex] !== undefined) {
+                out.savedAnswer = studentRecord.answers[out.currentIndex].answer;
+            }
         }
     }
 
@@ -2708,12 +2738,14 @@ app.post('/api/live/admin/start', async (req, res) => {
         await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 4);
         await stateStore.del(`live:board:${cleanId}`);
 
+        await loadActiveRoomsFromRedis();
         activeLiveRooms.set(cleanId, {
             id: cleanId,
             name: rawRoomName,
             createdAt: Date.now(),
             lastSeen: Date.now()
         });
+        await syncActiveRoomsToRedis();
 
         await emitRoomStateToAll(cleanId);
         await emitAdminBoard(cleanId);
@@ -2851,9 +2883,11 @@ app.post('/api/live/admin/end', async (req, res) => {
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
         }
 
-        activeLiveRooms.delete(cleanId);
-        await stateStore.del(`live:otp:${cleanId}`);
-        await emitRoomStateToAll(cleanId);
+        await loadActiveRoomsFromRedis();
+    activeLiveRooms.delete(cleanId);
+    await syncActiveRoomsToRedis();
+    await stateStore.del(`live:otp:${cleanId}`);
+    await emitRoomStateToAll(cleanId);
 
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }

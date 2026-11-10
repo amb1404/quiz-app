@@ -519,23 +519,61 @@
         activatePptBroadcastMode(modeToKeep, true);
     });
 
-    document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
-        if (micMuteTimeout) {
-            clearTimeout(micMuteTimeout);
-            micMuteTimeout = null;
+    window.cutStudentAudioImmediately = function(studentName) {
+    const cleanTarget = String(studentName || '').trim().toLowerCase();
+    for (const [identity, el] of activeStudentAudioEls.entries()) {
+        const cleanId = identity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+        if (cleanId === cleanTarget) {
+            el.pause();
+            el.srcObject = null;
+            el.remove();
+            activeStudentAudioEls.delete(identity);
         }
-        room.disconnect();
-        if (currentCamTrack) currentCamTrack.stop();
-        if (currentMicTrack) currentMicTrack.stop();
-        if (rawMicStream) rawMicStream.getTracks().forEach(t => t.stop());
-        if (currentScreenTrack) currentScreenTrack.stop();
-        currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
-        videoEnabled = audioEnabled = false;
-        broadcastMode = 'question';
-        document.getElementById('admin-self-video').srcObject = null;
-        updateModeConsoleUI();
-        await syncModeToServer();
-    });
+    }
+    if (activeStudentAudioEls.size === 0) {
+        const badge = document.getElementById('admin-caller-badge');
+        if (badge) {
+            badge.textContent = '🎧 No active student calls';
+            badge.classList.remove('calling');
+        }
+    }
+};
+
+async function stopAdminBroadcastStream(syncServer = true) {
+    if (micMuteTimeout) {
+        clearTimeout(micMuteTimeout);
+        micMuteTimeout = null;
+    }
+    try { room.disconnect(); } catch (e) {}
+    if (currentCamTrack) { try { currentCamTrack.stop(); } catch (e) {} }
+    if (currentMicTrack) { try { currentMicTrack.stop(); } catch (e) {} }
+    if (rawMicStream) { try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+    if (currentScreenTrack) { try { currentScreenTrack.stop(); } catch (e) {} }
+    currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
+
+    for (const [, el] of activeStudentAudioEls.entries()) {
+        try { el.pause(); el.remove(); } catch (e) {}
+    }
+    activeStudentAudioEls.clear();
+    const badge = document.getElementById('admin-caller-badge');
+    if (badge) {
+        badge.textContent = '🎧 No active student calls';
+        badge.classList.remove('calling');
+    }
+
+    videoEnabled = false;
+    audioEnabled = false;
+    broadcastMode = 'question';
+    const selfVid = document.getElementById('admin-self-video');
+    if (selfVid) selfVid.srcObject = null;
+    updateModeConsoleUI();
+    if (syncServer) await syncModeToServer();
+}
+window.stopAdminBroadcastStream = stopAdminBroadcastStream;
+
+document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
+    await stopAdminBroadcastStream(true);
+});
 
     // Draggable PIP Window
     const boxEl = document.getElementById('admin-pip-box');

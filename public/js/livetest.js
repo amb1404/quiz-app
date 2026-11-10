@@ -186,13 +186,76 @@ function applyBroadcastModeUI(mode) {
 }
 window.applyBroadcastModeUI = applyBroadcastModeUI;
 
+function getMyStudentName() {
+    try {
+        if (liveToken && liveToken.includes('|||')) {
+            const parts = liveToken.split('|||')[0].split('|');
+            if (parts[0] === 'LIVE' && parts.length >= 4) {
+                return `${decodeURIComponent(parts[2] || '')} ${decodeURIComponent(parts[3] || '')}`.trim();
+            }
+        }
+        const sso = localStorage.getItem('pp_id_token') || '';
+        if (sso.includes('|||')) {
+            const p = sso.split('|||')[0].split('|');
+            if (p.length >= 3) return `${decodeURIComponent(p[1] || '')} ${decodeURIComponent(p[2] || '')}`.trim();
+        }
+    } catch (e) {}
+    return '';
+}
+
 if (typeof io !== 'undefined') {
     socket = io();
+
+    // Automatically rejoin room if server restarts due to a new commit or brief disconnect
+    socket.on("connect", () => {
+        if (testActive && currentQuizId && liveToken) {
+            socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+        }
+    });
+
+    socket.on("student-moderated", (data) => {
+        if (!data || !data.studentName) return;
+        const myName = getMyStudentName();
+        if (myName && data.studentName.trim().toLowerCase() === myName.toLowerCase()) {
+            if (data.action === 'mute' && typeof window.setStudentAdminMute === 'function') {
+                window.setStudentAdminMute(true);
+            } else if (data.action === 'unmute' && typeof window.setStudentAdminMute === 'function') {
+                window.setStudentAdminMute(false);
+            } else if (data.action === 'kick') {
+                testActive = false;
+                sessionStorage.removeItem('live_student_session');
+                if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+                alert("You have been removed from the room by the instructor.");
+                window.location.replace('/');
+            }
+        }
+    });
+
     socket.on("room-state", (data) => {
         if (!data) return;
 
-        if (data.status === 'ended') {
+        if (data.kicked) {
+            testActive = false;
             sessionStorage.removeItem('live_student_session');
+            if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+            alert("You have been removed from the room by the instructor.");
+            window.location.replace('/');
+            return;
+        }
+
+        if (typeof data.muted === 'boolean' && typeof window.setStudentAdminMute === 'function') {
+            window.setStudentAdminMute(data.muted);
+        }
+
+        if (data.status === 'ended') {
+            testActive = false;
+            sessionStorage.removeItem('live_student_session');
+            if (typeof window.stopStudentLiveKit === 'function') {
+                window.stopStudentLiveKit();
+            }
+            const presScreen = document.getElementById('presentation-screen');
+            if (presScreen) presScreen.style.display = 'none';
+
             // Fetch full breakdown scorecard from server before clearing session UI
             fetch(`/api/live/student/scorecard?quizId=${encodeURIComponent(currentQuizId)}`, {
                 headers: { 'Authorization': `Bearer ${liveToken}` }

@@ -293,12 +293,16 @@ document.addEventListener('click', async (e) => {
                 body: JSON.stringify(creds)
             });
             const data = await res.json();
-            if (!res.ok || !data.success) {
-                endBtn.innerText = "Auth Failed";
-                return;
-            }
+        if (!res.ok || !data.success) {
+            endBtn.innerText = "Auth Failed";
+            return;
+        }
 
-            clearInterval(dashInterval);
+        if (typeof window.stopAdminBroadcastStream === 'function') {
+            await window.stopAdminBroadcastStream(false);
+        }
+
+        clearInterval(dashInterval);
             sessionStorage.removeItem('live_admin_session');
             document.getElementById('control-panel').style.display = 'none';
             document.getElementById('board-panel').style.display = 'none';
@@ -382,14 +386,22 @@ document.getElementById('next-btn').addEventListener('click', () => setQuestionI
 let socket;
 if (typeof io !== 'undefined') {
     socket = io();
-    const creds = getActiveAdminCreds();
-    if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
+
+    // Automatically rejoin admin room on initial connect AND after any new commit / server restart
+    socket.on("connect", () => {
+        const creds = getActiveAdminCreds();
+        if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
+    });
 
     socket.on("room-state", (data) => {
         if (!data) return;
         activeQuizFile = data.activeQuizFile || "";
         currentIndex = Number(data.currentIndex) || 0;
         totalQuestions = Number(data.totalQuestions) || 0;
+        const selectEl = document.getElementById('admin-quiz-select');
+        if (selectEl && selectEl.value !== activeQuizFile) {
+            selectEl.value = activeQuizFile;
+        }
         updateQuestionControlsUI();
     });
 
@@ -418,12 +430,18 @@ if (typeof io !== 'undefined') {
                 speedHtml = `<span class="time-badge">${ansObj.timeSec}s</span>`;
             }
 
+            const isMuted = info.muted === true;
+            const muteAction = isMuted ? 'unmute' : 'mute';
+            const muteLabel = isMuted ? '🔇 Unmute' : '🎙️ Mute';
+            const muteBg = isMuted ? '#64748b' : '#f59e0b';
+
             return `
                 <tr>
                     <td style="font-weight: bold;">${studentName}</td>
                     <td>${statusHtml}</td>
                     <td>${speedHtml}</td>
-                    <td>
+                    <td style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-student-moderate" data-student="${studentName}" data-action="${muteAction}" style="background: ${muteBg}; padding: 6px 12px; font-size: 12px;">${muteLabel}</button>
                         <button class="btn-student-moderate" data-student="${studentName}" data-action="kick" style="background: #dc2626; padding: 6px 12px; font-size: 12px;">Remove</button>
                     </td>
                 </tr>
