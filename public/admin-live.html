@@ -14,7 +14,6 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
         .time-badge { background: #059669; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
 
-        /* Streaming Console & Draggable Self-View Styles */
         #admin-stream-console {
             background: #1e293b;
             border: 1px solid #334155;
@@ -55,7 +54,6 @@
             border-color: #10b981;
         }
 
-        /* Draggable Rectangular Self-View Box */
         #admin-pip-box {
             position: fixed;
             top: 20px;
@@ -94,27 +92,23 @@
             transform: scaleX(-1);
         }
     </style>
-<script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
     <h2>Live Mock Control Center</h2>
     
-    <!-- Panel 1: Step 1 - Admin Key & Create Room Workflow -->
     <div class="panel" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
         <input type="password" id="admin-key" placeholder="Enter Admin Secret Key" style="min-width: 220px;">
         <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
 
-        <!-- Appears when 'Create Room' is clicked -->
         <div id="create-room-box" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
             <input type="text" id="quiz-id" placeholder="Type Room Name (e.g. Physics-X)" style="min-width: 220px;">
             <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
         </div>
-
         <span id="otp-display" style="margin-left: 10px; color: #34d399; font-weight: bold; font-size: 16px;"></span>
     </div>
 
-    <!-- Streaming Console Bar -->
     <div id="admin-stream-console">
         <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & HD Voice Console:</strong>
         <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
@@ -123,7 +117,6 @@
         <span id="admin-caller-badge">🎧 No active student calls</span>
     </div>
 
-    <!-- Step 3: Broadcast Mode Selection Console (Question Card, PPT, or Both Together) -->
     <div id="admin-broadcast-mode-console" style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
         <strong style="font-size: 14px; color: #c4b5fd;">📺 Student Main Screen:</strong>
         <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Broadcast: Question Card</button>
@@ -133,7 +126,6 @@
         <span id="admin-mode-badge" style="margin-left: auto; font-size: 13px; font-weight: bold; padding: 6px 14px; border-radius: 20px; background: #0f172a; color: #60a5fa; border: 1px solid #334155;">📌 Showing: Question Card</span>
     </div>
 
-    <!-- Panel 2: Step 2 - Dynamic Question Set Dropdown & One-Question-at-a-Time Controls -->
     <div class="panel" id="control-panel" style="display: none;">
         <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #334155;">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -156,7 +148,6 @@
         </div>
     </div>
 
-    <!-- Panel 3: Live Submissions Board -->
     <div class="panel" id="board-panel" style="display: none;">
         <h3>Live Room Roster & Student Submissions</h3>
         <table>
@@ -172,7 +163,6 @@
         </table>
     </div>
 
-    <!-- Draggable Self-View Box -->
     <div id="admin-pip-box">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
@@ -182,129 +172,129 @@
     </div>
 
     <script src="/js/admin-live.js"></script>
-<script>
-    const room = new LivekitClient.Room();
-    let videoEnabled = false;
-    let audioEnabled = false;
-    let broadcastMode = 'question';
-    let currentCamTrack = null;
-    let currentMicTrack = null;
-    let currentScreenTrack = null;
+    <script>
+        const room = new LivekitClient.Room();
+        let videoEnabled = false;
+        let audioEnabled = false;
+        let broadcastMode = 'question';
+        let currentCamTrack = null;
+        let currentMicTrack = null;
+        let currentScreenTrack = null;
 
-    async function startOrUpdateBroadcast() {
-        const adminKey = document.getElementById('admin-key').value.trim();
-        const quizId = document.getElementById('quiz-id').value.trim();
-        if (!adminKey || !quizId) return false;
+        async function startOrUpdateBroadcast() {
+            const adminKey = document.getElementById('admin-key').value.trim();
+            const quizId = document.getElementById('quiz-id').value.trim();
+            if (!adminKey || !quizId) return false;
 
-        try {
-            const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
-            if (!res.ok) throw new Error("API Keys missing on server.");
-            const { token } = await res.json();
+            try {
+                const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
+                if (!res.ok) throw new Error("API Keys missing on server.");
+                const { token } = await res.json();
 
-            // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
-            if (room.state !== 'connected') {
-                await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
-            }
+                // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
+                if (room.state !== 'connected') {
+                    await room.connect('wss://YOUR-LIVEKIT-URL.livekit.cloud', token);
+                }
 
-            if (videoEnabled && !currentCamTrack) {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
-                currentCamTrack = stream.getVideoTracks()[0];
-                await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
-                document.getElementById('admin-self-video').srcObject = stream;
-            } else if (!videoEnabled && currentCamTrack) {
-                await room.localParticipant.unpublishTrack(currentCamTrack);
-                currentCamTrack.stop();
-                currentCamTrack = null;
-                document.getElementById('admin-self-video').srcObject = null;
-            }
+                if (videoEnabled && !currentCamTrack) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+                    currentCamTrack = stream.getVideoTracks()[0];
+                    await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
+                    document.getElementById('admin-self-video').srcObject = stream;
+                } else if (!videoEnabled && currentCamTrack) {
+                    await room.localParticipant.unpublishTrack(currentCamTrack);
+                    currentCamTrack.stop();
+                    currentCamTrack = null;
+                    document.getElementById('admin-self-video').srcObject = null;
+                }
 
-            if (audioEnabled && !currentMicTrack) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-                currentMicTrack = stream.getAudioTracks()[0];
-                await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
-            } else if (!audioEnabled && currentMicTrack) {
-                await room.localParticipant.unpublishTrack(currentMicTrack);
-                currentMicTrack.stop();
-                currentMicTrack = null;
-            }
+                if (audioEnabled && !currentMicTrack) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                    currentMicTrack = stream.getAudioTracks()[0];
+                    await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+                } else if (!audioEnabled && currentMicTrack) {
+                    await room.localParticipant.unpublishTrack(currentMicTrack);
+                    currentMicTrack.stop();
+                    currentMicTrack = null;
+                }
 
-            if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                currentScreenTrack = stream.getVideoTracks()[0];
-                await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
-                currentScreenTrack.onended = () => {
-                    room.localParticipant.unpublishTrack(currentScreenTrack);
+                if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    currentScreenTrack = stream.getVideoTracks()[0];
+                    await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
+                    currentScreenTrack.onended = () => {
+                        room.localParticipant.unpublishTrack(currentScreenTrack);
+                        currentScreenTrack = null;
+                        broadcastMode = 'question';
+                    };
+                } else if (broadcastMode === 'question' && currentScreenTrack) {
+                    await room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack.stop();
                     currentScreenTrack = null;
-                    broadcastMode = 'question';
-                };
-            } else if (broadcastMode === 'question' && currentScreenTrack) {
-                await room.localParticipant.unpublishTrack(currentScreenTrack);
-                currentScreenTrack.stop();
-                currentScreenTrack = null;
+                }
+
+                document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
+                document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
+                return true;
+            } catch (err) {
+                alert("LiveKit Connection Failed: " + err.message);
+                videoEnabled = audioEnabled = false;
+                return false;
             }
-
-            document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
-            document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
-            return true;
-        } catch (err) {
-            alert("LiveKit Connection Failed: " + err.message);
-            videoEnabled = audioEnabled = false;
-            return false;
         }
-    }
 
-    document.getElementById('btn-admin-video').addEventListener('click', async (e) => {
-        videoEnabled = !videoEnabled;
-        e.target.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
-        e.target.classList.toggle('active-cam', videoEnabled);
-        await startOrUpdateBroadcast();
-    });
+        document.getElementById('btn-admin-video').addEventListener('click', async (e) => {
+            videoEnabled = !videoEnabled;
+            e.target.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+            e.target.classList.toggle('active-cam', videoEnabled);
+            await startOrUpdateBroadcast();
+        });
 
-    document.getElementById('btn-admin-audio').addEventListener('click', async (e) => {
-        audioEnabled = !audioEnabled;
-        e.target.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
-        e.target.classList.toggle('active-mic', audioEnabled);
-        await startOrUpdateBroadcast();
-    });
+        document.getElementById('btn-admin-audio').addEventListener('click', async (e) => {
+            audioEnabled = !audioEnabled;
+            e.target.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+            e.target.classList.toggle('active-mic', audioEnabled);
+            await startOrUpdateBroadcast();
+        });
 
-    document.getElementById('btn-admin-stop-stream').addEventListener('click', () => {
-        room.disconnect();
-        if (currentCamTrack) currentCamTrack.stop();
-        if (currentMicTrack) currentMicTrack.stop();
-        if (currentScreenTrack) currentScreenTrack.stop();
-        currentCamTrack = currentMicTrack = currentScreenTrack = null;
+        document.getElementById('btn-admin-stop-stream').addEventListener('click', () => {
+            room.disconnect();
+            if (currentCamTrack) currentCamTrack.stop();
+            if (currentMicTrack) currentMicTrack.stop();
+            if (currentScreenTrack) currentScreenTrack.stop();
+            currentCamTrack = currentMicTrack = currentScreenTrack = null;
 
-        document.getElementById('admin-pip-box').style.display = 'none';
-        document.getElementById('btn-admin-stop-stream').style.display = 'none';
-        videoEnabled = audioEnabled = false;
-        document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
-        document.getElementById('btn-admin-video').classList.remove('active-cam');
-        document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
-        document.getElementById('btn-admin-audio').classList.remove('active-mic');
-    });
+            document.getElementById('admin-pip-box').style.display = 'none';
+            document.getElementById('btn-admin-stop-stream').style.display = 'none';
+            videoEnabled = audioEnabled = false;
+            document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
+            document.getElementById('btn-admin-video').classList.remove('active-cam');
+            document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
+            document.getElementById('btn-admin-audio').classList.remove('active-mic');
+        });
 
-    document.getElementById('btn-mode-question').addEventListener('click', async () => { broadcastMode = 'question'; await startOrUpdateBroadcast(); });
-    document.getElementById('btn-mode-ppt').addEventListener('click', async () => { broadcastMode = 'presentation'; await startOrUpdateBroadcast(); });
-    document.getElementById('btn-mode-both').addEventListener('click', async () => { broadcastMode = 'both'; await startOrUpdateBroadcast(); });
-    
-    // Draggable PIP Window
-    const boxEl = document.getElementById('admin-pip-box');
-    const handleEl = document.getElementById('admin-pip-header');
-    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-    handleEl.addEventListener('pointerdown', (e) => {
-        isDragging = true; handleEl.setPointerCapture(e.pointerId);
-        const rect = boxEl.getBoundingClientRect();
-        startX = e.clientX; startY = e.clientY;
-        initialLeft = rect.left; initialTop = rect.top;
-        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
-        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
-    });
-    handleEl.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-    });
-    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
-</script>
+        document.getElementById('btn-mode-question').addEventListener('click', async () => { broadcastMode = 'question'; await startOrUpdateBroadcast(); });
+        document.getElementById('btn-mode-ppt').addEventListener('click', async () => { broadcastMode = 'presentation'; await startOrUpdateBroadcast(); });
+        document.getElementById('btn-mode-both').addEventListener('click', async () => { broadcastMode = 'both'; await startOrUpdateBroadcast(); });
+        
+        // Draggable PIP Window
+        const boxEl = document.getElementById('admin-pip-box');
+        const handleEl = document.getElementById('admin-pip-header');
+        let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+        handleEl.addEventListener('pointerdown', (e) => {
+            isDragging = true; handleEl.setPointerCapture(e.pointerId);
+            const rect = boxEl.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            initialLeft = rect.left; initialTop = rect.top;
+            boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+            boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+        });
+        handleEl.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+        });
+        handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+    </script>
 </body>
 </html>

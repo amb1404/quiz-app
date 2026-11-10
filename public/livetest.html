@@ -7,207 +7,50 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; margin: 0; padding: 15px; box-sizing: border-box; }
-        body.rtc-stream-active {
-            align-items: flex-start !important;
-        }
-        body.rtc-stream-active #quiz-screen {
-            margin-top: 185px !important;
-        }
+        body.rtc-stream-active { align-items: flex-start !important; }
+        body.rtc-stream-active #quiz-screen { margin-top: 185px !important; }
         .live-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; box-sizing: border-box; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-transform: uppercase;}
         .opt-btn { width: 100%; padding: 15px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 16px; transition: 0.2s;}
         .opt-btn.locked { opacity: 0.6; cursor: not-allowed; }
         .opt-btn.selected { border-color: #4285f4; background-color: #eff6ff; font-weight: bold; }
 
-        /* Student Draggable Video Box & 1-Click Call Button */
         #student-pip-box {
-            position: fixed;
-            top: 12px;
-            right: 12px;
-            width: 210px;
-            background: #0f172a;
-            border: 2px solid #2563eb;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            z-index: 9995;
-            display: none;
-            flex-direction: column;
-            touch-action: none;
-            user-select: none;
+            position: fixed; top: 12px; right: 12px; width: 210px;
+            background: #0f172a; border: 2px solid #2563eb; border-radius: 12px;
+            overflow: hidden; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 9995; display: none; flex-direction: column; touch-action: none; user-select: none;
         }
-        @media (max-width: 600px) {
-            #student-pip-box {
-                width: 175px;
-                top: 10px;
-                right: 10px;
-            }
-        }
-        #student-pip-header {
-            background: #1e293b;
-            color: #f8fafc;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 6px 10px;
-            cursor: grab;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        @media (max-width: 600px) { #student-pip-box { width: 175px; top: 10px; right: 10px; } }
+        #student-pip-header { background: #1e293b; color: #f8fafc; font-size: 11px; font-weight: bold; padding: 6px 10px; cursor: grab; display: flex; justify-content: space-between; align-items: center; }
         #student-pip-header:active { cursor: grabbing; }
-        #student-video-stage {
-            position: relative;
-            width: 100%;
-            height: 112px;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        @media (max-width: 600px) {
-            #student-video-stage { height: 96px; }
-        }
-        #student-remote-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-            transform: scaleX(-1);
-            will-change: contents;
-        }
-        #student-video-placeholder {
-            color: #94a3b8;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: center;
-            padding: 8px;
-        }
+        #student-video-stage { position: relative; width: 100%; height: 112px; background: #000; display: flex; align-items: center; justify-content: center; }
+        @media (max-width: 600px) { #student-video-stage { height: 96px; } }
+        #student-remote-video { width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1); will-change: contents; }
+        #student-video-placeholder { color: #94a3b8; font-size: 12px; font-weight: bold; text-align: center; padding: 8px; }
         #btn-unmute-hint {
-            position: absolute;
-            bottom: 6px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(245, 158, 11, 0.95);
-            color: #0f172a;
-            border: none;
-            border-radius: 12px;
-            padding: 4px 10px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            display: none;
-            white-space: nowrap;
+            position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+            background: rgba(245, 158, 11, 0.95); color: #0f172a; border: none; border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: bold; cursor: pointer; display: none; white-space: nowrap;
         }
-        #student-pip-controls {
-            padding: 6px;
-            background: #0f172a;
-            display: flex;
-            gap: 6px;
-        }
-        #btn-student-call {
-            width: 100%;
-            padding: 7px 10px;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 12px;
-            cursor: pointer;
-            background: #10b981;
-            color: white;
-        }
-        #btn-student-call.on-call {
-            background: #ef4444;
-        }
-        /* Left-Aligned Large Presentation Stage with Dedicated Right-Side Space for Draggable PIP */
-        body.rtc-presentation-active {
-            justify-content: flex-start !important;
-            align-items: flex-start !important;
-            padding: 12px 16px !important;
-        }
-        body.rtc-presentation-active #presentation-screen {
-            margin-top: 0 !important;
-            margin-left: 0 !important;
-            margin-right: auto !important;
-            width: calc(100vw - 250px) !important;
-            max-width: calc(100vw - 250px) !important;
-        }
-        #presentation-screen {
-            display: none;
-            width: 100%;
-            background: #0f172a;
-            border: 2px solid #3b82f6;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-            box-sizing: border-box;
-        }
-        #presentation-header {
-            background: #1e293b;
-            color: #f8fafc;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #334155;
-        }
-        #student-ppt-video {
-            width: 100%;
-            height: calc(100vh - 68px);
-            max-height: 88vh;
-            object-fit: contain;
-            background: #000;
-            display: block;
-            transform: none !important; /* Keep PPT text un-mirrored */
-        }
-        @media (max-width: 768px) {
-            body.rtc-presentation-active #presentation-screen {
-                margin-top: 175px !important;
-                width: 100% !important;
-                max-width: 100% !important;
-            }
-            #student-ppt-video {
-                height: auto;
-                max-height: 68vh;
-            }
-        }
-        /* Step 3: Simultaneous PPT + Question Card Split-Screen Layout */
-        body.rtc-both-active {
-            justify-content: flex-start !important;
-            align-items: flex-start !important;
-            gap: 16px !important;
-            padding: 12px 16px !important;
-            flex-wrap: wrap !important;
-        }
-        body.rtc-both-active #presentation-screen {
-            display: block !important;
-            width: calc(60vw - 24px) !important;
-            max-width: calc(60vw - 24px) !important;
-            margin: 0 !important;
-        }
-        body.rtc-both-active #quiz-screen {
-            display: block !important;
-            width: calc(40vw - 28px) !important;
-            max-width: calc(40vw - 28px) !important;
-            margin-top: 175px !important;
-        }
-        @media (max-width: 960px) {
-            body.rtc-both-active #presentation-screen {
-                margin-top: 175px !important;
-                width: 100% !important;
-                max-width: 100% !important;
-            }
-            body.rtc-both-active #quiz-screen {
-                margin-top: 12px !important;
-                width: 100% !important;
-                max-width: 100% !important;
-            }
-        }
-        @media print {
-            #student-pip-box { display: none !important; }
-        }
+        #student-pip-controls { padding: 6px; background: #0f172a; display: flex; gap: 6px; }
+        #btn-student-call { width: 100%; padding: 7px 10px; border: none; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; background: #10b981; color: white; }
+        #btn-student-call.on-call { background: #ef4444; }
+        
+        body.rtc-presentation-active { justify-content: flex-start !important; align-items: flex-start !important; padding: 12px 16px !important; }
+        body.rtc-presentation-active #presentation-screen { margin-top: 0 !important; margin-left: 0 !important; margin-right: auto !important; width: calc(100vw - 250px) !important; max-width: calc(100vw - 250px) !important; }
+        #presentation-screen { display: none; width: 100%; background: #0f172a; border: 2px solid #3b82f6; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); box-sizing: border-box; }
+        #presentation-header { background: #1e293b; color: #f8fafc; padding: 8px 16px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        #student-ppt-video { width: 100%; height: calc(100vh - 68px); max-height: 88vh; object-fit: contain; background: #000; display: block; transform: none !important; }
+        @media (max-width: 768px) { body.rtc-presentation-active #presentation-screen { margin-top: 175px !important; width: 100% !important; max-width: 100% !important; } #student-ppt-video { height: auto; max-height: 68vh; } }
+        
+        body.rtc-both-active { justify-content: flex-start !important; align-items: flex-start !important; gap: 16px !important; padding: 12px 16px !important; flex-wrap: wrap !important; }
+        body.rtc-both-active #presentation-screen { display: block !important; width: calc(60vw - 24px) !important; max-width: calc(60vw - 24px) !important; margin: 0 !important; }
+        body.rtc-both-active #quiz-screen { display: block !important; width: calc(40vw - 28px) !important; max-width: calc(40vw - 28px) !important; margin-top: 175px !important; }
+        @media (max-width: 960px) { body.rtc-both-active #presentation-screen { margin-top: 175px !important; width: 100% !important; max-width: 100% !important; } body.rtc-both-active #quiz-screen { margin-top: 12px !important; width: 100% !important; max-width: 100% !important; } }
+        @media print { #student-pip-box { display: none !important; } }
     </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
     <div id="auth-screen" class="live-container">
@@ -222,8 +65,7 @@
             </div>
         </div>
     </div>
-<!-- Live PowerPoint Presentation Screen -->
-    <!-- Live PowerPoint Presentation Screen -->
+
     <div id="presentation-screen">
         <div id="presentation-header">
             <span>🖥️ Live Presentation Broadcast</span>
@@ -236,6 +78,7 @@
         </div>
         <video id="student-ppt-video" autoplay playsinline muted></video>
     </div>
+
     <div id="quiz-screen" class="live-container" style="display: none;">
         <div style="display: flex; justify-content: space-between; color: #64748b; margin-bottom: 20px; font-weight: bold;">
             <span id="live-status">Waiting for Admin...</span>
@@ -245,7 +88,6 @@
         <div id="options-container" style="text-align: left;"></div>
     </div>
 
-    <!-- Draggable Instructor Video Feed & 1-Click Call Button -->
     <div id="student-pip-box" class="no-print">
         <div id="student-pip-header">
             <span>⠿ Drag Video</span>
@@ -263,102 +105,116 @@
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/js/livetest.js"></script>
-<script>
-    const room = new LivekitClient.Room();
+    <script>
+        const room = new LivekitClient.Room();
 
-    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === 'video') {
-            if (publication.trackName === 'screen') {
-                track.attach(document.getElementById('student-ppt-video'));
-                document.getElementById('presentation-screen').style.display = 'block';
-                document.body.classList.add('rtc-both-active');
-            } else {
-                track.attach(document.getElementById('student-remote-video'));
-                document.getElementById('student-pip-box').style.display = 'flex';
-                document.getElementById('student-video-placeholder').style.display = 'none';
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            if (track.kind === 'video') {
+                if (publication.trackName === 'screen') {
+                    track.attach(document.getElementById('student-ppt-video'));
+                    document.getElementById('presentation-screen').style.display = 'block';
+                    document.body.classList.add('rtc-both-active');
+                } else {
+                    const videoEl = document.getElementById('student-remote-video');
+                    track.attach(videoEl);
+                    videoEl.style.display = 'block';
+                    document.getElementById('student-pip-box').style.display = 'flex';
+                    document.getElementById('student-video-placeholder').style.display = 'none';
+                    document.body.classList.add('rtc-stream-active');
+                }
+            } else if (track.kind === 'audio') {
+                const audioEl = document.createElement('audio');
+                track.attach(audioEl);
+                audioEl.play().catch(() => {
+                    document.getElementById('btn-unmute-hint').style.display = 'block';
+                });
             }
-        } else if (track.kind === 'audio') {
-            const audioEl = document.createElement('audio');
-            track.attach(audioEl);
-            audioEl.play().catch(() => {
-                document.getElementById('btn-unmute-hint').style.display = 'block';
-            });
-        }
-    });
+        });
 
-    document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
-        e.target.style.display = 'none';
-        if (room.audioContext && room.audioContext.state === 'suspended') {
-            room.audioContext.resume();
-        }
-    });
-
-    async function connectLiveKit(quizId) {
-        try {
-            if (room.state === 'connected') return;
-            const tokenObj = localStorage.getItem('pp_id_token') || "";
-            let myName = "Student";
-            if (tokenObj) {
-               const parts = tokenObj.split('|||')[0].split('|');
-               if(parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
+            if (track.kind === 'video') {
+                if (publication.trackName === 'screen') {
+                    document.getElementById('student-ppt-video').srcObject = null;
+                    document.getElementById('presentation-screen').style.display = 'none';
+                    document.body.classList.remove('rtc-both-active');
+                } else {
+                    document.getElementById('student-remote-video').srcObject = null;
+                    document.getElementById('student-remote-video').style.display = 'none';
+                    document.getElementById('student-video-placeholder').style.display = 'block';
+                }
             }
+        });
 
-            const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=${encodeURIComponent(myName)}`);
-            if (!res.ok) return;
-            const { token } = await res.json();
-            
-            // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
-            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
-        } catch (err) {
-            console.error("LiveKit connection failed:", err);
-        }
-    }
+        document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
+            e.target.style.display = 'none';
+            if (room.audioContext && room.audioContext.state === 'suspended') {
+                room.audioContext.resume();
+            }
+        });
 
-    // Ping WebSocket connection to launch SFU
-    setInterval(() => {
-        if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
-            connectLiveKit(currentQuizId);
-        }
-    }, 3000);
-
-    // Student Speaking (Mic Publishing)
-    let studentMicTrack = null;
-    document.getElementById('btn-student-call').addEventListener('click', async (e) => {
-        if (!studentMicTrack) {
+        async function connectLiveKit(quizId) {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-                studentMicTrack = stream.getAudioTracks()[0];
-                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
-                e.target.textContent = '🔴 Mute Mic';
-                e.target.classList.add('on-call');
-            } catch(err) { alert('Mic access denied'); }
-        } else {
-            await room.localParticipant.unpublishTrack(studentMicTrack);
-            studentMicTrack.stop();
-            studentMicTrack = null;
-            e.target.textContent = '📞 Speak';
-            e.target.classList.remove('on-call');
-        }
-    });
+                if (room.state === 'connected') return;
+                const tokenObj = localStorage.getItem('pp_id_token') || "";
+                let myName = "Student";
+                if (tokenObj) {
+                   const parts = tokenObj.split('|||')[0].split('|');
+                   if(parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+                }
 
-    // Draggable PIP Window
-    const boxEl = document.getElementById('student-pip-box');
-    const handleEl = document.getElementById('student-pip-header');
-    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-    handleEl.addEventListener('pointerdown', (e) => {
-        isDragging = true; handleEl.setPointerCapture(e.pointerId);
-        const rect = boxEl.getBoundingClientRect();
-        startX = e.clientX; startY = e.clientY;
-        initialLeft = rect.left; initialTop = rect.top;
-        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
-        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
-    });
-    handleEl.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-    });
-    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
-</script>
+                const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=${encodeURIComponent(myName)}`);
+                if (!res.ok) return;
+                const { token } = await res.json();
+                
+                // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
+                await room.connect('wss://YOUR-LIVEKIT-URL.livekit.cloud', token);
+            } catch (err) {
+                console.error("LiveKit connection failed:", err);
+            }
+        }
+
+        setInterval(() => {
+            if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+                connectLiveKit(currentQuizId);
+            }
+        }, 3000);
+
+        let studentMicTrack = null;
+        document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+            if (!studentMicTrack) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                    studentMicTrack = stream.getAudioTracks()[0];
+                    await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+                    e.target.textContent = '🔴 Mute Mic';
+                    e.target.classList.add('on-call');
+                } catch(err) { alert('Mic access denied'); }
+            } else {
+                await room.localParticipant.unpublishTrack(studentMicTrack);
+                studentMicTrack.stop();
+                studentMicTrack = null;
+                e.target.textContent = '📞 Speak';
+                e.target.classList.remove('on-call');
+            }
+        });
+
+        const boxEl = document.getElementById('student-pip-box');
+        const handleEl = document.getElementById('student-pip-header');
+        let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+        handleEl.addEventListener('pointerdown', (e) => {
+            isDragging = true; handleEl.setPointerCapture(e.pointerId);
+            const rect = boxEl.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            initialLeft = rect.left; initialTop = rect.top;
+            boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+            boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+        });
+        handleEl.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+        });
+        handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+    </script>
 </body>
 </html>
