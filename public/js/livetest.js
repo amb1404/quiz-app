@@ -163,20 +163,34 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
     }
 }
 
-// Connect WebSockets
-const socket = io(); // Requires <script src="/socket.io/socket.io.js"></script> in HTML
-socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+let socket = null;
+if (typeof io !== 'undefined') {
+    socket = io();
+    socket.on("room-state", (data) => {
+        if (data && (data.currentIndex !== localIndex || data.activeQuizFile !== currentActiveQuizFile)) {
+            currentActiveQuizFile = data.activeQuizFile || "";
+            localIndex = data.currentIndex;
+            if (data.payload && data.key) renderQuestion(data);
+        }
+    });
+}
 
-socket.on("room-state", (data) => {
-    if (data.currentIndex !== localIndex || data.activeQuizFile !== currentActiveQuizFile) {
-        currentActiveQuizFile = data.activeQuizFile || "";
-        localIndex = data.currentIndex;
-        renderQuestion(data);
+function startSync() {
+    if (socket && currentQuizId && liveToken) {
+        socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
     }
-});
+}
 
-// Replace the old fetch('/api/live/student/submit') inside renderQuestion() with:
-// socket.emit("submit-answer", currentQuizId, { index: localIndex, answer: idx });
+function startHeartbeat() {}
+
+function xorDecipher(b64Str, key) {
+    const raw = atob(b64Str);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+    const k = new TextEncoder().encode(key);
+    for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
+    return new TextDecoder().decode(buf);
+}
 function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;

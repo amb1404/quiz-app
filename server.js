@@ -461,9 +461,9 @@ app.use((req, res, next) => {
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https://*.razorpay.com",
         "media-src 'self' blob:",
-        "worker-src 'self' blob:",
-        "connect-src 'self' https://api.razorpay.com https://lumberjack-cx.razorpay.com",
-        "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+       "worker-src 'self' blob:",
+    "connect-src 'self' wss: https://*.livekit.cloud wss://*.livekit.cloud https://cdn.jsdelivr.net https://api.razorpay.com https://lumberjack-cx.razorpay.com",
+    "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
         "object-src 'none'",
         "base-uri 'self'",
         "frame-ancestors 'none'",
@@ -2717,6 +2717,35 @@ app.post('/api/live/admin/set-index', async (req, res) => {
         res.json({ success: true, currentIndex: state.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
+// Student Join Room Verification
+app.post('/api/live/student/verify', async (req, res) => {
+    try {
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token, null, false);
+        if (!authCheck.valid) return res.status(401).json({ error: 'Unauthorized. Please sign in globally first.' });
+        syncAuthCookieIfNeeded(req, res, token);
+
+        const { quizId } = req.body;
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!cleanId) return res.status(400).json({ error: 'Please select a Room to join.' });
+
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        if (!state || state.status !== 'active') {
+            return res.status(400).json({ error: 'This room is no longer active.' });
+        }
+
+        const fName = String(authCheck.firstName).trim().toUpperCase();
+        const lName = String(authCheck.lastName).trim().toUpperCase();
+        const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+
+        res.json({ success: true, token: `${tokenData}|||${signature}` });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to join room.' });
+    }
+});
+
 // ============================================================================
 // 9. LIVEKIT SFU TOKEN GENERATION
 // ============================================================================
@@ -2729,9 +2758,14 @@ app.get('/api/livekit/token', async (req, res) => {
             return res.status(500).json({ error: "Missing SFU keys." });
         }
         const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { 
-            identity: studentName 
+            identity: String(studentName || 'user') + '_' + Math.random().toString(36).substring(2, 6)
         });
-        at.addGrant({ roomJoin: true, room: quizId });
+        at.addGrant({
+            roomJoin: true,
+            room: String(quizId || 'default'),
+            canPublish: true,
+            canSubscribe: true
+        });
         res.json({ token: await at.toJwt() });
     } catch (err) {
         res.status(500).json({ error: "Token generation failed." });

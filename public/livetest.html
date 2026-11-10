@@ -166,8 +166,7 @@
                 if (!res.ok) return;
                 const { token } = await res.json();
                 
-                // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
-                await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
+                await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
             } catch (err) {
                 console.error("LiveKit connection failed:", err);
             }

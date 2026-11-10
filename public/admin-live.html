@@ -174,74 +174,90 @@
     <script src="/js/admin-live.js"></script>
     <script>
         const room = new LivekitClient.Room();
-        let videoEnabled = false;
-        let audioEnabled = false;
-        let broadcastMode = 'question';
-        let currentCamTrack = null;
-        let currentMicTrack = null;
-        let currentScreenTrack = null;
+    let videoEnabled = false;
+    let audioEnabled = false;
+    let broadcastMode = 'question';
+    let currentCamTrack = null;
+    let currentMicTrack = null;
+    let currentScreenTrack = null;
+    let connectingPromise = null;
 
-        async function startOrUpdateBroadcast() {
-            const adminKey = document.getElementById('admin-key').value.trim();
-            const quizId = document.getElementById('quiz-id').value.trim();
-            if (!adminKey || !quizId) return false;
+    async function ensureRoomConnected(quizId) {
+        if (room.state === 'connected') return;
+        if (connectingPromise) return await connectingPromise;
 
-            try {
-                const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
-                if (!res.ok) throw new Error("API Keys missing on server.");
-                const { token } = await res.json();
+        connectingPromise = (async () => {
+            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin`);
+            if (!res.ok) throw new Error("API Keys missing on server.");
+            const { token } = await res.json();
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
+        })();
 
-                // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
-                if (room.state !== 'connected') {
-                    await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
-                }
-
-                if (videoEnabled && !currentCamTrack) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
-                    currentCamTrack = stream.getVideoTracks()[0];
-                    await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
-                    document.getElementById('admin-self-video').srcObject = stream;
-                } else if (!videoEnabled && currentCamTrack) {
-                    await room.localParticipant.unpublishTrack(currentCamTrack);
-                    currentCamTrack.stop();
-                    currentCamTrack = null;
-                    document.getElementById('admin-self-video').srcObject = null;
-                }
-
-                if (audioEnabled && !currentMicTrack) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-                    currentMicTrack = stream.getAudioTracks()[0];
-                    await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
-                } else if (!audioEnabled && currentMicTrack) {
-                    await room.localParticipant.unpublishTrack(currentMicTrack);
-                    currentMicTrack.stop();
-                    currentMicTrack = null;
-                }
-
-                if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
-                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    currentScreenTrack = stream.getVideoTracks()[0];
-                    await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
-                    currentScreenTrack.onended = () => {
-                        room.localParticipant.unpublishTrack(currentScreenTrack);
-                        currentScreenTrack = null;
-                        broadcastMode = 'question';
-                    };
-                } else if (broadcastMode === 'question' && currentScreenTrack) {
-                    await room.localParticipant.unpublishTrack(currentScreenTrack);
-                    currentScreenTrack.stop();
-                    currentScreenTrack = null;
-                }
-
-                document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
-                document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
-                return true;
-            } catch (err) {
-                alert("LiveKit Connection Failed: " + err.message);
-                videoEnabled = audioEnabled = false;
-                return false;
-            }
+        try {
+            await connectingPromise;
+        } finally {
+            connectingPromise = null;
         }
+    }
+
+    async function startOrUpdateBroadcast() {
+        const adminKey = document.getElementById('admin-key').value.trim();
+        const quizId = document.getElementById('quiz-id').value.trim();
+        if (!adminKey || !quizId) return false;
+
+        try {
+            await ensureRoomConnected(quizId);
+
+            if (videoEnabled && !currentCamTrack) {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+                currentCamTrack = stream.getVideoTracks()[0];
+                await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
+                document.getElementById('admin-self-video').srcObject = stream;
+            } else if (!videoEnabled && currentCamTrack) {
+                await room.localParticipant.unpublishTrack(currentCamTrack);
+                currentCamTrack.stop();
+                currentCamTrack = null;
+                document.getElementById('admin-self-video').srcObject = null;
+            }
+
+            if (audioEnabled && !currentMicTrack) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                currentMicTrack = stream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+            } else if (!audioEnabled && currentMicTrack) {
+                await room.localParticipant.unpublishTrack(currentMicTrack);
+                currentMicTrack.stop();
+                currentMicTrack = null;
+            }
+
+            if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                currentScreenTrack = stream.getVideoTracks()[0];
+                await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
+                currentScreenTrack.onended = () => {
+                    room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack = null;
+                    broadcastMode = 'question';
+                };
+            } else if (broadcastMode === 'question' && currentScreenTrack) {
+                await room.localParticipant.unpublishTrack(currentScreenTrack);
+                currentScreenTrack.stop();
+                currentScreenTrack = null;
+            }
+
+            document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
+            document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
+            return true;
+        } catch (err) {
+            alert("LiveKit Connection Failed: " + err.message);
+            videoEnabled = audioEnabled = false;
+            document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
+            document.getElementById('btn-admin-video').classList.remove('active-cam');
+            document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
+            document.getElementById('btn-admin-audio').classList.remove('active-mic');
+            return false;
+        }
+    }
 
         document.getElementById('btn-admin-video').addEventListener('click', async (e) => {
             videoEnabled = !videoEnabled;
