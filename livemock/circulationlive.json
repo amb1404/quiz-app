@@ -1,0 +1,225 @@
+{
+  "title": "ICSE Class X Biology - The Circulatory System",
+  "category": "biology",
+  "classLevel": "X",
+  "subject": "Biology",
+  "unit": "Human Anatomy and Physiology",
+  "chapter": "Circulatory System",
+  "duration": 1800,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Which of the following mineral elements is strictly essential for the clotting of blood?",
+      "options": ["Iron", "Calcium", "Potassium", "Sodium"],
+      "answer": 1,
+      "explanation": "Calcium ions (Ca++) are essential for the conversion of inactive prothrombin into active thrombin during the blood coagulation cascade."
+    },
+    {
+      "type": "mcq",
+      "question": "The phenomenon by which White Blood Cells (WBCs) squeeze out through the walls of blood capillaries is called:",
+      "options": ["Phagocytosis", "Plasmolysis", "Diapedesis", "Haemolysis"],
+      "answer": 2,
+      "explanation": "Diapedesis is the amoeboid movement of WBCs (especially neutrophils) squeezing through intact capillary walls to reach sites of infection."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following valves is located between the left atrium and the left ventricle?",
+      "options": ["Tricuspid valve", "Bicuspid (Mitral) valve", "Aortic semilunar valve", "Pulmonary semilunar valve"],
+      "answer": 1,
+      "explanation": "The bicuspid valve, also known as the mitral valve, guards the left auriculo-ventricular aperture and prevents backflow of blood into the left atrium."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the fluid part of the blood left after the removal of corpuscles and fibrinogen called?",
+      "options": ["Plasma", "Lymph", "Serum", "Tissue fluid"],
+      "answer": 2,
+      "explanation": "Serum is blood plasma minus the clotting factor fibrinogen. It cannot clot."
+    },
+    {
+      "type": "mcq",
+      "question": "Identify the blood vessel that begins and ends in capillaries.",
+      "options": ["Hepatic artery", "Pulmonary vein", "Hepatic portal vein", "Renal vein"],
+      "answer": 2,
+      "explanation": "A portal vein begins in the capillaries of one organ (e.g., stomach/intestines) and ends in the capillaries of another organ (liver) before joining the main venous circulation."
+    },
+    {
+      "type": "mcq",
+      "question": "The natural pacemaker of the human heart is the:",
+      "options": ["Sino-atrial (SA) node", "Atrio-ventricular (AV) node", "Bundle of His", "Purkinje fibres"],
+      "answer": 0,
+      "explanation": "The SA node, located in the wall of the right atrium, initiates the electrical impulses that set the rhythm of the heart."
+    },
+    {
+      "type": "mcq",
+      "question": "Which chamber of the human heart has the thickest muscular wall?",
+      "options": ["Right atrium", "Left atrium", "Right ventricle", "Left ventricle"],
+      "answer": 3,
+      "explanation": "The left ventricle has the thickest walls because it must pump oxygenated blood at a high pressure to all body parts through the aorta."
+    },
+    {
+      "type": "mcq",
+      "question": "The blood vessels that supply oxygenated blood directly to the heart muscles are:",
+      "options": ["Pulmonary arteries", "Coronary arteries", "Hepatic arteries", "Carotid arteries"],
+      "answer": 1,
+      "explanation": "Coronary arteries branch off from the base of the aorta and supply oxygen and nutrients directly to the cardiac muscles."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the average lifespan of a human Red Blood Cell (RBC)?",
+      "options": ["120 days", "14 days", "1 year", "2 to 3 days"],
+      "answer": 0,
+      "explanation": "Mature RBCs lack a nucleus and most organelles, limiting their lifespan to approximately 120 days, after which they are destroyed in the spleen or liver."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following blood groups is considered the universal donor?",
+      "options": ["A", "B", "AB", "O"],
+      "answer": 3,
+      "explanation": "Blood group O has no antigens (A or B) on the surface of its RBCs, meaning it will not trigger an immune response when transfused to other groups."
+    },
+    {
+      "type": "mcq",
+      "question": "Which vein is an exception because it carries oxygenated blood?",
+      "options": ["Hepatic vein", "Pulmonary vein", "Renal vein", "Jugular vein"],
+      "answer": 1,
+      "explanation": "The pulmonary vein is the only vein in the human body that carries oxygenated blood (from the lungs to the left atrium of the heart)."
+    },
+    {
+      "type": "mcq",
+      "question": "The instrument used to measure human blood pressure is called a:",
+      "options": ["Stethoscope", "Electrocardiogram", "Sphygmomanometer", "Haemocytometer"],
+      "answer": 2,
+      "explanation": "A sphygmomanometer measures blood pressure, which is typically 120/80 mm Hg in a healthy adult."
+    },
+    {
+      "type": "mcq",
+      "question": "The double-layered membranous covering of the heart is known as the:",
+      "options": ["Pleura", "Pericardium", "Meninges", "Peritoneum"],
+      "answer": 1,
+      "explanation": "The pericardium protects the heart, and the pericardial fluid between its layers reduces friction during heartbeats."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following are categorized as agranulocytes?",
+      "options": ["Neutrophils and Eosinophils", "Basophils and Lymphocytes", "Lymphocytes and Monocytes", "Monocytes and Neutrophils"],
+      "answer": 2,
+      "explanation": "Agranulocytes lack visible cytoplasmic granules and have a single, non-lobed nucleus. They include lymphocytes and monocytes."
+    },
+    {
+      "type": "mcq",
+      "question": "In the human heart, the chordae tendineae are found in the:",
+      "options": ["Atria", "Ventricles", "Aorta", "Pulmonary trunk"],
+      "answer": 1,
+      "explanation": "Chordae tendineae are tendinous cords attached to the flaps of the AV valves and the papillary muscles of the ventricles, preventing the valves from collapsing back into the atria during ventricular systole."
+    },
+    {
+      "type": "mcq",
+      "question": "The phase of contraction of the heart chambers is medically termed as:",
+      "options": ["Diastole", "Systole", "Pulse", "Tachycardia"],
+      "answer": 1,
+      "explanation": "Systole refers to the active contraction phase of the heart chambers, pumping blood out, whereas diastole refers to the relaxation phase."
+    },
+    {
+      "type": "mcq",
+      "question": "Lymph differs from blood plasma primarily because it lacks:",
+      "options": ["White blood cells", "Water", "Red blood cells", "Dissolved nutrients"],
+      "answer": 2,
+      "explanation": "Lymph is essentially blood plasma minus Red Blood Cells and large plasma proteins. It contains a high concentration of lymphocytes (WBCs)."
+    },
+    {
+      "type": "mcq",
+      "question": "Abnormal increase in the number of white blood cells (WBCs) leads to a condition called:",
+      "options": ["Leucopenia", "Leukemia", "Anaemia", "Haemophilia"],
+      "answer": 1,
+      "explanation": "Leukemia (blood cancer) is characterized by an uncontrolled and abnormal overproduction of white blood cells."
+    },
+    {
+      "type": "mcq",
+      "question": "The metallic ion fundamentally present in the haemoglobin molecule is:",
+      "options": ["Magnesium", "Zinc", "Iron", "Copper"],
+      "answer": 2,
+      "explanation": "Haemoglobin is an iron-containing respiratory pigment (haem = iron, globin = protein) responsible for carrying oxygen in RBCs."
+    },
+    {
+      "type": "mcq",
+      "question": "The 'lubb' sound of the heartbeat is caused by the:",
+      "options": ["Closing of the semilunar valves", "Closing of the atrio-ventricular valves", "Opening of the semilunar valves", "Opening of the atrio-ventricular valves"],
+      "answer": 1,
+      "explanation": "The first heart sound ('lubb') is produced by the sudden closure of the bicuspid and tricuspid (AV) valves at the beginning of ventricular systole."
+    },
+    {
+      "type": "mcq",
+      "question": "Where are human red blood cells primarily produced in an adult?",
+      "options": ["Liver", "Spleen", "Bone marrow", "Kidneys"],
+      "answer": 2,
+      "explanation": "In adults, RBCs are manufactured in the red bone marrow of long bones, ribs, sternum, and iliac crest."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following blood vessels carries deoxygenated blood to the lungs?",
+      "options": ["Pulmonary vein", "Aorta", "Vena Cava", "Pulmonary artery"],
+      "answer": 3,
+      "explanation": "The pulmonary artery arises from the right ventricle and carries deoxygenated blood to the lungs for oxygenation."
+    },
+    {
+      "type": "mcq",
+      "question": "The process of engulfing and destroying bacteria or foreign particles by WBCs is called:",
+      "options": ["Pinocytosis", "Phagocytosis", "Exocytosis", "Haemolysis"],
+      "answer": 1,
+      "explanation": "Phagocytosis is the cellular eating process heavily utilized by neutrophils and monocytes to destroy invading pathogens."
+    },
+    {
+      "type": "mcq",
+      "question": "Which vein brings clean but deoxygenated blood from the lower parts of the body to the right atrium?",
+      "options": ["Superior Vena Cava", "Inferior Vena Cava", "Pulmonary Vein", "Hepatic Vein"],
+      "answer": 1,
+      "explanation": "The Inferior Vena Cava (post-caval vein) collects deoxygenated blood from the abdomen and lower limbs and empties it into the right atrium."
+    },
+    {
+      "type": "mcq",
+      "question": "A person with blood group AB can receive blood from:",
+      "options": ["Only AB", "Only O", "A and B only", "All blood groups (A, B, AB, O)"],
+      "answer": 3,
+      "explanation": "Blood group AB individuals lack both anti-A and anti-B antibodies in their plasma, making them universal recipients."
+    },
+    {
+      "type": "mcq",
+      "question": "Which organ is often referred to as the 'graveyard of RBCs'?",
+      "options": ["Liver", "Bone marrow", "Spleen", "Pancreas"],
+      "answer": 2,
+      "explanation": "The spleen acts as a filter for blood, destroying old, worn-out, or damaged red blood cells."
+    },
+    {
+      "type": "mcq",
+      "question": "Which component of blood initiates the process of blood clotting upon injury?",
+      "options": ["Red Blood Cells", "Blood Platelets (Thrombocytes)", "Lymphocytes", "Monocytes"],
+      "answer": 1,
+      "explanation": "When a blood vessel is ruptured, blood platelets clump together and release the enzyme thrombokinase, which triggers the clotting cascade."
+    },
+    {
+      "type": "mcq",
+      "question": "What prevents the blood from flowing backward inside the veins?",
+      "options": ["Thick muscular walls", "Narrow lumen", "Pocket-shaped valves", "High blood pressure"],
+      "answer": 2,
+      "explanation": "Veins contain pocket-shaped semilunar valves that allow blood to flow in only one direction (towards the heart) and prevent backflow."
+    },
+    {
+      "type": "mcq",
+      "question": "Which statement strictly identifies a capillary?",
+      "options": ["It consists of a single layer of squamous epithelium", "It has a thick muscular layer", "It carries only oxygenated blood", "It contains internal valves"],
+      "answer": 0,
+      "explanation": "Capillaries are the thinnest blood vessels, having walls composed of only a single layer of endothelial cells (squamous epithelium) to allow easy diffusion of gases and nutrients."
+    },
+    {
+      "type": "mcq",
+      "question": "During ventricular diastole, which event occurs in the heart?",
+      "options": ["Ventricles contract and pump blood into arteries", "Semilunar valves open", "Atrio-ventricular valves open and blood fills the ventricles", "Blood is forced into the aorta"],
+      "answer": 2,
+      "explanation": "During ventricular diastole (relaxation), pressure drops in the ventricles causing the AV valves to open, allowing blood from the atria to flow in and fill them."
+    }
+  ]
+}

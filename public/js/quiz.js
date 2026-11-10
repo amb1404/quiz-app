@@ -1,0 +1,1103 @@
+// public/js/quiz.js
+let screenHistory = [];
+let dynamicQuizzes = [];
+let currentQuizId = "";
+let currentQuestionsCount = 0;
+let questionCache = {};
+let currentQuestionIndex = 0;
+let userAnswers = {};
+let skippedQuestions = new Set();
+let timeRemaining = 900;
+let quizDuration = 900;
+let serverStartTime = 0;
+let timerSignature = "";
+let timerInterval;
+let selectedClassName = "";
+let selectedSubjectName = "";
+let activeQuizTitle = "";
+let selectedNotesClass = "";
+let selectedNotesSubject = "";
+let selectedDescriptiveClass = "";
+let selectedDescriptiveSubject = "";
+let selectedNeetUnit = "";
+let selectedNeetChapter = "";
+let isRestoringSession = false;
+
+// Variables for Premium/Ultra PDF Interception
+let activePremiumPdf = null;
+let activePremiumType = null;
+
+function escapeClientHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
+function handleExpiredSession() {
+    localStorage.clear();
+    sessionStorage.removeItem('pioneers_prep_state');
+    sessionStorage.setItem('force_login_open', 'true');
+    alert('Session expired. Please sign in again.');
+    window.location.replace('/');
+}
+
+// ANTI-SCRAPING: Client-Side XOR Decipher
+function xorDecipher(b64Str, key) {
+    const raw = atob(b64Str);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+    const k = new TextEncoder().encode(key);
+    for (let i = 0; i < buf.length; i++) buf[i] ^= k[i % k.length];
+    return new TextDecoder().decode(buf);
+}
+
+// DOM PROTECTION: Disable Right-Click and Copy Shortcuts during exams
+document.addEventListener('contextmenu', e => {
+    if (document.body.classList.contains('exam-mode')) e.preventDefault();
+});
+document.addEventListener('keydown', e => {
+    if (document.body.classList.contains('exam-mode')) {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) e.preventDefault();
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'p' || e.key === 'P')) e.preventDefault();
+    }
+});
+
+const neetHierarchy = {
+    "XI": {
+        "Unit I: Diversity in the Living World": ["The Living World", "Biological Classification", "Plant Kingdom", "Animal Kingdom"],
+        "Unit II: Structural Organisation in Plants and Animals": ["Morphology of Flowering Plants", "Anatomy of Flowering Plants", "Structural Organisation in Animals"],
+        "Unit III: Cell: Structure and Functions": ["Cell: The Unit of Life", "Biomolecules", "Cell Cycle and Cell Division"],
+        "Unit IV: Plant Physiology": ["Photosynthesis in Higher Plants", "Respiration in Plants", "Plant Growth and Development"],
+        "Unit V: Human Physiology": ["Breathing and Exchange of Gases", "Body Fluids and Circulation", "Excretory Products and their Elimination", "Locomotion and Movement", "Neural Control and Coordination", "Chemical Coordination and Integration"]
+    },
+    "XII": {
+        "Unit VI: Reproduction": ["Sexual Reproduction in Flowering Plants", "Human Reproduction", "Reproductive Health", "Reproduction in Organisms"],
+        "Unit VII: Genetics and Evolution": ["Principles of Inheritance and Variation", "Molecular Basis of Inheritance", "Evolution"],
+        "Unit VIII: Biology in Human Welfare": ["Human Health and Disease", "Microbes in Human Welfare", "Strategies for Enhancement in Food Production"],
+        "Unit IX: Biotechnology and its Applications": ["Biotechnology: Principles and Processes", "Biotechnology and its Applications"],
+        "Unit X: Ecology and Environment": ["Organisms and Populations", "Ecosystem", "Biodiversity and Conservation", "Environmental Issues"]
+    }
+};
+
+function isChapterMatch(quizChap, targetChap) {
+    if (!quizChap || !targetChap) return false;
+    const clean = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return clean(quizChap).includes(clean(targetChap)) || clean(targetChap).includes(clean(quizChap));
+}
+
+function updateState() {
+    if (isRestoringSession) return;
+    MainNav.saveSessionState(
+        CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex,
+        timeRemaining, quizDuration, serverStartTime, timerSignature,
+        userAnswers, skippedQuestions, screenHistory,
+        { selectedClassName, selectedSubjectName, currentQuestionsCount, questionCache, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedDescriptiveSubject, selectedNeetUnit, selectedNeetChapter }
+    );
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    const normalizedRoute = MainNav.normalizeRoute(CURRENT_ROUTE);
+
+    if (normalizedRoute === '/test-portal.html') {
+        try {
+            const res = await fetch('/api/quizzes');
+            const data = await res.json();
+            if (data.success) dynamicQuizzes = data.quizzes;
+        } catch (e) {
+            console.error("Failed to load quizzes", e);
+        }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const queryClass = params.get('class');
+    const savedState = MainNav.getSavedState(CURRENT_ROUTE);
+
+    if (savedState && savedState.activeScreen !== 'home-dashboard') {
+        await restoreSessionState(savedState);
+    } else if (queryClass) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (normalizedRoute === '/test-portal.html') selectClass(queryClass);
+        else if (normalizedRoute === '/notes.html') selectNotesClass(queryClass);
+        else if (normalizedRoute === '/descriptive.html') selectDescriptiveClass(queryClass);
+    }
+});
+
+async function restoreSessionState(state) {
+    try {
+        isRestoringSession = true;
+        selectedClassName = state.selectedClassName || '';
+        selectedSubjectName = state.selectedSubjectName || '';
+        selectedNotesClass = state.selectedNotesClass || '';
+        selectedNotesSubject = state.selectedNotesSubject || '';
+        selectedDescriptiveClass = state.selectedDescriptiveClass || '';
+        selectedDescriptiveSubject = state.selectedDescriptiveSubject || '';
+        selectedNeetUnit = state.selectedNeetUnit || '';
+        selectedNeetChapter = state.selectedNeetChapter || '';
+        currentQuizId = state.currentQuizId || '';
+        activeQuizTitle = state.activeQuizTitle || '';
+        currentQuestionIndex = state.currentQuestionIndex || 0;
+        timeRemaining = state.timeRemaining || 900;
+        quizDuration = state.quizDuration || 900;
+        serverStartTime = state.serverStartTime || 0;
+        timerSignature = state.timerSignature || '';
+        currentQuestionsCount = state.currentQuestionsCount || 0;
+        questionCache = state.questionCache || {};
+        userAnswers = state.userAnswers || {};
+        skippedQuestions = new Set(state.skippedQuestions || []);
+
+        // Pre-load parent menus so Back navigation is always fully populated
+        if (selectedClassName && (selectedClassName === 'XI' || selectedClassName === 'XII' || selectedClassName === 'ISC XI' || selectedClassName === 'ISC XII')) {
+            loadNeetUnits(selectedClassName);
+            if (selectedNeetUnit) {
+                loadNeetChapters(selectedClassName, selectedNeetUnit);
+            }
+            if (selectedNeetUnit && selectedNeetChapter) {
+                loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            }
+        }
+
+        if (state.activeScreen === 'quiz-screen' && currentQuizId) {
+            if (serverStartTime && quizDuration) {
+                timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
+            }
+            showScreen('quiz-screen');
+            await renderQuestion();
+            startTimer();
+        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
+            loadNeetUnits(selectedClassName);
+            screenHistory = ['home-dashboard'];
+        } else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
+            loadNeetChapters(selectedClassName, selectedNeetUnit);
+            screenHistory = ['home-dashboard', 'neet-unit-screen'];
+        } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
+            loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            screenHistory = ['home-dashboard', 'neet-unit-screen', 'neet-chapter-screen'];
+        } else if (state.activeScreen === 'subject-select-screen') {
+            showScreen('subject-select-screen');
+            screenHistory = ['home-dashboard'];
+        } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
+            if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) {
+                selectSubject(selectedSubjectName);
+                screenHistory = ['home-dashboard', 'subject-select-screen'];
+            } else {
+                loadDynamicChapters(selectedClassName);
+                screenHistory = ['home-dashboard'];
+            }
+        } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) {
+            selectNotesClass(selectedNotesClass);
+            screenHistory = ['home-dashboard'];
+        } else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) {
+            await selectNotesSubject(selectedNotesSubject);
+            screenHistory = ['home-dashboard', 'notes-subject-screen'];
+        } else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) {
+            selectDescriptiveClass(selectedDescriptiveClass);
+            screenHistory = ['home-dashboard'];
+        } else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) {
+            await selectDescriptiveSubject(selectedDescriptiveSubject);
+            screenHistory = ['home-dashboard', 'descriptive-subject-screen'];
+        } else {
+            showScreen(state.activeScreen);
+        }
+
+        // Force the active screen to remain visible and correct
+        const targetScreen = document.getElementById(state.activeScreen);
+        if (targetScreen) {
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+            targetScreen.classList.remove('hidden');
+        }
+
+        if (state.screenHistory && state.screenHistory.length > 0) {
+            screenHistory = state.screenHistory;
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        isRestoringSession = false;
+        updateState();
+    }
+}
+
+function showScreen(screenId) {
+    const target = document.getElementById(screenId);
+    if (!target) return;
+    const current = document.querySelector('.app-screen:not(.hidden)');
+    if (!isRestoringSession && current && current.id !== screenId) screenHistory.push(current.id);
+    document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+    target.classList.remove('hidden');
+
+    if (screenId === 'quiz-screen') MainNav.applyExamMode();
+    else MainNav.clearExamMode();
+
+    if (!isRestoringSession) updateState();
+}
+
+function goBack() {
+    if (screenHistory.length > 0) {
+        const prev = screenHistory.pop();
+        document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+        const target = document.getElementById(prev);
+        if (target) {
+            target.classList.remove('hidden');
+            MainNav.clearExamMode();
+        } else {
+            goHome();
+        }
+        updateState();
+    } else {
+        goHome();
+    }
+}
+
+function goHome() {
+    screenHistory = [];
+    clearInterval(timerInterval);
+    userAnswers = {};
+    skippedQuestions = new Set();
+    activePremiumPdf = null;
+    activePremiumType = null;
+    MainNav.clearExamMode();
+    sessionStorage.removeItem('pioneers_prep_state');
+    document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+    document.getElementById('home-dashboard')?.classList.remove('hidden');
+}
+
+// ----------------------------------------------------------------------------
+// UNIVERSAL CONTENT CARD RENDERER
+// ----------------------------------------------------------------------------
+function createContentCard(item, type, container) {
+    const card = document.createElement(item.isAvailable === false ? 'div' : 'a');
+
+    let icon = '';
+    if (type === 'descriptive') icon = '📝 ';
+    if (type === 'notes') icon = '📚 ';
+
+    const title = type === 'quiz' ? (item.title || item.topic || item.id) : (icon + item.name);
+
+    if (item.isAvailable === false) {
+        card.className = type === 'quiz' ? 'card' : 'card card-yellow';
+        card.style.opacity = '0.55';
+        card.style.cursor = 'not-allowed';
+        card.style.backgroundColor = '#f8fafc';
+        card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: #dc2626; font-weight: 700; margin-top: 6px; display: inline-block;">⏳ Coming Soon</span>`;
+        card.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('This content is currently under preparation and will be available soon.');
+        });
+    } else {
+        card.className = type === 'quiz' ? 'card' : (type === 'descriptive' ? 'card card-yellow' : 'card');
+
+        if (item.isPremium || item.isUltra) {
+            const badgeColor = item.isUltra ? '#9333ea' : '#b45309';
+            const badgeLabel = item.isUltra ? 'Exclusive' : 'Premium';
+            card.innerHTML = `${escapeClientHtml(title)} <br><span style="font-size: 13px; color: ${badgeColor}; font-weight: 700; margin-top: 6px; display: inline-block;">🔒 ${badgeLabel} (₹${item.price || 49})</span>`;
+        } else {
+            card.innerText = title;
+        }
+
+        if (type === 'quiz') {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                prepareQuiz(item);
+            });
+        } else {
+            if (item.isPremium || item.isUltra) {
+                card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    preparePremiumPdf(item, type);
+                });
+            } else {
+                card.href = (type === 'notes' ? '/api/download-note/' : '/api/download-descriptive/') + encodeURIComponent(item.fileName);
+            }
+        }
+    }
+    container.appendChild(card);
+}
+
+function selectDescriptiveClass(cName) {
+    selectedDescriptiveClass = cName;
+    const container = document.getElementById('descriptive-subject-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const subjects = (cName === 'IX' || cName === 'X') ? ['Physics', 'Chemistry', 'Biology'] : ['Biology'];
+    subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'card card-yellow';
+        card.innerText = sub;
+        card.addEventListener('click', () => selectDescriptiveSubject(sub));
+        container.appendChild(card);
+    });
+    showScreen('descriptive-subject-screen');
+}
+
+async function selectDescriptiveSubject(subject) {
+    selectedDescriptiveSubject = subject;
+    const heading = document.getElementById('descriptive-screen-heading');
+    if (heading) heading.innerText = `Class ${selectedDescriptiveClass} ${subject} Papers`;
+    const container = document.getElementById('descriptive-list-container');
+    if (!container) return;
+    container.innerHTML = '<p style="text-align:center;">Loading question papers...</p>';
+    showScreen('descriptive-list-screen');
+
+    try {
+        const res = await fetch('/api/descriptive-questions');
+        const list = await res.json();
+        const matched = list.find(n => n.class === selectedDescriptiveClass && n.subject.toLowerCase() === subject.toLowerCase());
+        container.innerHTML = '';
+        if (matched?.papers?.length > 0) {
+            matched.papers.forEach(item => createContentCard(item, 'descriptive', container));
+        } else {
+            container.innerHTML = `<p style="text-align:center; color:#854d0e;">No question papers available for ${escapeClientHtml(subject)} yet.</p>`;
+        }
+    } catch {
+        container.innerHTML = '<p style="text-align:center; color:red;">Failed to load papers.</p>';
+    }
+    updateState();
+}
+
+function selectNotesClass(cName) {
+    selectedNotesClass = cName;
+    const container = document.getElementById('notes-subject-container');
+    container.innerHTML = '';
+    const subjects = (cName === 'IX' || cName === 'X') ? ['Physics', 'Chemistry', 'Biology'] : ['Biology'];
+    subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerText = sub;
+        card.addEventListener('click', () => selectNotesSubject(sub));
+        container.appendChild(card);
+    });
+    showScreen('notes-subject-screen');
+}
+
+async function selectNotesSubject(subject) {
+    selectedNotesSubject = subject;
+    const container = document.getElementById('notes-list-container');
+    container.innerHTML = '<p style="text-align:center;">Loading notes...</p>';
+    showScreen('notes-list-screen');
+
+    try {
+        const res = await fetch('/api/notes');
+        const list = await res.json();
+        const matched = list.find(n => n.class === selectedNotesClass && n.subject.toLowerCase() === subject.toLowerCase());
+        container.innerHTML = '';
+        if (matched?.notes?.length > 0) {
+            matched.notes.forEach(note => createContentCard(note, 'notes', container));
+        } else {
+            container.innerHTML = '<p style="text-align:center;">No notes available for this subject yet.</p>';
+        }
+    } catch {
+        container.innerHTML = '<p style="text-align:center; color:red;">Failed to load notes.</p>';
+    }
+    updateState();
+}
+
+function selectClass(cName) {
+    selectedClassName = cName;
+    if (cName === 'IX' || cName === 'X') showScreen('subject-select-screen');
+    else if (cName === 'XI' || cName === 'XII' || cName === 'ISC XI' || cName === 'ISC XII') {
+        loadNeetUnits(cName);
+    } else {
+        loadDynamicChapters(cName);
+    }
+}
+
+function selectSubject(sub) {
+    selectedSubjectName = sub;
+    const container = document.getElementById('ix-x-chapter-container');
+    container.innerHTML = '';
+    const matched = dynamicQuizzes.filter(q => q.category === 'icse' && q.classLevel.toLowerCase() === selectedClassName.toLowerCase() && q.subject.toLowerCase() === sub.toLowerCase());
+    if (matched.length === 0) {
+        container.innerHTML = `<p style="text-align:center;">No tests found for ${escapeClientHtml(sub)} yet.</p>`;
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+    showScreen('ix-x-chapter-screen');
+}
+
+function loadDynamicChapters(cName) {
+    const container = document.getElementById('ix-x-chapter-container');
+    container.innerHTML = '';
+    
+    let targetCategory = 'neet';
+    let cleanClassLevel = cName;
+
+    if (cName.toUpperCase().startsWith('WB ')) {
+        targetCategory = 'wb';
+        cleanClassLevel = cName.substring(3).trim();
+    } else if (cName.toUpperCase().startsWith('ISC ')) {
+        targetCategory = 'isc';
+        cleanClassLevel = cName.substring(4).trim();
+    }
+
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === cleanClassLevel.toLowerCase()
+    );
+
+    if (matched.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+    showScreen('ix-x-chapter-screen');
+}
+
+function loadNeetUnits(cName) {
+    const container = document.getElementById('neet-unit-container');
+    container.innerHTML = '';
+    
+    // Extract the base class (XI or XII) to build the correct syllabus hierarchy
+    const baseClass = cName.includes('XII') ? 'XII' : 'XI';
+    const units = neetHierarchy[baseClass] || {};
+    
+    Object.keys(units).forEach(uName => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerText = uName;
+        card.addEventListener('click', () => { selectedNeetUnit = uName; loadNeetChapters(cName, uName); });
+        container.appendChild(card);
+    });
+    showScreen('neet-unit-screen');
+}
+
+function loadNeetChapters(cName, uName) {
+    const container = document.getElementById('neet-chapter-container');
+    container.innerHTML = '';
+    
+    const baseClass = cName.includes('XII') ? 'XII' : 'XI';
+    const chapters = neetHierarchy[baseClass]?.[uName] || [];
+    
+    if (chapters.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No chapters found.</p>';
+    } else {
+        chapters.forEach(chap => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerText = chap;
+            card.addEventListener('click', () => { selectedNeetChapter = chap; loadNeetTopics(cName, uName, chap); });
+            container.appendChild(card);
+        });
+    }
+    showScreen('neet-chapter-screen');
+}
+
+function loadNeetTopics(cName, uName, chap) {
+    const container = document.getElementById('neet-topic-container');
+    container.innerHTML = '';
+    
+    // Dynamically apply the category filter based on the button clicked
+    const targetCategory = cName.startsWith('ISC') ? 'isc' : 'neet';
+    const targetClass = cName.includes('XII') ? 'xii' : 'xi';
+    
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === targetClass && 
+        isChapterMatch(q.chapter, chap)
+    );
+    
+    if (matched.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+    showScreen('neet-topic-screen');
+}
+
+function loadNeetTopics(cName, uName, chap) {
+    const container = document.getElementById('neet-topic-container');
+    container.innerHTML = '';
+    
+    // Convert to uppercase to guarantee safe detection of 'ISC XI' or 'ISC XII'
+    const upperCName = String(cName).toUpperCase();
+    const targetCategory = upperCName.startsWith('ISC') ? 'isc' : 'neet';
+    const targetClass = upperCName.includes('XII') ? 'xii' : 'xi';
+    
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === targetClass && 
+        isChapterMatch(q.chapter, chap)
+    );
+    
+    if (matched.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+    showScreen('neet-topic-screen');
+}
+
+// ----------------------------------------------------------------------------
+// GLOBAL SSO BYPASS & CONTENT ENTRY
+// ----------------------------------------------------------------------------
+function prepareQuiz(quiz) {
+    const token = localStorage.getItem('pp_id_token');
+    if (!token) {
+        sessionStorage.setItem('force_login_open', 'true');
+        alert('Please sign in on the homepage first.');
+        window.location.replace('/');
+        return;
+    }
+
+    activePremiumPdf = null;
+    activePremiumType = null;
+    currentQuizId = quiz.id;
+    activeQuizTitle = quiz.title;
+    timeRemaining = quiz.duration || 900;
+    quizDuration = timeRemaining;
+
+    attemptQuizStart();
+}
+
+function preparePremiumPdf(item, type) {
+    const token = localStorage.getItem('pp_id_token');
+    if (!token) {
+        sessionStorage.setItem('force_login_open', 'true');
+        alert('Please sign in on the homepage first.');
+        window.location.replace('/');
+        return;
+    }
+
+    currentQuizId = "";
+    activePremiumPdf = item;
+    activePremiumType = type;
+
+    attemptPdfDownload();
+}
+
+// ----------------------------------------------------------------------------
+// RAZORPAY CHECKOUT ENGINE
+// ----------------------------------------------------------------------------
+async function initiateRazorpayPayment(itemId, amount, email, firstName, lastName, onSuccessCallback) {
+    try {
+        const token = localStorage.getItem('pp_id_token');
+        const orderRes = await fetch('/api/create-order', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ itemId })
+        });
+        if (orderRes.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+        const orderData = await orderRes.json();
+
+        if (!orderRes.ok) {
+            alert(orderData.error || 'Failed to create payment order.');
+            return;
+        }
+
+        const options = {
+            key: orderData.keyId,
+            amount: orderData.amount,
+            currency: "INR",
+            name: "Pioneers Prep",
+            description: "Premium Content Access",
+            order_id: orderData.orderId,
+            handler: async function (response) {
+                const verifyRes = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        itemId: itemId
+                    })
+                });
+                const verifyData = await verifyRes.json();
+                if (verifyRes.ok && verifyData.success) {
+                    alert('Payment successful! Content unlocked.');
+                    onSuccessCallback();
+                } else {
+                    alert('Payment verification failed. Please contact support.');
+                }
+            },
+            prefill: { name: firstName + ' ' + lastName, email: email },
+            theme: { color: "#ca8a04" }
+        };
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+            alert('Payment failed: ' + response.error.description);
+        });
+        rzp.open();
+    } catch (err) {
+        alert('Network error during payment initialization.');
+    }
+}
+
+// ----------------------------------------------------------------------------
+// PRIMARY ACCESS FLOW (PAYWALL -> CONTENT)
+// ----------------------------------------------------------------------------
+async function attemptQuizStart() {
+    const token = localStorage.getItem('pp_id_token');
+    const first = localStorage.getItem('pp_fname');
+    const last = localStorage.getItem('pp_lname');
+    const email = localStorage.getItem('pp_email');
+
+    try {
+        const startRes = await fetch('/api/start-quiz', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ quizId: currentQuizId, duration: timeRemaining })
+        });
+        const startData = await startRes.json();
+
+        if (startRes.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+
+        if (startRes.status === 402) {
+            const qz = dynamicQuizzes.find(q => q.id === currentQuizId);
+            const price = qz ? qz.price : 49;
+            initiateRazorpayPayment(currentQuizId, price, email, first, last, () => attemptQuizStart());
+            return;
+        }
+        
+        if (startRes.status === 403) {
+            alert(startData.error || 'Access denied. Your email is not whitelisted for this premium content.');
+            return;
+        }
+
+        if (!startRes.ok) {
+            alert(startData.error || 'Verification Error.');
+            return;
+        }
+
+        serverStartTime = startData.startTime;
+        timerSignature = startData.signature;
+        quizDuration = startData.duration || timeRemaining;
+        timeRemaining = quizDuration;
+
+        const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+            credentials: 'same-origin',
+            headers: { 
+                'X-Requested-With': 'PioneersPrepApp',
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        if (qRes.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+        const metaData = await qRes.json();
+        currentQuestionsCount = metaData.totalQuestions || 0;
+
+        currentQuestionIndex = 0;
+        userAnswers = {};
+        skippedQuestions = new Set();
+        screenHistory = [];
+        questionCache = {};
+
+        const qBox = document.getElementById('question-box');
+        const oBox = document.getElementById('options-container');
+        if (qBox) qBox.innerText = 'Loading Question 1...';
+        if (oBox) oBox.innerHTML = '';
+
+        showScreen('quiz-screen');
+        await renderQuestion();
+        startTimer();
+    } catch (err) {
+        alert('Network error while starting quiz. Please try again.');
+    }
+}
+
+async function attemptPdfDownload() {
+    const token = localStorage.getItem('pp_id_token');
+    const first = localStorage.getItem('pp_fname');
+    const last = localStorage.getItem('pp_lname');
+    const email = localStorage.getItem('pp_email');
+
+    const endpoint = activePremiumType === 'notes' ? '/api/download-note/' : '/api/download-descriptive/';
+    const url = endpoint + encodeURIComponent(activePremiumPdf.fileName);
+
+    const res = await fetch(url, { 
+        credentials: 'same-origin',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if (res.status === 401) {
+        handleExpiredSession();
+        return;
+    }
+
+    if (res.status === 402) {
+        initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
+            window.location.href = url;
+            goHome();
+        });
+        return;
+    }
+    
+    if (res.status === 403) {
+        alert('Access denied. Your email is not whitelisted for this premium content.');
+        return;
+    }
+
+    if (!res.ok) {
+        alert('Failed to access file. Error ' + res.status);
+        return;
+    }
+
+    window.location.href = url;
+    goHome();
+}
+
+function updateQuizStats() {
+    const total = currentQuestionsCount;
+    const attemptedCount = Object.keys(userAnswers).length;
+    let skipped = 0;
+    skippedQuestions.forEach(idx => { if (userAnswers[idx] === undefined) skipped++; });
+
+    const statsEl = document.getElementById('quiz-stats');
+    if (statsEl) statsEl.innerText = `Attempted: ${attemptedCount} / ${total} | Skipped: ${skipped}`;
+    const bar = document.getElementById('progress-bar');
+    if (bar && total > 0) bar.style.width = `${(attemptedCount / total) * 100}%`;
+    updateState();
+}
+
+async function renderQuestion() {
+    document.getElementById('quiz-screen-heading').innerText = activeQuizTitle;
+    const container = document.getElementById('options-container');
+    const questionBox = document.getElementById('question-box');
+    const token = localStorage.getItem('pp_id_token');
+
+    if (!questionCache[currentQuestionIndex]) {
+        questionBox.innerText = `Loading Question ${currentQuestionIndex + 1}...`;
+        container.innerHTML = '';
+        try {
+            const res = await fetch(`/api/quiz/${encodeURIComponent(currentQuizId)}/question/${currentQuestionIndex}`, {
+                credentials: 'same-origin',
+                headers: { 
+                    'X-Requested-With': 'PioneersPrepApp',
+                    'Authorization': `Bearer ${token}` 
+                }
+            });
+            if (res.status === 401) {
+                handleExpiredSession();
+                return;
+            }
+            const data = await res.json();
+            if (data.payload) {
+                questionCache[currentQuestionIndex] = JSON.parse(xorDecipher(data.payload, timerSignature));
+            } else {
+                throw new Error("Invalid payload");
+            }
+        } catch (e) {
+            questionBox.innerText = "Connection error. Please check your internet and try again.";
+            return;
+        }
+    }
+
+    const q = questionCache[currentQuestionIndex];
+    questionBox.innerText = `Q.${currentQuestionIndex + 1}: ${q.question}`;
+    container.innerHTML = '';
+
+    if (q.type === 'descriptive' || q.type === 'diagram') {
+        const label = document.createElement('label');
+        label.innerText = q.type === 'diagram' ? 'Upload image of your drawn diagram/copy:' : 'Upload image of your written answer copy:';
+        label.style.cssText = 'display:block;font-weight:600;margin-bottom:8px;color:#334155;';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file'; fileInput.accept = 'image/*';
+
+        if (userAnswers[currentQuestionIndex] !== undefined) {
+            const preview = document.createElement('p');
+            preview.style.color = '#15803d';
+            preview.textContent = '✅ Image uploaded successfully for this question.';
+            container.appendChild(preview);
+        }
+
+        fileInput.addEventListener('change', e => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width, height = img.height;
+                    const maxDim = 800;
+                    if (width > height && width > maxDim) { height = Math.round((height * maxDim) / width); width = maxDim; }
+                    else if (height > maxDim) { width = Math.round((width * maxDim) / height); height = maxDim; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    userAnswers[currentQuestionIndex] = canvas.toDataURL('image/jpeg', 0.7);
+                    skippedQuestions.delete(currentQuestionIndex);
+                    updateQuizStats();
+                    alert('Image attached successfully! Click Next to proceed.');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+        container.appendChild(label); container.appendChild(fileInput);
+    } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+        const input = document.createElement('input');
+        input.type = 'text'; input.placeholder = 'Type your answer here...';
+        if (userAnswers[currentQuestionIndex] !== undefined) input.value = userAnswers[currentQuestionIndex];
+        input.addEventListener('input', e => {
+            const v = e.target.value.trim();
+            if (v === '') delete userAnswers[currentQuestionIndex];
+            else { userAnswers[currentQuestionIndex] = v; skippedQuestions.delete(currentQuestionIndex); }
+            updateQuizStats();
+        });
+        container.appendChild(input);
+    } else {
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `option-btn${userAnswers[currentQuestionIndex] === idx ? ' selected' : ''}`;
+            btn.innerText = opt;
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                userAnswers[currentQuestionIndex] = idx;
+                skippedQuestions.delete(currentQuestionIndex);
+                updateQuizStats();
+            });
+            container.appendChild(btn);
+        });
+    }
+    updateQuizStats();
+}
+
+async function nextQuestion() {
+    if (userAnswers[currentQuestionIndex] === undefined) skippedQuestions.add(currentQuestionIndex);
+    if (currentQuestionIndex < currentQuestionsCount - 1) { 
+        currentQuestionIndex++; 
+        await renderQuestion(); 
+    } else { 
+        updateQuizStats(); 
+    }
+    updateState();
+}
+
+async function prevQuestion() {
+    if (currentQuestionIndex > 0) { 
+        currentQuestionIndex--; 
+        await renderQuestion(); 
+    }
+    updateState();
+}
+
+function clearResponse() {
+    delete userAnswers[currentQuestionIndex];
+    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+    const input = document.querySelector('#options-container input');
+    if (input) input.value = '';
+    updateQuizStats();
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    const update = () => {
+        let m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+        let s = (timeRemaining % 60).toString().padStart(2, '0');
+        document.getElementById('time-left').innerText = `Time Left: ${m}:${s}`;
+        updateState();
+    };
+    update();
+    timerInterval = setInterval(() => {
+        if (timeRemaining <= 0) { clearInterval(timerInterval); submitQuiz(true); return; }
+        timeRemaining--; update();
+    }, 1000);
+}
+
+async function submitQuiz(isAuto = false) {
+    const answeredCount = Object.keys(userAnswers).length;
+    const total = currentQuestionsCount;
+    if (!isAuto && answeredCount < total) {
+        alert(`Please answer all questions before submitting. You have answered ${answeredCount} out of ${total}.`);
+        return;
+    }
+
+    clearInterval(timerInterval);
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) { submitBtn.innerText = 'Submitting...'; submitBtn.disabled = true; }
+
+    const token = localStorage.getItem('pp_id_token');
+    const first = localStorage.getItem('pp_fname') || 'STUDENT';
+    const last = localStorage.getItem('pp_lname') || '';
+    const email = localStorage.getItem('pp_email') || '';
+
+    try {
+        const res = await fetch('/api/submit', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+                firstName: first, lastName: last, email,
+                className: selectedClassName, chapterTitle: activeQuizTitle, quizId: currentQuizId,
+                userAnswers, serverStartTime, timerSignature, quizDuration, isAutoSubmit: isAuto
+            })
+        });
+        if (res.status === 401) {
+            handleExpiredSession();
+            return;
+        }
+        const data = await res.json();
+        if (res.ok && data.success) {
+            sessionStorage.removeItem('pioneers_prep_state');
+            const safeCandidate = escapeClientHtml(`${first} ${last}`);
+            const safeScore = escapeClientHtml(data.score);
+            const safeTotal = escapeClientHtml(data.total);
+            const percentage = ((data.score / data.total) * 100).toFixed(1);
+            
+            let lbHtml = `<table style="width:100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
+                <tr style="background:#e2e8f0; color:#1e293b;">
+                    <th style="padding:10px; border-radius: 6px 0 0 0;">Rank</th>
+                    <th style="padding:10px;">Student</th>
+                    <th style="padding:10px; text-align:right; border-radius: 0 6px 0 0;">Score</th>
+                </tr>`;
+                
+            if (data.leaderboard && data.leaderboard.length > 0) {
+                data.leaderboard.forEach((user, idx) => {
+                    const isMe = user.name === `${first} ${last}`.trim();
+                    const rowStyle = isMe ? 'background:#dbeafe; font-weight:bold; color:#1e40af;' : 'border-bottom: 1px solid #e2e8f0;';
+                    lbHtml += `<tr style="${rowStyle}">
+                        <td style="padding:10px; font-weight:600;">#${idx + 1}</td>
+                        <td style="padding:10px;">${escapeClientHtml(user.name)}${isMe ? ' <span style="font-size:11px; color:#2563eb;">(You)</span>' : ''}</td>
+                        <td style="padding:10px; text-align:right; font-weight:600;">${escapeClientHtml(user.score)}</td>
+                    </tr>`;
+                });
+            }
+            lbHtml += `</table>`;
+
+            document.getElementById('result-screen').innerHTML = `
+                <button class="back-btn" data-action="go-home">Back to Portal</button>
+                <div style="max-width: 650px; margin: 0 auto; padding: 10px;">
+                    <h2 style="text-align:center; color:#4285f4; margin-top:0;">Performance Dashboard</h2>
+                    
+                    <div style="text-align:center; margin-top:20px; background: #ffffff; border-radius: 12px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <p style="font-size:15px; color:#64748b; margin-bottom: 5px;">Candidate: <strong>${safeCandidate}</strong></p>
+                        
+                        <h1 style="color:#2563eb; font-size:58px; margin:10px 0; line-height: 1;">${percentage}%</h1>
+                        <p style="font-size:18px; font-weight:600; color:#0f172a; margin-top:0;">${safeScore} / ${safeTotal} Correct</p>
+                        
+                        <div style="width:100%; background:#e2e8f0; border-radius:8px; height:12px; margin:20px 0; overflow:hidden;">
+                            <div style="width:${percentage}%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:8px;"></div>
+                        </div>
+                        
+                        <div style="display:flex; justify-content:space-around; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
+                            <div>
+                                <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${100 - data.percentile}%</span>
+                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Your Percentile</span>
+                            </div>
+                            <div>
+                                <span style="display:block; font-size:24px; font-weight:800; color:#f59e0b;">${data.average}</span>
+                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Class Average</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 25px; background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="margin:0; color:#1e293b; font-size: 16px;">🏆 Top Performers</h3>
+                            <span style="font-size:12px; background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-weight:bold;">${data.totalAttempts} Total Attempts</span>
+                        </div>
+                        ${lbHtml}
+                    </div>
+
+                    <p style="font-size:13px; color:#94a3b8; text-align:center; margin-top:25px;">A detailed copy of your response has been mailed to your registered email.</p>
+                </div>
+            `;
+            screenHistory = [];
+            showScreen('result-screen');
+            try {
+                const resultState = {
+                    activeScreen: 'result-screen',
+                    screenHistory: [],
+                    currentQuizId: currentQuizId,
+                    activeQuizTitle: activeQuizTitle
+                };
+                sessionStorage.setItem('pioneers_prep_state', JSON.stringify(resultState));
+            } catch (err) {}
+            triggerCelebration();
+        } else {
+            alert(data.error || 'Submission failed.');
+            goHome();
+        }
+    } catch {
+        alert('Network error while submitting quiz.');
+    } finally {
+        if (submitBtn) { submitBtn.innerText = 'Submit Quiz'; submitBtn.disabled = false; }
+    }
+}
+
+// ============================================================================
+// MOBILE QUIZ SCREEN OPTIMIZER
+// ============================================================================
+(function optimizeMobileQuiz() {
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (!isMobile) return;
+
+    const mobileQuizStyles = `
+        #quiz-screen:not(.hidden) {
+            padding: 15px 10px !important;
+            border-radius: 0 !important;
+            min-height: 100vh !important;
+            box-shadow: none !important;
+        }
+        #question-box {
+            font-size: 17px !important;
+            line-height: 1.5 !important;
+            margin-bottom: 20px !important;
+        }
+        .option-btn {
+            padding: 14px 16px !important;
+            font-size: 15px !important;
+            margin-bottom: 10px !important;
+            border-radius: 8px !important;
+        }
+        .quiz-nav-container {
+            flex-direction: column !important;
+            gap: 10px !important;
+            margin-top: 20px !important;
+        }
+        .quiz-nav-container button {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px !important;
+            font-size: 15px !important;
+        }
+    `;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const styleElement = document.createElement('style');
+        styleElement.id = 'mobile-quiz-custom-styles';
+        styleElement.innerHTML = mobileQuizStyles;
+        document.head.appendChild(styleElement);
+    });
+})();
+
+function triggerCelebration() {
+    if (typeof confetti !== 'function') return;
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+    const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.1, y: Math.random() - 0.2 } }));
+        confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random() * 0.2 + 0.7, y: Math.random() - 0.2 } }));
+    }, 250);
+}

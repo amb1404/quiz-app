@@ -1,0 +1,465 @@
+{
+  "title": "Photosynthesis in Higher Plants-2",
+  "category": "biology",
+  "classLevel": "XI",
+  "subject": "Biology",
+  "unit": "Plant Physiology",
+  "chapter": "Photosynthesis in Higher Plants",
+  "duration": 1800,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "question": "The action spectrum of photosynthesis was first described by T.W. Engelmann using a green alga and aerobic bacteria. Which organism did he use as the green alga?",
+      "marks": 1,
+      "options": [
+        "Chlorella",
+        "Cladophora",
+        "Ulothrix",
+        "Spirogyra"
+      ],
+      "answer": 1,
+      "explanation": "T.W. Engelmann used the filamentous green alga Cladophora and aerobic bacteria to illuminate the first action spectrum of photosynthesis by showing where bacteria accumulated.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "question": "Cornelius van Niel demonstrated that photosynthesis is a light-dependent reaction where hydrogen from a suitable oxidizable compound reduces CO2 to carbohydrates. In green plants, this hydrogen donor is:",
+      "marks": 1,
+      "options": [
+        "H2S",
+        "H2O",
+        "NH3",
+        "CH4"
+      ],
+      "answer": 1,
+      "explanation": "In green plants, H2O is the hydrogen donor that is oxidized to release O2, while the hydrogen reduces CO2 into carbohydrates.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "question": "Which of the following accessory pigments protects chlorophyll a from photo-oxidation and absorbs light energy to transfer it to chlorophyll a?",
+      "marks": 1,
+      "options": [
+        "Anthocyanin",
+        "Carotenoids",
+        "Phycobilins",
+        "Xanthophylls only"
+      ],
+      "answer": 1,
+      "explanation": "Carotenoids act as accessory pigments that absorb light energy and transfer it to chlorophyll a, besides protecting chlorophyll a from photo-oxidation.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "question": "Why does the action spectrum of photosynthesis show a close resemblance to the absorption spectrum of chlorophyll a rather than chlorophyll b?",
+      "marks": 1,
+      "options": [
+        "Chlorophyll a is the primary photosynthetic pigment responsible for the light reaction.",
+        "Chlorophyll b is insoluble in the thylakoid membrane.",
+        "Chlorophyll a absorbs green light most efficiently.",
+        "Chlorophyll b is absent in higher plants."
+      ],
+      "answer": 0,
+      "explanation": "Chlorophyll a is the primary pigment driving photosynthesis, which is why the action spectrum closely matches its absorption profile.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "question": "In Photosystem I (PSI), the reaction centre chlorophyll a has an absorption peak at:",
+      "marks": 1,
+      "options": [
+        "680 nm",
+        "700 nm",
+        "660 nm",
+        "720 nm"
+      ],
+      "answer": 1,
+      "explanation": "The reaction center of Photosystem I (PSI) absorbs light at 700 nm (P700), whereas PSII absorbs at 680 nm (P680).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "question": "During non-cyclic photophosphorylation, electrons released from the photolysis of water are eventually accepted by:",
+      "marks": 1,
+      "options": [
+        "P680 of Photosystem II",
+        "P700 of Photosystem I",
+        "NADP+",
+        "Cytochrome b6f complex"
+      ],
+      "answer": 0,
+      "explanation": "The electrons lost by P680 in Photosystem II are replaced by electrons derived from the photolysis of water.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "question": "Cyclic photophosphorylation occurs primarily when:",
+      "marks": 1,
+      "options": [
+        "Only light of wavelengths beyond 680 nm is available.",
+        "NADP+ is abundantly available in the stroma.",
+        "Water photolysis is occurring at its maximum rate.",
+        "Oxygen is evolved continuously at high rates."
+      ],
+      "answer": 0,
+      "explanation": "When only light beyond 680 nm is available, only PSI is activated, leading to cyclic photophosphorylation.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q8",
+      "type": "mcq",
+      "question": "According to the chemiosmotic hypothesis, ATP synthesis in chloroplasts is driven by a proton gradient. Where do protons accumulate in high concentration during this process?",
+      "marks": 1,
+      "options": [
+        "Stroma matrix",
+        "Thylakoid lumen",
+        "Intermembrane space of chloroplast",
+        "Cytoplasm"
+      ],
+      "answer": 1,
+      "explanation": "Protons accumulate in the thylakoid lumen due to the photolysis of water and proton pumping across the membrane.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q9",
+      "type": "mcq",
+      "question": "The breakdown of the proton gradient across the thylakoid membrane releases energy that causes a conformational change in the F1 particle of the ATPase enzyme, leading to:",
+      "marks": 1,
+      "options": [
+        "Hydrolysis of ATP molecules",
+        "Synthesis of ATP from ADP and inorganic phosphate",
+        "Active pumping of water out of the stroma",
+        "Reduction of NADP+ to NADPH"
+      ],
+      "answer": 1,
+      "explanation": "Proton flow down the gradient through ATP synthase drives the phosphorylation of ADP to form ATP.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q10",
+      "type": "mcq",
+      "question": "In C3 plants, the primary acceptor of CO2 and the first stable product formed in the Calvin cycle are respectively:",
+      "marks": 1,
+      "options": [
+        "PEP and Oxaloacetic acid",
+        "RuBP and 3-Phosphoglyceric acid (3-PGA)",
+        "PGA and Triose phosphate",
+        "RuBisCO and Malic acid"
+      ],
+      "answer": 1,
+      "explanation": "In C3 plants, RuBP is the primary CO2 acceptor, and 3-PGA is the first stable 3-carbon intermediate.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q11",
+      "type": "mcq",
+      "question": "To fix one molecule of CO2 through the Calvin cycle in C3 plants, how many molecules of ATP and NADPH are required?",
+      "marks": 1,
+      "options": [
+        "2 ATP and 2 NADPH",
+        "3 ATP and 2 NADPH",
+        "5 ATP and 3 NADPH",
+        "3 ATP and 3 NADPH"
+      ],
+      "answer": 1,
+      "explanation": "Fixation of one CO2 molecule requires 3 molecules of ATP and 2 molecules of NADPH during the Calvin cycle.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q12",
+      "type": "mcq",
+      "question": "Kranz anatomy, characterized by a prominent bundle sheath surrounded by a ring of mesophyll cells, is a structural adaptation found in:",
+      "marks": 1,
+      "options": [
+        "C3 plants",
+        "C4 plants",
+        "CAM plants",
+        "Bryophytes"
+      ],
+      "answer": 1,
+      "explanation": "Kranz anatomy is a distinctive leaf anatomy found in C4 plants, providing specialized compartments for carbon fixation.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q13",
+      "type": "mcq",
+      "question": "In C4 plants, the enzyme responsible for the primary fixation of CO2 in the mesophyll cells is:",
+      "marks": 1,
+      "options": [
+        "RuBisCO",
+        "PEP carboxylase",
+        "Carbonic anhydrase",
+        "Pyruvate kinase"
+      ],
+      "answer": 1,
+      "explanation": "PEP carboxylase fixes CO2 into a 4-carbon compound in the mesophyll cells of C4 plants.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q14",
+      "type": "mcq",
+      "question": "In C4 plants, CO2 is transported from mesophyll cells to bundle sheath cells primarily in the form of:",
+      "marks": 1,
+      "options": [
+        "Malic acid or Aspartic acid",
+        "Phosphoenolpyruvate",
+        "Oxaloacetic acid",
+        "Glucose"
+      ],
+      "answer": 0,
+      "explanation": "Malic acid or aspartic acid are transported from mesophyll to bundle sheath cells where they release CO2.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q15",
+      "type": "mcq",
+      "question": "RuBisCO has a dual active site capable of binding both CO2 and O2. Under high oxygen and high temperature conditions, it acts as an oxygenase, leading to:",
+      "marks": 1,
+      "options": [
+        "Glycolysis",
+        "Photorespiration",
+        "Dark respiration",
+        "Fermentation"
+      ],
+      "answer": 1,
+      "explanation": "When oxygen concentration is high relative to CO2, RuBisCO catalyzes oxygenation of RuBP, triggering photorespiration.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q16",
+      "type": "mcq",
+      "question": "During photorespiration in C3 plants:",
+      "marks": 1,
+      "options": [
+        "ATP and NADPH are synthesized efficiently.",
+        "There is no synthesis of ATP or NADPH, but CO2 is released.",
+        "Glucose is synthesized in large quantities.",
+        "Oxygen is consumed with a net gain of energy."
+      ],
+      "answer": 1,
+      "explanation": "Photorespiration is a wasteful process that consumes ATP and releases previously fixed CO2 without producing useful energy or sugars.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q17",
+      "type": "mcq",
+      "question": "Why are C4 plants more photosynthetically efficient than C3 plants under high temperatures and intense light?",
+      "marks": 1,
+      "options": [
+        "They completely lack RuBisCO.",
+        "They concentrate CO2 around RuBisCO, thereby minimizing photorespiration.",
+        "They perform the light reaction only at night.",
+        "They have higher water loss through open stomata."
+      ],
+      "answer": 1,
+      "explanation": "C4 plants concentrate CO2 in bundle sheath cells, effectively suppressing photorespiration and enhancing efficiency at high temperatures.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q18",
+      "type": "mcq",
+      "question": "Blackman’s Law of Limiting Factors states that:",
+      "marks": 1,
+      "options": [
+        "The rate of photosynthesis is determined by the factor present in maximum quantity.",
+        "If a chemical process is affected by more than one factor, its rate is determined by the factor that is nearest to its minimum value.",
+        "Light is always the exclusive limiting factor for photosynthesis.",
+        "Temperature has no effect on the dark reaction."
+      ],
+      "answer": 1,
+      "explanation": "Blackman's Law specifies that the rate of a physiological process is paced by the factor closest to its minimum value.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q19",
+      "type": "mcq",
+      "question": "Light saturation for photosynthesis occurs at what percentage of full sunlight in most plants?",
+      "marks": 1,
+      "options": [
+        "10%",
+        "50%",
+        "70%",
+        "100%"
+      ],
+      "answer": 0,
+      "explanation": "Light saturation is typically reached at about 10% of full sunlight, beyond which light ceases to be a limiting factor.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q20",
+      "type": "mcq",
+      "question": "An increase in atmospheric CO2 concentration up to about 0.05% can result in an increased rate of CO2 fixation in C3 plants. This phenomenon is commercially utilized in greenhouses and is known as the:",
+      "marks": 1,
+      "options": [
+        "Greenhouse effect",
+        "CO2 fertilization effect",
+        "Carbon sequestration",
+        "Photochemical induction"
+      ],
+      "answer": 1,
+      "explanation": "Elevating CO2 levels up to 0.05% enhances photosynthesis in C3 plants, a response called the CO2 fertilization effect.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q21",
+      "type": "mcq",
+      "question": "Water stress causes stomata to close, which directly impacts photosynthesis primarily by:",
+      "marks": 1,
+      "options": [
+        "Reducing the availability and entry of CO2.",
+        "Washing away chlorophyll pigments from leaves.",
+        "Destroying the outer chloroplast membrane.",
+        "Halting the photolysis of water permanently."
+      ],
+      "answer": 0,
+      "explanation": "Stomatal closure limits gaseous exchange, restricting CO2 diffusion into the leaf and lowering photosynthetic rates.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q22",
+      "type": "mcq",
+      "question": "Which photosystem is uniquely involved in both cyclic and non-cyclic photophosphorylation?",
+      "marks": 1,
+      "options": [
+        "Photosystem I (PSI)",
+        "Photosystem II (PSII)",
+        "Cytochrome b6f complex",
+        "Both PSI and PSII equally"
+      ],
+      "answer": 0,
+      "explanation": "PSI functions in both cyclic electron flow and non-cyclic electron flow, whereas PSII participates only in non-cyclic flow.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q23",
+      "type": "mcq",
+      "question": "The oxygen evolved during photosynthesis comes from water molecules. Where precisely does the splitting (photolysis) of water take place?",
+      "marks": 1,
+      "options": [
+        "Stroma side of the thylakoid membrane",
+        "Inner side of the thylakoid membrane (lumen side)",
+        "Outer membrane of the chloroplast",
+        "Matrix of the chloroplast"
+      ],
+      "answer": 1,
+      "explanation": "Water splitting occurs on the inner side (lumen side) of the thylakoid membrane, releasing protons into the lumen.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q24",
+      "type": "mcq",
+      "question": "The biosynthetic phase of photosynthesis does not directly depend on the presence of light, but it depends on the products of the light reaction (ATP and NADPH). Hence, it is commonly referred to as the:",
+      "marks": 1,
+      "options": [
+        "Photorespiratory phase",
+        "Light-independent reaction",
+        "Glycolytic phase",
+        "Oxidative phosphorylation pathway"
+      ],
+      "answer": 1,
+      "explanation": "Although termed light-independent, these dark reactions rely heavily on ATP and NADPH produced during the light-dependent phase.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q25",
+      "type": "mcq",
+      "question": "The three sequential steps of the Calvin cycle are:",
+      "marks": 1,
+      "options": [
+        "Reduction, Carboxylation, Regeneration",
+        "Carboxylation, Reduction, Regeneration",
+        "Regeneration, Reduction, Carboxylation",
+        "Carboxylation, Regeneration, Reduction"
+      ],
+      "answer": 1,
+      "explanation": "The Calvin cycle consists of carboxylation (fixation), reduction (sugar formation), and regeneration of the CO2 acceptor (RuBP).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q26",
+      "type": "mcq",
+      "question": "For every CO2 molecule entering the Calvin cycle, how many molecules of ATP are consumed specifically during the regeneration phase of RuBP?",
+      "marks": 1,
+      "options": [
+        "1 ATP",
+        "2 ATP",
+        "3 ATP",
+        "0 ATP"
+      ],
+      "answer": 0,
+      "explanation": "Out of 3 ATP used per CO2 fixed, 2 are used in reduction and 1 ATP is consumed during the regeneration of RuBP.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q27",
+      "type": "mcq",
+      "question": "In C4 plants, the chloroplasts of bundle sheath cells are typically:",
+      "marks": 1,
+      "options": [
+        "Granular with well-developed grana",
+        "Agranular (lacking grana) and contain unstacked thylakoids",
+        "Absent entirely",
+        "Circular and free-floating"
+      ],
+      "answer": 1,
+      "explanation": "Bundle sheath cell chloroplasts in C4 plants are typically agranular, meaning they lack grana to prevent O2 evolution from PSII during light reactions.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q28",
+      "type": "mcq",
+      "question": "The enzyme PEPcase has a high affinity for CO2 and lacks which of the following properties that RuBisCO possesses?",
+      "marks": 1,
+      "options": [
+        "Catalytic activity",
+        "Oxygenase activity",
+        "Substrate binding ability",
+        "Temperature sensitivity"
+      ],
+      "answer": 1,
+      "explanation": "Unlike RuBisCO, PEP carboxylase has no oxygenase activity, allowing it to fix CO2 efficiently without interference from O2.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q29",
+      "type": "mcq",
+      "question": "During photorespiration, phosphoglycolate produced in the chloroplast is recycled, and CO2 is eventually released inside which cellular organelle?",
+      "marks": 1,
+      "options": [
+        "Mitochondria",
+        "Peroxisome",
+        "Endoplasmic reticulum",
+        "Nucleus"
+      ],
+      "answer": 0,
+      "explanation": "The photorespiratory pathway involves chloroplasts and peroxisomes, with CO2 ultimately being released in the mitochondria.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q30",
+      "type": "mcq",
+      "question": "Tropical plants generally have a higher temperature optimum for photosynthesis compared to temperate plants because:",
+      "marks": 1,
+      "options": [
+        "Their enzymes denature at much lower temperatures.",
+        "They are predominantly C4 plants adapted to high-temperature environments.",
+        "They receive less solar radiation overall.",
+        "They lack stomatal guard cells."
+      ],
+      "answer": 1,
+      "explanation": "Tropical plants are frequently C4 species, which are specially adapted to thrive and fix carbon efficiently at higher temperatures.",
+      "diagram_required": false
+    }
+  ]
+}

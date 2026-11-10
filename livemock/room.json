@@ -1,0 +1,22 @@
+{
+  "title": "room",
+  "category": "physics",
+  "classLevel": "X",
+  "subject": "Physics",
+  "unit": "General",
+  "chapter": "Live Broadcast",
+  "duration": 3600,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Live Presentation Session",
+      "options": ["Proceed to Slides"],
+      "answer": 0,
+      "explanation": "Live stream session active."
+    }
+  ]
+}
