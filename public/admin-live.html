@@ -340,26 +340,104 @@
         }
     });
 
-    // 2. Dedicated Microphone Button Handler (Never calls getDisplayMedia)
+    // Anti-Thump WebAudio Pipeline State
+    let micAudioCtx = null;
+    let micGainNode = null;
+    let rawMicStream = null;
+    let micMuteTimeout = null;
+
+    // 2. Dedicated Microphone Button Handler (Soft-Start & Anti-Thump Filtered)
     document.getElementById('btn-admin-audio').addEventListener('click', async () => {
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
 
         try {
+            if (micMuteTimeout) {
+                clearTimeout(micMuteTimeout);
+                micMuteTimeout = null;
+            }
+
             if (!audioEnabled) {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true }
-                });
                 await ensureRoomConnected(quizId);
-                currentMicTrack = stream.getAudioTracks()[0];
-                await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+
+                const hasLivePipeline = currentMicTrack &&
+                    currentMicTrack.readyState === 'live' &&
+                    rawMicStream &&
+                    rawMicStream.getAudioTracks()[0] &&
+                    rawMicStream.getAudioTracks()[0].readyState === 'live';
+
+                if (!hasLivePipeline) {
+                    rawMicStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+
+                    if (!micAudioCtx) {
+                        micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (micAudioCtx.state === 'suspended') {
+                        await micAudioCtx.resume();
+                    }
+
+                    const source = micAudioCtx.createMediaStreamSource(rawMicStream);
+
+                    // 85 Hz High-Pass Filter removes low-end hardware thumps & DC offset pops
+                    const highpass = micAudioCtx.createBiquadFilter();
+                    highpass.type = 'highpass';
+                    highpass.frequency.value = 85;
+                    highpass.Q.value = 0.707;
+
+                    // Start gain at 0 (silent) so the initial hardware wake-up transient is muted
+                    micGainNode = micAudioCtx.createGain();
+                    micGainNode.gain.setValueAtTime(0.0001, micAudioCtx.currentTime);
+
+                    const dest = micAudioCtx.createMediaStreamDestination();
+                    source.connect(highpass);
+                    highpass.connect(micGainNode);
+                    micGainNode.connect(dest);
+
+                    currentMicTrack = dest.stream.getAudioTracks()[0];
+                    await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+                } else {
+                    if (micAudioCtx && micAudioCtx.state === 'suspended') {
+                        await micAudioCtx.resume();
+                    }
+                    // Lock gain at 0 before waking the raw mic track
+                    const now = micAudioCtx.currentTime;
+                    micGainNode.gain.cancelScheduledValues(now);
+                    micGainNode.gain.setValueAtTime(0.0001, now);
+                    rawMicStream.getAudioTracks().forEach(t => { t.enabled = true; });
+                }
+
+                // Wait 120ms for the hardware unmute pop to pass, then smoothly fade in over 180ms
+                micMuteTimeout = setTimeout(() => {
+                    if (micAudioCtx && micGainNode && audioEnabled) {
+                        const now = micAudioCtx.currentTime;
+                        micGainNode.gain.cancelScheduledValues(now);
+                        micGainNode.gain.setValueAtTime(0.0001, now);
+                        micGainNode.gain.linearRampToValueAtTime(1.0, now + 0.18);
+                    }
+                }, 120);
+
                 audioEnabled = true;
             } else {
-                if (currentMicTrack) {
-                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentMicTrack);
-                    currentMicTrack.stop();
-                    currentMicTrack = null;
+                // Smoothly fade out over 60ms before disabling raw mic capture (zero pop)
+                if (micAudioCtx && micGainNode) {
+                    const now = micAudioCtx.currentTime;
+                    micGainNode.gain.cancelScheduledValues(now);
+                    micGainNode.gain.setValueAtTime(micGainNode.gain.value, now);
+                    micGainNode.gain.linearRampToValueAtTime(0.0001, now + 0.06);
                 }
+
+                micMuteTimeout = setTimeout(() => {
+                    if (!audioEnabled && rawMicStream) {
+                        rawMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
+                    }
+                }, 70);
+
                 audioEnabled = false;
             }
             updateMediaButtonsUI();
@@ -442,11 +520,16 @@
     });
 
     document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
+        if (micMuteTimeout) {
+            clearTimeout(micMuteTimeout);
+            micMuteTimeout = null;
+        }
         room.disconnect();
         if (currentCamTrack) currentCamTrack.stop();
         if (currentMicTrack) currentMicTrack.stop();
+        if (rawMicStream) rawMicStream.getTracks().forEach(t => t.stop());
         if (currentScreenTrack) currentScreenTrack.stop();
-        currentCamTrack = currentMicTrack = currentScreenTrack = null;
+        currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
         videoEnabled = audioEnabled = false;
         broadcastMode = 'question';
         document.getElementById('admin-self-video').srcObject = null;
