@@ -391,3 +391,11 @@ socket.on("room-state", (data) => {
     // Re-render table data locally
     console.log("State updated:", data);
 });
+window.startDashboardSync = function() {
+    const creds = getActiveAdminCreds();
+    if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
+};
+
+window.fetchAndRenderDashboard = function() {
+    // UI rendering is now handled natively via incoming socket.on("room-state") events
+};

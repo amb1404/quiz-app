@@ -318,7 +318,25 @@ class StateStore {
 }
 
 const stateStore = new StateStore();
+async function updateBoardSecurely(cleanId, updateFn) {
+    const lockKey = `live:lock:${cleanId}`;
+    let acquired = false;
+    for (let i = 0; i < 50; i++) {
+        acquired = await stateStore.setNx(lockKey, '1', 5);
+        if (acquired) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if (!acquired) throw new Error('Data collision lock timeout');
 
+    try {
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const newBoard = updateFn(board);
+        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 4);
+    } finally {
+        await stateStore.del(lockKey);
+    }
+}
 // ============================================================================
 // ZERO-TRUST UNIVERSAL ACCESS GATE (ENFORCES GLOBAL WHITELIST & ULTRA PAYWALL)
 // ============================================================================
