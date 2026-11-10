@@ -193,8 +193,24 @@ if (typeof io !== 'undefined') {
 
         if (data.status === 'ended') {
             sessionStorage.removeItem('live_student_session');
-            alert("The instructor has ended the live session.");
-            window.location.replace('/');
+            // Fetch full breakdown scorecard from server before clearing session UI
+            fetch(`/api/live/student/scorecard?quizId=${encodeURIComponent(currentQuizId)}`, {
+                headers: { 'Authorization': `Bearer ${liveToken}` }
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success && typeof renderLiveMockResults === 'function') {
+                    renderLiveMockResults(result.scorecard, result.breakdown);
+                    if (typeof triggerCelebration === 'function') triggerCelebration();
+                } else {
+                    alert("The instructor has ended the live session.");
+                    window.location.replace('/');
+                }
+            })
+            .catch(() => {
+                alert("The instructor has ended the live session.");
+                window.location.replace('/');
+            });
             return;
         }
 

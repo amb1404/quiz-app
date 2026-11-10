@@ -2858,7 +2858,6 @@ app.post('/api/live/admin/end', async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }
 });
-
 // Admin: Change Question Index
 app.post('/api/live/admin/set-index', async (req, res) => {
     try {
@@ -2978,7 +2977,80 @@ app.post('/api/live/student/submit', async (req, res) => {
         res.status(500).json({ error: 'Failed to submit answer.' });
     }
 });
+// Student Live Room Scorecard & Breakdown Generator
+app.get('/api/live/student/scorecard', async (req, res) => {
+    try {
+        const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
+        if (!liveCheck) return res.status(401).json({ error: 'Unauthorized live session.' });
 
+        const cleanId = path.basename(String(req.query.quizId || liveCheck.quizId)).trim();
+        const studentName = liveCheck.studentName;
+
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        if (!state || !state.activeQuizFile) {
+            return res.status(400).json({ error: 'No question set was active in this room.' });
+        }
+
+        const content = getLiveMockContent(state.activeQuizFile);
+        const realQuestions = content?.questions || [];
+
+        const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+        const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+        const studentRecord = board[studentName] || { answers: {} };
+        const studentAnswers = studentRecord.answers || {};
+
+        let correct = 0;
+        let incorrect = 0;
+        let skipped = 0;
+        const breakdown = [];
+
+        realQuestions.forEach((q, idx) => {
+            const ansObj = studentAnswers[idx];
+            const attempted = ansObj !== undefined && ansObj !== null;
+            const studentOptIdx = attempted ? Number(ansObj.answer) : null;
+
+            let status = 'Skipped';
+            let selectedText = 'Skipped';
+            const correctText = q.options?.[q.answer] !== undefined ? q.options[q.answer] : 'N/A';
+
+            if (attempted) {
+                if (studentOptIdx === q.answer) {
+                    correct++;
+                    status = 'Correct';
+                } else {
+                    incorrect++;
+                    status = 'Incorrect';
+                }
+                selectedText = q.options?.[studentOptIdx] !== undefined ? q.options[studentOptIdx] : 'Unknown';
+            } else {
+                skipped++;
+            }
+
+            breakdown.push({
+                qNum: idx + 1,
+                question: q.question || 'N/A',
+                selectedText,
+                correctText,
+                status,
+                explanation: q.explanation || ''
+            });
+        });
+
+        res.json({
+            success: true,
+            scorecard: {
+                correct,
+                incorrect,
+                skipped,
+                total: realQuestions.length
+            },
+            breakdown
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to generate scorecard.' });
+    }
+});
 // ============================================================================
 // 9. LIVEKIT SFU TOKEN GENERATION
 // ============================================================================
