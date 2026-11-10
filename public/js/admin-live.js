@@ -378,24 +378,22 @@ async function setQuestionIndex(newIndex) {
 document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
 document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
 
-const socket = io(); 
-const creds = getActiveAdminCreds();
-if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
-
-socket.on("student-answered", (data) => {
-    // Update the specific student's row locally to prevent full table redraws
-    console.log("Student answered:", data);
-});
-
-socket.on("room-state", (data) => {
-    // Re-render table data locally
-    console.log("State updated:", data);
-});
-window.startDashboardSync = function() {
+// --- BULLETPROOF SOCKET INITIALIZATION & STUBS ---
+let socket;
+if (typeof io !== 'undefined') {
+    socket = io();
     const creds = getActiveAdminCreds();
     if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
+
+    socket.on("student-answered", (data) => console.log("Answered:", data));
+    socket.on("room-state", (data) => console.log("State:", data));
+}
+
+window.startDashboardSync = function() {
+    const creds = getActiveAdminCreds();
+    if (creds.quizId && socket) socket.emit("join-admin-room", { quizId: creds.quizId });
 };
 
 window.fetchAndRenderDashboard = function() {
-    // UI rendering is now handled natively via incoming socket.on("room-state") events
+    // Handled by WebSockets natively
 };

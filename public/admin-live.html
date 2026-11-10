@@ -908,21 +908,32 @@
         const { adminKey, quizId } = getAdminCredentials();
         if (!adminKey || !quizId) return false;
 
-        await syncCameraPipeline();
-        await syncAudioPipeline();
+        try {
+            await syncCameraPipeline();
+            await syncAudioPipeline();
 
-        const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
-        const { token } = await res.json();
-        await room.connect('wss://your-livekit-url', token);
+            const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
+            if (!res.ok) throw new Error("API Keys missing on server.");
 
-        if (camStream) await room.localParticipant.publishTrack(camStream.getVideoTracks()[0], { name: 'camera' });
-        if (screenStream) await room.localParticipant.publishTrack(screenStream.getVideoTracks()[0], { name: 'screen' });
-        if (micStream) await room.localParticipant.publishTrack(micStream.getAudioTracks()[0], { name: 'mic' });
+            const { token } = await res.json();
 
-        pipBox.style.display = videoEnabled ? 'flex' : 'none';
-        btnStop.style.display = 'inline-block';
-        isBroadcasting = true;
-        return true;
+            // 🛑 REPLACE THIS URL IN STEP 4 
+            await room.connect('wss://your-livekit-url.livekit.cloud', token);
+
+            if (camStream) await room.localParticipant.publishTrack(camStream.getVideoTracks()[0], { name: 'camera' });
+            if (screenStream) await room.localParticipant.publishTrack(screenStream.getVideoTracks()[0], { name: 'screen' });
+            if (micStream) await room.localParticipant.publishTrack(micStream.getAudioTracks()[0], { name: 'mic' });
+
+            pipBox.style.display = videoEnabled ? 'flex' : 'none';
+            btnStop.style.display = 'inline-block';
+            isBroadcasting = true;
+            return true;
+        } catch (err) {
+            alert("LiveKit Connection Failed: " + err.message);
+            videoEnabled = false;
+            audioEnabled = false;
+            return false;
+        }
     }
 
         function updateButtonsUI() {

@@ -2723,12 +2723,19 @@ app.post('/api/live/admin/set-index', async (req, res) => {
 const { AccessToken } = require('livekit-server-sdk');
 
 app.get('/api/livekit/token', async (req, res) => {
-    const { quizId, studentName } = req.query;
-    const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { 
-        identity: studentName 
-    });
-    at.addGrant({ roomJoin: true, room: quizId });
-    res.json({ token: await at.toJwt() });
+    try {
+        const { quizId, studentName } = req.query;
+        if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) {
+            return res.status(500).json({ error: "Missing SFU keys." });
+        }
+        const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { 
+            identity: studentName 
+        });
+        at.addGrant({ roomJoin: true, room: quizId });
+        res.json({ token: await at.toJwt() });
+    } catch (err) {
+        res.status(500).json({ error: "Token generation failed." });
+    }
 });
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
