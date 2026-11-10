@@ -264,200 +264,101 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/js/livetest.js"></script>
 <script>
-    (function() {
-        const TARGET_SAMPLE_RATE = 24000;
-        let studentAudioCtx = null;
-        let rtcOpusAudioEl = null;
-        let isRtcOpusFlowing = false;
-
-        let lastAdminAudioSeq = 0;
-        let hasSyncedInitialSeq = false;
-        let nextAdminPlayTime = 0;
-        let lastAdminChunkEndMs = 0;
-        let lastAdminAudioPlayedMs = 0;
-        const activeAdminNodes = [];
-        let isPulling = false;
-
-        let studentPc = null;
-        let isJoiningRtc = false;
-        let joinStartedAt = 0;
-        let disconnectedSince = 0;
-        let currentOfferId = null;
-        let hasSentCurrentOffer = false;
-
-        let isCallActive = false;
-        let isCallPushing = false;
-        let studentMicStream = null;
-        let studentMicSource = null;
-        let studentMicProcessor = null;
-        let studentSilentSink = null;
-        let pendingCallSamples = [];
-        let studentPreRollBuffers = [];
-        let callPushInterval = null;
-        let studentActivelySpeakingUntil = 0;
-        let studentNoiseFloorRms = 0.0025;
-        let studentGateGain = 0.0;
-
-        const pipBox = document.getElementById('student-pip-box');
-        const remoteVideo = document.getElementById('student-remote-video');
-        const pptVideo = document.getElementById('student-ppt-video');
-        const presentationScreen = document.getElementById('presentation-screen');
-        const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', () => {
-                if (!document.fullscreenElement) {
-                    if (presentationScreen.requestFullscreen) {
-                        presentationScreen.requestFullscreen();
-                    } else if (presentationScreen.webkitRequestFullscreen) {
-                        presentationScreen.webkitRequestFullscreen();
-                    }
-                    fullscreenBtn.textContent = '✕ Exit Fullscreen';
-                } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    }
-                    fullscreenBtn.textContent = '⛶ Fullscreen';
-                }
-            });
-        }
-        const quizScreen = document.getElementById('quiz-screen');
-        const videoPlaceholder = document.getElementById('student-video-placeholder');
-        const unmuteHintBtn = document.getElementById('btn-unmute-hint');
-        const callBtn = document.getElementById('btn-student-call');
-
-        function getStudentAudioDestination() {
-            if (!studentAudioCtx) {
-                studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            return studentAudioCtx.destination;
-        }
-
-        function ensureStudentAudioCtx() {
-            if (!studentAudioCtx) {
-                studentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (studentAudioCtx.state === 'suspended') {
-                studentAudioCtx.resume().then(() => {
-                    unmuteHintBtn.style.display = 'none';
-                }).catch(() => {});
-            } else {
-                unmuteHintBtn.style.display = 'none';
-            }
-            if (rtcOpusAudioEl && rtcOpusAudioEl.paused && rtcOpusAudioEl.srcObject) {
-                rtcOpusAudioEl.play().then(() => {
-                    isRtcOpusFlowing = true;
-                    unmuteHintBtn.style.display = 'none';
-                }).catch(() => {});
-            }
-        }
-
-        document.addEventListener('pointerdown', ensureStudentAudioCtx);
-        unmuteHintBtn.addEventListener('click', ensureStudentAudioCtx);
-
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                teardownStream();
-            }
-        });
-
-        (function makeDraggable(boxEl, handleEl) {
-            let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-
-            handleEl.addEventListener('pointerdown', (e) => {
-                isDragging = true;
-                handleEl.setPointerCapture(e.pointerId);
-                const rect = boxEl.getBoundingClientRect();
-                startX = e.clientX;
-                startY = e.clientY;
-                initialLeft = rect.left;
-                initialTop = rect.top;
-                boxEl.style.bottom = 'auto';
-                boxEl.style.right = 'auto';
-                boxEl.style.left = initialLeft + 'px';
-                boxEl.style.top = initialTop + 'px';
-            });
-
-            handleEl.addEventListener('pointermove', (e) => {
-                if (!isDragging) return;
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                const maxLeft = window.innerWidth - boxEl.offsetWidth;
-                const maxTop = window.innerHeight - boxEl.offsetHeight;
-                boxEl.style.left = Math.max(0, Math.min(maxLeft, initialLeft + dx)) + 'px';
-                boxEl.style.top = Math.max(0, Math.min(maxTop, initialTop + dy)) + 'px';
-            });
-
-            handleEl.addEventListener('pointerup', (e) => {
-                isDragging = false;
-                handleEl.releasePointerCapture(e.pointerId);
-            });
-        })(pipBox, document.getElementById('student-pip-header'));
-
-        function downsampleClean(float32Arr, inputRate, outputRate) {
-            if (inputRate === outputRate) {
-                const out = new Int16Array(float32Arr.length);
-                for (let i = 0; i < float32Arr.length; i++) {
-                    let s = Math.max(-1, Math.min(1, float32Arr[i]));
-                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                return out;
-            }
-            const ratio = inputRate / outputRate;
-            const newLen = Math.round(float32Arr.length / ratio);
-            const result = new Int16Array(newLen);
-
-            for (let i = 0; i < newLen; i++) {
-                const pos = i * ratio;
-                const idx = Math.floor(pos);
-                const frac = pos - idx;
-                const s0 = float32Arr[idx] || 0;
-                const s1 = float32Arr[Math.min(float32Arr.length - 1, idx + 1)] || s0;
-                let sample = s0 + frac * (s1 - s0);
-                sample = Math.max(-1, Math.min(1, sample));
-                result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-            }
-            return result;
-        }
-
-        function int16ToBase64(int16Arr) {
-            const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
-            let binary = '';
-            const chunkSize = 4096;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-            }
-            return btoa(binary);
-        }
-
-        function stopAllPcmNodes() {
-            while (activeAdminNodes.length > 0) {
-                const oldNode = activeAdminNodes.shift();
-                try { oldNode.stop(); } catch (e) {}
-            }
-        }
-
-        const room = new LivekitClient.Room();
+    const room = new LivekitClient.Room();
 
     room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
         if (track.kind === 'video') {
             if (publication.trackName === 'screen') {
                 track.attach(document.getElementById('student-ppt-video'));
+                document.getElementById('presentation-screen').style.display = 'block';
+                document.body.classList.add('rtc-both-active');
             } else {
                 track.attach(document.getElementById('student-remote-video'));
+                document.getElementById('student-pip-box').style.display = 'flex';
+                document.getElementById('student-video-placeholder').style.display = 'none';
             }
         } else if (track.kind === 'audio') {
-            track.attach(document.createElement('audio')); 
+            const audioEl = document.createElement('audio');
+            track.attach(audioEl);
+            audioEl.play().catch(() => {
+                document.getElementById('btn-unmute-hint').style.display = 'block';
+            });
         }
     });
 
-    async function connectLiveKit() {
-        const res = await fetch(`/api/livekit/token?quizId=${currentQuizId}&studentName=${encodeURIComponent(myName)}`);
-        const { token } = await res.json();
-        await room.connect('wss://your-livekit-url', token);
+    document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
+        e.target.style.display = 'none';
+        if (room.audioContext && room.audioContext.state === 'suspended') {
+            room.audioContext.resume();
+        }
+    });
+
+    async function connectLiveKit(quizId) {
+        try {
+            if (room.state === 'connected') return;
+            const tokenObj = localStorage.getItem('pp_id_token') || "";
+            let myName = "Student";
+            if (tokenObj) {
+               const parts = tokenObj.split('|||')[0].split('|');
+               if(parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+            }
+
+            const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=${encodeURIComponent(myName)}`);
+            if (!res.ok) return;
+            const { token } = await res.json();
+            
+            // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
+        } catch (err) {
+            console.error("LiveKit connection failed:", err);
+        }
     }
-    })();
+
+    // Ping WebSocket connection to launch SFU
+    setInterval(() => {
+        if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+            connectLiveKit(currentQuizId);
+        }
+    }, 3000);
+
+    // Student Speaking (Mic Publishing)
+    let studentMicTrack = null;
+    document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+        if (!studentMicTrack) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                studentMicTrack = stream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+                e.target.textContent = '🔴 Mute Mic';
+                e.target.classList.add('on-call');
+            } catch(err) { alert('Mic access denied'); }
+        } else {
+            await room.localParticipant.unpublishTrack(studentMicTrack);
+            studentMicTrack.stop();
+            studentMicTrack = null;
+            e.target.textContent = '📞 Speak';
+            e.target.classList.remove('on-call');
+        }
+    });
+
+    // Draggable PIP Window
+    const boxEl = document.getElementById('student-pip-box');
+    const handleEl = document.getElementById('student-pip-header');
+    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handleEl.addEventListener('pointerdown', (e) => {
+        isDragging = true; handleEl.setPointerCapture(e.pointerId);
+        const rect = boxEl.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+    });
+    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
 </script>
 </body>
 </html>

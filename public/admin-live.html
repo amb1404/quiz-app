@@ -94,6 +94,8 @@
             transform: scaleX(-1);
         }
     </style>
+<script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
     <h2>Live Mock Control Center</h2>
@@ -181,875 +183,128 @@
 
     <script src="/js/admin-live.js"></script>
 <script>
-    (function() {
-        const TARGET_SAMPLE_RATE = 24000;
-
-        // 3 Strictly Separate Media Pipelines
-        let camStream = null;      // Pipeline 1: Dedicated Webcam Video Stream
-        let screenStream = null;   // Pipeline 2: Dedicated PPT Presentation Stream
-        let micStream = null;      // Pipeline 3: Dedicated HD Microphone Stream
-
-        let idleCamStream = null;
-        let idleCamCtx = null;
-        let idlePptStream = null;
-        let idlePptCtx = null;
-        let lastIdleDrawAt = 0;
-
-        let studioOutDest = null;  // Clean Noise-Cancelled WebRTC Opus Output Stream
-        let silentOsc = null;
-
-        let videoEnabled = false;
-        let audioEnabled = false;
-        let isBroadcasting = false;
-        let broadcastMode = 'question'; // 'question', 'presentation', or 'both'
-
-        let pushWorker = null;
-        let isPushing = false;
-        let lastHeartbeatAt = 0;
-
-        let adminAudioCtx = null;
-        let micProcessor = null;
-        let micSource = null;
-        let silentSink = null;
-        let pendingPcmSamples = [];
-        let preRollBuffers = [];
-        let lastStudentSeq = 0;
-        let noiseFloorRms = 0.0025;
-        let currentGateGain = 0.0;
-
-        // Per-student low-latency audio playback timelines
-        const studentPlayTimes = new Map();
-        const studentActiveNodes = new Map();
-        const studentLastChunkEnd = new Map();
-        let lastStudentAudioPlayedMs = 0;
-
-        const peerConnections = new Map();
-        const answeringStudents = new Set();
-        const answeredOfferIds = new Set();
-
-        const btnVideo = document.getElementById('btn-admin-video');
-        const btnAudio = document.getElementById('btn-admin-audio');
-        const btnStop = document.getElementById('btn-admin-stop-stream');
-        const pipBox = document.getElementById('admin-pip-box');
-        const selfVideo = document.getElementById('admin-self-video');
-        const callerBadge = document.getElementById('admin-caller-badge');
-
-        const btnModeQuestion = document.getElementById('btn-mode-question');
-        const btnModePpt = document.getElementById('btn-mode-ppt');
-        const btnModeBoth = document.getElementById('btn-mode-both');
-        const btnReselectPpt = document.getElementById('btn-reselect-ppt');
-        const modeBadge = document.getElementById('admin-mode-badge');
-
-        function getAdminCredentials() {
-            const keyEl = document.getElementById('admin-key');
-            const quizEl = document.getElementById('quiz-id');
-            let keyVal = keyEl ? keyEl.value.trim() : '';
-            let quizVal = quizEl ? quizEl.value.trim() : '';
-            if (!keyVal || !quizVal) {
-                try {
-                    const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
-                    if (!keyVal && saved.adminKey) keyVal = saved.adminKey;
-                    if (!quizVal && saved.quizId) quizVal = saved.quizId;
-                } catch (e) {}
-            }
-            return { adminKey: keyVal, quizId: quizVal };
-        }
-
-        function getIdleCamTrack() {
-            if (!idleCamStream) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 360;
-                idleCamCtx = canvas.getContext('2d', { alpha: false });
-                idleCamCtx.fillStyle = '#0f172a';
-                idleCamCtx.fillRect(0, 0, canvas.width, canvas.height);
-                idleCamStream = canvas.captureStream(15);
-                idleCamCtx.fillRect(0, 0, 8, 8);
-            }
-            return idleCamStream.getVideoTracks()[0];
-        }
-
-        function getIdlePptTrack() {
-            if (!idlePptStream) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1280;
-                canvas.height = 720;
-                idlePptCtx = canvas.getContext('2d', { alpha: false });
-                idlePptCtx.fillStyle = '#0f172a';
-                idlePptCtx.fillRect(0, 0, canvas.width, canvas.height);
-                idlePptStream = canvas.captureStream(15);
-                idlePptCtx.fillRect(0, 0, 8, 8);
-            }
-            return idlePptStream.getVideoTracks()[0];
-        }
-
-        function getStudioOpusTrack() {
-            if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (!studioOutDest) {
-                studioOutDest = adminAudioCtx.createMediaStreamDestination();
-                silentOsc = adminAudioCtx.createOscillator();
-                const zeroGain = adminAudioCtx.createGain();
-                zeroGain.gain.value = 0.0;
-                silentOsc.connect(zeroGain);
-                zeroGain.connect(studioOutDest);
-                silentOsc.start();
-            }
-            return studioOutDest.stream.getAudioTracks()[0];
-        }
-
-        function getActiveCamTrack() {
-            getIdleCamTrack();
-            if (videoEnabled && camStream) {
-                const track = camStream.getVideoTracks()[0];
-                if (track && track.readyState === 'live') return track;
-            }
-            return getIdleCamTrack();
-        }
-
-        function getActivePptTrack() {
-            getIdlePptTrack();
-            if (screenStream) {
-                const track = screenStream.getVideoTracks()[0];
-                if (track && track.readyState === 'live') return track;
-            }
-            return getIdlePptTrack();
-        }
-
-        function optimizeVideoSender(sender, isPresentation) {
-            if (!sender || typeof sender.getParameters !== 'function') return;
-            try {
-                const params = sender.getParameters();
-                if (!params.encodings || params.encodings.length === 0) {
-                    params.encodings = [{}];
-                }
-                params.degradationPreference = 'maintain-framerate';
-                params.encodings[0].maxFramerate = 30;
-                params.encodings[0].maxBitrate = isPresentation ? 2500000 : 900000;
-                params.encodings[0].scaleResolutionDownBy = 1.0;
-                params.encodings[0].priority = 'high';
-                params.encodings[0].networkPriority = 'high';
-                sender.setParameters(params).catch(() => {});
-            } catch (e) {}
-        }
-
-        function optimizeAudioSender(sender) {
-            if (!sender || typeof sender.getParameters !== 'function') return;
-            try {
-                const params = sender.getParameters();
-                if (!params.encodings || params.encodings.length === 0) {
-                    params.encodings = [{}];
-                }
-                params.encodings[0].maxBitrate = 96000;
-                params.encodings[0].priority = 'high';
-                params.encodings[0].networkPriority = 'high';
-                sender.setParameters(params).catch(() => {});
-            } catch (e) {}
-        }
-
-        function enhanceOpusSdp(sdp) {
-            if (!sdp) return sdp;
-            return sdp.replace(/a=fmtp:(\d+) minptime=10;useinbandfec=1/g, 'a=fmtp:$1 minptime=10;useinbandfec=1;usedtx=0;stereo=0;maxaveragebitrate=96000;maxplaybackrate=48000;cbr=1');
-        }
-
-        function hotSwapCameraTrack(newCamTrack) {
-            if (newCamTrack && 'contentHint' in newCamTrack) {
-                newCamTrack.contentHint = 'motion';
-            }
-            peerConnections.forEach((pc) => {
-                if (pc._camSender) {
-                    pc._camSender.replaceTrack(newCamTrack).then(() => {
-                        optimizeVideoSender(pc._camSender, false);
-                    }).catch(() => {});
-                }
-            });
-        }
-
-        function hotSwapPresentationTrack(newTrack) {
-            if (newTrack && 'contentHint' in newTrack) {
-                newTrack.contentHint = 'motion';
-            }
-            peerConnections.forEach((pc) => {
-                if (pc._pptSender) {
-                    pc._pptSender.replaceTrack(newTrack).then(() => {
-                        optimizeVideoSender(pc._pptSender, true);
-                    }).catch(() => {});
-                }
-            });
-        }
-
-        function updateModeConsoleUI() {
-            const resetBtn = (btn) => {
-                if (!btn) return;
-                btn.style.background = '#475569';
-                btn.style.borderColor = 'transparent';
-            };
-            resetBtn(btnModeQuestion);
-            resetBtn(btnModePpt);
-            resetBtn(btnModeBoth);
-
-            if (broadcastMode === 'presentation') {
-                btnModePpt.style.background = '#7c3aed';
-                btnModePpt.style.borderColor = '#c4b5fd';
-                modeBadge.textContent = '📌 Showing: Live Presentation (PPT)';
-                modeBadge.style.color = '#c4b5fd';
-            } else if (broadcastMode === 'both') {
-                if (btnModeBoth) {
-                    btnModeBoth.style.background = '#059669';
-                    btnModeBoth.style.borderColor = '#6ee7b7';
-                }
-                modeBadge.textContent = '📌 Showing: PPT + Question Together';
-                modeBadge.style.color = '#6ee7b7';
-            } else {
-                btnModeQuestion.style.background = '#2563eb';
-                btnModeQuestion.style.borderColor = '#60a5fa';
-                modeBadge.textContent = '📌 Showing: Question Card';
-                modeBadge.style.color = '#60a5fa';
-            }
-            const hasLivePpt = screenStream && screenStream.getVideoTracks()[0] && screenStream.getVideoTracks()[0].readyState === 'live';
-            btnReselectPpt.style.display = hasLivePpt ? 'inline-block' : 'none';
-        }
-
-        async function syncModeToServer() {
-            const { adminKey, quizId } = getAdminCredentials();
-            if (!adminKey || !quizId) return;
-            await fetch('/api/live/rtc/admin/mode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, broadcastMode })
-            }).catch(() => {});
-        }
-
-        async function acquireScreenShareStream(forceNewPicker) {
-            const hasLivePpt = screenStream && screenStream.getVideoTracks()[0] && screenStream.getVideoTracks()[0].readyState === 'live';
-            if (hasLivePpt && !forceNewPicker) {
-                return true;
-            }
-            if (screenStream) {
-                screenStream.getTracks().forEach(t => t.stop());
-                screenStream = null;
-            }
-            try {
-                screenStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: false
-                });
-                const screenTrack = screenStream.getVideoTracks()[0];
-                if (screenTrack) {
-                    if ('contentHint' in screenTrack) {
-                        screenTrack.contentHint = 'motion';
-                    }
-                    if (typeof screenTrack.applyConstraints === 'function') {
-                        screenTrack.applyConstraints({ frameRate: 30 }).catch(() => {});
-                    }
-                    hotSwapPresentationTrack(screenTrack);
-
-                    screenTrack.onended = () => {
-                        screenStream = null;
-                        hotSwapPresentationTrack(getIdlePptTrack());
-                        broadcastMode = 'question';
-                        updateModeConsoleUI();
-                        syncModeToServer();
-                    };
-                }
-                return true;
-            } catch (err) {
-                alert('Window selection was cancelled or blocked: ' + (err.message || 'Please select a window to share.'));
-                return false;
-            }
-        }
-
-        btnModeQuestion.addEventListener('click', async () => {
-            broadcastMode = 'question';
-            updateModeConsoleUI();
-            await syncModeToServer();
-        });
-
-        btnModePpt.addEventListener('click', async () => {
-            const hasScreen = await acquireScreenShareStream(false);
-            if (!hasScreen) return;
-
-            const { adminKey, quizId } = getAdminCredentials();
-            if (!adminKey || !quizId) {
-                alert('Please enter your Admin Secret Key and create a Room first.');
-                return;
-            }
-
-            broadcastMode = 'presentation';
-            updateModeConsoleUI();
-
-            if (!isBroadcasting) {
-                await startOrUpdateBroadcast();
-            } else {
-                await syncModeToServer();
-            }
-        });
-
-        if (btnModeBoth) {
-            btnModeBoth.addEventListener('click', async () => {
-                const hasScreen = await acquireScreenShareStream(false);
-                if (!hasScreen) return;
-
-                const { adminKey, quizId } = getAdminCredentials();
-                if (!adminKey || !quizId) {
-                    alert('Please enter your Admin Secret Key and create a Room first.');
-                    return;
-                }
-
-                broadcastMode = 'both';
-                updateModeConsoleUI();
-
-                if (!isBroadcasting) {
-                    await startOrUpdateBroadcast();
-                } else {
-                    await syncModeToServer();
-                }
-            });
-        }
-
-        btnReselectPpt.addEventListener('click', async () => {
-            const switched = await acquireScreenShareStream(true);
-            if (switched) {
-                if (broadcastMode === 'question') broadcastMode = 'presentation';
-                updateModeConsoleUI();
-                await syncModeToServer();
-            }
-        });
-
-        (function makeDraggable(boxEl, handleEl) {
-            let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-
-            handleEl.addEventListener('pointerdown', (e) => {
-                isDragging = true;
-                handleEl.setPointerCapture(e.pointerId);
-                const rect = boxEl.getBoundingClientRect();
-                startX = e.clientX;
-                startY = e.clientY;
-                initialLeft = rect.left;
-                initialTop = rect.top;
-                boxEl.style.bottom = 'auto';
-                boxEl.style.right = 'auto';
-                boxEl.style.left = initialLeft + 'px';
-                boxEl.style.top = initialTop + 'px';
-            });
-
-            handleEl.addEventListener('pointermove', (e) => {
-                if (!isDragging) return;
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                const maxLeft = window.innerWidth - boxEl.offsetWidth;
-                const maxTop = window.innerHeight - boxEl.offsetHeight;
-                boxEl.style.left = Math.max(0, Math.min(maxLeft, initialLeft + dx)) + 'px';
-                boxEl.style.top = Math.max(0, Math.min(maxTop, initialTop + dy)) + 'px';
-            });
-
-            handleEl.addEventListener('pointerup', (e) => {
-                isDragging = false;
-                handleEl.releasePointerCapture(e.pointerId);
-            });
-        })(pipBox, document.getElementById('admin-pip-header'));
-
-        function downsampleClean(float32Arr, inputRate, outputRate) {
-            if (inputRate === outputRate) {
-                const out = new Int16Array(float32Arr.length);
-                for (let i = 0; i < float32Arr.length; i++) {
-                    let s = Math.max(-1, Math.min(1, float32Arr[i]));
-                    out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                return out;
-            }
-            const ratio = inputRate / outputRate;
-            const newLen = Math.round(float32Arr.length / ratio);
-            const result = new Int16Array(newLen);
-
-            for (let i = 0; i < newLen; i++) {
-                const pos = i * ratio;
-                const idx = Math.floor(pos);
-                const frac = pos - idx;
-                const s0 = float32Arr[idx] || 0;
-                const s1 = float32Arr[Math.min(float32Arr.length - 1, idx + 1)] || s0;
-                let sample = s0 + frac * (s1 - s0);
-                sample = Math.max(-1, Math.min(1, sample));
-                result[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-            }
-            return result;
-        }
-
-        function int16ToBase64(int16Arr) {
-            const bytes = new Uint8Array(int16Arr.buffer, int16Arr.byteOffset, int16Arr.byteLength);
-            let binary = '';
-            const chunkSize = 4096;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-            }
-            return btoa(binary);
-        }
-
-        document.addEventListener('pointerdown', () => {
-            if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (adminAudioCtx.state === 'suspended') {
-                adminAudioCtx.resume().catch(() => {});
-            }
-        });
-
-        const studentLastSample = new Map();
-
-        function playIncomingPcmBase64(b64Str, sampleRate, studentName) {
-            if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (adminAudioCtx.state === 'suspended') {
-                adminAudioCtx.resume().catch(() => {});
-            }
-
-            const raw = atob(b64Str);
-            const bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-            const int16 = new Int16Array(bytes.buffer);
-            if (int16.length === 0) return;
-
-            const audioBuffer = adminAudioCtx.createBuffer(1, int16.length, sampleRate || TARGET_SAMPLE_RATE);
-            const channel = audioBuffer.getChannelData(0);
-
-            const now = adminAudioCtx.currentTime;
-            const callerKey = studentName || 'default';
-            let nextPlayTime = studentPlayTimes.get(callerKey) || 0;
-            const lastEndMs = studentLastChunkEnd.get(callerKey) || 0;
-            const isUnderrun = (nextPlayTime < now);
-            const isNewTalkSpurt = isUnderrun && (Date.now() - lastEndMs > 600);
-            const prevSample = isNewTalkSpurt ? 0 : (studentLastSample.get(callerKey) || 0);
-
-            const stitchLen = Math.min(16, int16.length);
-            for (let i = 0; i < int16.length; i++) {
-                let val = int16[i] / 32768.0;
-                if (i < stitchLen) {
-                    const alpha = i / stitchLen;
-                    val = prevSample + alpha * (val - prevSample);
-                }
-                channel[i] = val;
-            }
-            studentLastSample.set(callerKey, channel[int16.length - 1]);
-
-            if (isNewTalkSpurt) {
-                nextPlayTime = now + 0.28;
-            } else if (isUnderrun) {
-                nextPlayTime = now + 0.16;
-            } else if (nextPlayTime - now > 2.5) {
-                const existingNodes = studentActiveNodes.get(callerKey) || [];
-                existingNodes.forEach(n => { try { n.stop(); } catch (e) {} });
-                studentActiveNodes.set(callerKey, []);
-                nextPlayTime = now + 0.22;
-            }
-
-            const src = adminAudioCtx.createBufferSource();
-            src.buffer = audioBuffer;
-            src.connect(adminAudioCtx.destination);
-
-            const callerNodes = studentActiveNodes.get(callerKey) || [];
-            callerNodes.push(src);
-            studentActiveNodes.set(callerKey, callerNodes);
-            src.onended = () => {
-                const arr = studentActiveNodes.get(callerKey);
-                if (arr) {
-                    const idx = arr.indexOf(src);
-                    if (idx !== -1) arr.splice(idx, 1);
-                }
-            };
-
-            src.start(nextPlayTime);
-            nextPlayTime += audioBuffer.duration;
-            studentPlayTimes.set(callerKey, nextPlayTime);
-
-            const remainingPlayMs = Math.max(0, (nextPlayTime - now) * 1000);
-            studentLastChunkEnd.set(callerKey, Date.now() + remainingPlayMs);
-            lastStudentAudioPlayedMs = Date.now() + remainingPlayMs + 250;
-        }
-
-        async function syncCameraPipeline() {
-            getIdleCamTrack();
-            if (!videoEnabled) {
-                if (camStream) {
-                    camStream.getTracks().forEach(t => t.stop());
-                    camStream = null;
-                }
-                selfVideo.srcObject = null;
-                hotSwapCameraTrack(getIdleCamTrack());
-                return true;
-            }
-
-            const hasLiveCam = camStream && camStream.getVideoTracks()[0] && camStream.getVideoTracks()[0].readyState === 'live';
-            if (!hasLiveCam) {
-                try {
-                    camStream = await navigator.mediaDevices.getUserMedia({
-                        video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 30 } },
-                        audio: false
-                    });
-                    selfVideo.muted = true;
-                    selfVideo.volume = 0;
-                    selfVideo.srcObject = camStream;
-                    await selfVideo.play().catch(() => {});
-                } catch (err) {
-                    alert('Camera error: ' + err.message);
-                    videoEnabled = false;
-                    return false;
-                }
-            }
-            const liveCamTrack = camStream.getVideoTracks()[0];
-            if (liveCamTrack) {
-                hotSwapCameraTrack(liveCamTrack);
-            }
-            return true;
-        }
-
-        async function syncAudioPipeline() {
-            if (!adminAudioCtx) {
-                adminAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (adminAudioCtx.state === 'suspended') await adminAudioCtx.resume();
-            getStudioOpusTrack();
-
-            if (!audioEnabled) {
-                if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
-                if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
-                if (silentSink) { try { silentSink.disconnect(); } catch (e) {} silentSink = null; }
-                if (micStream) {
-                    micStream.getTracks().forEach(t => t.stop());
-                    micStream = null;
-                }
-                pendingPcmSamples = [];
-                preRollBuffers = [];
-                currentGateGain = 0.0;
-                return true;
-            }
-
-            const hasLiveMic = micStream && micStream.getAudioTracks()[0] && micStream.getAudioTracks()[0].readyState === 'live';
-            if (!hasLiveMic) {
-                try {
-                    micStream = await navigator.mediaDevices.getUserMedia({
-                        video: false,
-                        audio: {
-                            echoCancellation: { ideal: true },
-                            noiseSuppression: { ideal: true },
-                            voiceIsolation: { ideal: true },
-                            autoGainControl: false,
-                            channelCount: { ideal: 1 },
-                            googEchoCancellation: true,
-                            googAutoGainControl: false,
-                            googNoiseSuppression: true,
-                            googExperimentalNoiseSuppression: true,
-                            googHighpassFilter: true
-                        }
-                    });
-
-                    if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} }
-                    if (micSource) { try { micSource.disconnect(); } catch (e) {} }
-                    if (silentSink) { try { silentSink.disconnect(); } catch (e) {} }
-
-                    micSource = adminAudioCtx.createMediaStreamSource(micStream);
-
-                    const humNotch = adminAudioCtx.createBiquadFilter();
-                    humNotch.type = 'notch';
-                    humNotch.frequency.value = 50;
-                    humNotch.Q.value = 10.0;
-
-                    const hpFilter = adminAudioCtx.createBiquadFilter();
-                    hpFilter.type = 'highpass';
-                    hpFilter.frequency.value = 220;
-                    hpFilter.Q.value = 0.707;
-
-                    const lpFilter = adminAudioCtx.createBiquadFilter();
-                    lpFilter.type = 'lowpass';
-                    lpFilter.frequency.value = 9000;
-                    lpFilter.Q.value = 0.707;
-
-                    const presenceFilter = adminAudioCtx.createBiquadFilter();
-                    presenceFilter.type = 'highshelf';
-                    presenceFilter.frequency.value = 2800;
-                    presenceFilter.gain.value = 4.5;
-
-                    const compressor = adminAudioCtx.createDynamicsCompressor();
-                    compressor.threshold.value = -16;
-                    compressor.knee.value = 10;
-                    compressor.ratio.value = 2.0;
-                    compressor.attack.value = 0.005;
-                    compressor.release.value = 0.12;
-
-                    const studioGateNode = adminAudioCtx.createGain();
-                    studioGateNode.gain.value = 0.04;
-
-                    micProcessor = adminAudioCtx.createScriptProcessor(2048, 1, 1);
-                    silentSink = adminAudioCtx.createGain();
-                    silentSink.gain.value = 0;
-
-                    let wasSpeaking = false;
-                    let speechHoldUntil = 0;
-                    noiseFloorRms = 0.0025;
-
-                    micProcessor.onaudioprocess = (e) => {
-                        if (!isBroadcasting || !audioEnabled) {
-                            if (wasSpeaking) {
-                                const nowAudio = adminAudioCtx.currentTime;
-                                studioGateNode.gain.cancelScheduledValues(nowAudio);
-                                studioGateNode.gain.setTargetAtTime(0.0, nowAudio, 0.02);
-                                wasSpeaking = false;
-                            }
-                            preRollBuffers = [];
-                            currentGateGain = 0.0;
-                            return;
-                        }
-
-                        const input = e.inputBuffer.getChannelData(0);
-                        let sumSq = 0;
-                        for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
-                        const rms = Math.sqrt(sumSq / input.length);
-                        const nowMs = Date.now();
-
-                        if (!wasSpeaking || rms < noiseFloorRms * 1.5) {
-                            noiseFloorRms = (0.95 * noiseFloorRms) + (0.05 * Math.min(0.008, Math.max(0.0008, rms)));
-                        }
-
-                        const openThreshold = Math.max(0.0048, noiseFloorRms * 2.2);
-                        const continueThreshold = Math.max(0.0025, noiseFloorRms * 1.4);
-
-                        if (rms > openThreshold || (wasSpeaking && rms > continueThreshold)) {
-                            speechHoldUntil = nowMs + 1100;
-                        }
-
-                        const isGateOpen = (nowMs < speechHoldUntil);
-
-                        if (isGateOpen !== wasSpeaking) {
-                            const nowAudio = adminAudioCtx.currentTime;
-                            studioGateNode.gain.cancelScheduledValues(nowAudio);
-                            studioGateNode.gain.setValueAtTime(studioGateNode.gain.value, nowAudio);
-                            studioGateNode.gain.setTargetAtTime(isGateOpen ? 1.0 : 0.03, nowAudio, isGateOpen ? 0.010 : 0.06);
-                        }
-
-                        const targetGain = isGateOpen ? 1.0 : 0.03;
-                        const gatedFloat = new Float32Array(input.length);
-                        for (let i = 0; i < input.length; i++) {
-                            currentGateGain += (targetGain - currentGateGain) * (isGateOpen ? 0.08 : 0.005);
-                            gatedFloat[i] = Math.tanh(input[i] * currentGateGain);
-                        }
-
-                        const downsampled = downsampleClean(gatedFloat, adminAudioCtx.sampleRate, TARGET_SAMPLE_RATE);
-
-                        if (isGateOpen) {
-                            if (!wasSpeaking && preRollBuffers.length > 0) {
-                                for (let b = 0; b < preRollBuffers.length; b++) {
-                                    const pre = preRollBuffers[b];
-                                    for (let j = 0; j < pre.length; j++) pendingPcmSamples.push(pre[j]);
-                                }
-                                preRollBuffers = [];
-                            }
-                            wasSpeaking = true;
-                            for (let i = 0; i < downsampled.length; i++) pendingPcmSamples.push(downsampled[i]);
-                            if (pendingPcmSamples.length > 24000) pendingPcmSamples = pendingPcmSamples.slice(-24000);
-                        } else {
-                            wasSpeaking = false;
-                            preRollBuffers.push(downsampled);
-                            if (preRollBuffers.length > 4) preRollBuffers.shift();
-                        }
-                    };
-
-                    micSource.connect(humNotch);
-                    humNotch.connect(hpFilter);
-                    hpFilter.connect(lpFilter);
-                    lpFilter.connect(presenceFilter);
-                    presenceFilter.connect(compressor);
-
-                    compressor.connect(studioGateNode);
-                    studioGateNode.connect(studioOutDest);
-
-                    compressor.connect(micProcessor);
-                    micProcessor.connect(silentSink);
-                    silentSink.connect(adminAudioCtx.destination);
-                } catch (err) {
-                    alert('Microphone error: ' + err.message);
-                    audioEnabled = false;
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Wait for STUN (srflx) candidate or complete gathering so public IP candidates are never cut off early
-        function waitForIce(pc, maxTimeout = 1000) {
-            return new Promise(resolve => {
-                if (pc.iceGatheringState === 'complete') return resolve();
-                let resolved = false;
-                let quickTimer = null;
-                const done = () => {
-                    if (resolved) return;
-                    resolved = true;
-                    clearTimeout(maxTimer);
-                    if (quickTimer) clearTimeout(quickTimer);
-                    resolve();
-                };
-                const maxTimer = setTimeout(done, maxTimeout);
-                pc.addEventListener('icecandidate', (e) => {
-                    if (!e.candidate) {
-                        done();
-                    } else if (e.candidate.candidate && e.candidate.candidate.includes('srflx')) {
-                        if (!quickTimer) quickTimer = setTimeout(done, 150);
-                    }
-                });
-                pc.addEventListener('icegatheringstatechange', () => {
-                    if (pc.iceGatheringState === 'complete') done();
-                });
-            });
-        }
-
-        const room = new LivekitClient.Room();
+    const room = new LivekitClient.Room();
+    let videoEnabled = false;
+    let audioEnabled = false;
+    let broadcastMode = 'question';
+    let currentCamTrack = null;
+    let currentMicTrack = null;
+    let currentScreenTrack = null;
 
     async function startOrUpdateBroadcast() {
-        const { adminKey, quizId } = getAdminCredentials();
+        const adminKey = document.getElementById('admin-key').value.trim();
+        const quizId = document.getElementById('quiz-id').value.trim();
         if (!adminKey || !quizId) return false;
 
         try {
-            await syncCameraPipeline();
-            await syncAudioPipeline();
-
             const res = await fetch(`/api/livekit/token?quizId=${quizId}&studentName=admin`);
             if (!res.ok) throw new Error("API Keys missing on server.");
-
             const { token } = await res.json();
 
-            // 🛑 REPLACE THIS URL IN STEP 4 
-            await room.connect('wss://your-livekit-url.livekit.cloud', token);
+            // 🛑 REPLACE THIS URL WITH YOUR REAL LIVEKIT URL
+            if (room.state !== 'connected') {
+                await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud', token);
+            }
 
-            if (camStream) await room.localParticipant.publishTrack(camStream.getVideoTracks()[0], { name: 'camera' });
-            if (screenStream) await room.localParticipant.publishTrack(screenStream.getVideoTracks()[0], { name: 'screen' });
-            if (micStream) await room.localParticipant.publishTrack(micStream.getAudioTracks()[0], { name: 'mic' });
+            if (videoEnabled && !currentCamTrack) {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+                currentCamTrack = stream.getVideoTracks()[0];
+                await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
+                document.getElementById('admin-self-video').srcObject = stream;
+            } else if (!videoEnabled && currentCamTrack) {
+                await room.localParticipant.unpublishTrack(currentCamTrack);
+                currentCamTrack.stop();
+                currentCamTrack = null;
+                document.getElementById('admin-self-video').srcObject = null;
+            }
 
-            pipBox.style.display = videoEnabled ? 'flex' : 'none';
-            btnStop.style.display = 'inline-block';
-            isBroadcasting = true;
+            if (audioEnabled && !currentMicTrack) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                currentMicTrack = stream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+            } else if (!audioEnabled && currentMicTrack) {
+                await room.localParticipant.unpublishTrack(currentMicTrack);
+                currentMicTrack.stop();
+                currentMicTrack = null;
+            }
+
+            if ((broadcastMode === 'presentation' || broadcastMode === 'both') && !currentScreenTrack) {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                currentScreenTrack = stream.getVideoTracks()[0];
+                await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
+                currentScreenTrack.onended = () => {
+                    room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack = null;
+                    broadcastMode = 'question';
+                };
+            } else if (broadcastMode === 'question' && currentScreenTrack) {
+                await room.localParticipant.unpublishTrack(currentScreenTrack);
+                currentScreenTrack.stop();
+                currentScreenTrack = null;
+            }
+
+            document.getElementById('admin-pip-box').style.display = videoEnabled ? 'flex' : 'none';
+            document.getElementById('btn-admin-stop-stream').style.display = 'inline-block';
             return true;
         } catch (err) {
             alert("LiveKit Connection Failed: " + err.message);
-            videoEnabled = false;
-            audioEnabled = false;
+            videoEnabled = audioEnabled = false;
             return false;
         }
     }
 
-        function updateButtonsUI() {
-            btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
-            btnVideo.classList.toggle('active-cam', videoEnabled);
-            btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
-            btnAudio.classList.toggle('active-mic', audioEnabled);
-        }
+    document.getElementById('btn-admin-video').addEventListener('click', async (e) => {
+        videoEnabled = !videoEnabled;
+        e.target.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+        e.target.classList.toggle('active-cam', videoEnabled);
+        await startOrUpdateBroadcast();
+    });
 
-        function stopAllStudentAudioNodes(targetStudent = null) {
-            if (targetStudent) {
-                const nodes = studentActiveNodes.get(targetStudent) || [];
-                nodes.forEach(n => { try { n.stop(); } catch (e) {} });
-                studentActiveNodes.delete(targetStudent);
-                studentPlayTimes.delete(targetStudent);
-                studentLastChunkEnd.delete(targetStudent);
-                studentLastSample.delete(targetStudent);
-            } else {
-                studentActiveNodes.forEach(nodes => {
-                    nodes.forEach(n => { try { n.stop(); } catch (e) {} });
-                });
-                studentActiveNodes.clear();
-                studentPlayTimes.clear();
-                studentLastChunkEnd.clear();
-                studentLastSample.clear();
-            }
-        }
+    document.getElementById('btn-admin-audio').addEventListener('click', async (e) => {
+        audioEnabled = !audioEnabled;
+        e.target.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+        e.target.classList.toggle('active-mic', audioEnabled);
+        await startOrUpdateBroadcast();
+    });
 
-        function resetCallerBadge() {
-            callerBadge.textContent = '🎧 No active student calls';
-            callerBadge.classList.remove('calling');
-        }
+    document.getElementById('btn-admin-stop-stream').addEventListener('click', () => {
+        room.disconnect();
+        if (currentCamTrack) currentCamTrack.stop();
+        if (currentMicTrack) currentMicTrack.stop();
+        if (currentScreenTrack) currentScreenTrack.stop();
+        currentCamTrack = currentMicTrack = currentScreenTrack = null;
 
-        window.cutStudentAudioImmediately = function(studentName) {
-            stopAllStudentAudioNodes(studentName);
-            if (!callerBadge) return;
-            const currentText = callerBadge.textContent || '';
-            if (currentText.includes('Student Speaking:')) {
-                const rawList = currentText.replace(/^.*Student Speaking:\s*/i, '');
-                const remaining = rawList.split(',').map(s => s.trim()).filter(s => s && s !== studentName);
-                if (remaining.length > 0 && isBroadcasting) {
-                    callerBadge.textContent = `🟢 Student Speaking: ${remaining.join(', ')}`;
-                    callerBadge.classList.add('calling');
-                } else {
-                    resetCallerBadge();
-                }
-            }
-        };
+        document.getElementById('admin-pip-box').style.display = 'none';
+        document.getElementById('btn-admin-stop-stream').style.display = 'none';
+        videoEnabled = audioEnabled = false;
+        document.getElementById('btn-admin-video').textContent = '📹 Video: OFF';
+        document.getElementById('btn-admin-video').classList.remove('active-cam');
+        document.getElementById('btn-admin-audio').textContent = '🎙️ Audio: OFF';
+        document.getElementById('btn-admin-audio').classList.remove('active-mic');
+    });
 
-        async function handleStreamToggle() {
-            await startOrUpdateBroadcast();
-            updateButtonsUI();
-        }
-
-        btnVideo.addEventListener('click', async () => {
-            videoEnabled = !videoEnabled;
-            await handleStreamToggle();
-        });
-
-        btnAudio.addEventListener('click', async () => {
-            audioEnabled = !audioEnabled;
-            await handleStreamToggle();
-        });
-
-        btnStop.addEventListener('click', async () => {
-            const { adminKey, quizId } = getAdminCredentials();
-            isBroadcasting = false;
-            videoEnabled = false;
-            audioEnabled = false;
-            broadcastMode = 'question';
-            pendingPcmSamples = [];
-            preRollBuffers = [];
-            stopAllStudentAudioNodes();
-            try { localStorage.removeItem('pp_admin_mic_same_pc'); } catch (e) {}
-
-            if (screenStream) {
-                screenStream.getTracks().forEach(t => t.stop());
-                screenStream = null;
-            }
-            if (camStream) {
-                camStream.getTracks().forEach(t => t.stop());
-                camStream = null;
-            }
-            if (micStream) {
-                micStream.getTracks().forEach(t => t.stop());
-                micStream = null;
-            }
-            selfVideo.srcObject = null;
-
-            updateButtonsUI();
-            updateModeConsoleUI();
-            pipBox.style.display = 'none';
-            btnStop.style.display = 'none';
-            resetCallerBadge();
-
-            if (pushWorker) {
-                try { pushWorker.terminate(); } catch (e) {}
-                pushWorker = null;
-            }
-
-            peerConnections.forEach(pc => { try { pc.close(); } catch (e) {} });
-            peerConnections.clear();
-            answeringStudents.clear();
-            answeredOfferIds.clear();
-
-            if (micProcessor) { try { micProcessor.disconnect(); } catch (e) {} micProcessor = null; }
-            if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
-            if (silentSink) { try { silentSink.disconnect(); } catch (e) {} silentSink = null; }
-
-            await fetch('/api/live/rtc/admin/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, active: false, videoEnabled: false, audioEnabled: false, broadcastMode: 'question' })
-            }).catch(() => {});
-        });
-    })();
+    document.getElementById('btn-mode-question').addEventListener('click', async () => { broadcastMode = 'question'; await startOrUpdateBroadcast(); });
+    document.getElementById('btn-mode-ppt').addEventListener('click', async () => { broadcastMode = 'presentation'; await startOrUpdateBroadcast(); });
+    document.getElementById('btn-mode-both').addEventListener('click', async () => { broadcastMode = 'both'; await startOrUpdateBroadcast(); });
+    
+    // Draggable PIP Window
+    const boxEl = document.getElementById('admin-pip-box');
+    const handleEl = document.getElementById('admin-pip-header');
+    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handleEl.addEventListener('pointerdown', (e) => {
+        isDragging = true; handleEl.setPointerCapture(e.pointerId);
+        const rect = boxEl.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+    });
+    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
 </script>
 </body>
 </html>
