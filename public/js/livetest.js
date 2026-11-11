@@ -421,17 +421,18 @@ function renderLiveMockResults(scorecard, breakdown) {
     `;
 
     breakdown.forEach(item => {
-        let statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
-        let statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
-        let selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
-        
-        html += `
-                    <tr style="border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 16px; vertical-align: top; font-weight: bold; color: #475569;">${item.qNum}</td>
-                        <td style="padding: 16px; vertical-align: top;">
-                            <div style="color: #1e293b; font-weight: 500; font-size: 15px;">${esc(item.question)}</div>
-                            ${item.explanation ? `<div style="margin-top: 10px; font-size: 13px; color: #15803d; background: #f0fdf4; padding: 10px; border-radius: 6px; border-left: 4px solid #16a34a;"><strong>Explanation:</strong> ${esc(item.explanation)}</div>` : ''}
-                        </td>
+    let statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
+    let statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
+    let selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
+    const expText = (item.explanation || item.exp || item.solution || '').trim();
+
+    html += `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 16px; vertical-align: top; font-weight: bold; color: #475569;">${item.qNum}</td>
+                    <td style="padding: 16px; vertical-align: top;">
+                        <div style="color: #1e293b; font-weight: 500; font-size: 15px;">${esc(item.question)}</div>
+                        ${expText ? `<div style="margin-top: 10px; font-size: 13px; color: #15803d; background: #f0fdf4; padding: 10px; border-radius: 6px; border-left: 4px solid #16a34a;"><strong>Explanation:</strong> ${esc(expText)}</div>` : ''}
+                    </td>
                         <td style="padding: 16px; vertical-align: top; color: ${selColor}; font-weight: ${item.status === 'Skipped' ? 'normal' : '600'};">${esc(item.selectedText)}</td>
                         <td style="padding: 16px; vertical-align: top; color: #15803d; font-weight: 600;">${esc(item.correctText)}</td>
                         <td style="padding: 16px; vertical-align: top; text-align: center;">
