@@ -997,7 +997,7 @@ async function submitQuiz(isAuto = false) {
                         
                         <div style="display:flex; justify-content:space-around; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
                             <div>
-                                <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${100 - data.percentile}%</span>
+                                <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${Math.max(1, 100 - Number(data.percentile || 0))}%</span>
                                 <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Your Percentile</span>
                             </div>
                             <div>
