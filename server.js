@@ -1105,6 +1105,91 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 } catch (e) {}
             }
 
+            // Layer 4: Self-Healing Tamper-Resistant Moving Watermark for Live Room & Active Quizzes
+            (function initTamperProofWatermark() {
+                var wmEl = null;
+                var posTick = 0;
+
+                function getWatermarkLabel() {
+                    var fn = (localStorage.getItem('pp_fname') || '').trim();
+                    var ln = (localStorage.getItem('pp_lname') || '').trim();
+                    var em = (localStorage.getItem('pp_email') || '').trim();
+                    if (!em && !fn) return '';
+                    return (fn + ' ' + ln).trim() + ' • ' + em + ' • Pioneers Prep';
+                }
+
+                function getTargetStage() {
+                    if (baseRoute === '/live-room' || baseRoute === '/live-test') {
+                        return document.getElementById('video-container') ||
+                               document.getElementById('live-stage') ||
+                               document.querySelector('.live-container') ||
+                               document.body;
+                    }
+                    var quizScr = document.getElementById('quiz-screen');
+                    if (quizScr && !quizScr.classList.contains('hidden')) {
+                        return quizScr;
+                    }
+                    return null;
+                }
+
+                function enforceWatermark() {
+                    try {
+                        var stage = getTargetStage();
+                        var label = getWatermarkLabel();
+                        if (!stage || !label) {
+                            if (wmEl && wmEl.parentNode) wmEl.parentNode.removeChild(wmEl);
+                            return;
+                        }
+
+                        if (stage !== document.body && window.getComputedStyle(stage).position === 'static') {
+                            stage.style.position = 'relative';
+                        }
+
+                        if (!wmEl || !stage.contains(wmEl)) {
+                            if (wmEl && wmEl.parentNode) wmEl.parentNode.removeChild(wmEl);
+                            wmEl = document.createElement('div');
+                            wmEl.setAttribute('data-pp-security-wm', '1');
+                            stage.appendChild(wmEl);
+                        }
+
+                        wmEl.textContent = label;
+                        var positions = [
+                            { top: '18%', left: '12%' },
+                            { top: '68%', left: '48%' },
+                            { top: '32%', left: '52%' },
+                            { top: '74%', left: '15%' },
+                            { top: '45%', left: '28%' }
+                        ];
+                        var pos = positions[posTick % positions.length];
+                        posTick++;
+
+                        wmEl.style.cssText = [
+                            'position:' + (stage === document.body ? 'fixed' : 'absolute') + ' !important',
+                            'top:' + pos.top + ' !important',
+                            'left:' + pos.left + ' !important',
+                            'pointer-events:none !important',
+                            'z-index:2147483640 !important',
+                            'opacity:0.20 !important',
+                            'color:#64748b !important',
+                            'font-family:monospace,sans-serif !important',
+                            'font-size:13px !important',
+                            'font-weight:700 !important',
+                            'transform:rotate(-14deg) !important',
+                            'user-select:none !important',
+                            '-webkit-user-select:none !important',
+                            'white-space:nowrap !important',
+                            'display:block !important',
+                            'visibility:visible !important'
+                        ].join(';');
+                    } catch (e) {}
+                }
+
+                setInterval(enforceWatermark, 3500);
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(enforceWatermark, 600);
+                });
+            })();
+
                 window.addEventListener('mousedown', snapshotAllPopulatedScreens, true);
                 window.addEventListener('touchstart', snapshotAllPopulatedScreens, true);
                 window.addEventListener('beforeunload', snapshotAllPopulatedScreens);
