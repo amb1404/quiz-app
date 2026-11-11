@@ -2570,13 +2570,18 @@ app.get('/api/quiz/:id', async (req, res) => {
     }
 });
 
-// 2. JIT Single Question Delivery (Fetches one question dynamically)
+// 2. JIT Single Question Delivery (Protected by Velocity Wall, Device Lock & Invisible Steganography)
 app.get('/api/quiz/:id/question/:index', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
         const token = extractAuthToken(req);
         const authCheck = await verifyAuthToken(token, null, false);
         if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+
+        // Layer 2: Per-Student Anti-Scraping Velocity Wall (allows normal clicking, blocks automated bulk dumpers)
+        if (!checkRamVelocity(authCheck.email, 'q_fetch_burst', 5, 3000)) {
+            return res.status(429).json({ error: "Fetching questions too rapidly. Please wait a moment." });
+        }
 
         const cleanId = path.basename(String(req.params.id || '')).trim();
         const index = parseInt(req.params.index, 10);
@@ -2587,6 +2592,14 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
         if (!rawSession) return res.status(403).json({ error: "No active session." });
 
         const session = typeof rawSession === 'string' ? JSON.parse(rawSession) : rawSession;
+
+        // Layer 3: Device-Class Session Lock Verification
+        const savedDevice = await stateStore.get(`exam:device:${authCheck.signature}`);
+        const currentDevice = getCoarseDeviceSignature(req);
+        if (savedDevice && savedDevice !== currentDevice) {
+            return res.status(403).json({ error: "Security Violation: Concurrent access from a different device detected." });
+        }
+
         const seedKey = session.signature || authCheck.signature;
 
         const content = getCachedQuizContent(filePath);
@@ -2604,7 +2617,9 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
             clientOptions = optOrder.map(oIdx => q.options[oIdx]);
         }
 
-        const sanitized = { type: qType, question: q.question, options: clientOptions };
+        // Layer 2: Embed invisible zero-width student fingerprint into question text
+        const watermarkedQuestion = embedInvisibleWatermark(q.question, authCheck.email);
+        const sanitized = { type: qType, question: watermarkedQuestion, options: clientOptions };
         const payload = xorCipher(JSON.stringify(sanitized), seedKey);
 
         res.json({ payload });
@@ -2647,6 +2662,10 @@ app.post('/api/start-quiz', async (req, res) => {
 
         const session = await getOrCreateExamSession(authCheck.signature, cleanId, duration, true);
         if (session.error) return res.status(403).json({ error: session.error });
+
+        // Layer 3: Lock this exam session to the student's current device class
+        const currentDevice = getCoarseDeviceSignature(req);
+        await stateStore.set(`exam:device:${authCheck.signature}`, currentDevice, 60 * 60 * 6);
 
         res.json({
             startTime: session.startTime,
