@@ -650,6 +650,30 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
         boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
     });
     handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+
+    // Forensic Question Leak Decoder Handler
+    document.getElementById('btn-decode-leak').addEventListener('click', async () => {
+        const { adminKey } = getAdminCreds();
+        if (!adminKey) return alert('Please enter your Admin Secret Key at the top first.');
+        const leakedText = document.getElementById('leak-sample-input').value;
+        if (!leakedText) return alert('Paste the leaked question text first.');
+
+        const statusEl = document.getElementById('leak-status-msg');
+        statusEl.textContent = 'Scanning invisible zero-width watermark...';
+        try {
+            const res = await fetch('/api/admin/decode-leak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, leakedText })
+            });
+            const data = await res.json();
+            statusEl.style.color = data.success ? '#34d399' : '#fbbf24';
+            statusEl.textContent = data.message || data.error;
+        } catch (err) {
+            statusEl.style.color = '#f87171';
+            statusEl.textContent = 'Network error while decoding.';
+        }
+    });
 </script>
 </body>
 </html>
