@@ -1879,7 +1879,7 @@ async function computeQuizCompetitiveStats(cleanQuizId, fullTitle, cleanChapterT
         ? (uniqueSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1)
         : Number(studentScore).toFixed(1);
 
-    const leaderboard = uniqueSubmissions.slice(0, 10).map((s, idx) => {
+    const leaderboard = uniqueSubmissions.slice(0, 100).map((s, idx) => {
         const sTotal = Number(s.total) || Number(totalCount) || 1;
         const sCorr = Number(s.score) || 0;
         const sAtt = s.attempted !== undefined ? Number(s.attempted) : sCorr;
