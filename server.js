@@ -1475,6 +1475,15 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/gi,
                 `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1\.5\.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
             .replace(/<meta name="viewport"[^>]*>/i, `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2563eb">
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+    }
+</script>
 <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png">\n    <link rel="alternate icon" href="/favicon.ico?v=${APP_VERSION}">`)
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
