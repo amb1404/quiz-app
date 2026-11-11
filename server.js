@@ -2009,6 +2009,162 @@ app.get('/sitemap.xml', (req, res) => {
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
 // ============================================================================
+// LAYER 1 & LAYER 5: RAM-FIRST VELOCITY WALL & PAYLOAD HARDENING
+// ============================================================================
+const ramRateBuckets = new Map();
+
+function checkRamVelocity(clientKey, bucketName, maxRequests, windowMs) {
+    const now = Date.now();
+    if (ramRateBuckets.size > 5000) {
+        for (const [k, v] of ramRateBuckets.entries()) {
+            if (now > v.resetAt) ramRateBuckets.delete(k);
+        }
+    }
+    const key = `${bucketName}:${clientKey}`;
+    let entry = ramRateBuckets.get(key);
+    if (!entry || now > entry.resetAt) {
+        entry = { count: 1, resetAt: now + windowMs };
+        ramRateBuckets.set(key, entry);
+        return true;
+    }
+    entry.count += 1;
+    return entry.count <= maxRequests;
+}
+
+function hasPrototypePollutionKeys(obj, depth = 0) {
+    if (!obj || typeof obj !== 'object' || depth > 6) return false;
+    for (const key of Object.keys(obj)) {
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') return true;
+        if (typeof obj[key] === 'object' && hasPrototypePollutionKeys(obj[key], depth + 1)) return true;
+    }
+    return false;
+}
+
+function getCoarseDeviceSignature(req) {
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    const os = ua.includes('android') ? 'android'
+        : ua.includes('iphone') || ua.includes('ipad') ? 'ios'
+        : ua.includes('win') ? 'windows'
+        : ua.includes('mac') ? 'mac'
+        : ua.includes('linux') ? 'linux' : 'other-os';
+    const browser = ua.includes('edg/') ? 'edge'
+        : ua.includes('chrome') && !ua.includes('edg/') ? 'chrome'
+        : ua.includes('firefox') ? 'firefox'
+        : ua.includes('safari') && !ua.includes('chrome') ? 'safari' : 'other-browser';
+    return `${os}:${browser}`;
+}
+
+// Invisible Zero-Width Steganographic Watermarking Helpers (Layer 2)
+function getStudentWatermarkBits(email) {
+    const clean = String(email || '').trim().toLowerCase();
+    const hex = crypto.createHash('sha256').update(`${clean}:${APPS_SECRET || 'pp_salt'}`).digest('hex').slice(0, 8);
+    return parseInt(hex, 16).toString(2).padStart(32, '0');
+}
+
+function embedInvisibleWatermark(text, email) {
+    if (!text || !email) return text;
+    const bits = getStudentWatermarkBits(email);
+    const zwTag = '\u2060' + bits.split('').map(b => (b === '1' ? '\u200B' : '\u200C')).join('') + '\u2060';
+    const str = String(text);
+    const firstSpace = str.indexOf(' ');
+    if (firstSpace !== -1) {
+        return str.slice(0, firstSpace) + zwTag + str.slice(firstSpace);
+    }
+    return str + zwTag;
+}
+
+function extractInvisibleWatermarkBits(leakedText) {
+    const str = String(leakedText || '');
+    const match = str.match(/\u2060([\u200B\u200C]{32})\u2060/);
+    const rawSeq = match ? match[1] : (str.match(/[\u200B\u200C]{32}/) || [])[0];
+    if (!rawSeq) return null;
+    return rawSeq.split('').map(ch => (ch === '\u200B' ? '1' : '0')).join('');
+}
+
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // 1. Block Prototype Pollution payloads across body, query, and params
+    if (hasPrototypePollutionKeys(req.body) || hasPrototypePollutionKeys(req.query) || hasPrototypePollutionKeys(req.params)) {
+        return res.status(400).json({ error: 'Malformed request payload rejected.' });
+    }
+
+    // 2. Enforce strict payload size cap on non-diagram endpoints (100 KB max)
+    if (req.method === 'POST' && req.path !== '/api/submit') {
+        const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+        if (contentLength > 102400) {
+            return res.status(413).json({ error: 'Payload too large.' });
+        }
+    }
+
+    // 3. RAM-First Quota Protection for sensitive API routes
+    const clientIp = getClientIp(req);
+    if (req.path === '/api/send-otp' || req.path === '/api/request-otp') {
+        if (!checkRamVelocity(clientIp, 'otp_send', 4, 10 * 60 * 1000)) {
+            return res.status(429).json({ error: 'Too many OTP requests. Please wait 10 minutes.' });
+        }
+    } else if (req.path.startsWith('/api/')) {
+        if (!checkRamVelocity(clientIp, 'api_global', 120, 60 * 1000)) {
+            return res.status(429).json({ error: 'Rate limit exceeded. Please slow down.' });
+        }
+    }
+    next();
+});
+
+// Admin Endpoint: Decode Invisible Steganographic Watermark from Leaked Text
+app.post('/api/admin/decode-leak', async (req, res) => {
+    try {
+        const { adminKey, leakedText } = req.body;
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            return res.status(403).json({ success: false, error: 'Unauthorized Admin Secret Key.' });
+        }
+        const bits = extractInvisibleWatermarkBits(leakedText);
+        if (!bits) {
+            return res.json({ success: false, message: 'No invisible watermark detected in the pasted text.' });
+        }
+
+        const candidateEmails = new Set();
+        const history = await getHistoricalSubmissions();
+        history.forEach(s => { if (s.email) candidateEmails.add(String(s.email).trim().toLowerCase()); });
+
+        try {
+            const attFile = path.join(__dirname, 'attempts_db.json');
+            if (fs.existsSync(attFile)) {
+                const db = JSON.parse(await fs.promises.readFile(attFile, 'utf8')) || {};
+                Object.keys(db).forEach(k => candidateEmails.add(k.split('__')[0]));
+            }
+        } catch {}
+
+        try {
+            const profileKeys = await stateStore.execCommand(['KEYS', 'user:profile:*']);
+            if (Array.isArray(profileKeys)) {
+                profileKeys.forEach(k => candidateEmails.add(k.replace(/^user:profile:/i, '').toLowerCase()));
+            }
+        } catch {}
+
+        for (const email of candidateEmails) {
+            if (getStudentWatermarkBits(email) === bits) {
+                return res.json({
+                    success: true,
+                    leakerEmail: email,
+                    fingerprintHex: parseInt(bits, 2).toString(16).toUpperCase().padStart(8, '0'),
+                    message: `Match found! Leaked by registered student: ${email}`
+                });
+            }
+        }
+
+        return res.json({
+            success: false,
+            message: `Watermark signature extracted (${parseInt(bits, 2).toString(16).toUpperCase()}), but no matching email was found in current records.`
+        });
+    } catch {
+        return res.status(500).json({ success: false, error: 'Failed to decode watermark.' });
+    }
+});
+
+// ============================================================================
 // 6. RAZORPAY ORDER & PAYMENT VERIFICATION ENDPOINTS
 // ============================================================================
 app.post('/api/create-order', async (req, res) => {
