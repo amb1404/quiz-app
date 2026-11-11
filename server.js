@@ -904,17 +904,204 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             }
                         } catch (e) {}
                         var p = originalFetch.call(this, input, init);
-                        if (url.indexOf('/api/quizzes') !== -1 || url.indexOf('/api/notes') !== -1 || url.indexOf('/api/descriptive-questions') !== -1) {
-                            p.then(function() {
+
+                    if (url.indexOf('/api/start-quiz') !== -1 || (url.indexOf('/api/quiz/') !== -1 && url.indexOf('/question/') === -1)) {
+                        return p.then(async function(response) {
+                            try {
+                                var clone = response.clone();
+                                var data = await clone.json();
+                                if (data && data.alreadyAttempted) {
+                                    renderComprehensiveResultScreen(data, true);
+                                    return new Promise(function() {}); // Halt quiz initialization cleanly
+                                }
+                            } catch (e) {}
+                            return response;
+                        });
+                    }
+
+                    if (url.indexOf('/api/submit') !== -1) {
+                        p.then(function(response) {
+                            return response.clone().json();
+                        }).then(function(data) {
+                            if (data && data.success && Array.isArray(data.breakdownItems)) {
                                 setTimeout(function() {
-                                    replayParentHierarchySilently();
-                                    restoreBlankScreensFromCache();
-                                }, 150);
-                            }).catch(function() {});
-                        }
-                        return p;
-                    };
-                }
+                                    renderComprehensiveResultScreen(data, false);
+                                }, 120);
+                            }
+                        }).catch(function() {});
+                    }
+
+                    if (url.indexOf('/api/quizzes') !== -1 || url.indexOf('/api/notes') !== -1 || url.indexOf('/api/descriptive-questions') !== -1) {
+                        p.then(function() {
+                            setTimeout(function() {
+                                replayParentHierarchySilently();
+                                restoreBlankScreensFromCache();
+                            }, 150);
+                        }).catch(function() {});
+                    }
+                    return p;
+                };
+            }
+
+            function escHtml(str) {
+                var d = document.createElement('div');
+                d.textContent = String(str === null || str === undefined ? '' : str);
+                return d.innerHTML;
+            }
+
+            function renderComprehensiveResultScreen(data, isSavedAttempt) {
+                try {
+                    document.body.classList.remove('exam-mode');
+                    var resultScreen = document.getElementById('result-screen');
+                    if (!resultScreen) return;
+
+                    document.querySelectorAll('.app-screen').forEach(function(scr) {
+                        if (scr.id === 'result-screen') scr.classList.remove('hidden');
+                        else scr.classList.add('hidden');
+                    });
+
+                    var total = Number(data.total) || 0;
+                    var correct = Number(data.correct !== undefined ? data.correct : data.score) || 0;
+                    var attempted = Number(data.attemptedCount !== undefined ? data.attemptedCount : (total - (Number(data.skipped) || 0)));
+                    var incorrect = Number(data.incorrect !== undefined ? data.incorrect : Math.max(0, attempted - correct));
+                    var skipped = Number(data.skipped !== undefined ? data.skipped : Math.max(0, total - attempted));
+
+                    var scorePct = data.scorePercentage !== undefined
+                        ? Number(data.scorePercentage).toFixed(1)
+                        : (total > 0 ? ((correct / total) * 100).toFixed(1) : '0.0');
+                    var accuracyPct = data.accuracyPercentage !== undefined
+                        ? Number(data.accuracyPercentage).toFixed(1)
+                        : (attempted > 0 ? ((correct / attempted) * 100).toFixed(1) : '0.0');
+                    var percentile = data.percentile !== undefined ? Number(data.percentile).toFixed(1) : '100.0';
+                    var dateBanner = isSavedAttempt && data.timestamp
+                        ? '<div style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:bold;margin-bottom:12px;">📌 Completed Attempt Record (' + new Date(data.timestamp).toLocaleDateString('en-IN') + ')</div>'
+                        : '<div style="display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:bold;margin-bottom:12px;">✅ Assessment Submitted Successfully</div>';
+
+                    var leaderboardRows = '';
+                    if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+                        leaderboardRows = data.leaderboard.map(function(row, idx) {
+                            var rankBadge = idx === 0 ? '🥇 1' : (idx === 1 ? '🥈 2' : (idx === 2 ? '🥉 3' : (idx + 1)));
+                            var rTotal = Number(row.total) || total || 1;
+                            var rScorePct = row.scorePercentage !== undefined ? Number(row.scorePercentage).toFixed(1) + '%' : ((Number(row.score) / rTotal) * 100).toFixed(1) + '%';
+                            var rAccPct = row.accuracyPercentage !== undefined ? Number(row.accuracyPercentage).toFixed(1) + '%' : '-';
+                            return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                                '<td style="padding:10px 12px;font-weight:bold;color:#1e3a8a;">' + rankBadge + '</td>' +
+                                '<td style="padding:10px 12px;font-weight:600;color:#0f172a;">' + escHtml(row.name) + '</td>' +
+                                '<td style="padding:10px 12px;font-weight:bold;color:#2563eb;">' + row.score + ' / ' + rTotal + '</td>' +
+                                '<td style="padding:10px 12px;color:#059669;font-weight:600;">' + rScorePct + '</td>' +
+                                '<td style="padding:10px 12px;color:#7c3aed;font-weight:600;">' + rAccPct + '</td>' +
+                            '</tr>';
+                        }).join('');
+                    } else {
+                        leaderboardRows = '<tr><td colspan="5" style="padding:14px;text-align:center;color:#64748b;">First submission recorded for this test!</td></tr>';
+                    }
+
+                    var breakdownRows = '';
+                    if (Array.isArray(data.breakdownItems)) {
+                        breakdownRows = data.breakdownItems.map(function(item) {
+                            var statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
+                            var statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
+                            var selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
+                            var expHtml = item.explanation
+                                ? '<div style="margin-top:8px;font-size:13px;color:#15803d;background:#f0fdf4;padding:10px;border-radius:6px;border-left:4px solid #16a34a;"><strong>Explanation:</strong> ' + escHtml(item.explanation) + '</div>'
+                                : '';
+
+                            return '<tr style="border-bottom:1px solid #e2e8f0;">' +
+                                '<td style="padding:14px;vertical-align:top;font-weight:bold;color:#475569;">' + item.qNum + '</td>' +
+                                '<td style="padding:14px;vertical-align:top;"><div style="color:#1e293b;font-weight:500;font-size:15px;">' + escHtml(item.question) + '</div>' + expHtml + '</td>' +
+                                '<td style="padding:14px;vertical-align:top;color:' + selColor + ';font-weight:600;">' + escHtml(item.selectedText) + '</td>' +
+                                '<td style="padding:14px;vertical-align:top;color:#15803d;font-weight:600;">' + escHtml(item.correctText) + '</td>' +
+                                '<td style="padding:14px;vertical-align:top;text-align:center;"><span style="background:' + statusBg + ';color:' + statusColor + ';padding:5px 10px;border-radius:6px;font-weight:bold;font-size:12px;">' + escHtml(item.status) + '</span></td>' +
+                            '</tr>';
+                        }).join('');
+                    }
+
+                    resultScreen.innerHTML =
+                        '<div style="max-width:920px;margin:0 auto;padding:20px;font-family:sans-serif;background:#fff;border-radius:12px;text-align:left;">' +
+                            '<div class="print-only-header" style="display:none;text-align:center;margin-bottom:20px;">' +
+                                '<h1 style="color:#1e3a8a;margin:0;">Pioneers Prep — Official Performance Report</h1>' +
+                                '<p style="color:#475569;margin-top:4px;">' + escHtml(data.chapterTitle || 'Mock Assessment') + '</p>' +
+                            '</div>' +
+                            '<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:22px;">' +
+                                '<button id="btn-return-home" type="button" style="padding:10px 18px;background:#1e293b;color:#ffffff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;">&larr; Return to Homepage</button>' +
+                                '<button id="btn-print-report" type="button" style="padding:10px 20px;background:#2563eb;color:#ffffff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;box-shadow:0 4px 6px rgba(37,99,235,0.2);">🖨️ Print / Save as PDF</button>' +
+                            '</div>' +
+                            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:26px;text-align:center;margin-bottom:28px;">' +
+                                dateBanner +
+                                '<h2 style="margin:0 0 6px 0;color:#1e293b;font-size:22px;">' + escHtml(data.chapterTitle || 'Final Scorecard') + '</h2>' +
+                                '<div style="font-size:50px;font-weight:800;color:#2563eb;line-height:1.1;margin:8px 0;">' + scorePct + '%</div>' +
+                                '<div style="font-size:17px;font-weight:bold;color:#0f172a;margin-bottom:18px;">Score: ' + correct + ' / ' + total + '</div>' +
+                                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;max-width:680px;margin:0 auto 18px auto;">' +
+                                    '<div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:12px;"><div style="font-size:12px;color:#64748b;font-weight:bold;text-transform:uppercase;">Score Percentage</div><div style="font-size:22px;font-weight:800;color:#2563eb;margin-top:4px;">' + scorePct + '%</div></div>' +
+                                    '<div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:12px;"><div style="font-size:12px;color:#64748b;font-weight:bold;text-transform:uppercase;">Accuracy</div><div style="font-size:22px;font-weight:800;color:#059669;margin-top:4px;">' + accuracyPct + '%</div></div>' +
+                                    '<div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:12px;"><div style="font-size:12px;color:#64748b;font-weight:bold;text-transform:uppercase;">Percentile</div><div style="font-size:22px;font-weight:800;color:#7c3aed;margin-top:4px;">' + percentile + '%ile</div></div>' +
+                                '</div>' +
+                                '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">' +
+                                    '<span style="background:#dcfce7;color:#166534;padding:7px 14px;border-radius:20px;font-weight:bold;font-size:14px;">✅ Correct: ' + correct + '</span>' +
+                                    '<span style="background:#fee2e2;color:#991b1b;padding:7px 14px;border-radius:20px;font-weight:bold;font-size:14px;">❌ Incorrect: ' + incorrect + '</span>' +
+                                    '<span style="background:#fef9c3;color:#854d0e;padding:7px 14px;border-radius:20px;font-weight:bold;font-size:14px;">⚠️ Skipped: ' + skipped + '</span>' +
+                                '</div>' +
+                            '</div>' +
+                            '<h3 style="color:#1e293b;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px;">🏆 Top Performers Leaderboard</h3>' +
+                            '<div style="overflow-x:auto;margin-bottom:30px;">' +
+                                '<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;">' +
+                                    '<tr style="background:#1e3a8a;color:white;">' +
+                                        '<th style="padding:10px 12px;border-radius:6px 0 0 0;">Rank</th>' +
+                                        '<th style="padding:10px 12px;">Student Name</th>' +
+                                        '<th style="padding:10px 12px;">Score</th>' +
+                                        '<th style="padding:10px 12px;">Score %</th>' +
+                                        '<th style="padding:10px 12px;border-radius:0 6px 0 0;">Accuracy %</th>' +
+                                    '</tr>' +
+                                    leaderboardRows +
+                                '</table>' +
+                            '</div>' +
+                            '<h3 style="color:#1e293b;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px;">📋 Detailed Question-by-Question Breakdown</h3>' +
+                            '<div style="overflow-x:auto;">' +
+                                '<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;">' +
+                                    '<tr style="background:#1e293b;color:white;">' +
+                                        '<th style="padding:12px;width:6%;">#</th>' +
+                                        '<th style="padding:12px;width:44%;">Question & Explanation</th>' +
+                                        '<th style="padding:12px;width:20%;">Your Answer</th>' +
+                                        '<th style="padding:12px;width:20%;">Correct Answer</th>' +
+                                        '<th style="padding:12px;width:10%;text-align:center;">Status</th>' +
+                                    '</tr>' +
+                                    breakdownRows +
+                                '</table>' +
+                            '</div>' +
+                        '</div>' +
+                        '<style>' +
+                            '@media print {' +
+                                '.site-header, .site-footer, .no-print { display: none !important; }' +
+                                '.print-only-header { display: block !important; }' +
+                                'body, main, #result-screen { background: #fff !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }' +
+                                'table { page-break-inside: auto; }' +
+                                'tr { page-break-inside: avoid; page-break-after: auto; }' +
+                                '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+                            '}' +
+                        '</style>';
+
+                    var homeBtn = document.getElementById('btn-return-home');
+                    if (homeBtn) {
+                        homeBtn.addEventListener('click', function() {
+                            try {
+                                sessionStorage.removeItem('pioneers_prep_state');
+                                sessionStorage.removeItem(DOM_CACHE_KEY);
+                                sessionStorage.removeItem(NAV_HISTORY_KEY);
+                            } catch (e) {}
+                            window.location.href = '/';
+                        });
+                    }
+
+                    var printBtn = document.getElementById('btn-print-report');
+                    if (printBtn) {
+                        printBtn.addEventListener('click', function() {
+                            window.print();
+                        });
+                    }
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (e) {}
+            }
 
                 window.addEventListener('mousedown', snapshotAllPopulatedScreens, true);
                 window.addEventListener('touchstart', snapshotAllPopulatedScreens, true);
@@ -1585,7 +1772,7 @@ async function getHistoricalSubmissions() {
             merged.push(item);
         }
     }
-    return merged.slice(-500);
+    return merged.slice(-5000);
 }
 
 let submissionWritePromise = Promise.resolve();
@@ -1595,11 +1782,11 @@ function queueSubmissionBackup(entry) {
             let allSubmissions = await getHistoricalSubmissions();
             const { secretKey, breakdown, ...safeMetadata } = entry;
             allSubmissions.push(safeMetadata);
-            if (allSubmissions.length > 500) {
-                allSubmissions = allSubmissions.slice(-500);
+            if (allSubmissions.length > 5000) {
+                allSubmissions = allSubmissions.slice(-5000);
             }
-            const fiveYearsSec = 60 * 60 * 24 * 365 * 5;
-            await stateStore.set(SUBMISSIONS_REDIS_KEY, allSubmissions, fiveYearsSec);
+            const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+            await stateStore.set(SUBMISSIONS_REDIS_KEY, allSubmissions, tenYearsSec);
 
             const submissionsFile = path.join(__dirname, 'submissions.json');
             await fs.promises.writeFile(submissionsFile, JSON.stringify(allSubmissions, null, 2), { mode: 0o600 });
@@ -1610,6 +1797,185 @@ function queueSubmissionBackup(entry) {
         }
     });
     return submissionWritePromise;
+}
+
+const ATTEMPTS_FILE_PATH = path.join(__dirname, 'attempts_db.json');
+
+async function savePermanentStudentAttempt(email, cleanQuizId, attemptRecord) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+    const key = `attempt:v1:${cleanEmail}:${cleanQuizId}`;
+    await stateStore.set(key, attemptRecord, tenYearsSec);
+
+    try {
+        let db = {};
+        if (fs.existsSync(ATTEMPTS_FILE_PATH)) {
+            db = JSON.parse(await fs.promises.readFile(ATTEMPTS_FILE_PATH, 'utf8')) || {};
+        }
+        db[`${cleanEmail}__${cleanQuizId}`] = attemptRecord;
+        await fs.promises.writeFile(ATTEMPTS_FILE_PATH, JSON.stringify(db, null, 2), { mode: 0o600 });
+    } catch {}
+}
+
+async function getPermanentStudentAttempt(email, cleanQuizId) {
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const key = `attempt:v1:${cleanEmail}:${cleanQuizId}`;
+    try {
+        const raw = await stateStore.get(key);
+        if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {}
+
+    try {
+        if (fs.existsSync(ATTEMPTS_FILE_PATH)) {
+            const db = JSON.parse(await fs.promises.readFile(ATTEMPTS_FILE_PATH, 'utf8')) || {};
+            if (db[`${cleanEmail}__${cleanQuizId}`]) return db[`${cleanEmail}__${cleanQuizId}`];
+        }
+    } catch {}
+    return null;
+}
+
+async function computeQuizCompetitiveStats(cleanQuizId, fullTitle, cleanChapterTitle, studentEmail, studentScore, totalCount) {
+    const historical = await getHistoricalSubmissions();
+    const norm = str => String(str || '').trim().toLowerCase();
+
+    let quizSubmissions = historical.filter(s => {
+        if (s.quizId && norm(s.quizId) === norm(cleanQuizId)) return true;
+        if (!s.quizId && s.chapterTitle) {
+            const sTitle = norm(s.chapterTitle);
+            return sTitle === norm(fullTitle) || sTitle === norm(cleanChapterTitle) || sTitle.endsWith(norm(cleanChapterTitle));
+        }
+        return false;
+    });
+
+    const bestAttemptsMap = new Map();
+    quizSubmissions.forEach(s => {
+        const k = norm(s.email || `${s.firstName}_${s.lastName}`);
+        const existing = bestAttemptsMap.get(k);
+        if (!existing || Number(s.score) > Number(existing.score)) {
+            bestAttemptsMap.set(k, s);
+        }
+    });
+
+    const uniqueSubmissions = Array.from(bestAttemptsMap.values());
+    uniqueSubmissions.sort((a, b) => Number(b.score) - Number(a.score));
+
+    const totalAttempts = uniqueSubmissions.length;
+    const lowerScores = uniqueSubmissions.filter(s => Number(s.score) < Number(studentScore)).length;
+    const equalScores = uniqueSubmissions.filter(s => Number(s.score) === Number(studentScore)).length;
+
+    const percentile = totalAttempts > 0
+        ? Number((((lowerScores + (0.5 * equalScores)) / totalAttempts) * 100).toFixed(1))
+        : 100.0;
+
+    const avgScore = totalAttempts > 0
+        ? (uniqueSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1)
+        : Number(studentScore).toFixed(1);
+
+    const leaderboard = uniqueSubmissions.slice(0, 10).map((s, idx) => {
+        const sTotal = Number(s.total) || Number(totalCount) || 1;
+        const sCorr = Number(s.score) || 0;
+        const sAtt = s.attempted !== undefined ? Number(s.attempted) : sCorr;
+        return {
+            rank: idx + 1,
+            name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
+            score: sCorr,
+            total: sTotal,
+            scorePercentage: Number(((sCorr / sTotal) * 100).toFixed(1)),
+            accuracyPercentage: sAtt > 0 ? Number(((sCorr / sAtt) * 100).toFixed(1)) : 0.0
+        };
+    });
+
+    return { percentile, average: avgScore, totalAttempts, leaderboard };
+}
+
+function buildDetailedQuizBreakdownList(realQuestions, safeUserAnswers, seedKey, cleanQuizId) {
+    const totalCount = realQuestions.length;
+    const qOrder = getDeterministicPermutation(totalCount, `${seedKey}:${cleanQuizId}:q`);
+    const origToClientIndex = new Array(totalCount);
+    qOrder.forEach((origIdx, clientIdx) => {
+        origToClientIndex[origIdx] = clientIdx;
+    });
+
+    const breakdownItems = [];
+    realQuestions.forEach((q, origIndex) => {
+        const clientIdx = origToClientIndex[origIndex];
+        const response = safeUserAnswers[clientIdx.toString()] !== undefined ? safeUserAnswers[clientIdx.toString()] : safeUserAnswers[clientIdx];
+        const attempted = response !== undefined && response !== null && response !== "";
+
+        let status = "Skipped";
+        let selectedText = "Skipped";
+        let correctText = "N/A";
+
+        if (q.type === 'descriptive' || q.type === 'diagram') {
+            selectedText = attempted ? (isSafeBase64Image(response) ? "[Diagram Image Submitted]" : String(response).slice(0, 2000)) : "Skipped";
+            correctText = q.model_answer || "Refer to marking scheme";
+            if (attempted) status = "Needs Review";
+        } else if (q.type === 'fill_in_the_blanks' || q.type === 'fib') {
+            selectedText = attempted ? String(response).slice(0, 500) : "Skipped";
+            correctText = q.answer_text || q.model_answer || "Refer to marking scheme";
+            const isCorrect = attempted && String(response).trim().toLowerCase() === String(q.answer_text || q.model_answer || '').trim().toLowerCase();
+            status = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+        } else {
+            const clientOptIdx = parseInt(response, 10);
+            const optOrder = getSafeOptionPermutation(q.options || [], `${seedKey}:${cleanQuizId}:opt:${origIndex}`);
+            const actualOptIdx = (attempted && !isNaN(clientOptIdx) && optOrder[clientOptIdx] !== undefined) ? optOrder[clientOptIdx] : clientOptIdx;
+            const isCorrect = attempted && actualOptIdx === q.answer;
+            selectedText = attempted ? (q.options?.[actualOptIdx] || "Unknown") : "Skipped";
+            correctText = q.options?.[q.answer] !== undefined ? q.options[q.answer] : "N/A";
+            status = isCorrect ? "Correct" : (attempted ? "Incorrect" : "Skipped");
+        }
+
+        let rawExp = q.explanation || q.Explanation || q.exp || q.solution || q.Solution || q.rationale || q.reason || '';
+        breakdownItems.push({
+            qNum: origIndex + 1,
+            question: q.question || "N/A",
+            selectedText: String(selectedText),
+            correctText: String(correctText),
+            status,
+            explanation: String(rawExp || '').trim()
+        });
+    });
+
+    return breakdownItems;
+}
+
+async function buildSavedAttemptResponse(email, cleanId, content) {
+    const savedAttempt = await getPermanentStudentAttempt(email, cleanId);
+    if (!savedAttempt) return null;
+    const realQuestions = content.questions || [];
+    const breakdownItems = buildDetailedQuizBreakdownList(
+        realQuestions,
+        savedAttempt.userAnswers || {},
+        savedAttempt.seedKey || '',
+        cleanId
+    );
+    const stats = await computeQuizCompetitiveStats(
+        cleanId,
+        savedAttempt.chapterTitle || content.title || cleanId,
+        content.title || cleanId,
+        email,
+        savedAttempt.score,
+        realQuestions.length
+    );
+    return {
+        alreadyAttempted: true,
+        quizId: cleanId,
+        chapterTitle: savedAttempt.chapterTitle || content.title || cleanId,
+        score: savedAttempt.score,
+        total: realQuestions.length,
+        correct: savedAttempt.correct,
+        incorrect: savedAttempt.incorrect,
+        attemptedCount: savedAttempt.attempted,
+        skipped: savedAttempt.skipped,
+        scorePercentage: savedAttempt.scorePercentage,
+        accuracyPercentage: savedAttempt.accuracyPercentage,
+        percentile: stats.percentile,
+        average: stats.average,
+        totalAttempts: stats.totalAttempts,
+        leaderboard: stats.leaderboard,
+        breakdownItems,
+        timestamp: savedAttempt.timestamp
+    };
 }
 
 app.get('/robots.txt', (req, res) => {
@@ -2002,7 +2368,7 @@ app.get('/api/quizzes', (req, res) => {
 });
 
 // Returns XOR Encrypted Questions
-// 1. Initial Quiz Verification (Returns only the total count, NO questions)
+// 1. Initial Quiz Verification (Returns saved scorecard if already attempted, else total count)
 app.get('/api/quiz/:id', async (req, res) => {
     try {
         if (req.get('X-Requested-With') !== 'PioneersPrepApp') return res.status(403).json({ error: "Forbidden" });
@@ -2026,6 +2392,11 @@ app.get('/api/quiz/:id', async (req, res) => {
             if (!hasAccess) return res.status(402).json({ error: "Payment required to access this content." });
         }
 
+        const existingAttemptPayload = await buildSavedAttemptResponse(authCheck.email, cleanId, content);
+        if (existingAttemptPayload) {
+            return res.json(existingAttemptPayload);
+        }
+
         const session = await getOrCreateExamSession(authCheck.signature, cleanId, null, false);
         if (session.error) return res.status(403).json({ error: session.error });
 
@@ -2046,11 +2417,11 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
         const cleanId = path.basename(String(req.params.id || '')).trim();
         const index = parseInt(req.params.index, 10);
         const filePath = resolveSafeQuizPath(cleanId);
-        
+
         const sessionKey = `exam:session:${authCheck.signature}`;
         const rawSession = await stateStore.get(sessionKey);
         if (!rawSession) return res.status(403).json({ error: "No active session." });
-        
+
         const session = typeof rawSession === 'string' ? JSON.parse(rawSession) : rawSession;
         const seedKey = session.signature || authCheck.signature;
 
@@ -2070,7 +2441,6 @@ app.get('/api/quiz/:id/question/:index', async (req, res) => {
         }
 
         const sanitized = { type: qType, question: q.question, options: clientOptions };
-        // Use the existing secure session signature as the XOR key (never transmitted)
         const payload = xorCipher(JSON.stringify(sanitized), seedKey);
 
         res.json({ payload });
@@ -2106,7 +2476,11 @@ app.post('/api/start-quiz', async (req, res) => {
             }
         }
 
-        // Always create a fresh exam session when clicking a quiz card so retakes and new quizzes work seamlessly
+        const existingAttemptPayload = await buildSavedAttemptResponse(authCheck.email, cleanId, content);
+        if (existingAttemptPayload) {
+            return res.json(existingAttemptPayload);
+        }
+
         const session = await getOrCreateExamSession(authCheck.signature, cleanId, duration, true);
         if (session.error) return res.status(403).json({ error: session.error });
 
@@ -2527,7 +2901,7 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
             html += `</table>`;
 
             if (!bestEval || cCount > bestEval.cCount) {
-                bestEval = { cCount, iCount, aCount, html };
+                bestEval = { cCount, iCount, aCount, html, seedKey };
             }
             if (lockedSession && lockedSession.signature === expectedTimerSig) break;
         }
@@ -2535,90 +2909,79 @@ app.post('/api/submit', preSubmitSecurityGuard, (req, res, next) => {
         correctCount = bestEval.cCount;
         incorrectCount = bestEval.iCount;
         attemptedCount = bestEval.aCount;
+        const winningSeedKey = bestEval.seedKey || expectedTimerSig;
         const breakdownHtml = bestEval.html;
+
+        const skippedCount = Math.max(0, totalCount - attemptedCount);
+        const scorePercentage = totalCount > 0 ? Number(((correctCount / totalCount) * 100).toFixed(1)) : 0.0;
+        const accuracyPercentage = attemptedCount > 0 ? Number(((correctCount / attemptedCount) * 100).toFixed(1)) : 0.0;
 
         const cleanClassName = String(className || '').trim().slice(0, 40);
         const cleanChapterTitle = String(chapterTitle || content.title || 'Quiz').trim().slice(0, 120);
         const fullTitle = (cleanClassName && !cleanChapterTitle.startsWith(cleanClassName)) ? `${cleanClassName} - ${cleanChapterTitle}` : cleanChapterTitle;
+        const timestampIso = new Date().toISOString();
+
+        const sanitizedAnswersToSave = {};
+        Object.entries(safeUserAnswers).forEach(([k, v]) => {
+            sanitizedAnswersToSave[k] = (typeof v === 'string' && v.startsWith('data:image/'))
+                ? '[Diagram Image Submitted]'
+                : v;
+        });
+
+        await savePermanentStudentAttempt(email, cleanQuizId, {
+            quizId: cleanQuizId,
+            chapterTitle: fullTitle,
+            seedKey: winningSeedKey,
+            userAnswers: sanitizedAnswersToSave,
+            score: correctCount,
+            total: totalCount,
+            correct: correctCount,
+            incorrect: incorrectCount,
+            attempted: attemptedCount,
+            skipped: skippedCount,
+            scorePercentage,
+            accuracyPercentage,
+            timestamp: timestampIso
+        });
+
         const payload = {
             quizId: cleanQuizId,
             firstName: escapeHtml(firstName), lastName: escapeHtml(lastName), email: escapeHtml(email),
             className: escapeHtml(cleanClassName), chapterTitle: escapeHtml(fullTitle),
             subject: `New Quiz Submission - ${fullTitle} - ${firstName} ${lastName}`.trim(),
-            score: correctCount, total: totalCount, attempted: attemptedCount, skipped: totalCount - attemptedCount,
-            correct: correctCount, incorrect: incorrectCount, breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
+            score: correctCount, total: totalCount, attempted: attemptedCount, skipped: skippedCount,
+            correct: correctCount, incorrect: incorrectCount,
+            scorePercentage, accuracyPercentage,
+            breakdown: breakdownHtml, targetEmail: ADMIN_EMAIL, secretKey: APPS_SECRET
         };
 
-        // Strip heavy base64 image data before saving to Redis/Disk to prevent database bloat
         const lightweightBreakdown = breakdownHtml.replace(/<img src="data:image\/[^;]+;base64,[^"]+"[^>]*>/g, '[Image submitted - Refer to email]');
         const lightweightPayload = { ...payload, breakdown: lightweightBreakdown };
-        
-        const historical = await queueSubmissionBackup({ timestamp: new Date().toISOString(), ...lightweightPayload });
 
-        // --- ROBUST LEADERBOARD & STATS ENGINE (DEDUPLICATED & ACCURATE PERCENTILE) ---
-        const norm = str => String(str || '').trim().toLowerCase();
-        let quizSubmissions = historical.filter(s => {
-            if (s.quizId && norm(s.quizId) === norm(cleanQuizId)) return true;
-            if (!s.quizId && s.chapterTitle) {
-                const sTitle = norm(s.chapterTitle);
-                return sTitle === norm(fullTitle) || sTitle === norm(cleanChapterTitle) || sTitle.endsWith(norm(cleanChapterTitle));
-            }
-            return false;
-        });
+        await queueSubmissionBackup({ timestamp: timestampIso, ...lightweightPayload });
 
-        // Ensure current submission is represented
-        quizSubmissions.push({ 
-            firstName: payload.firstName, 
-            lastName: payload.lastName, 
-            email: payload.email,
-            score: Number(correctCount), 
-            total: Number(totalCount),
-            timestamp: Date.now()
-        });
+        const stats = await computeQuizCompetitiveStats(cleanQuizId, fullTitle, cleanChapterTitle, email, correctCount, totalCount);
+        const breakdownItems = buildDetailedQuizBreakdownList(realQuestions, sanitizedAnswersToSave, winningSeedKey, cleanQuizId);
 
-        // Deduplicate: Keep only the HIGHEST score attempt per student email/name
-        const bestAttemptsMap = new Map();
-        quizSubmissions.forEach(s => {
-            const key = norm(s.email || `${s.firstName}_${s.lastName}`);
-            const existing = bestAttemptsMap.get(key);
-            if (!existing || Number(s.score) > Number(existing.score)) {
-                bestAttemptsMap.set(key, s);
-            }
-        });
-        const uniqueSubmissions = Array.from(bestAttemptsMap.values());
-        
-        // Sort descending by score
-        uniqueSubmissions.sort((a, b) => Number(b.score) - Number(b.score));
-
-        const totalAttempts = uniqueSubmissions.length;
-        
-        // Calculate Percentile (scores below + half of ties / total attempts)
-        const lowerScores = uniqueSubmissions.filter(s => Number(s.score) < Number(correctCount)).length;
-        const equalScores = uniqueSubmissions.filter(s => Number(s.score) === Number(correctCount)).length;
-        
-        const percentile = totalAttempts > 0 
-            ? Math.round(((lowerScores + (0.5 * equalScores)) / totalAttempts) * 100) 
-            : 100;
-
-        const avgScore = totalAttempts > 0 
-            ? (uniqueSubmissions.reduce((acc, s) => acc + Number(s.score || 0), 0) / totalAttempts).toFixed(1) 
-            : correctCount.toFixed(1);
-        
-        // Extract Top 5 Unique Scorers
-        const leaderboard = uniqueSubmissions.slice(0, 5).map(s => ({
-            name: `${s.firstName} ${s.lastName || ''}`.trim(),
-            score: Number(s.score)
-        }));
-
-        // Send all competitive data to the frontend (Note: Auth cookie is intentionally kept alive!)
+        // Send all competitive data + detailed breakdown to the frontend
         res.json({ 
             success: true, 
+            quizId: cleanQuizId,
+            chapterTitle: fullTitle,
             score: correctCount, 
             total: totalCount,
-            percentile,
-            average: avgScore,
-            totalAttempts,
-            leaderboard
+            correct: correctCount,
+            incorrect: incorrectCount,
+            attemptedCount,
+            skipped: skippedCount,
+            scorePercentage,
+            accuracyPercentage,
+            percentile: stats.percentile,
+            average: stats.average,
+            totalAttempts: stats.totalAttempts,
+            leaderboard: stats.leaderboard,
+            breakdownItems,
+            timestamp: timestampIso
         });
 
         const scriptURL = process.env.APP_SCRIPT_URL;
