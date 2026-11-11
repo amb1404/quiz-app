@@ -3061,14 +3061,20 @@ app.get('/api/live/student/scorecard', async (req, res) => {
                 skipped++;
             }
 
-            breakdown.push({
-                qNum: idx + 1,
-                question: q.question || 'N/A',
-                selectedText,
-                correctText,
-                status,
-                explanation: q.explanation || ''
-            });
+            let rawExp = q.explanation || q.Explanation || q.exp || q.solution || q.Solution || q.rationale || q.reason || q.details || q.desc || q.note || '';
+        if (!rawExp && q && typeof q === 'object') {
+            const expKey = Object.keys(q).find(k => /^(exp|sol|rat|reas|desc|note)/i.test(k.trim()));
+            if (expKey) rawExp = q[expKey];
+        }
+
+        breakdown.push({
+            qNum: idx + 1,
+            question: q.question || 'N/A',
+            selectedText,
+            correctText,
+            status,
+            explanation: String(rawExp || '').trim()
+        });
         });
 
         res.json({
