@@ -952,6 +952,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             function renderComprehensiveResultScreen(data, isSavedAttempt) {
                 try {
                     document.body.classList.remove('exam-mode');
+                    var pageIntro = document.querySelector('.page-intro');
+                    if (pageIntro) pageIntro.style.display = 'none';
                     var resultScreen = document.getElementById('result-screen');
                     if (!resultScreen) return;
 
@@ -1276,9 +1278,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     }, 0);
 
                     var observer = new MutationObserver(function(mutations) {
-                        mutations.forEach(function(m) {
-                            var el = m.target;
-                            if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
+                    mutations.forEach(function(m) {
+                        var el = m.target;
+                        if (el.classList.contains('app-screen') && !el.classList.contains('hidden')) {
+                            var introEl = document.querySelector('.page-intro');
+                            if (introEl && baseRoute !== '/') {
+                                introEl.style.display = (el.id === 'result-screen' || el.id === 'quiz-screen') ? 'none' : '';
+                            }
                                 if (!isScreenPopulated(el)) {
                                     restoreBlankScreensFromCache();
                                 }
