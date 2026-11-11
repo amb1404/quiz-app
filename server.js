@@ -2093,6 +2093,35 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
 
+// Global Favicon Handler (Serves custom public/favicon.png if present, or crisp 'PP' SVG badge)
+const PP_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ppGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#ppGrad)"/>
+  <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-opacity="0.85"/>
+  <text x="32" y="42" font-family="Arial, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">PP</text>
+</svg>`;
+
+app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
+    const customPng = path.join(__dirname, 'public', 'favicon.png');
+    const customIco = path.join(__dirname, 'public', 'favicon.ico');
+    if (fs.existsSync(customPng)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.sendFile(customPng);
+    }
+    if (fs.existsSync(customIco)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.sendFile(customIco);
+    }
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.status(200).send(PP_FAVICON_SVG);
+});
+
 // ============================================================================
 // LAYER 1 & LAYER 5: RAM-FIRST VELOCITY WALL & PAYLOAD HARDENING
 // ============================================================================
