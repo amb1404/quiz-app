@@ -173,8 +173,22 @@
 
     <script src="/js/admin-live.js"></script>
     <script>
-    const room = new LivekitClient.Room();
-    let videoEnabled = false;
+    const room = new LivekitClient.Room({
+    adaptiveStream: true,
+    dynacast: true,
+    publishDefaults: {
+        simulcast: true,
+        videoEncoding: {
+            maxBitrate: 900_000,
+            maxFramerate: 30
+        },
+        screenShareEncoding: {
+            maxBitrate: 1_800_000,
+            maxFramerate: 30
+        }
+    }
+});
+let videoEnabled = false;
     let audioEnabled = false;
     let broadcastMode = 'question';
     let currentCamTrack = null;
