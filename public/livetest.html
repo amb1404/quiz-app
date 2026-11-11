@@ -106,24 +106,36 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="/js/livetest.js"></script>
     <script>
-    const room = new LivekitClient.Room();
-    let activeAudioEl = null;
+    const room = new LivekitClient.Room({
+    adaptiveStream: true,
+    dynacast: true
+});
+let activeAudioEl = null;
 
-    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === 'video') {
-            if (publication.trackName === 'screen') {
-                const pptVideo = document.getElementById('student-ppt-video');
-                track.attach(pptVideo);
-                pptVideo.play().catch(() => {});
-            } else {
-                const videoEl = document.getElementById('student-remote-video');
-                track.attach(videoEl);
-                videoEl.style.display = 'block';
-                document.getElementById('student-pip-box').style.display = 'flex';
-                document.getElementById('student-video-placeholder').style.display = 'none';
-                document.body.classList.add('rtc-stream-active');
+room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+    if (track.kind === 'video') {
+        try {
+            if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
             }
-        } else if (track.kind === 'audio') {
+            if (typeof publication.setVideoFPS === 'function') {
+                publication.setVideoFPS(30);
+            }
+        } catch (e) {}
+
+        if (publication.trackName === 'screen') {
+            const pptVideo = document.getElementById('student-ppt-video');
+            track.attach(pptVideo);
+            pptVideo.play().catch(() => {});
+        } else {
+            const videoEl = document.getElementById('student-remote-video');
+            track.attach(videoEl);
+            videoEl.style.display = 'block';
+            document.getElementById('student-pip-box').style.display = 'flex';
+            document.getElementById('student-video-placeholder').style.display = 'none';
+            document.body.classList.add('rtc-stream-active');
+        }
+    } else if (track.kind === 'audio') {
             if (activeAudioEl) activeAudioEl.remove();
             activeAudioEl = document.createElement('audio');
             activeAudioEl.autoplay = true;

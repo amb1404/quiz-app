@@ -331,12 +331,29 @@ let videoEnabled = false;
 
         try {
             if (!videoEnabled) {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
-                await ensureRoomConnected(quizId);
-                currentCamTrack = stream.getVideoTracks()[0];
-                await room.localParticipant.publishTrack(currentCamTrack, { name: 'camera' });
-                document.getElementById('admin-self-video').srcObject = stream;
-                videoEnabled = true;
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 360 },
+                    frameRate: { ideal: 30, max: 30 }
+                }
+            });
+            await ensureRoomConnected(quizId);
+            currentCamTrack = stream.getVideoTracks()[0];
+            if ('contentHint' in currentCamTrack) {
+                currentCamTrack.contentHint = 'motion';
+            }
+            await room.localParticipant.publishTrack(currentCamTrack, {
+                name: 'camera',
+                simulcast: true,
+                degradationPreference: 'maintain-framerate',
+                videoEncoding: {
+                    maxBitrate: 900_000,
+                    maxFramerate: 30
+                }
+            });
+            document.getElementById('admin-self-video').srcObject = stream;
+            videoEnabled = true;
             } else {
                 if (currentCamTrack) {
                     if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
@@ -472,19 +489,35 @@ let videoEnabled = false;
             const hasLiveScreen = currentScreenTrack && currentScreenTrack.readyState === 'live';
 
             if (!hasLiveScreen || forceNewWindow) {
-                // MUST run before any await fetch() so Firefox preserves user gesture
-                newScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            // MUST run before any await fetch() so Firefox preserves user gesture
+            newScreenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    frameRate: { ideal: 30, max: 30 }
+                },
+                audio: false
+            });
+        }
+
+        await ensureRoomConnected(quizId);
+
+        if (newScreenStream) {
+            if (currentScreenTrack) {
+                if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                currentScreenTrack.stop();
             }
-
-            await ensureRoomConnected(quizId);
-
-            if (newScreenStream) {
-                if (currentScreenTrack) {
-                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
-                    currentScreenTrack.stop();
+            currentScreenTrack = newScreenStream.getVideoTracks()[0];
+            if ('contentHint' in currentScreenTrack) {
+                currentScreenTrack.contentHint = 'detail';
+            }
+            await room.localParticipant.publishTrack(currentScreenTrack, {
+                name: 'screen',
+                simulcast: true,
+                degradationPreference: 'maintain-resolution',
+                videoEncoding: {
+                    maxBitrate: 1_800_000,
+                    maxFramerate: 30
                 }
-                currentScreenTrack = newScreenStream.getVideoTracks()[0];
-                await room.localParticipant.publishTrack(currentScreenTrack, { name: 'screen' });
+            });
 
                 currentScreenTrack.onended = async () => {
                     try {
