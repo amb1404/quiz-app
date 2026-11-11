@@ -163,6 +163,16 @@
         </table>
     </div>
 
+    <div class="panel" style="border: 1px solid #334155;">
+        <h3 style="margin-top: 0; color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
+        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">Enter your Admin Secret Key at the top first, then paste any copied/leaked question text below to extract its invisible 32-bit zero-width student signature.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <input type="text" id="leak-sample-input" placeholder="Paste leaked question text here..." style="flex: 1; min-width: 260px; background: #0f172a; color: #fff; border: 1px solid #475569;">
+            <button id="btn-decode-leak" type="button" style="background: #2563eb; color: #fff;">Identify Leaker</button>
+        </div>
+        <div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
+    </div>
+
     <div id="admin-pip-box">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
