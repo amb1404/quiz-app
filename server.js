@@ -578,8 +578,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
 
-    // Exempt Home, Admin Dashboard, and Live Test from strict direct-navigation blocks
-    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-test') {
+    // Exempt Home, Admin Dashboard, and Live Room from strict direct-navigation blocks
+    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-room') {
         const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
         const referer = req.get('Referer') || '';
         const host = req.get('Host') || '';
@@ -725,8 +725,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
                         }
                     } else {
-                        // Exempt Admin Dashboard and Live Test from frontend direct-navigation blocks
-                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-test');
+                        // Exempt Admin Dashboard and Live Room from frontend direct-navigation blocks
+                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-room');
                         if (!isExempt && !isRecentClick && !isReload && window.location.search === '') {
                             sessionStorage.removeItem('pioneers_prep_state');
                             window.location.replace('/');
@@ -1379,6 +1379,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(['"\s=])\/?test-portal\.html/gi, '$1/mock-tests')
             .replace(/(['"\s=])\/?notes\.html/gi, '$1/study-notes')
             .replace(/(['"\s=])\/?descriptive\.html/gi, '$1/descriptive-papers')
+            .replace(/(['"\s=])\/?(?:live-test|livetest\.html)/gi, '$1/live-room')
             .replace(/(['"\s=])\/?index\.html/gi, '$1/')
             .replace(/Live One to One Test/gi, 'Live Room')
             .replace(/(src="\/js\/main\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
@@ -1387,7 +1388,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/(src="\/js\/admin-live\.js)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/(href="\/css\/style\.css)([^"]*)(")/g, `$1?v=${APP_VERSION}$3`)
             .replace(/<script[^>]*src="https:\/\/cdn\.jsdelivr\.net\/npm\/canvas-confetti@1\.5\.1\/dist\/confetti\.browser\.min\.js"[^>]*><\/script>/gi,
-                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
+                `<script nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/canvas-confetti@1\.5\.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`)
             .replace(/<meta name="viewport"[^>]*>/i, '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">')
             .replace(/<header id="site-header"[^>]*>.*?<\/header>/is, `<header id="site-header" class="site-header">${headerHTML}</header>`)
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
@@ -1409,8 +1410,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 // Primary page routes
 app.get('/', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
 app.get('/index.html', (req, res) => serveDynamicHtml(req, res, 'index.html', '/'));
-app.get('/live-test', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-test'));
-app.get('/livetest.html', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-test'));
+app.get('/live-room', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-room'));
+app.get('/live-test', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-room'));
+app.get('/livetest.html', (req, res) => serveDynamicHtml(req, res, 'livetest.html', '/live-room'));
 app.get('/mock-tests', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/test-portal.html', (req, res) => serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests'));
 app.get('/study-notes', (req, res) => serveDynamicHtml(req, res, 'notes.html', '/study-notes'));
@@ -3634,8 +3636,8 @@ app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
     const p = req.path.toLowerCase();
-    if (p.includes('live-test') || p.includes('livetest')) {
-        return serveDynamicHtml(req, res, 'livetest.html', '/live-test');
+    if (p.includes('live-room') || p.includes('liveroom') || p.includes('live-test') || p.includes('livetest')) {
+        return serveDynamicHtml(req, res, 'livetest.html', '/live-room');
     }
     if (p.includes('mock-tests') || p.includes('test-portal')) {
         return serveDynamicHtml(req, res, 'test-portal.html', '/mock-tests');
