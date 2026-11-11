@@ -2121,6 +2121,78 @@ app.post('/api/start-quiz', async (req, res) => {
     }
 });
 
+const USERS_FILE_PATH = path.join(__dirname, 'users.json');
+
+async function getRegisteredStudentProfile(rawEmail) {
+    const cleanEmail = String(rawEmail || '').trim().toLowerCase();
+    if (!cleanEmail) return null;
+
+    // 1. Check Redis Permanent Profile Store
+    try {
+        const rawProfile = await stateStore.get(`user:profile:${cleanEmail}`);
+        if (rawProfile) {
+            const parsed = typeof rawProfile === 'string' ? JSON.parse(rawProfile) : rawProfile;
+            if (parsed && parsed.firstName && parsed.lastName) return parsed;
+        }
+    } catch {}
+
+    // 2. Check Local users.json Backup File
+    try {
+        if (fs.existsSync(USERS_FILE_PATH)) {
+            const usersMap = JSON.parse(await fs.promises.readFile(USERS_FILE_PATH, 'utf8'));
+            if (usersMap && usersMap[cleanEmail] && usersMap[cleanEmail].firstName) {
+                const profile = usersMap[cleanEmail];
+                const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+                await stateStore.set(`user:profile:${cleanEmail}`, profile, tenYearsSec);
+                return profile;
+            }
+        }
+    } catch {}
+
+    // 3. Fallback: Check Historical Quiz Submissions so past students are automatically recognized
+    try {
+        const history = await getHistoricalSubmissions();
+        for (let i = history.length - 1; i >= 0; i--) {
+            const item = history[i];
+            if (item && String(item.email || '').trim().toLowerCase() === cleanEmail && item.firstName && item.lastName) {
+                const profile = {
+                    firstName: String(item.firstName).trim().toUpperCase(),
+                    lastName: String(item.lastName).trim().toUpperCase(),
+                    email: cleanEmail
+                };
+                await saveRegisteredStudentProfile(cleanEmail, profile.firstName, profile.lastName);
+                return profile;
+            }
+        }
+    } catch {}
+
+    return null;
+}
+
+async function saveRegisteredStudentProfile(rawEmail, firstName, lastName) {
+    const cleanEmail = String(rawEmail || '').trim().toLowerCase();
+    const profile = {
+        firstName: String(firstName || '').trim().toUpperCase().slice(0, 60),
+        lastName: String(lastName || '').trim().toUpperCase().slice(0, 60),
+        email: cleanEmail,
+        updatedAt: new Date().toISOString()
+    };
+    const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+    await stateStore.set(`user:profile:${cleanEmail}`, profile, tenYearsSec);
+
+    try {
+        let usersMap = {};
+        if (fs.existsSync(USERS_FILE_PATH)) {
+            usersMap = JSON.parse(await fs.promises.readFile(USERS_FILE_PATH, 'utf8')) || {};
+        }
+        if (!usersMap[cleanEmail]) {
+            usersMap[cleanEmail] = profile;
+            await fs.promises.writeFile(USERS_FILE_PATH, JSON.stringify(usersMap, null, 2), { mode: 0o600 });
+        }
+    } catch {}
+    return profile;
+}
+
 app.post('/api/send-otp', async (req, res) => {
     try {
         const clientIp = getClientIp(req);
@@ -2131,12 +2203,31 @@ app.post('/api/send-otp', async (req, res) => {
             return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
         }
 
-        const firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
-        const lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
         const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid Email Address.' });
+        }
 
-        if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).json({ success: false, error: 'Valid First Name, Last Name, and Email required.' });
+        // Check if this email already has a permanently registered name
+        const existingProfile = await getRegisteredStudentProfile(email);
+        let firstName = '';
+        let lastName = '';
+
+        if (existingProfile) {
+            // Returning student: lock in their registered name and ignore any modifications
+            firstName = existingProfile.firstName;
+            lastName = existingProfile.lastName;
+        } else {
+            // First-time student: require First Name and Last Name once
+            firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
+            lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
+            if (!firstName || !lastName) {
+                return res.json({
+                    success: false,
+                    requireName: true,
+                    message: 'First-time sign in: Please enter your First Name and Last Name.'
+                });
+            }
         }
 
         const otpKey = `otp:pending:${email}`;
@@ -2159,16 +2250,62 @@ app.post('/api/send-otp', async (req, res) => {
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (scriptURL && APPS_SECRET) {
+            const fullName = `${escapeHtml(firstName)} ${escapeHtml(lastName)}`.trim();
+            const plainTextBody = [
+                `Hello ${firstName} ${lastName},`,
+                ``,
+                `Thank you for signing in to Pioneers Prep (https://pioneersprep.in).`,
+                `Your one-time login verification code is: ${otp}`,
+                ``,
+                `This code is valid for 5 minutes. For your account security, please do not share this code with anyone.`,
+                ``,
+                `If you did not request this sign-in code, you can safely ignore this message.`,
+                ``,
+                `Warm regards,`,
+                `Aniruddha Banerjee`,
+                `Pioneers Prep — Online Mock Tests & Study Portal`,
+                `Berhampore, Murshidabad, West Bengal`
+            ].join('\n');
+
+            const inboxSafeHtml = `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1e293b; line-height: 1.6; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
+                    <p style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600; color: #1e3a8a;">Pioneers Prep — Student Portal</p>
+                    <p style="margin: 0 0 16px 0; font-size: 15px;">Hello <strong>${fullName}</strong>,</p>
+                    <p style="margin: 0 0 16px 0; font-size: 15px;">You requested a one-time verification code to sign in to your Pioneers Prep student account. Please enter the following 6-digit code on the portal:</p>
+                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px 20px; text-align: center; margin: 20px 0;">
+                        <span style="font-size: 24px; font-weight: 700; color: #1e3a8a; letter-spacing: 4px; font-family: monospace;">${otp}</span>
+                    </div>
+                    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">This verification code will expire in 5 minutes. Please do not share this code with anyone.</p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+                    <p style="margin: 0; font-size: 12px; color: #64748b;">
+                        Warm regards,<br />
+                        <strong>Aniruddha Banerjee</strong><br />
+                        Pioneers Prep (<a href="https://pioneersprep.in" style="color: #2563eb; text-decoration: none;">pioneersprep.in</a>)<br />
+                        Berhampore, Murshidabad, West Bengal
+                    </p>
+                </div>
+            `;
+
             fetch(scriptURL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'otp', targetEmail: email, subject: 'Pioneers Prep - Verification Code', secretKey: APPS_SECRET,
-                    breakdown: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;"><h2>Hello ${escapeHtml(firstName)} ${escapeHtml(lastName)},</h2><p>Your verification code is:</p><h1 style="color: #4285f4; letter-spacing: 6px; font-size: 36px; margin: 20px 0;">${otp}</h1><p>Code is valid for 5 minutes. Do not share this with anyone.</p></div>`
+                    type: 'otp',
+                    targetEmail: email,
+                    senderName: 'Pioneers Prep',
+                    subject: `Pioneers Prep login code for ${firstName} (${otp})`,
+                    plainText: plainTextBody,
+                    secretKey: APPS_SECRET,
+                    breakdown: inboxSafeHtml
                 })
             }).catch(err => console.error('OTP email error:', err));
         }
-        res.json({ success: true });
+        res.json({
+            success: true,
+            isReturningUser: Boolean(existingProfile),
+            firstName,
+            lastName
+        });
     } catch {
         res.status(500).json({ success: false, error: 'Failed to process OTP request.' });
     }
@@ -2211,7 +2348,15 @@ app.post('/api/verify-otp', async (req, res) => {
 
         await stateStore.del(otpKey);
 
-        const tokenData = `${email}|${encodeURIComponent(record.firstName)}|${encodeURIComponent(record.lastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
+        // Permanently lock the student's name to this email upon first successful OTP verification
+        const existingProfile = await getRegisteredStudentProfile(email);
+        const finalFirstName = existingProfile ? existingProfile.firstName : record.firstName;
+        const finalLastName = existingProfile ? existingProfile.lastName : record.lastName;
+        if (!existingProfile) {
+            await saveRegisteredStudentProfile(email, finalFirstName, finalLastName);
+        }
+
+        const tokenData = `${email}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         const authToken = `${tokenData}|||${signature}`;
 
@@ -2221,12 +2366,12 @@ app.post('/api/verify-otp', async (req, res) => {
             httpOnly: true, secure: isSecureConnection(req), sameSite: 'strict', maxAge: TOKEN_MAX_AGE_MS, path: '/'
         });
 
-        // Send the token and user data to the frontend for Global SSO
+        // Send the token and locked user data to the frontend for Global SSO
         res.json({ 
             success: true, 
             token: authToken, 
-            firstName: record.firstName, 
-            lastName: record.lastName, 
+            firstName: finalFirstName, 
+            lastName: finalLastName, 
             email: email 
         });
     } catch {
