@@ -547,35 +547,48 @@ let videoEnabled = false;
             const hasLiveScreen = currentScreenTrack && currentScreenTrack.readyState === 'live';
 
             if (!hasLiveScreen || forceNewWindow) {
-            // MUST run before any await fetch() so Firefox preserves user gesture
-            newScreenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    frameRate: { ideal: 30, max: 30 }
-                },
-                audio: false
-            });
-        }
-
-        await ensureRoomConnected(quizId);
-
-        if (newScreenStream) {
-            if (currentScreenTrack) {
-                if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
-                currentScreenTrack.stop();
+                // MUST run before any await fetch() so Firefox preserves user gesture
+                newScreenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 },
+                        frameRate: { ideal: 15, max: 15 }
+                    },
+                    audio: false
+                });
             }
-            currentScreenTrack = newScreenStream.getVideoTracks()[0];
-            if ('contentHint' in currentScreenTrack) {
-                currentScreenTrack.contentHint = 'detail';
-            }
-            await room.localParticipant.publishTrack(currentScreenTrack, {
-                name: 'screen',
-                simulcast: true,
-                degradationPreference: 'maintain-resolution',
-                videoEncoding: {
-                    maxBitrate: 1_800_000,
-                    maxFramerate: 30
+
+            await ensureRoomConnected(quizId);
+
+            if (newScreenStream) {
+                if (currentScreenTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack.stop();
                 }
-            });
+                currentScreenTrack = newScreenStream.getVideoTracks()[0];
+                if ('contentHint' in currentScreenTrack) {
+                    currentScreenTrack.contentHint = 'detail';
+                }
+                await currentScreenTrack.applyConstraints({
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 15, max: 15 }
+                }).catch(() => {});
+
+                await room.localParticipant.publishTrack(currentScreenTrack, {
+                    name: 'screen',
+                    source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
+                    simulcast: false,
+                    degradationPreference: 'maintain-resolution',
+                    videoEncoding: {
+                        maxBitrate: 2_500_000,
+                        maxFramerate: 15
+                    },
+                    screenShareEncoding: {
+                        maxBitrate: 2_500_000,
+                        maxFramerate: 15
+                    }
+                });
 
                 currentScreenTrack.onended = async () => {
                     try {
