@@ -633,6 +633,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     #nav-avatar { width: 26px !important; height: 26px !important; font-size: 11px !important; }
                     #nav-name { font-size: 12px !important; }
                     #nav-logout-btn { font-size: 12px !important; }
+                    #pwa-download-btn { padding: 6px 10px !important; font-size: 12px !important; }
                 }
             </style>
             <div class="nav-container">
@@ -645,6 +646,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     <a href="/mock-tests" class="nav-link ${isTests ? 'active' : ''}" data-action="clear-session">Mock Tests</a>
                     <a href="/study-notes" class="nav-link ${isNotes ? 'active' : ''}" data-action="clear-session">Study Notes</a>
                     <a href="/descriptive-papers" class="nav-link nav-link-yellow ${isDesc ? 'active' : ''}" data-action="clear-session">Descriptive Papers</a>
+                    <button id="pwa-download-btn" type="button" style="background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);">
+                        📲 Download App
+                    </button>
                     
                     <!-- Global Auth UI -->
                     <div id="auth-ui-container" style="margin-left: 15px; padding-left: 15px; border-left: 2px solid #e2e8f0; display: flex; align-items: center;">
