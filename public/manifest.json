@@ -1,14 +1,14 @@
 {
   "name": "Pioneers Prep by Aniruddha Banerjee",
-  "short_name": "PioneersPrep",
+  "short_name": "Pioneers Prep",
   "description": "Specialized online tutoring, mock tests, and live classes for science students.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "/favicon.png?v=2",
+      "src": "/favicon.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
