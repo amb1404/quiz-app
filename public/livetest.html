@@ -107,49 +107,115 @@
     <script src="/js/livetest.js"></script>
     <script>
     const room = new LivekitClient.Room({
-    adaptiveStream: true,
-    dynacast: true
-});
-let activeAudioEl = null;
+        adaptiveStream: true,
+        dynacast: true
+    });
+    let activeAudioEl = null;
 
-room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-    if (track.kind === 'video') {
+    // Strict check: Only allow tracks from the Admin instructor
+    function isAdminParticipant(participant) {
+        if (!participant) return false;
+        const id = String(participant.identity || '').trim().toLowerCase();
+        if (id === 'admin' || id.startsWith('admin_')) return true;
         try {
-            if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
-                publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
-            }
-            if (typeof publication.setVideoFPS === 'function') {
-                publication.setVideoFPS(30);
+            if (participant.metadata) {
+                const meta = JSON.parse(participant.metadata);
+                if (meta && meta.role === 'admin') return true;
             }
         } catch (e) {}
+        return false;
+    }
 
-        if (publication.trackName === 'screen') {
-            const pptVideo = document.getElementById('student-ppt-video');
-            track.attach(pptVideo);
-            pptVideo.play().catch(() => {});
-        } else {
-            const videoEl = document.getElementById('student-remote-video');
-            track.attach(videoEl);
-            videoEl.style.display = 'block';
-            document.getElementById('student-pip-box').style.display = 'flex';
-            document.getElementById('student-video-placeholder').style.display = 'none';
-            document.body.classList.add('rtc-stream-active');
+    // Refuse subscription to any other student's tracks at the SFU transport level
+    function blockOtherStudents(participant) {
+        if (!participant || isAdminParticipant(participant)) return;
+        try {
+            participant.trackPublications.forEach((pub) => {
+                if (typeof pub.setSubscribed === 'function') {
+                    pub.setSubscribed(false);
+                }
+            });
+        } catch (e) {}
+    }
+
+    // Helper to keep Admin's voice playing even after mobile/desktop hardware mic switches
+    async function ensureAdminAudioPlaying() {
+        try { await room.startAudio(); } catch (e) {}
+        if (activeAudioEl) {
+            activeAudioEl.muted = false;
+            activeAudioEl.volume = 1.0;
+            activeAudioEl.play().catch(() => {
+                const hint = document.getElementById('btn-unmute-hint');
+                if (hint) hint.style.display = 'block';
+            });
         }
-    } else if (track.kind === 'audio') {
-            if (activeAudioEl) activeAudioEl.remove();
+    }
+
+    room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+        blockOtherStudents(participant);
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
+        if (!isAdminParticipant(participant)) {
+            try {
+                if (typeof publication.setSubscribed === 'function') {
+                    publication.setSubscribed(false);
+                }
+            } catch (e) {}
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        // BLOCK student-to-student communication completely
+        if (!isAdminParticipant(participant)) {
+            try {
+                if (typeof publication.setSubscribed === 'function') {
+                    publication.setSubscribed(false);
+                }
+            } catch (e) {}
+            return;
+        }
+
+        if (track.kind === 'video') {
+            try {
+                if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                    publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
+                }
+                if (typeof publication.setVideoFPS === 'function') {
+                    publication.setVideoFPS(30);
+                }
+            } catch (e) {}
+
+            if (publication.trackName === 'screen') {
+                const pptVideo = document.getElementById('student-ppt-video');
+                track.attach(pptVideo);
+                pptVideo.play().catch(() => {});
+            } else {
+                const videoEl = document.getElementById('student-remote-video');
+                track.attach(videoEl);
+                videoEl.style.display = 'block';
+                document.getElementById('student-pip-box').style.display = 'flex';
+                document.getElementById('student-video-placeholder').style.display = 'none';
+                document.body.classList.add('rtc-stream-active');
+            }
+        } else if (track.kind === 'audio') {
+            if (activeAudioEl) {
+                try { activeAudioEl.remove(); } catch (e) {}
+            }
             activeAudioEl = document.createElement('audio');
             activeAudioEl.autoplay = true;
+            activeAudioEl.playsInline = true;
             track.attach(activeAudioEl);
             document.body.appendChild(activeAudioEl);
             document.getElementById('student-pip-box').style.display = 'flex';
 
-            activeAudioEl.play().catch(() => {
-                document.getElementById('btn-unmute-hint').style.display = 'block';
-            });
+            ensureAdminAudioPlaying();
         }
     });
 
-    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
+    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        if (!isAdminParticipant(participant)) return;
+
         if (track.kind === 'video') {
             if (publication.trackName === 'screen') {
                 document.getElementById('student-ppt-video').srcObject = null;
@@ -158,12 +224,17 @@ room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participan
                 document.getElementById('student-remote-video').style.display = 'none';
                 document.getElementById('student-video-placeholder').style.display = 'block';
             }
+        } else if (track.kind === 'audio') {
+            if (activeAudioEl) {
+                try { track.detach(activeAudioEl); activeAudioEl.remove(); } catch (e) {}
+                activeAudioEl = null;
+            }
         }
     });
 
-    document.getElementById('btn-unmute-hint').addEventListener('click', (e) => {
+    document.getElementById('btn-unmute-hint').addEventListener('click', async (e) => {
         e.target.style.display = 'none';
-        if (activeAudioEl) activeAudioEl.play().catch(() => {});
+        await ensureAdminAudioPlaying();
     });
 
     const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
@@ -195,6 +266,8 @@ room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participan
             const { token } = await res.json();
 
             await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
+            room.remoteParticipants.forEach((p) => blockOtherStudents(p));
+            await ensureAdminAudioPlaying();
         } catch (err) {
             console.error("LiveKit connection failed:", err);
         }
@@ -202,92 +275,108 @@ room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participan
     window.connectLiveKit = connectLiveKit;
 
     setInterval(() => {
-    if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
-        connectLiveKit(currentQuizId);
-    }
-}, 3000);
+        if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+            connectLiveKit(currentQuizId);
+        }
+    }, 3000);
 
-let studentMicTrack = null;
-window.studentMutedByAdmin = false;
+    let studentMicTrack = null;
+    window.studentMutedByAdmin = false;
 
-window.setStudentAdminMute = async function(isMuted) {
-    window.studentMutedByAdmin = Boolean(isMuted);
-    const callBtn = document.getElementById('btn-student-call');
-    if (window.studentMutedByAdmin) {
-        if (studentMicTrack) {
+    window.setStudentAdminMute = async function(isMuted) {
+        window.studentMutedByAdmin = Boolean(isMuted);
+        const callBtn = document.getElementById('btn-student-call');
+        if (window.studentMutedByAdmin) {
+            if (studentMicTrack) {
+                try {
+                    if (room.state === 'connected') {
+                        await room.localParticipant.unpublishTrack(studentMicTrack);
+                    }
+                    studentMicTrack.stop();
+                } catch (e) {}
+                studentMicTrack = null;
+            }
+            if (callBtn) {
+                callBtn.textContent = '🔇 Muted by Admin';
+                callBtn.classList.remove('on-call');
+                callBtn.disabled = true;
+                callBtn.style.opacity = '0.6';
+                callBtn.style.cursor = 'not-allowed';
+            }
+            await ensureAdminAudioPlaying();
+        } else {
+            if (callBtn) {
+                if (!studentMicTrack) {
+                    callBtn.textContent = '📞 Speak';
+                    callBtn.classList.remove('on-call');
+                }
+                callBtn.disabled = false;
+                callBtn.style.opacity = '1';
+                callBtn.style.cursor = 'pointer';
+            }
+        }
+    };
+
+    window.stopStudentLiveKit = function() {
+        try {
+            if (studentMicTrack) {
+                studentMicTrack.stop();
+                studentMicTrack = null;
+            }
+        } catch (e) {}
+        try { room.disconnect(); } catch (e) {}
+        if (activeAudioEl) {
+            try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
+            activeAudioEl = null;
+        }
+        const remoteVid = document.getElementById('student-remote-video');
+        if (remoteVid) {
+            remoteVid.srcObject = null;
+            remoteVid.style.display = 'none';
+        }
+        const pptVid = document.getElementById('student-ppt-video');
+        if (pptVid) pptVid.srcObject = null;
+        const pipBox = document.getElementById('student-pip-box');
+        if (pipBox) pipBox.remove();
+        document.body.classList.remove('rtc-stream-active', 'rtc-presentation-active', 'rtc-both-active');
+    };
+
+    document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+        if (window.studentMutedByAdmin) {
+            alert('You have been muted by the instructor.');
+            return;
+        }
+        if (!studentMicTrack) {
+            try {
+                if (room.state !== 'connected' && typeof currentQuizId !== 'undefined' && currentQuizId) {
+                    await connectLiveKit(currentQuizId);
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+                studentMicTrack = stream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+                e.target.textContent = '🔴 Mute Mic';
+                e.target.classList.add('on-call');
+                // Resume Admin audio immediately in case hardware mic activation paused output
+                await ensureAdminAudioPlaying();
+            } catch (err) {
+                alert('Mic access denied');
+            }
+        } else {
             try {
                 if (room.state === 'connected') {
                     await room.localParticipant.unpublishTrack(studentMicTrack);
                 }
                 studentMicTrack.stop();
-            } catch (e) {}
+            } catch (err) {}
             studentMicTrack = null;
+            e.target.textContent = '📞 Speak';
+            e.target.classList.remove('on-call');
+            // Resume Admin audio immediately after releasing hardware mic
+            await ensureAdminAudioPlaying();
         }
-        if (callBtn) {
-            callBtn.textContent = '🔇 Muted by Admin';
-            callBtn.classList.remove('on-call');
-            callBtn.disabled = true;
-            callBtn.style.opacity = '0.6';
-            callBtn.style.cursor = 'not-allowed';
-        }
-    } else {
-        if (callBtn) {
-            if (!studentMicTrack) {
-                callBtn.textContent = '📞 Speak';
-                callBtn.classList.remove('on-call');
-            }
-            callBtn.disabled = false;
-            callBtn.style.opacity = '1';
-            callBtn.style.cursor = 'pointer';
-        }
-    }
-};
-
-window.stopStudentLiveKit = function() {
-    try {
-        if (studentMicTrack) {
-            studentMicTrack.stop();
-            studentMicTrack = null;
-        }
-    } catch (e) {}
-    try { room.disconnect(); } catch (e) {}
-    if (activeAudioEl) {
-        try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
-        activeAudioEl = null;
-    }
-    const remoteVid = document.getElementById('student-remote-video');
-    if (remoteVid) {
-        remoteVid.srcObject = null;
-        remoteVid.style.display = 'none';
-    }
-    const pptVid = document.getElementById('student-ppt-video');
-    if (pptVid) pptVid.srcObject = null;
-    const pipBox = document.getElementById('student-pip-box');
-    if (pipBox) pipBox.remove();
-    document.body.classList.remove('rtc-stream-active', 'rtc-presentation-active', 'rtc-both-active');
-};
-
-document.getElementById('btn-student-call').addEventListener('click', async (e) => {
-    if (window.studentMutedByAdmin) {
-        alert('You have been muted by the instructor.');
-        return;
-    }
-    if (!studentMicTrack) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-            studentMicTrack = stream.getAudioTracks()[0];
-            await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
-            e.target.textContent = '🔴 Mute Mic';
-            e.target.classList.add('on-call');
-        } catch (err) { alert('Mic access denied'); }
-    } else {
-        await room.localParticipant.unpublishTrack(studentMicTrack);
-        studentMicTrack.stop();
-        studentMicTrack = null;
-        e.target.textContent = '📞 Speak';
-        e.target.classList.remove('on-call');
-    }
-});
+    });
 
     const boxEl = document.getElementById('student-pip-box');
     const handleEl = document.getElementById('student-pip-header');
