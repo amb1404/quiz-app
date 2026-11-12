@@ -1419,6 +1419,106 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         }
                     }, true);
                 });
+
+                // ============================================================
+                // INSTANT PWA DOWNLOAD BUTTON & FALLBACK INSTALL MODAL
+                // ============================================================
+                (function initPwaDownloadButton() {
+                    var deferredPrompt = null;
+
+                    function isRunningStandalone() {
+                        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                               window.navigator.standalone === true;
+                    }
+
+                    function updateInstallButtonVisibility() {
+                        var btn = document.getElementById('pwa-download-btn');
+                        if (!btn) return;
+                        if (isRunningStandalone()) {
+                            btn.style.display = 'none';
+                        }
+                    }
+
+                    if ('serviceWorker' in navigator) {
+                        window.addEventListener('load', function() {
+                            navigator.serviceWorker.register('/sw.js').catch(function() {});
+                        });
+                    }
+
+                    window.addEventListener('beforeinstallprompt', function(e) {
+                        e.preventDefault();
+                        deferredPrompt = e;
+                        updateInstallButtonVisibility();
+                    });
+
+                    window.addEventListener('appinstalled', function() {
+                        deferredPrompt = null;
+                        var btn = document.getElementById('pwa-download-btn');
+                        if (btn) btn.style.display = 'none';
+                        var modal = document.getElementById('pwa-install-helper-modal');
+                        if (modal) modal.remove();
+                    });
+
+                    function showInstantInstallGuide() {
+                        var existing = document.getElementById('pwa-install-helper-modal');
+                        if (existing) existing.remove();
+
+                        var ua = navigator.userAgent || '';
+                        var isIos = /iphone|ipad|ipod/i.test(ua);
+                        var stepsHtml = isIos
+                            ? '<ol style="text-align:left;color:#334155;font-size:14px;line-height:1.7;margin:12px 0;padding-left:20px;">' +
+                                '<li>Tap the <strong>Share</strong> button (<strong>⬆️</strong>) at the bottom of Safari.</li>' +
+                                '<li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>' +
+                                '<li>Tap <strong>Add</strong> in the top-right corner.</li>' +
+                              '</ol>'
+                            : '<ol style="text-align:left;color:#334155;font-size:14px;line-height:1.7;margin:12px 0;padding-left:20px;">' +
+                                '<li>Tap the browser menu icon (<strong>⋮</strong> or <strong>⋯</strong>) in the corner of your screen (or the install icon in the address bar).</li>' +
+                                '<li>Select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</li>' +
+                                '<li>Tap <strong>Install</strong> to place Pioneers Prep on your home screen.</li>' +
+                              '</ol>';
+
+                        var overlay = document.createElement('div');
+                        overlay.id = 'pwa-install-helper-modal';
+                        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:2147483645;display:flex;align-items:center;justify-content:center;padding:16px;font-family:sans-serif;';
+                        overlay.innerHTML =
+                            '<div style="background:#ffffff;max-width:400px;width:100%;border-radius:12px;padding:22px;box-shadow:0 20px 35px rgba(0,0,0,0.25);text-align:center;">' +
+                                '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:56px;height:56px;border-radius:12px;margin-bottom:10px;object-fit:contain;">' +
+                                '<h3 style="margin:0 0 6px 0;color:#1e293b;font-size:18px;">Install Pioneers Prep App</h3>' +
+                                '<p style="margin:0 0 10px 0;color:#64748b;font-size:13px;">Install the official app for full-screen mock tests and live classes:</p>' +
+                                stepsHtml +
+                                '<button id="pwa-modal-close-btn" type="button" style="margin-top:10px;width:100%;padding:10px;background:#2563eb;color:#ffffff;border:none;border-radius:8px;font-weight:bold;font-size:14px;cursor:pointer;">Got It</button>' +
+                            '</div>';
+
+                        document.body.appendChild(overlay);
+                        overlay.addEventListener('click', function(ev) {
+                            if (ev.target === overlay || ev.target.id === 'pwa-modal-close-btn') {
+                                overlay.remove();
+                            }
+                        });
+                    }
+
+                    document.addEventListener('click', async function(e) {
+                        var btn = e.target ? e.target.closest('#pwa-download-btn') : null;
+                        if (!btn) return;
+                        e.preventDefault();
+
+                        if (deferredPrompt) {
+                            try {
+                                deferredPrompt.prompt();
+                                var choice = await deferredPrompt.userChoice;
+                                if (choice && choice.outcome === 'accepted') {
+                                    btn.style.display = 'none';
+                                }
+                            } catch (err) {}
+                            deferredPrompt = null;
+                        } else {
+                            showInstantInstallGuide();
+                        }
+                    });
+
+                    document.addEventListener('DOMContentLoaded', updateInstallButtonVisibility);
+                    updateInstallButtonVisibility();
+                })();
             })();
         </script>`;
 
