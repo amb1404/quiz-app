@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Online Mock Tests for NEET, ICSE & WBCHSE | Pioneers Prep</title>
+    <meta name="description" content="Take timed chapter-wise online mock tests for NEET Class XI & XII Biology, ICSE Class IX & X Physics, Chemistry, Biology, and WBCHSE on Pioneers Prep.">
+    <meta name="author" content="Aniruddha Banerjee">
+    <link rel="canonical" href="https://pioneersprep.in/test-portal.html">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header id="site-header" class="site-header"></header>
+
+    <main class="site-main">
+        <section class="page-intro">
+            <h1>Online Mock Tests Portal</h1>
+            <p>Select your class or examination stream below to start a timed, verified evaluation with automated scorecards.</p>
+        </section>
+
+        <div id="home-dashboard" class="app-screen">
+            <div class="dashboard-panel" style="width: 100%; max-width: 580px; margin: 0 auto;">
+                <style>
+                  .mock-category-section {
+                margin-bottom: 24px;
+                text-align: center;
+              }
+              .mock-category-header {
+                font-size: 20px;
+                font-weight: 800;
+                color: #1e3a8a;
+                text-transform: uppercase;
+                letter-spacing: 1.2px;
+                margin-bottom: 12px;
+                padding-bottom: 6px;
+                border-bottom: 2px solid #bfdbfe;
+              }
+                  .mock-category-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+                    gap: 12px;
+                  }
+                  .mock-category-grid .card {
+                    margin: 0 !important;
+                    padding: 14px 10px !important;
+                    font-size: 14px !important;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    box-sizing: border-box;
+                    text-align: center;
+                  }
+                </style>
+
+                <h2 style="text-align: center; color: #4285f4; margin-top: 0; margin-bottom: 25px;">Test Portal</h2>
+
+                <!-- NEET Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">NEET</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="XI">Class XI</button>
+                    <button class="card" data-action="select-class" data-arg="XII">Class XII</button>
+                    <button class="card" data-action="select-class" data-arg="NEET-FULL">Full Length</button>
+                  </div>
+                </div>
+
+                <!-- WBCHSE Section -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">WBCHSE (Board)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="WB XI">Class XI</button>
+                    <button class="card" data-action="select-class" data-arg="WB XII">Class XII</button>
+                  </div>
+                </div>
+
+                <!-- ISC/CBSE Section (FIXED TARGETS) -->
+                <div class="mock-category-section">
+                  <div class="mock-category-header">ISC/CBSE (Board)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="ISC XI">Class XI</button>
+                    <button class="card" data-action="select-class" data-arg="ISC XII">Class XII</button>
+                  </div>
+                </div>
+
+                <!-- Foundation Section -->
+                <div class="mock-category-section" style="margin-bottom: 0;">
+                  <div class="mock-category-header">Foundation (ICSE / CBSE)</div>
+                  <div class="mock-category-grid">
+                    <button class="card" data-action="select-class" data-arg="IX">Class IX</button>
+                    <button class="card" data-action="select-class" data-arg="X">Class X</button>
+                  </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="subject-select-screen" class="app-screen hidden">
+            <button class="back-btn" data-action="go-back">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Subject</h2>
+            <div class="card" data-action="select-subject" data-arg="Physics">Physics</div>
+            <div class="card" data-action="select-subject" data-arg="Chemistry">Chemistry</div>
+            <div class="card" data-action="select-subject" data-arg="Biology">Biology</div>
+        </div>
+
+        <div id="ix-x-chapter-screen" class="app-screen hidden">
+            <button class="back-btn" data-action="go-back">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Chapter / Test</h2>
+            <div id="ix-x-chapter-container"></div>
+        </div>
+
+        <div id="neet-unit-screen" class="app-screen hidden">
+            <button class="back-btn" data-action="go-back">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Unit</h2>
+            <div id="neet-unit-container"></div>
+        </div>
+
+        <div id="neet-chapter-screen" class="app-screen hidden">
+            <button class="back-btn" data-action="go-back">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Chapter</h2>
+            <div id="neet-chapter-container"></div>
+        </div>
+
+        <div id="neet-topic-screen" class="app-screen hidden">
+            <button class="back-btn" data-action="go-back">Back</button>
+            <h2 style="text-align: center; color: #4285f4;">Select Topic / Test</h2>
+            <div id="neet-topic-container"></div>
+        </div>
+
+
+        <div id="quiz-screen" class="app-screen hidden">
+            <div>
+                <div class="quiz-header">
+                    <span id="time-left" style="font-size: 18px; font-weight: bold; color: #dc2626;">Time Left: --:--</span>
+                    <span id="quiz-stats" style="font-size: 15px; font-weight: 600; color: #334155;">Attempted: 0 / 0 | Skipped: 0</span>
+                    <button id="submit-btn" data-action="submit-quiz">Submit Quiz</button>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar-fill"></div>
+                </div>
+                <h2 id="quiz-screen-heading" style="color: #4285f4; text-align: center; margin-top: 0; margin-bottom: 20px;"></h2>
+                <div id="question-box" style="font-size: 19px; font-weight: 600; margin-bottom: 25px; line-height: 1.5;"></div>
+                <div id="options-container"></div>
+            </div>
+
+            <div class="quiz-nav-container">
+                <button data-action="prev-question">Previous</button>
+                <button data-action="clear-response">Clear Response</button>
+                <button data-action="next-question">Next</button>
+            </div>
+        </div>
+
+        <div id="result-screen" class="app-screen hidden"></div>
+    </main>
+
+    <footer id="site-footer" class="site-footer"></footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>const CURRENT_ROUTE = '/test-portal.html';</script>
+    <script src="/js/main.js"></script>
+    <script src="/js/quiz.js"></script>
+</body>
+</html>

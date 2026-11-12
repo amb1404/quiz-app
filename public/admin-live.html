@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Live Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: white; padding: 20px; margin: 0; }
+        .panel { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        input { padding: 10px; margin-right: 10px; border-radius: 4px; border: none; }
+        button { padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #64748b; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        .time-badge { background: #059669; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+
+        #admin-stream-console {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .stream-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: none;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            color: white;
+            background: #475569;
+        }
+        .stream-btn.active-cam { background: #2563eb; }
+        .stream-btn.active-mic { background: #10b981; }
+        .stream-btn.stop-btn { background: #dc2626; }
+        #admin-caller-badge {
+            margin-left: auto;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: #0f172a;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        #admin-caller-badge.calling {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border-color: #10b981;
+        }
+
+        #admin-pip-box {
+            position: fixed;
+            top: 20px;
+            right: 25px;
+            width: 240px;
+            height: 165px;
+            background: #0f172a;
+            border: 2px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.65);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+            touch-action: none;
+            user-select: none;
+        }
+        #admin-pip-header {
+            background: rgba(15, 23, 42, 0.92);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 6px 10px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+        }
+        #admin-pip-header:active { cursor: grabbing; }
+        #admin-self-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+            transform: scaleX(-1);
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+</head>
+<body>
+    <h2>Live Mock Control Center</h2>
+    
+    <div class="panel" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+        <input type="password" id="admin-key" placeholder="Enter Admin Secret Key" style="min-width: 220px;">
+        <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
+
+        <div id="create-room-box" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="quiz-id" placeholder="Type Room Name (e.g. Physics-X)" style="min-width: 220px;">
+            <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
+        </div>
+        <span id="otp-display" style="margin-left: 10px; color: #34d399; font-weight: bold; font-size: 16px;"></span>
+    </div>
+
+    <div id="admin-stream-console">
+        <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & HD Voice Console:</strong>
+        <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
+        <button id="btn-admin-audio" class="stream-btn" type="button">🎙️ Audio: OFF</button>
+        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
+        <span id="admin-caller-badge">🎧 No active student calls</span>
+    </div>
+
+    <div id="admin-broadcast-mode-console" style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+        <strong style="font-size: 14px; color: #c4b5fd;">📺 Student Main Screen:</strong>
+        <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Broadcast: Question Card</button>
+        <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Broadcast: Presentation (PPT)</button>
+        <button id="btn-mode-both" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">⚡ Cast PPT + Question Together</button>
+        <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
+        <span id="admin-mode-badge" style="margin-left: auto; font-size: 13px; font-weight: bold; padding: 6px 14px; border-radius: 20px; background: #0f172a; color: #60a5fa; border: 1px solid #334155;">📌 Showing: Question Card</span>
+    </div>
+
+    <div class="panel" id="control-panel" style="display: none;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #334155;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label for="admin-quiz-select" style="font-weight: bold; color: #93c5fd;">📚 Broadcast Question Set (/livemock):</label>
+                <select id="admin-quiz-select" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 260px; cursor: pointer;">
+                    <option value="">-- None (Lecture / PPT Only) --</option>
+                </select>
+            </div>
+            <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);">🛑 Close Room Now</button>
+        </div>
+
+        <h3 id="dash-title" style="margin-top: 0; color: #e2e8f0;"></h3>
+        <div id="question-nav-controls" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+            <button id="prev-btn">Previous Question</button>
+            <span id="q-counter" style="margin: 0 15px; font-size: 18px; font-weight: bold;">No Question Set Active</span>
+            <button id="next-btn">Next Question</button>
+            <button id="clear-responses-btn" style="background: #eab308; color: black; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                Clear Current Question Responses
+            </button>
+        </div>
+    </div>
+
+    <div class="panel" id="board-panel" style="display: none;">
+        <h3>Live Room Roster & Student Submissions</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Status / Selected Option</th>
+                    <th>Speed (Time)</th>
+                    <th>Admin Controls</th>
+                </tr>
+            </thead>
+            <tbody id="board-body"></tbody>
+        </table>
+    </div>
+
+    <div class="panel" style="border: 1px solid #334155;">
+        <h3 style="margin-top: 0; color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
+        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">Enter your Admin Secret Key at the top first, then paste any copied/leaked question text below to extract its invisible 32-bit zero-width student signature.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <input type="text" id="leak-sample-input" placeholder="Paste leaked question text here..." style="flex: 1; min-width: 260px; background: #0f172a; color: #fff; border: 1px solid #475569;">
+            <button id="btn-decode-leak" type="button" style="background: #2563eb; color: #fff;">Identify Leaker</button>
+        </div>
+        <div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
+    </div>
+
+    <div id="admin-pip-box">
+        <div id="admin-pip-header">
+            <span>⠿ Drag Self-View</span>
+            <span style="color: #38bdf8;">● LIVE HD</span>
+        </div>
+        <video id="admin-self-video" autoplay playsinline muted></video>
+    </div>
+
+    <script src="/js/admin-live.js"></script>
+    <script>
+    const room = new LivekitClient.Room({
+    adaptiveStream: true,
+    dynacast: true,
+    publishDefaults: {
+        simulcast: true,
+        videoEncoding: {
+            maxBitrate: 900_000,
+            maxFramerate: 30
+        },
+        screenShareEncoding: {
+            maxBitrate: 1_800_000,
+            maxFramerate: 30
+        }
+    }
+});
+let videoEnabled = false;
+    let audioEnabled = false;
+    let broadcastMode = 'question';
+    let currentCamTrack = null;
+    let currentMicTrack = null;
+    let currentScreenTrack = null;
+    let connectingPromise = null;
+    const activeStudentAudioEls = new Map();
+
+    function getAdminCreds() {
+        let adminKey = document.getElementById('admin-key')?.value.trim() || '';
+        let quizId = document.getElementById('quiz-id')?.value.trim() || '';
+        if (!adminKey || !quizId) {
+            try {
+                const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
+                if (!adminKey && saved.adminKey) adminKey = saved.adminKey;
+                if (!quizId && saved.quizId) quizId = saved.quizId;
+            } catch (e) {}
+        }
+        return { adminKey, quizId };
+    }
+
+    function refreshAdminCallerBadge() {
+        const badge = document.getElementById('admin-caller-badge');
+        if (!badge) return;
+        if (activeStudentAudioEls.size === 0) {
+            badge.textContent = '🎧 No active student calls';
+            badge.classList.remove('calling');
+        } else {
+            const names = Array.from(activeStudentAudioEls.keys())
+                .map(id => id.replace(/_[a-z0-9]{4}$/i, ''));
+            badge.textContent = `🟢 Student Speaking: ${names.join(', ')}`;
+            badge.classList.add('calling');
+        }
+    }
+
+    async function ensureRoomConnected(quizId) {
+        if (room.state === 'connected') return;
+        if (connectingPromise) return await connectingPromise;
+
+        connectingPromise = (async () => {
+            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin`);
+            if (!res.ok) throw new Error("API Keys missing on server.");
+            const { token } = await res.json();
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
+            try { await room.startAudio(); } catch (e) {}
+        })();
+
+        try {
+            await connectingPromise;
+        } finally {
+            connectingPromise = null;
+        }
+    }
+
+    // Automatically connect Admin to LiveKit as soon as a room is active (even before Admin turns on cam/mic)
+    setInterval(() => {
+        const { adminKey, quizId } = getAdminCreds();
+        const controlPanel = document.getElementById('control-panel');
+        if (adminKey && quizId && controlPanel && controlPanel.style.display !== 'none') {
+            ensureRoomConnected(quizId).catch(() => {});
+        }
+    }, 2500);
+
+    // Unlock browser WebRTC audio playback on any Admin dashboard interaction
+    document.addEventListener('click', () => {
+        if (room.state === 'connected') {
+            try { room.startAudio(); } catch (e) {}
+        }
+        activeStudentAudioEls.forEach((el) => {
+            if (el.paused) el.play().catch(() => {});
+        });
+    });
+
+    // Listen for any individual student speaking in the room
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
+        if (track.kind === 'audio') {
+            if (/^admin(_|$)/i.test(String(participant.identity || '').trim())) return;
+
+            const existingEl = activeStudentAudioEls.get(participant.identity);
+            if (existingEl) {
+                try { track.detach(existingEl); existingEl.remove(); } catch (e) {}
+            }
+
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            audioEl.playsInline = true;
+            audioEl.muted = false;
+            audioEl.volume = 1.0;
+            track.attach(audioEl);
+            document.body.appendChild(audioEl);
+            activeStudentAudioEls.set(participant.identity, audioEl);
+
+            try { await room.startAudio(); } catch (e) {}
+            audioEl.play().catch(() => {});
+            refreshAdminCallerBadge();
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        if (track.kind === 'audio') {
+            const el = activeStudentAudioEls.get(participant.identity);
+            if (el) {
+                try { track.detach(el); el.remove(); } catch (e) {}
+                activeStudentAudioEls.delete(participant.identity);
+            }
+            // Ensure remaining students' audio elements continue playing uninterrupted
+            activeStudentAudioEls.forEach((remEl) => {
+                if (remEl.paused) remEl.play().catch(() => {});
+            });
+            refreshAdminCallerBadge();
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+        const el = activeStudentAudioEls.get(participant.identity);
+        if (el) {
+            try { el.pause(); el.srcObject = null; el.remove(); } catch (e) {}
+            activeStudentAudioEls.delete(participant.identity);
+            refreshAdminCallerBadge();
+        }
+    });
+
+    function updateMediaButtonsUI() {
+        const btnVideo = document.getElementById('btn-admin-video');
+        const btnAudio = document.getElementById('btn-admin-audio');
+        const btnStop = document.getElementById('btn-admin-stop-stream');
+        const pipBox = document.getElementById('admin-pip-box');
+
+        btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+        btnVideo.classList.toggle('active-cam', videoEnabled);
+
+        btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+        btnAudio.classList.toggle('active-mic', audioEnabled);
+
+        pipBox.style.display = videoEnabled ? 'flex' : 'none';
+        const anyActive = videoEnabled || audioEnabled || Boolean(currentScreenTrack);
+        btnStop.style.display = anyActive ? 'inline-block' : 'none';
+    }
+
+    function updateModeConsoleUI() {
+        const btnQ = document.getElementById('btn-mode-question');
+        const btnPpt = document.getElementById('btn-mode-ppt');
+        const btnBoth = document.getElementById('btn-mode-both');
+        const btnReselect = document.getElementById('btn-reselect-ppt');
+        const modeBadge = document.getElementById('admin-mode-badge');
+
+        [btnQ, btnPpt, btnBoth].forEach(b => {
+            if (!b) return;
+            b.style.background = '#475569';
+            b.style.borderColor = 'transparent';
+        });
+
+        if (broadcastMode === 'presentation') {
+            btnPpt.style.background = '#7c3aed';
+            btnPpt.style.borderColor = '#c4b5fd';
+            modeBadge.textContent = '📌 Showing: Live Presentation (PPT)';
+            modeBadge.style.color = '#c4b5fd';
+        } else if (broadcastMode === 'both') {
+            btnBoth.style.background = '#059669';
+            btnBoth.style.borderColor = '#6ee7b7';
+            modeBadge.textContent = '📌 Showing: PPT + Question Together';
+            modeBadge.style.color = '#6ee7b7';
+        } else {
+            btnQ.style.background = '#2563eb';
+            btnQ.style.borderColor = '#60a5fa';
+            modeBadge.textContent = '📌 Showing: Question Card';
+            modeBadge.style.color = '#60a5fa';
+        }
+
+        btnReselect.style.display = (currentScreenTrack && currentScreenTrack.readyState === 'live') ? 'inline-block' : 'none';
+        updateMediaButtonsUI();
+    }
+
+    async function syncModeToServer() {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return;
+        await fetch('/api/live/rtc/admin/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId, broadcastMode })
+        }).catch(() => {});
+    }
+
+    // 1. Dedicated Camera Button Handler (Never calls getDisplayMedia)
+    document.getElementById('btn-admin-video').addEventListener('click', async () => {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        try {
+            if (!videoEnabled) {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 360 },
+                    frameRate: { ideal: 30, max: 30 }
+                }
+            });
+            await ensureRoomConnected(quizId);
+            currentCamTrack = stream.getVideoTracks()[0];
+            if ('contentHint' in currentCamTrack) {
+                currentCamTrack.contentHint = 'motion';
+            }
+            await room.localParticipant.publishTrack(currentCamTrack, {
+                name: 'camera',
+                simulcast: true,
+                degradationPreference: 'maintain-framerate',
+                videoEncoding: {
+                    maxBitrate: 900_000,
+                    maxFramerate: 30
+                }
+            });
+            document.getElementById('admin-self-video').srcObject = stream;
+            videoEnabled = true;
+            } else {
+                if (currentCamTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
+                    currentCamTrack.stop();
+                    currentCamTrack = null;
+                }
+                document.getElementById('admin-self-video').srcObject = null;
+                videoEnabled = false;
+            }
+            updateMediaButtonsUI();
+        } catch (err) {
+            videoEnabled = false;
+            updateMediaButtonsUI();
+            alert("Camera Error: " + err.message);
+        }
+    });
+
+    // Anti-Thump WebAudio Pipeline State
+    let micAudioCtx = null;
+    let micGainNode = null;
+    let rawMicStream = null;
+    let micMuteTimeout = null;
+
+    // 2. Dedicated Microphone Button Handler (Soft-Start & Anti-Thump Filtered)
+    document.getElementById('btn-admin-audio').addEventListener('click', async () => {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        try {
+            if (micMuteTimeout) {
+                clearTimeout(micMuteTimeout);
+                micMuteTimeout = null;
+            }
+
+            if (!audioEnabled) {
+                await ensureRoomConnected(quizId);
+
+                const hasLivePipeline = currentMicTrack &&
+                    currentMicTrack.readyState === 'live' &&
+                    rawMicStream &&
+                    rawMicStream.getAudioTracks()[0] &&
+                    rawMicStream.getAudioTracks()[0].readyState === 'live';
+
+                if (!hasLivePipeline) {
+                    rawMicStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+
+                    if (!micAudioCtx) {
+                        micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (micAudioCtx.state === 'suspended') {
+                        await micAudioCtx.resume();
+                    }
+
+                    const source = micAudioCtx.createMediaStreamSource(rawMicStream);
+
+                    // 85 Hz High-Pass Filter removes low-end hardware thumps & DC offset pops
+                    const highpass = micAudioCtx.createBiquadFilter();
+                    highpass.type = 'highpass';
+                    highpass.frequency.value = 85;
+                    highpass.Q.value = 0.707;
+
+                    // Start gain at 0 (silent) so the initial hardware wake-up transient is muted
+                    micGainNode = micAudioCtx.createGain();
+                    micGainNode.gain.setValueAtTime(0.0001, micAudioCtx.currentTime);
+
+                    const dest = micAudioCtx.createMediaStreamDestination();
+                    source.connect(highpass);
+                    highpass.connect(micGainNode);
+                    micGainNode.connect(dest);
+
+                    currentMicTrack = dest.stream.getAudioTracks()[0];
+                    await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
+                } else {
+                    if (micAudioCtx && micAudioCtx.state === 'suspended') {
+                        await micAudioCtx.resume();
+                    }
+                    // Lock gain at 0 before waking the raw mic track
+                    const now = micAudioCtx.currentTime;
+                    micGainNode.gain.cancelScheduledValues(now);
+                    micGainNode.gain.setValueAtTime(0.0001, now);
+                    rawMicStream.getAudioTracks().forEach(t => { t.enabled = true; });
+                }
+
+                // Wait 120ms for the hardware unmute pop to pass, then smoothly fade in over 180ms
+                micMuteTimeout = setTimeout(() => {
+                    if (micAudioCtx && micGainNode && audioEnabled) {
+                        const now = micAudioCtx.currentTime;
+                        micGainNode.gain.cancelScheduledValues(now);
+                        micGainNode.gain.setValueAtTime(0.0001, now);
+                        micGainNode.gain.linearRampToValueAtTime(1.0, now + 0.18);
+                    }
+                }, 120);
+
+                audioEnabled = true;
+            } else {
+                // Smoothly fade out over 60ms before disabling raw mic capture (zero pop)
+                if (micAudioCtx && micGainNode) {
+                    const now = micAudioCtx.currentTime;
+                    micGainNode.gain.cancelScheduledValues(now);
+                    micGainNode.gain.setValueAtTime(micGainNode.gain.value, now);
+                    micGainNode.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+                }
+
+                micMuteTimeout = setTimeout(() => {
+                    if (!audioEnabled && rawMicStream) {
+                        rawMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
+                    }
+                }, 70);
+
+                audioEnabled = false;
+            }
+            updateMediaButtonsUI();
+        } catch (err) {
+            audioEnabled = false;
+            updateMediaButtonsUI();
+            alert("Microphone Error: " + err.message);
+        }
+    });
+
+    // 3. Dedicated Screen Share / PPT Helper (Acquires screen IMMEDIATELY on click for Firefox)
+    async function activatePptBroadcastMode(targetMode, forceNewWindow = false) {
+        const { adminKey, quizId } = getAdminCreds();
+        if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        try {
+            let newScreenStream = null;
+            const hasLiveScreen = currentScreenTrack && currentScreenTrack.readyState === 'live';
+
+            if (!hasLiveScreen || forceNewWindow) {
+                // MUST run before any await fetch() so Firefox preserves user gesture
+                newScreenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 },
+                        frameRate: { ideal: 15, max: 15 }
+                    },
+                    audio: false
+                });
+            }
+
+            await ensureRoomConnected(quizId);
+
+            if (newScreenStream) {
+                if (currentScreenTrack) {
+                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                    currentScreenTrack.stop();
+                }
+                currentScreenTrack = newScreenStream.getVideoTracks()[0];
+                if ('contentHint' in currentScreenTrack) {
+                    currentScreenTrack.contentHint = 'detail';
+                }
+                await currentScreenTrack.applyConstraints({
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    frameRate: { ideal: 15, max: 15 }
+                }).catch(() => {});
+
+                await room.localParticipant.publishTrack(currentScreenTrack, {
+                    name: 'screen',
+                    source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
+                    simulcast: false,
+                    degradationPreference: 'maintain-resolution',
+                    videoEncoding: {
+                        maxBitrate: 2_500_000,
+                        maxFramerate: 15
+                    },
+                    screenShareEncoding: {
+                        maxBitrate: 2_500_000,
+                        maxFramerate: 15
+                    }
+                });
+
+                currentScreenTrack.onended = async () => {
+                    try {
+                        if (room.state === 'connected' && currentScreenTrack) {
+                            await room.localParticipant.unpublishTrack(currentScreenTrack);
+                        }
+                    } catch (e) {}
+                    currentScreenTrack = null;
+                    broadcastMode = 'question';
+                    updateModeConsoleUI();
+                    await syncModeToServer();
+                };
+            }
+
+            broadcastMode = targetMode;
+            updateModeConsoleUI();
+            await syncModeToServer();
+        } catch (err) {
+            alert("Screen Share cancelled or failed: " + err.message);
+        }
+    }
+
+    document.getElementById('btn-mode-question').addEventListener('click', async () => {
+        if (currentScreenTrack) {
+            try {
+                if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
+                currentScreenTrack.stop();
+            } catch (e) {}
+            currentScreenTrack = null;
+        }
+        broadcastMode = 'question';
+        updateModeConsoleUI();
+        await syncModeToServer();
+    });
+
+    document.getElementById('btn-mode-ppt').addEventListener('click', () => {
+        activatePptBroadcastMode('presentation', false);
+    });
+
+    document.getElementById('btn-mode-both').addEventListener('click', () => {
+        activatePptBroadcastMode('both', false);
+    });
+
+    document.getElementById('btn-reselect-ppt').addEventListener('click', () => {
+        const modeToKeep = (broadcastMode === 'both') ? 'both' : 'presentation';
+        activatePptBroadcastMode(modeToKeep, true);
+    });
+
+    window.cutStudentAudioImmediately = function(studentName) {
+    const cleanTarget = String(studentName || '').trim().toLowerCase();
+    for (const [identity, el] of activeStudentAudioEls.entries()) {
+        const cleanId = identity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+        if (cleanId === cleanTarget) {
+            el.pause();
+            el.srcObject = null;
+            el.remove();
+            activeStudentAudioEls.delete(identity);
+        }
+    }
+    if (activeStudentAudioEls.size === 0) {
+        const badge = document.getElementById('admin-caller-badge');
+        if (badge) {
+            badge.textContent = '🎧 No active student calls';
+            badge.classList.remove('calling');
+        }
+    }
+};
+
+async function stopAdminBroadcastStream(syncServer = true) {
+    if (micMuteTimeout) {
+        clearTimeout(micMuteTimeout);
+        micMuteTimeout = null;
+    }
+    try { room.disconnect(); } catch (e) {}
+    if (currentCamTrack) { try { currentCamTrack.stop(); } catch (e) {} }
+    if (currentMicTrack) { try { currentMicTrack.stop(); } catch (e) {} }
+    if (rawMicStream) { try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+    if (currentScreenTrack) { try { currentScreenTrack.stop(); } catch (e) {} }
+    currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
+
+    for (const [, el] of activeStudentAudioEls.entries()) {
+        try { el.pause(); el.remove(); } catch (e) {}
+    }
+    activeStudentAudioEls.clear();
+    const badge = document.getElementById('admin-caller-badge');
+    if (badge) {
+        badge.textContent = '🎧 No active student calls';
+        badge.classList.remove('calling');
+    }
+
+    videoEnabled = false;
+    audioEnabled = false;
+    broadcastMode = 'question';
+    const selfVid = document.getElementById('admin-self-video');
+    if (selfVid) selfVid.srcObject = null;
+    updateModeConsoleUI();
+    if (syncServer) await syncModeToServer();
+}
+window.stopAdminBroadcastStream = stopAdminBroadcastStream;
+
+document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
+    await stopAdminBroadcastStream(true);
+});
+
+    // Draggable PIP Window
+    const boxEl = document.getElementById('admin-pip-box');
+    const handleEl = document.getElementById('admin-pip-header');
+    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+    handleEl.addEventListener('pointerdown', (e) => {
+        isDragging = true; handleEl.setPointerCapture(e.pointerId);
+        const rect = boxEl.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = rect.left; initialTop = rect.top;
+        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
+        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
+    });
+    handleEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+    });
+    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+
+    // Forensic Question Leak Decoder Handler
+    document.getElementById('btn-decode-leak').addEventListener('click', async () => {
+        const { adminKey } = getAdminCreds();
+        if (!adminKey) return alert('Please enter your Admin Secret Key at the top first.');
+        const leakedText = document.getElementById('leak-sample-input').value;
+        if (!leakedText) return alert('Paste the leaked question text first.');
+
+        const statusEl = document.getElementById('leak-status-msg');
+        statusEl.textContent = 'Scanning invisible zero-width watermark...';
+        try {
+            const res = await fetch('/api/admin/decode-leak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, leakedText })
+            });
+            const data = await res.json();
+            statusEl.style.color = data.success ? '#34d399' : '#fbbf24';
+            statusEl.textContent = data.message || data.error;
+        } catch (err) {
+            statusEl.style.color = '#f87171';
+            statusEl.textContent = 'Network error while decoding.';
+        }
+    });
+</script>
+</body>
+</html>
