@@ -705,8 +705,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         <script nonce="${nonce}">
             (function enforceMobileViewportOnPhones() {
                 try {
+                    var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
                     var physicalWidth = Math.min(window.screen.width || 9999, window.screen.height || 9999);
-                    var isMobilePhone = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && physicalWidth <= 540;
+                    var isMobilePhone = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && (physicalWidth <= 600 || isStandalone);
+                    
                     if (isMobilePhone) {
                         var vp = document.querySelector('meta[name="viewport"]');
                         if (!vp) {
@@ -714,15 +716,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             vp.name = 'viewport';
                             document.head.appendChild(vp);
                         }
-                        // If Chrome's "Desktop site" is forcing a 980px layout on a phone, lock the viewport to the phone's real screen width
-                        if (window.innerWidth > 600) {
-                            var targetW = (physicalWidth >= 320 && physicalWidth <= 500) ? physicalWidth : 390;
-                            vp.setAttribute('content', 'width=' + targetW + ', initial-scale=' + (window.innerWidth / targetW).toFixed(2) + ', maximum-scale=1.0, user-scalable=no');
-                            document.documentElement.style.maxWidth = targetW + 'px';
-                            document.documentElement.style.margin = '0 auto';
-                        } else {
-                            vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                        }
+                        var targetW = (physicalWidth >= 320 && physicalWidth <= 540) ? physicalWidth : 390;
+                        vp.setAttribute('content', 'width=' + targetW + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                        document.documentElement.style.maxWidth = targetW + 'px';
+                        document.documentElement.style.margin = '0 auto';
                     }
                 } catch (e) {}
             })();
