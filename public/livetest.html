@@ -181,8 +181,11 @@
                 if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
                     publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
                 }
+                if (typeof publication.setVideoDimensions === 'function') {
+                    publication.setVideoDimensions({ width: 1920, height: 1080 });
+                }
                 if (typeof publication.setVideoFPS === 'function') {
-                    publication.setVideoFPS(30);
+                    publication.setVideoFPS(publication.trackName === 'screen' ? 15 : 30);
                 }
             } catch (e) {}
 
