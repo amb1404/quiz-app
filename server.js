@@ -703,6 +703,29 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
         <script nonce="${nonce}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
         <script nonce="${nonce}">
+            (function enforceMobileViewportOnPhones() {
+                try {
+                    var physicalWidth = Math.min(window.screen.width || 9999, window.screen.height || 9999);
+                    var isMobilePhone = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && physicalWidth <= 540;
+                    if (isMobilePhone) {
+                        var vp = document.querySelector('meta[name="viewport"]');
+                        if (!vp) {
+                            vp = document.createElement('meta');
+                            vp.name = 'viewport';
+                            document.head.appendChild(vp);
+                        }
+                        // If Chrome's "Desktop site" is forcing a 980px layout on a phone, lock the viewport to the phone's real screen width
+                        if (window.innerWidth > 600) {
+                            var targetW = (physicalWidth >= 320 && physicalWidth <= 500) ? physicalWidth : 390;
+                            vp.setAttribute('content', 'width=' + targetW + ', initial-scale=' + (window.innerWidth / targetW).toFixed(2) + ', maximum-scale=1.0, user-scalable=no');
+                            document.documentElement.style.maxWidth = targetW + 'px';
+                            document.documentElement.style.margin = '0 auto';
+                        } else {
+                            vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                        }
+                    }
+                } catch (e) {}
+            })();
             (function() {
                 var baseRoute = '${canonicalBaseRoute}';
                 var isHome = (baseRoute === '/');
