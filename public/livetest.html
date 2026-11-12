@@ -253,15 +253,67 @@
 
     const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
     const presentationScreen = document.getElementById('presentation-screen');
+    const pptVideo = document.getElementById('student-ppt-video');
+
     if (fullscreenBtn && presentationScreen) {
-        fullscreenBtn.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                presentationScreen.requestFullscreen().catch(() => {});
-                fullscreenBtn.textContent = '✕ Exit Fullscreen';
+        fullscreenBtn.addEventListener('click', async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    if (presentationScreen.requestFullscreen) {
+                        await presentationScreen.requestFullscreen();
+                    } else if (presentationScreen.webkitRequestFullscreen) {
+                        await presentationScreen.webkitRequestFullscreen();
+                    }
+                    
+                    // Automatically lock screen to landscape view on mobile devices
+                    if (screen.orientation && screen.orientation.lock) {
+                        await screen.orientation.lock('landscape').catch(() => {});
+                    }
+                    fullscreenBtn.textContent = '✕ Exit Fullscreen';
+                } else {
+                    if (document.exitFullscreen) {
+                        await document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        await document.webkitExitFullscreen();
+                    }
+                    
+                    if (screen.orientation && screen.orientation.unlock) {
+                        screen.orientation.unlock();
+                    }
+                    fullscreenBtn.textContent = '⛶ Fullscreen';
+                }
+            } catch (err) {}
+        });
+    }
+
+    // Allow students to pinch-to-zoom / scroll around the PPT slide video feed
+    let pptScale = 1;
+    if (pptVideo) {
+        pptVideo.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            pptScale += e.deltaY * -0.001;
+            pptScale = Math.min(Math.max(1, pptScale), 4); // Zoom between 1x and 4x
+            pptVideo.style.transform = `scale(${pptScale})`;
+            if (pptScale > 1) {
+                pptVideo.style.objectFit = 'cover';
             } else {
-                document.exitFullscreen().catch(() => {});
-                fullscreenBtn.textContent = '⛶ Fullscreen';
+                pptVideo.style.objectFit = 'contain';
+                pptVideo.style.transform = 'none';
             }
+        }, { passive: false });
+
+        // Double tap to reset zoom
+        let lastTap = 0;
+        pptVideo.addEventListener('touchend', (e) => {
+            let currentTime = new Date().getTime();
+            let tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                pptScale = 1;
+                pptVideo.style.transform = 'none';
+                pptVideo.style.objectFit = 'contain';
+                e.preventDefault();
+            }
+            lastTap = currentTime;
         });
     }
 
