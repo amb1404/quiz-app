@@ -1,0 +1,375 @@
+{
+  "title": "CBSE Class XI Biology - Photosynthesis in Higher Plants",
+  "category": "biology",
+  "classLevel": "XI",
+  "subject": "Biology",
+  "unit": "Plant Physiology",
+  "chapter": "Photosynthesis in Higher Plants",
+  "duration": 1800,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Based on his studies of purple and green sulfur bacteria, Cornelius van Niel demonstrated that photosynthesis is essentially a light-dependent reaction in which:",
+      "options": [
+        "Carbon dioxide is oxidized to form glucose.",
+        "Oxygen evolved by green plants comes from carbon dioxide.",
+        "Hydrogen from a suitable oxidizable compound reduces carbon dioxide to carbohydrates.",
+        "Water acts as the terminal electron acceptor."
+      ],
+      "answer": 2,
+      "explanation": "van Niel proved that photosynthesis is a light-dependent process where hydrogen from a suitable oxidizable compound (like H2S in bacteria, or H2O in plants) reduces CO2 to carbohydrates. He correctly inferred that the O2 evolved in green plants comes from water, not CO2."
+    },
+    {
+      "type": "mcq",
+      "question": "T.W. Engelmann placed a green alga, Cladophora, in a suspension of aerobic bacteria and illuminated it through a prism. He observed that the bacteria accumulated mainly in the:",
+      "options": [
+        "Green and yellow regions of the spectrum",
+        "Blue and red regions of the spectrum",
+        "Indigo and green regions of the spectrum",
+        "Orange and yellow regions of the spectrum"
+      ],
+      "answer": 1,
+      "explanation": "Engelmann observed that aerobic bacteria (used to detect sites of O2 evolution) accumulated mainly in the blue and red regions of the light spectrum, which corresponds to the absorption spectra of chlorophyll a and b, effectively describing the first action spectrum of photosynthesis."
+    },
+    {
+      "type": "mcq",
+      "question": "In a paper chromatogram of a plant extract, which color correctly corresponds to chlorophyll a?",
+      "options": [
+        "Yellow-green",
+        "Yellow-orange",
+        "Bright or blue-green",
+        "Yellow"
+      ],
+      "answer": 2,
+      "explanation": "In paper chromatography, chlorophyll a appears bright or blue-green, chlorophyll b appears yellow-green, xanthophylls appear yellow, and carotenoids appear yellow to yellow-orange."
+    },
+    {
+      "type": "mcq",
+      "question": "The primary electron acceptor of Photosystem II (PS II) during non-cyclic photophosphorylation is located:",
+      "options": [
+        "Towards the inner side of the thylakoid membrane",
+        "Towards the outer side of the thylakoid membrane",
+        "In the stroma of the chloroplast",
+        "In the lumen of the thylakoid"
+      ],
+      "answer": 1,
+      "explanation": "The primary electron acceptor of PS II (Pheophytin) is located towards the outer side of the thylakoid membrane (stroma side) so that it can pass its electron to an H-carrier (plastoquinone), picking up a proton from the stroma in the process."
+    },
+    {
+      "type": "mcq",
+      "question": "The Oxygen Evolving Complex (OEC) responsible for the photolysis of water is physically associated with:",
+      "options": [
+        "PS I, located on the stroma side of the membrane",
+        "PS I, located on the lumen side of the membrane",
+        "PS II, located on the stroma side of the membrane",
+        "PS II, located on the inner side of the thylakoid membrane"
+      ],
+      "answer": 3,
+      "explanation": "The splitting of water (photolysis) is associated with PS II and the water splitting complex (OEC) is physically located on the inner side of the thylakoid membrane (facing the lumen), which is why protons produced accumulate in the lumen."
+    },
+    {
+      "type": "mcq",
+      "question": "Plastoquinone (PQ) facilitates the transfer of electrons from:",
+      "options": [
+        "PS I to ATP synthase",
+        "PS II to Cytochrome b6f complex",
+        "Cytochrome b6f complex to PS I",
+        "Primary acceptor of PS I to NADP+"
+      ],
+      "answer": 1,
+      "explanation": "Plastoquinone (PQ) is a mobile electron carrier that transfers electrons from the primary electron acceptor of PS II to the Cytochrome b6f complex. Simultaneously, it pumps protons from the stroma into the thylakoid lumen."
+    },
+    {
+      "type": "mcq",
+      "question": "Cyclic photophosphorylation occurs when only PS I is functional. Where does this process primarily take place?",
+      "options": [
+        "Stroma of the chloroplast",
+        "Grana lamellae",
+        "Stroma lamellae",
+        "Inner membrane of the chloroplast"
+      ],
+      "answer": 2,
+      "explanation": "Cyclic photophosphorylation occurs in the stroma lamellae (fret membranes) because these membranes lack both PS II and the NADP reductase enzyme, making non-cyclic electron flow impossible."
+    },
+    {
+      "type": "mcq",
+      "question": "According to the chemiosmotic hypothesis, what is the fundamental cause of ATP synthesis during photosynthesis?",
+      "options": [
+        "Accumulation of K+ ions in the thylakoid lumen",
+        "Breakdown of a proton gradient across the thylakoid membrane",
+        "Creation of a proton gradient across the outer chloroplast membrane",
+        "High concentration of NADPH in the stroma"
+      ],
+      "answer": 1,
+      "explanation": "ATP synthesis is linked to the breakdown of a proton gradient across the thylakoid membrane. As protons move from the lumen (high H+) to the stroma (low H+) through the transmembrane channel of the ATP synthase (CF0), conformational changes occur in the CF1 particle, synthesizing ATP."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following contributes to the high proton concentration in the thylakoid lumen during the light reactions?",
+      "options": [
+        "Proton pumping by plastocyanin",
+        "Reduction of NADP+ to NADPH on the stroma side",
+        "Splitting of water on the inner side of the membrane",
+        "Both 2 and 3"
+      ],
+      "answer": 3,
+      "explanation": "The high proton concentration in the lumen is caused by: 1) Protons produced by the splitting of water on the lumen side, 2) Plastoquinone moving protons from the stroma to the lumen, and 3) NADP reductase removing protons from the stroma to form NADPH."
+    },
+    {
+      "type": "mcq",
+      "question": "The CF1 part of the ATP synthase enzyme in chloroplasts is:",
+      "options": [
+        "Embedded in the thylakoid membrane acting as a proton channel",
+        "Protruding on the outer surface of the thylakoid membrane towards the stroma",
+        "Protruding into the thylakoid lumen",
+        "Responsible for binding non-cyclic electrons"
+      ],
+      "answer": 1,
+      "explanation": "The ATP synthase enzyme consists of CF0 (embedded in the membrane, forming a transmembrane channel) and CF1, which protrudes on the outer surface of the thylakoid membrane facing the stroma. CF1 undergoes conformational changes to synthesize ATP."
+    },
+    {
+      "type": "mcq",
+      "question": "In the C3 pathway (Calvin Cycle), what is the primary acceptor of CO2?",
+      "options": [
+        "A 3-carbon ketose sugar (Phosphoenolpyruvate)",
+        "A 5-carbon ketose sugar (Ribulose-1,5-bisphosphate)",
+        "A 3-carbon aldose sugar (Phosphoglyceraldehyde)",
+        "A 4-carbon acid (Oxaloacetic acid)"
+      ],
+      "answer": 1,
+      "explanation": "The primary acceptor of CO2 in C3 plants is Ribulose-1,5-bisphosphate (RuBP), which is a 5-carbon ketose sugar. It binds with CO2 in the presence of RuBisCO to form two molecules of 3-PGA."
+    },
+    {
+      "type": "mcq",
+      "question": "For every molecule of CO2 that enters the Calvin cycle, how many molecules of ATP and NADPH are required specifically for the 'Reduction' step?",
+      "options": [
+        "2 ATP and 2 NADPH",
+        "3 ATP and 2 NADPH",
+        "1 ATP and 1 NADPH",
+        "2 ATP and 0 NADPH"
+      ],
+      "answer": 0,
+      "explanation": "During the reduction step of the Calvin cycle, 2 ATP molecules are used for phosphorylation and 2 NADPH molecules are used for the reduction of two molecules of 3-PGA to form G3P per incoming CO2. (An additional 1 ATP is used in the regeneration step)."
+    },
+    {
+      "type": "mcq",
+      "question": "To synthesize one completely new molecule of glucose via the Calvin cycle, the plant requires a total of:",
+      "options": [
+        "6 ATP and 6 NADPH",
+        "12 ATP and 12 NADPH",
+        "18 ATP and 12 NADPH",
+        "30 ATP and 12 NADPH"
+      ],
+      "answer": 2,
+      "explanation": "The fixation of one CO2 requires 3 ATP and 2 NADPH. Since glucose is a 6-carbon sugar, the cycle must run 6 times. Therefore, 6 x 3 = 18 ATP and 6 x 2 = 12 NADPH are required to form one glucose molecule."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following represents a distinct anatomical feature of 'Kranz anatomy' in C4 plants?",
+      "options": [
+        "Mesophyll cells have thick walls and no intercellular spaces.",
+        "Bundle sheath cells possess large agranal chloroplasts and thick walls.",
+        "Bundle sheath cells lack chloroplasts entirely.",
+        "Mesophyll cells are arranged in a multi-layered wreath without chloroplasts."
+      ],
+      "answer": 1,
+      "explanation": "Kranz anatomy is characterized by a sheath of large cells around the vascular bundles. These bundle sheath cells have numerous large chloroplasts (often agranal), thick walls impervious to gas exchange, and lack intercellular spaces."
+    },
+    {
+      "type": "mcq",
+      "question": "In the C4 pathway, the primary CO2 fixation takes place in the:",
+      "options": [
+        "Bundle sheath cells using RuBisCO",
+        "Mesophyll cells using PEP carboxylase",
+        "Mesophyll cells using RuBisCO",
+        "Bundle sheath cells using PEP carboxylase"
+      ],
+      "answer": 1,
+      "explanation": "In C4 plants, initial CO2 fixation occurs in the mesophyll cells where Phosphoenolpyruvate (PEP) is the primary CO2 acceptor, and the reaction is catalyzed by PEP carboxylase (PEPcase). Mesophyll cells in C4 plants lack RuBisCO."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the first stable product formed in the mesophyll cells of C4 plants during CO2 fixation?",
+      "options": [
+        "3-Phosphoglyceric acid (3-PGA)",
+        "Phosphoenolpyruvate (PEP)",
+        "Oxaloacetic acid (OAA)",
+        "Malic acid"
+      ],
+      "answer": 2,
+      "explanation": "The first stable product of CO2 fixation in C4 plants is Oxaloacetic acid (OAA), a 4-carbon compound, which is formed in the mesophyll cells by the carboxylation of PEP."
+    },
+    {
+      "type": "mcq",
+      "question": "During the C4 cycle, malic acid or aspartic acid formed in the mesophyll cells is transported to the bundle sheath cells. What happens to it there?",
+      "options": [
+        "It undergoes carboxylation to form a 5-carbon compound.",
+        "It undergoes decarboxylation to release CO2 and a 3-carbon molecule.",
+        "It binds with RuBP directly without enzyme intervention.",
+        "It is converted back to PEP by utilizing ATP."
+      ],
+      "answer": 1,
+      "explanation": "In the bundle sheath cells, the 4-carbon acids (malic/aspartic acid) undergo decarboxylation. This releases CO2 (which then enters the Calvin cycle via RuBisCO) and a 3-carbon molecule (which is transported back to the mesophyll to regenerate PEP)."
+    },
+    {
+      "type": "mcq",
+      "question": "Photorespiration is considered a wasteful process because it:",
+      "options": [
+        "Releases O2 and consumes ATP",
+        "Synthesizes sugars but consumes excessive ATP",
+        "Produces neither ATP nor sugars, but releases CO2 with the utilization of ATP",
+        "Generates NADPH but no ATP"
+      ],
+      "answer": 2,
+      "explanation": "Photorespiration is a wasteful process because it does not synthesize sugars or ATP/NADPH. Instead, it results in the release of previously fixed CO2 with the active consumption of ATP."
+    },
+    {
+      "type": "mcq",
+      "question": "Which set of cell organelles is sequentially involved in the process of photorespiration?",
+      "options": [
+        "Chloroplast, Mitochondrion, Dictyosome",
+        "Chloroplast, Peroxisome, Mitochondrion",
+        "Peroxisome, Chloroplast, Mitochondrion",
+        "Mitochondrion, Peroxisome, Chloroplast"
+      ],
+      "answer": 1,
+      "explanation": "The photorespiratory pathway (C2 cycle) involves three organelles in a specific sequence: Chloroplasts (where RuBisCO oxygenates RuBP), Peroxisomes, and Mitochondria (where CO2 is released)."
+    },
+    {
+      "type": "mcq",
+      "question": "Under which of the following conditions does RuBisCO act primarily as an oxygenase rather than a carboxylase?",
+      "options": [
+        "High CO2, Low O2, and low temperature",
+        "Low CO2, High O2, and high temperature",
+        "High CO2, High O2, and high temperature",
+        "Low CO2, Low O2, and low temperature"
+      ],
+      "answer": 1,
+      "explanation": "RuBisCO has a competitive affinity for both CO2 and O2. It acts as an oxygenase (initiating photorespiration) when the internal CO2 concentration drops below a certain threshold, O2 concentration is high, and at high temperatures."
+    },
+    {
+      "type": "mcq",
+      "question": "Why do C4 plants largely lack photorespiration?",
+      "options": [
+        "Their RuBisCO has a mutated active site that cannot bind O2.",
+        "They have a mechanism that concentrates CO2 at the enzyme site.",
+        "They carry out the Calvin cycle in the mesophyll cells only.",
+        "They do not require the enzyme RuBisCO for sugar production."
+      ],
+      "answer": 1,
+      "explanation": "C4 plants avoid photorespiration by physically separating initial CO2 fixation and the Calvin cycle. Decarboxylation of the C4 acid in the bundle sheath cells releases CO2 directly around RuBisCO, ensuring a high intracellular CO2 concentration that outcompetes O2."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following is NOT a C4 plant?",
+      "options": [
+        "Maize",
+        "Sorghum",
+        "Sugarcane",
+        "Bell pepper"
+      ],
+      "answer": 3,
+      "explanation": "Maize, sorghum, and sugarcane are classic examples of C4 plants adapted to dry tropical regions. Bell pepper (along with tomatoes) is a C3 plant, which often shows higher yields in greenhouse environments with enriched CO2."
+    },
+    {
+      "type": "mcq",
+      "question": "According to Blackman's Law of Limiting Factors, if a chemical process is affected by more than one factor, its rate will be determined by:",
+      "options": [
+        "The factor which is present in the maximum amount",
+        "The factor which is nearest to its minimal value",
+        "The interaction of all factors equally",
+        "The temperature alone"
+      ],
+      "answer": 1,
+      "explanation": "Blackman's Law (1905) states that if a process depends on multiple factors, its rate is limited by the pace of the slowest factor—the one nearest to its minimal required value."
+    },
+    {
+      "type": "mcq",
+      "question": "At what percentage of full sunlight does light saturation typically occur for most plants?",
+      "options": [
+        "10%",
+        "50%",
+        "75%",
+        "100%"
+      ],
+      "answer": 0,
+      "explanation": "Light saturation occurs at approximately 10% of full sunlight. Because of this, except for plants in shade or dense forests, light is rarely a limiting factor in nature."
+    },
+    {
+      "type": "mcq",
+      "question": "Compare the CO2 saturation points of C3 and C4 plants. Which statement is correct?",
+      "options": [
+        "C3 plants saturate at about 360 µlL-1, while C4 plants saturate beyond 450 µlL-1.",
+        "C4 plants saturate at about 360 µlL-1, while C3 plants respond to higher CO2 up to 450 µlL-1.",
+        "Both C3 and C4 plants saturate simultaneously at 400 µlL-1.",
+        "C4 plants do not exhibit a CO2 saturation point."
+      ],
+      "answer": 1,
+      "explanation": "C4 plants show saturation at about 360 µlL-1 of CO2. C3 plants, however, continue to respond to increased CO2 concentrations and saturate only beyond 450 µlL-1. This is why C3 plants benefit from CO2 enrichment in greenhouses."
+    },
+    {
+      "type": "mcq",
+      "question": "The mobile electron carrier that transfers electrons from the Cytochrome b6f complex to Photosystem I is:",
+      "options": [
+        "Plastoquinone",
+        "Plastocyanin",
+        "Ferredoxin",
+        "Pheophytin"
+      ],
+      "answer": 1,
+      "explanation": "Plastocyanin (PC) is a copper-containing mobile electron carrier located on the lumen side of the thylakoid membrane. It accepts electrons from the Cytochrome b6f complex and delivers them to the reaction center of PS I (P700)."
+    },
+    {
+      "type": "mcq",
+      "question": "What is the dual role of accessory pigments (chlorophyll b, xanthophylls, and carotenoids) in the Light Harvesting Complex (LHC)?",
+      "options": [
+        "To synthesize ATP and reduce NADP+",
+        "To absorb wider wavelengths of light and protect chlorophyll a from photo-oxidation",
+        "To split water and release oxygen",
+        "To fix carbon dioxide and form carbohydrates"
+      ],
+      "answer": 1,
+      "explanation": "Accessory pigments broaden the spectrum of light that can be utilized for photosynthesis by absorbing different wavelengths and transferring the energy to the reaction center (Chlorophyll a). Importantly, they also protect chlorophyll a from photo-oxidative damage."
+    },
+    {
+      "type": "mcq",
+      "question": "During photorespiration, when RuBP binds with O2, it forms one molecule of phosphoglycerate (3C) and one molecule of:",
+      "options": [
+        "Phosphoenolpyruvate (3C)",
+        "Phosphoglycolate (2C)",
+        "Oxaloacetic acid (4C)",
+        "Glycolaldehyde (2C)"
+      ],
+      "answer": 1,
+      "explanation": "When RuBisCO acts as an oxygenase, it splits the 5-carbon RuBP into one molecule of 3-carbon Phosphoglycerate (PGA) and one molecule of 2-carbon Phosphoglycolate."
+    },
+    {
+      "type": "mcq",
+      "question": "In the Calvin cycle, the crucial step that ensures the cycle can continue uninterrupted is:",
+      "options": [
+        "Carboxylation of RuBP",
+        "Reduction of 3-PGA to G3P",
+        "Regeneration of the CO2 acceptor RuBP",
+        "Conversion of glucose into starch"
+      ],
+      "answer": 2,
+      "explanation": "The regeneration of the CO2 acceptor molecule, RuBP, is crucial for the cycle to continue uninterrupted. This step requires the expenditure of 1 ATP for phosphorylation to form RuBP."
+    },
+    {
+      "type": "mcq",
+      "question": "The classical experiment by Julius von Sachs in 1854 provided evidence for:",
+      "options": [
+        "The role of sunlight in oxygen release",
+        "The production of glucose during plant growth and its storage as starch",
+        "The mapping of the biochemical pathway of carbon fixation",
+        "The splitting of water to provide electrons"
+      ],
+      "answer": 1,
+      "explanation": "Julius von Sachs provided evidence that as plants grow, glucose is produced in the green parts of the plants (chloroplasts) and is usually stored as starch."
+    }
+  ]
+}

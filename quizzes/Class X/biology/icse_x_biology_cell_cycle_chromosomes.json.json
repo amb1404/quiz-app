@@ -1,0 +1,279 @@
+{
+  "title": "Cell Cycle, Cell Division and Structure of Chromosomes",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "biology",
+  "duration": 1800,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Chromatin fibres are essentially composed of:",
+      "options": [
+        "DNA and Lipids",
+        "DNA and Histone proteins",
+        "RNA and Histone proteins",
+        "RNA and Carbohydrates"
+      ],
+      "answer": 1,
+      "explanation": "Chromatin fibres are made up of approximately 40% DNA and 60% basic proteins called histones."
+    },
+    {
+      "type": "mcq",
+      "question": "A structural unit of a chromosome consisting of a DNA strand wound around a core of eight histone molecules is called a:",
+      "options": [
+        "Nucleotide",
+        "Centrosome",
+        "Nucleosome",
+        "Centromere"
+      ],
+      "answer": 2,
+      "explanation": "A nucleosome is the fundamental packaging unit of chromatin, formed by a DNA strand wrapping around an octamer (eight molecules) of histone proteins."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following nitrogenous bases pairs with Adenine in a DNA molecule?",
+      "options": [
+        "Guanine",
+        "Cytosine",
+        "Thymine",
+        "Uracil"
+      ],
+      "answer": 2,
+      "explanation": "In DNA, Adenine (A) always pairs with Thymine (T) via two hydrogen bonds."
+    },
+    {
+      "type": "mcq",
+      "question": "The phase of the cell cycle during which DNA replication occurs is the:",
+      "options": [
+        "G1 phase",
+        "S phase",
+        "G2 phase",
+        "M phase"
+      ],
+      "answer": 1,
+      "explanation": "The S (Synthesis) phase is a sub-phase of Interphase where the DNA replicates, doubling its amount in the cell."
+    },
+    {
+      "type": "mcq",
+      "question": "The stage of mitosis where chromosomes align at the equatorial plane of the cell is:",
+      "options": [
+        "Prophase",
+        "Metaphase",
+        "Anaphase",
+        "Telophase"
+      ],
+      "answer": 1,
+      "explanation": "During Metaphase, the spindle fibres attach to the centromeres, pulling the chromosomes to align them at the center (equatorial plane) of the cell."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following events occurs during Anaphase of mitosis?",
+      "options": [
+        "Nuclear membrane disappears",
+        "Chromosomes line up at the equator",
+        "Centromeres split and sister chromatids separate",
+        "Chromosomes uncoil into chromatin network"
+      ],
+      "answer": 2,
+      "explanation": "In Anaphase, the centromere connecting the two sister chromatids divides, and the separated chromatids are pulled towards opposite poles."
+    },
+    {
+      "type": "mcq",
+      "question": "A normal human sperm cell contains how many autosomes?",
+      "options": [
+        "44",
+        "22",
+        "23",
+        "46"
+      ],
+      "answer": 1,
+      "explanation": "A sperm is a haploid gamete containing 23 chromosomes in total: 22 autosomes and 1 sex chromosome (X or Y)."
+    },
+    {
+      "type": "mcq",
+      "question": "Cytokinesis in plant cells occurs by the formation of:",
+      "options": [
+        "Cleavage furrow",
+        "Cell plate",
+        "Aster rays",
+        "Spindle fibres"
+      ],
+      "answer": 1,
+      "explanation": "Due to the presence of a rigid cell wall, plant cells divide their cytoplasm by forming a cell plate at the center, which grows outward, rather than by furrowing."
+    },
+    {
+      "type": "mcq",
+      "question": "The physical exchange of genetic material between non-sister chromatids of homologous chromosomes is called:",
+      "options": [
+        "Synapsis",
+        "Chiasma",
+        "Crossing over",
+        "Mutation"
+      ],
+      "answer": 2,
+      "explanation": "Crossing over is the exchange of chromatid segments between non-sister chromatids during Prophase-I of meiosis, leading to genetic recombination."
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following structures is present in animal cells but absent in plant cells during mitosis?",
+      "options": [
+        "Spindle fibres",
+        "Centromere",
+        "Aster",
+        "Chromatid"
+      ],
+      "answer": 2,
+      "explanation": "Animal cells have a centrosome that splits into two centrioles, which radiate microtubule rays called asters. Plant cells lack centrosomes and asters (anastral mitosis)."
+    },
+    {
+      "type": "mcq",
+      "question": "The point of attachment of two sister chromatids is known as the:",
+      "options": [
+        "Centriole",
+        "Centrosome",
+        "Centromere",
+        "Chromomere"
+      ],
+      "answer": 2,
+      "explanation": "The centromere is the constricted region of a chromosome where the two sister chromatids are held together."
+    },
+    {
+      "type": "mcq",
+      "question": "Mitosis is also referred to as:",
+      "options": [
+        "Reductional division",
+        "Equational division",
+        "Meiotic division",
+        "Gametogenesis"
+      ],
+      "answer": 1,
+      "explanation": "Mitosis is called equational division because the daughter cells receive the exact same number of chromosomes as the parent cell."
+    },
+    {
+      "type": "mcq",
+      "question": "Who discovered the double-helical structure of DNA?",
+      "options": [
+        "Gregor Mendel",
+        "Watson and Crick",
+        "Charles Darwin",
+        "Robert Hooke"
+      ],
+      "answer": 1,
+      "explanation": "James Watson and Francis Crick proposed the double helix model of DNA in 1953."
+    },
+    {
+      "type": "mcq",
+      "question": "The X-shaped structures formed during crossing over where chromatids remain attached are called:",
+      "options": [
+        "Bivalents",
+        "Chiasmata",
+        "Synapsis",
+        "Nucleosomes"
+      ],
+      "answer": 1,
+      "explanation": "Chiasmata (singular: chiasma) are the point of physical contact and exchange between non-sister chromatids of homologous chromosomes."
+    },
+    {
+      "type": "mcq",
+      "question": "Which component is NOT a part of a nucleotide?",
+      "options": [
+        "Pentose sugar",
+        "Phosphate group",
+        "Nitrogenous base",
+        "Histone protein"
+      ],
+      "answer": 3,
+      "explanation": "A nucleotide consists only of a pentose sugar, a phosphate group, and a nitrogenous base. Histones are proteins that DNA wraps around, not part of the nucleotide itself."
+    },
+    {
+      "type": "descriptive",
+      "question": "The basic repeating units of a DNA strand are called __________.",
+      "model_answer": "Nucleotides",
+      "explanation": "The basic monomeric building blocks of DNA are nucleotides."
+    },
+    {
+      "type": "descriptive",
+      "question": "A pair of corresponding chromosomes, one inherited from the mother and one from the father, are known as __________ chromosomes.",
+      "model_answer": "Homologous",
+      "explanation": "Chromosomes carrying corresponding genes at matching loci from both parents are called homologous chromosomes."
+    },
+    {
+      "type": "descriptive",
+      "question": "The phase of mitosis where the nuclear membrane and nucleolus reappear is __________.",
+      "model_answer": "Telophase",
+      "explanation": "During telophase, karyokinesis concludes as the nuclear membrane and nucleolus reform around each daughter chromosome set."
+    },
+    {
+      "type": "descriptive",
+      "question": "Specific sequences of nucleotides on a chromosome that code for particular proteins and act as units of heredity are called __________.",
+      "model_answer": "Genes",
+      "explanation": "Genes are hereditary units consisting of specific functional segments of DNA."
+    },
+    {
+      "type": "descriptive",
+      "question": "The process of division of the cytoplasm after karyokinesis is termed __________.",
+      "model_answer": "Cytokinesis",
+      "explanation": "Cytokinesis is the physical division of cytoplasm following the division of the nucleus (karyokinesis)."
+    },
+    {
+      "type": "descriptive",
+      "question": "Give Reason: Gametes must be produced by meiosis.",
+      "model_answer": "Meiosis is a reductional division that halves the chromosome number from diploid (2n) to haploid (n). This is essential so that when two gametes fuse during fertilization, the original diploid number of chromosomes is restored in the zygote, keeping the chromosome number constant across generations.",
+      "explanation": "Halving chromosome count during gametogenesis prevents doubling of chromosome numbers in subsequent generations."
+    },
+    {
+      "type": "descriptive",
+      "question": "Give Reason: Cytokinesis in plant cells occurs by the formation of a cell plate and not by cleavage furrow.",
+      "model_answer": "Plant cells are surrounded by a rigid, inelastic cell wall which cannot be pinched inwards. Therefore, instead of furrowing, membrane-bound vesicles align at the equator and fuse to form a cell plate that grows outwards to divide the cell.",
+      "explanation": "The rigid cell wall prevents the plasma membrane from furrowing inwards."
+    },
+    {
+      "type": "descriptive",
+      "question": "Give Reason: Interphase is often inaccurately referred to as the 'resting phase'.",
+      "model_answer": "It is called a 'resting phase' only because no visible division of the cell occurs. However, it is actually the most active phase metabolically, as the cell synthesizes DNA, RNA, and proteins, preparing itself for the upcoming division.",
+      "explanation": "No morphological division is seen under a light microscope, even though extensive biochemical and replication activity occurs."
+    },
+    {
+      "type": "descriptive",
+      "question": "Give Reason: Crossing over during meiosis is of great significance in genetics.",
+      "model_answer": "Crossing over results in the exchange of genetic material between non-sister chromatids of homologous chromosomes. This leads to new combinations of genes (genetic recombination), bringing about variations in offspring which is crucial for evolution.",
+      "explanation": "Crossing over produces genetic recombination, leading to evolutionary variation."
+    },
+    {
+      "type": "descriptive",
+      "question": "Define 'Homologous Chromosomes'.",
+      "model_answer": "Homologous chromosomes are a pair of chromosomes—one maternal and one paternal—that are identical in size, shape, and structure, and possess corresponding genes controlling the same traits at identical loci.",
+      "explanation": "They are morphologically similar pairs carrying matching alleles at corresponding loci."
+    },
+    {
+      "type": "descriptive",
+      "question": "Name the three components that make up a single DNA nucleotide.",
+      "model_answer": "A DNA nucleotide is composed of three components: 1. A pentose sugar (Deoxyribose), 2. A phosphate group, and 3. A nitrogenous base (Adenine, Thymine, Cytosine, or Guanine).",
+      "explanation": "Deoxyribose sugar + Phosphate + Nitrogenous base (A/T/G/C)."
+    },
+    {
+      "type": "descriptive",
+      "question": "State two key differences between Mitosis and Meiosis.",
+      "model_answer": "1. Mitosis occurs in somatic (body) cells, whereas meiosis occurs in reproductive cells to form gametes. 2. Mitosis produces two diploid daughter cells identical to the parent, whereas meiosis produces four haploid daughter cells genetically different from the parent.",
+      "explanation": "Mitosis is equational in somatic cells; meiosis is reductional in germ cells."
+    },
+    {
+      "type": "descriptive",
+      "question": "What happens during the 'S' phase of the cell cycle?",
+      "model_answer": "During the 'S' (Synthesis) phase, the replication of DNA takes place. The amount of DNA in the cell doubles, and each chromosome forms two identical sister chromatids attached at the centromere.",
+      "explanation": "DNA duplication and sister chromatid formation occur during this synthesis period."
+    },
+    {
+      "type": "descriptive",
+      "question": "Draw a neat, labelled diagram of an animal cell during the Metaphase stage of mitosis.",
+      "model_answer": "The diagram should show the cell boundary. Inside, there should be no nuclear membrane. Chromosomes (each with two sister chromatids) must be perfectly aligned along the equatorial plane. Centrioles should be shown at opposite poles with aster rays radiating from them. Spindle fibres must extend from the centrioles and attach clearly to the centromeres of the chromosomes.",
+      "explanation": "Key visual elements: disappearance of nuclear envelope, equatorial alignment of chromosomes, polar centrioles with asters, and spindle attachments."
+    },
+    {
+      "type": "descriptive",
+      "question": "Draw the structure of a duplicated chromosome. Label the Centromere and Sister Chromatids. State the function of the centromere.",
+      "model_answer": "The diagram should depict an 'X' shaped structure representing two chromatids. The central constricted point where they join must be labelled 'Centromere'. Each distinct arm pair should be labelled 'Sister Chromatid'. Function: The centromere holds the two sister chromatids together and serves as the point of attachment for spindle fibres during cell division.",
+      "explanation": "The centromere maintains chromatid pairing and anchors kinetochores to spindle microtubules."
+    }
+  ]
+}

@@ -1,0 +1,342 @@
+{
+  "title": "Refraction Through a Lens",
+  "category": "icse",
+  "classLevel": "x",
+  "subject": "physics",
+  "chapter": "Refraction Through a Lens",
+  "duration": 1800,
+  "isPremium": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "Which of the following points on the principal axis of a lens allows a ray of light to pass through it undeviated?",
+      "options": [
+        "First principal focus",
+        "Second principal focus",
+        "Optical centre",
+        "Centre of curvature"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "A convex lens acts as a magnifying glass when the object is placed:",
+      "options": [
+        "At 2F1",
+        "Between F1 and 2F1",
+        "Between the optical centre and F1",
+        "At infinity"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "What is the nature of the image formed by a concave lens for an object placed at any finite distance from it?",
+      "options": [
+        "Real, inverted, and diminished",
+        "Virtual, erect, and magnified",
+        "Virtual, erect, and diminished",
+        "Real, erect, and same size"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "If the lower half of a convex lens is covered with black opaque paper, how is the image of a distant object affected?",
+      "options": [
+        "Only the upper half of the image is formed",
+        "Only the lower half of the image is formed",
+        "The full image is formed, but it is inverted twice",
+        "The full image is formed, but its intensity is reduced"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "question": "For a convex lens, what is the minimum distance between a real object and its real image?",
+      "options": [
+        "f",
+        "2f",
+        "4f",
+        "Infinity"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "The linear magnification (m) of a lens is -1. What does this indicate about the image?",
+      "options": [
+        "Virtual, erect, and same size as the object",
+        "Real, inverted, and same size as the object",
+        "Real, inverted, and highly diminished",
+        "Virtual, erect, and highly magnified"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Where must an object be placed in front of a convex lens to obtain a real, inverted image of the same size?",
+      "options": [
+        "At F1",
+        "Between F1 and 2F1",
+        "At 2F1",
+        "Beyond 2F1"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "The power of a lens is -2.0 D. What is the type and focal length of this lens?",
+      "options": [
+        "Convex lens, +50 cm",
+        "Concave lens, -50 cm",
+        "Convex lens, +20 cm",
+        "Concave lens, -20 cm"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "How does the focal length of a convex lens change if it is placed in water instead of air?",
+      "options": [
+        "It decreases",
+        "It increases",
+        "It remains the same",
+        "It becomes infinite"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "How does the focal length of a lens change if red light is replaced by blue light?",
+      "options": [
+        "Focal length increases",
+        "Focal length decreases",
+        "Focal length remains unchanged",
+        "Focal length becomes negative"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Which lens has a real principal focus?",
+      "options": [
+        "Concave lens",
+        "Convex lens",
+        "Both have real foci",
+        "Neither has a real focus"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "An object is placed at infinity in front of a concave lens. The image is formed at:",
+      "options": [
+        "The optical centre",
+        "The second principal focus (F2)",
+        "The first principal focus (F1)",
+        "Infinity"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "In a cinema projector, a convex lens is used to project an image on the screen. Where is the film (object) placed?",
+      "options": [
+        "Between the optical centre and F1",
+        "At F1",
+        "Between F1 and 2F1",
+        "Beyond 2F1"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "A ray of light directed towards the first principal focus of a convex lens, after refraction:",
+      "options": [
+        "Passes through the second principal focus",
+        "Emerges parallel to the principal axis",
+        "Retraces its path",
+        "Passes through the optical centre"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Two thin lenses of powers +3.5 D and -1.5 D are placed in contact. What is the focal length of the combination?",
+      "options": [
+        "+20 cm",
+        "+50 cm",
+        "-50 cm",
+        "+100 cm"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following lenses acts as a diverging lens?",
+      "options": [
+        "Plano-convex lens",
+        "Concavo-convex lens (thicker at the centre)",
+        "Double concave lens",
+        "Biconvex lens"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "If the linear magnification of an image is positive, the image must be:",
+      "options": [
+        "Real and inverted",
+        "Virtual and inverted",
+        "Real and erect",
+        "Virtual and erect"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "mcq",
+      "question": "A \"thick\" convex lens compared to a \"thin\" convex lens (made of the same material) has:",
+      "options": [
+        "Greater focal length and lesser power",
+        "Lesser focal length and greater power",
+        "Equal focal length and power",
+        "Lesser focal length and lesser power"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Which formula correctly represents the lens formula?",
+      "options": [
+        "1/v + 1/u = 1/f",
+        "1/v - 1/u = 1/f",
+        "1/u - 1/v = 1/f",
+        "v + u = f"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "A student holds a lens close to a printed page and notices that the letters appear upright and magnified. What type of lens is it?",
+      "options": [
+        "Concave lens",
+        "Convex lens",
+        "Cylindrical lens",
+        "Plano-concave lens"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "Where should an object be placed in front of a convex lens so that the image is formed at infinity?",
+      "options": [
+        "At the optical centre",
+        "At the first principal focus (F1)",
+        "At 2F1",
+        "Between F1 and 2F1"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "A lens is used to correct short-sightedness (myopia). The linear magnification produced by this lens for a real object is always:",
+      "options": [
+        "Greater than 1",
+        "Equal to 1",
+        "Less than 1",
+        "Infinity"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "The SI unit of power of a lens is:",
+      "options": [
+        "Metre",
+        "Centimetre",
+        "Dioptre",
+        "Watt"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "For a concave lens, the first principal focus (F1) is located:",
+      "options": [
+        "On the side of the incident light",
+        "On the side of the refracted light",
+        "At the optical centre",
+        "At infinity"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "When sunlight is focused by a convex lens on a piece of paper, the paper burns. The point where the light focuses is the:",
+      "options": [
+        "Optical centre",
+        "First principal focus",
+        "Second principal focus",
+        "Centre of curvature"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "If an object is placed beyond 2F1 of a convex lens, the image is formed:",
+      "options": [
+        "Between F2 and 2F2, real and diminished",
+        "Beyond 2F2, real and magnified",
+        "At F2, real and point-sized",
+        "Between F1 and optical centre, virtual and erect"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "question": "A ray of light incident parallel to the principal axis of a concave lens appears to diverge from which point after refraction?",
+      "options": [
+        "Optical centre",
+        "First principal focus",
+        "Second principal focus",
+        "Infinity"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "mcq",
+      "question": "According to the New Cartesian Sign Convention, the focal length of a concave lens is always considered:",
+      "options": [
+        "Positive",
+        "Negative",
+        "Zero",
+        "Infinite"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "mcq",
+      "question": "The power of a lens is +4.0 D. Its focal length is:",
+      "options": [
+        "+25 cm",
+        "-25 cm",
+        "+40 cm",
+        "+2.5 cm"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "mcq",
+      "question": "Which of the following factors does the focal length of a lens NOT depend on?",
+      "options": [
+        "Refractive index of the material of the lens",
+        "Radii of curvature of the two surfaces of the lens",
+        "Colour of the light used",
+        "Intensity of the incident light"
+      ],
+      "answer": 3
+    }
+  ]
+}
