@@ -600,7 +600,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
         const headerHTML = `
             <style>
-                @media (max-width: 768px) {
+                html, body { max-width: 100vw !important; overflow-x: hidden !important; }
+                @media (max-width: 768px), (hover: none) and (pointer: coarse) {
                     .site-header { padding: 8px 10px !important; }
                     .nav-container {
                         flex-direction: column !important;
