@@ -3911,8 +3911,16 @@ app.get('/api/livekit/token', async (req, res) => {
         if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) {
             return res.status(500).json({ error: "Missing SFU keys." });
         }
-        const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { 
-            identity: String(studentName || 'user') + '_' + Math.random().toString(36).substring(2, 6)
+
+        const rawName = String(studentName || 'user').trim();
+        const isAdmin = rawName.toLowerCase() === 'admin';
+        const safeStudentName = rawName.replace(/^admin/i, 'student').trim() || 'Student';
+        const randSuffix = Math.random().toString(36).substring(2, 6);
+        const identity = isAdmin ? `admin_${randSuffix}` : `${safeStudentName}_${randSuffix}`;
+
+        const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
+            identity,
+            metadata: JSON.stringify({ role: isAdmin ? 'admin' : 'student' })
         });
         at.addGrant({
             roomJoin: true,
