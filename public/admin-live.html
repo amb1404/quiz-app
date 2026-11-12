@@ -220,6 +220,20 @@ let videoEnabled = false;
         return { adminKey, quizId };
     }
 
+    function refreshAdminCallerBadge() {
+        const badge = document.getElementById('admin-caller-badge');
+        if (!badge) return;
+        if (activeStudentAudioEls.size === 0) {
+            badge.textContent = '🎧 No active student calls';
+            badge.classList.remove('calling');
+        } else {
+            const names = Array.from(activeStudentAudioEls.keys())
+                .map(id => id.replace(/_[a-z0-9]{4}$/i, ''));
+            badge.textContent = `🟢 Student Speaking: ${names.join(', ')}`;
+            badge.classList.add('calling');
+        }
+    }
+
     async function ensureRoomConnected(quizId) {
         if (room.state === 'connected') return;
         if (connectingPromise) return await connectingPromise;
@@ -229,6 +243,7 @@ let videoEnabled = false;
             if (!res.ok) throw new Error("API Keys missing on server.");
             const { token } = await res.json();
             await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
+            try { await room.startAudio(); } catch (e) {}
         })();
 
         try {
@@ -238,20 +253,47 @@ let videoEnabled = false;
         }
     }
 
-    // Listen for students speaking in the room
-    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+    // Automatically connect Admin to LiveKit as soon as a room is active (even before Admin turns on cam/mic)
+    setInterval(() => {
+        const { adminKey, quizId } = getAdminCreds();
+        const controlPanel = document.getElementById('control-panel');
+        if (adminKey && quizId && controlPanel && controlPanel.style.display !== 'none') {
+            ensureRoomConnected(quizId).catch(() => {});
+        }
+    }, 2500);
+
+    // Unlock browser WebRTC audio playback on any Admin dashboard interaction
+    document.addEventListener('click', () => {
+        if (room.state === 'connected') {
+            try { room.startAudio(); } catch (e) {}
+        }
+        activeStudentAudioEls.forEach((el) => {
+            if (el.paused) el.play().catch(() => {});
+        });
+    });
+
+    // Listen for any individual student speaking in the room
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
         if (track.kind === 'audio') {
+            if (/^admin(_|$)/i.test(String(participant.identity || '').trim())) return;
+
+            const existingEl = activeStudentAudioEls.get(participant.identity);
+            if (existingEl) {
+                try { track.detach(existingEl); existingEl.remove(); } catch (e) {}
+            }
+
             const audioEl = document.createElement('audio');
             audioEl.autoplay = true;
+            audioEl.playsInline = true;
+            audioEl.muted = false;
+            audioEl.volume = 1.0;
             track.attach(audioEl);
             document.body.appendChild(audioEl);
             activeStudentAudioEls.set(participant.identity, audioEl);
 
-            const badge = document.getElementById('admin-caller-badge');
-            if (badge) {
-                badge.textContent = `🟢 Student Speaking: ${participant.identity.replace(/_[a-z0-9]{4}$/i, '')}`;
-                badge.classList.add('calling');
-            }
+            try { await room.startAudio(); } catch (e) {}
+            audioEl.play().catch(() => {});
+            refreshAdminCallerBadge();
         }
     });
 
@@ -259,17 +301,23 @@ let videoEnabled = false;
         if (track.kind === 'audio') {
             const el = activeStudentAudioEls.get(participant.identity);
             if (el) {
-                track.detach(el);
-                el.remove();
+                try { track.detach(el); el.remove(); } catch (e) {}
                 activeStudentAudioEls.delete(participant.identity);
             }
-            if (activeStudentAudioEls.size === 0) {
-                const badge = document.getElementById('admin-caller-badge');
-                if (badge) {
-                    badge.textContent = '🎧 No active student calls';
-                    badge.classList.remove('calling');
-                }
-            }
+            // Ensure remaining students' audio elements continue playing uninterrupted
+            activeStudentAudioEls.forEach((remEl) => {
+                if (remEl.paused) remEl.play().catch(() => {});
+            });
+            refreshAdminCallerBadge();
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+        const el = activeStudentAudioEls.get(participant.identity);
+        if (el) {
+            try { el.pause(); el.srcObject = null; el.remove(); } catch (e) {}
+            activeStudentAudioEls.delete(participant.identity);
+            refreshAdminCallerBadge();
         }
     });
 
