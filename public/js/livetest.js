@@ -342,7 +342,22 @@ function startSync() {
     }
 }
 
-function startHeartbeat() {}
+let heartbeatTimer = null;
+function startHeartbeat() {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(() => {
+        if (testActive && currentQuizId && liveToken) {
+            if (socket && socket.connected) {
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            }
+            fetch('/api/live/student/rejoin', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${liveToken}` },
+                keepalive: true
+            }).catch(() => {});
+        }
+    }, 15000);
+}
 
 function xorDecipher(b64Str, key) {
     const raw = atob(b64Str);
