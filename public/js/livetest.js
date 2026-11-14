@@ -237,14 +237,32 @@ if (typeof io !== 'undefined') {
         }
     });
 
-    // Notify server immediately when student closes tab, closes browser, or presses back button
-    function notifyStudentLeaving() {
-        if (testActive && socket && socket.connected) {
-            socket.emit("leave-room");
+    // 1. Push a history state when inside an active room so pressing the Back button is caught immediately
+    window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
+    window.addEventListener("popstate", () => {
+        if (testActive) {
+            testActive = false;
+            sessionStorage.removeItem('live_student_session');
+            if (socket && socket.connected) socket.emit("leave-room");
+            if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+            window.location.replace('/');
         }
-    }
-    window.addEventListener("pagehide", notifyStudentLeaving);
-    window.addEventListener("beforeunload", notifyStudentLeaving);
+    });
+
+    // 2. When student switches tabs or minimizes and returns, immediately re-sync without dropping
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === 'visible' && testActive && currentQuizId && liveToken) {
+            if (socket) {
+                if (!socket.connected) socket.connect();
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            }
+            fetch('/api/live/student/rejoin', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${liveToken}` },
+                keepalive: true
+            }).catch(() => {});
+        }
+    });
 
     socket.on("room-state", (data) => {
         if (!data) return;

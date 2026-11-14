@@ -4134,7 +4134,7 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isImmediat
         await markOffline();
     } else {
         // 3-second grace window so page refreshes don't flicker the admin board
-        const timer = setTimeout(markOffline, 3000);
+        const timer = setTimeout(markOffline, 4500);
         liveDisconnectTimers.set(presenceKey, timer);
     }
 }
