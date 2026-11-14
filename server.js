@@ -3895,6 +3895,56 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     res.json({ success: true });
 });
 
+// Instant removal beacon when student closes tab, closes browser, or presses Back
+app.post('/api/live/student/leave', async (req, res) => {
+    try {
+        const rawToken = extractAuthToken(req) || (req.body && req.body.token) || '';
+        const liveCheck = verifyLiveRoomToken(rawToken);
+        if (!liveCheck) return res.status(200).json({ ok: false });
+
+        const cleanId = liveCheck.quizId;
+        const studentName = liveCheck.studentName;
+        const presenceKey = `${cleanId}:::${studentName}`;
+
+        if (typeof liveBackgroundedStudents !== 'undefined') {
+            liveBackgroundedStudents.delete(presenceKey);
+        }
+        if (typeof liveStudentSockets !== 'undefined') {
+            liveStudentSockets.delete(presenceKey);
+        }
+
+        if (typeof liveDisconnectTimers !== 'undefined') {
+            if (liveDisconnectTimers.has(presenceKey)) {
+                clearTimeout(liveDisconnectTimers.get(presenceKey));
+                liveDisconnectTimers.delete(presenceKey);
+            }
+            const isBackBtn = Boolean(req.body && req.body.immediate);
+            const removeStudentNow = async () => {
+                liveDisconnectTimers.delete(presenceKey);
+                if (typeof liveStudentSockets !== 'undefined' && liveStudentSockets.has(presenceKey)) return;
+                await updateBoardSecurely(cleanId, (board) => {
+                    if (board[studentName]) {
+                        board[studentName].disconnected = true;
+                    }
+                    return board;
+                });
+                await emitAdminBoard(cleanId);
+            };
+
+            if (isBackBtn) {
+                await removeStudentNow();
+            } else {
+                // 600ms micro-check so F5 page refresh stays connected, while tab/browser close removes immediately
+                const timer = setTimeout(removeStudentNow, 600);
+                liveDisconnectTimers.set(presenceKey, timer);
+            }
+        }
+        res.json({ success: true });
+    } catch (e) {
+        res.status(200).json({ ok: false });
+    }
+});
+
 // Student Submit Answer in Live Room
 app.post('/api/live/student/submit', async (req, res) => {
     try {
@@ -4095,11 +4145,12 @@ const io = new Server(server, {
     pingTimeout: 5000
 });
 
-// Tracks active socket IDs and refresh grace timers per student
+// Tracks active socket IDs, refresh timers, and infinite background/minimized state per student
 const liveStudentSockets = new Map();
 const liveDisconnectTimers = new Map();
+const liveBackgroundedStudents = new Set();
 
-async function handleStudentDeparture(cleanId, studentName, socketId, isImmediate = false) {
+async function handleStudentDeparture(cleanId, studentName, socketId, isExplicitExit = false) {
     if (!cleanId || !studentName) return;
     const presenceKey = `${cleanId}:::${studentName}`;
 
@@ -4112,9 +4163,15 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isImmediat
     // If the student still has another active socket open in the room, keep them online
     if (liveStudentSockets.has(presenceKey)) return;
 
+    // CRITICAL: If student minimized the app or switched tabs (not an explicit close/back), keep them in the room infinitely
+    if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) {
+        return;
+    }
+
     const markOffline = async () => {
         liveDisconnectTimers.delete(presenceKey);
         if (liveStudentSockets.has(presenceKey)) return;
+        if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) return;
         try {
             await updateBoardSecurely(cleanId, (board) => {
                 if (board[studentName]) {
@@ -4130,11 +4187,13 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isImmediat
         clearTimeout(liveDisconnectTimers.get(presenceKey));
     }
 
-    if (isImmediate) {
-        await markOffline();
+    if (isExplicitExit) {
+        liveBackgroundedStudents.delete(presenceKey);
+        // 600ms micro-buffer ONLY so pressing F5 (Refresh) doesn't blink; closing tab/browser removes in 0.6s
+        const timer = setTimeout(markOffline, 600);
+        liveDisconnectTimers.set(presenceKey, timer);
     } else {
-        // 3-second grace window so page refreshes don't flicker the admin board
-        const timer = setTimeout(markOffline, 4500);
+        const timer = setTimeout(markOffline, 2000);
         liveDisconnectTimers.set(presenceKey, timer);
     }
 }
@@ -4153,6 +4212,8 @@ io.on("connection", (socket) => {
             : `${ssoAuth.firstName || ''} ${ssoAuth.lastName || ''}`.trim();
 
         const presenceKey = `${cleanId}:::${studentName}`;
+        liveBackgroundedStudents.delete(presenceKey);
+
         if (liveDisconnectTimers.has(presenceKey)) {
             clearTimeout(liveDisconnectTimers.get(presenceKey));
             liveDisconnectTimers.delete(presenceKey);
@@ -4182,9 +4243,39 @@ io.on("connection", (socket) => {
         await emitAdminBoard(cleanId);
     });
 
-    socket.on("leave-room", async () => {
+    // Locks student in the room infinitely when they minimize the app or switch tabs
+    socket.on("student-visibility", ({ hidden } = {}) => {
+        if (!socket.quizId || !socket.studentName) return;
+        const presenceKey = `${socket.quizId}:::${socket.studentName}`;
+        if (hidden) {
+            liveBackgroundedStudents.add(presenceKey);
+            if (liveDisconnectTimers.has(presenceKey)) {
+                clearTimeout(liveDisconnectTimers.get(presenceKey));
+                liveDisconnectTimers.delete(presenceKey);
+            }
+        } else {
+            liveBackgroundedStudents.delete(presenceKey);
+        }
+    });
+
+    socket.on("leave-room", async ({ immediate } = {}) => {
         if (socket.quizId && socket.studentName) {
-            await handleStudentDeparture(socket.quizId, socket.studentName, socket.id, true);
+            const presenceKey = `${socket.quizId}:::${socket.studentName}`;
+            liveBackgroundedStudents.delete(presenceKey);
+            if (immediate) {
+                liveStudentSockets.delete(presenceKey);
+                if (liveDisconnectTimers.has(presenceKey)) {
+                    clearTimeout(liveDisconnectTimers.get(presenceKey));
+                    liveDisconnectTimers.delete(presenceKey);
+                }
+                await updateBoardSecurely(socket.quizId, (board) => {
+                    if (board[socket.studentName]) board[socket.studentName].disconnected = true;
+                    return board;
+                });
+                await emitAdminBoard(socket.quizId);
+            } else {
+                await handleStudentDeparture(socket.quizId, socket.studentName, socket.id, true);
+            }
         }
     });
 

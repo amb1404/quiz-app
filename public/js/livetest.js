@@ -78,6 +78,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (authScreen) authScreen.style.display = 'none';
         if (quizScreen) quizScreen.style.display = 'block';
 
+        try { window.history.pushState({ inLiveRoom: true }, document.title, window.location.href); } catch (e) {}
+
         fetch('/api/live/student/rejoin', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${liveToken}` }
@@ -141,6 +143,7 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
             currentActiveQuizFile = "";
 
             sessionStorage.setItem('live_student_session', JSON.stringify({ token: liveToken, quizId: currentQuizId }));
+            try { window.history.pushState({ inLiveRoom: true }, document.title, window.location.href); } catch (e) {}
 
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('quiz-screen').style.display = 'block';
@@ -237,23 +240,55 @@ if (typeof io !== 'undefined') {
         }
     });
 
-    // 1. Push a history state when inside an active room so pressing the Back button is caught immediately
+    function sendInstantLeaveSignal(isBackButton = false) {
+        if (!liveToken) return;
+        if (socket && socket.connected) {
+            socket.emit("leave-room", { immediate: isBackButton });
+        }
+        try {
+            fetch('/api/live/student/leave', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${liveToken}`
+                },
+                body: JSON.stringify({ token: liveToken, immediate: isBackButton }),
+                keepalive: true
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
+    // 1. Back Button: 0ms instant removal from roster + exit room
     window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
     window.addEventListener("popstate", () => {
         if (testActive) {
+            sendInstantLeaveSignal(true);
             testActive = false;
             sessionStorage.removeItem('live_student_session');
-            if (socket && socket.connected) socket.emit("leave-room");
             if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
             window.location.replace('/');
         }
     });
 
-    // 2. When student switches tabs or minimizes and returns, immediately re-sync without dropping
+    // 2. Closing Tab or Closing Browser: Fires OS-level keepalive beacon + socket leave immediately
+    window.addEventListener("beforeunload", () => {
+        if (testActive) sendInstantLeaveSignal(false);
+    });
+    window.addEventListener("pagehide", () => {
+        if (testActive) sendInstantLeaveSignal(false);
+    });
+
+    // 3. Minimize App or Switch Tabs: Locks student in room infinitely while backgrounded, and re-syncs on return
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === 'visible' && testActive && currentQuizId && liveToken) {
+        if (!testActive || !currentQuizId || !liveToken) return;
+        if (document.visibilityState === 'hidden') {
+            if (socket && socket.connected) {
+                socket.emit("student-visibility", { hidden: true });
+            }
+        } else if (document.visibilityState === 'visible') {
             if (socket) {
                 if (!socket.connected) socket.connect();
+                socket.emit("student-visibility", { hidden: false });
                 socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
             }
             fetch('/api/live/student/rejoin', {
