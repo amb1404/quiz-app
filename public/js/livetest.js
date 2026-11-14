@@ -213,6 +213,16 @@ if (typeof io !== 'undefined') {
         }
     });
 
+    function returnToRoomLobbyAfterKick() {
+        testActive = false;
+        liveToken = "";
+        currentQuizId = "";
+        sessionStorage.removeItem('live_student_session');
+        if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+        alert("You have been removed from the room by the instructor. You may rejoin from the room lobby.");
+        window.location.replace('/live-room');
+    }
+
     socket.on("student-moderated", (data) => {
         if (!data || !data.studentName) return;
         const myName = getMyStudentName();
@@ -222,24 +232,25 @@ if (typeof io !== 'undefined') {
             } else if (data.action === 'unmute' && typeof window.setStudentAdminMute === 'function') {
                 window.setStudentAdminMute(false);
             } else if (data.action === 'kick') {
-                testActive = false;
-                sessionStorage.removeItem('live_student_session');
-                if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
-                alert("You have been removed from the room by the instructor.");
-                window.location.replace('/');
+                returnToRoomLobbyAfterKick();
             }
         }
     });
+
+    // Notify server immediately when student closes tab, closes browser, or presses back button
+    function notifyStudentLeaving() {
+        if (testActive && socket && socket.connected) {
+            socket.emit("leave-room");
+        }
+    }
+    window.addEventListener("pagehide", notifyStudentLeaving);
+    window.addEventListener("beforeunload", notifyStudentLeaving);
 
     socket.on("room-state", (data) => {
         if (!data) return;
 
         if (data.kicked) {
-            testActive = false;
-            sessionStorage.removeItem('live_student_session');
-            if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
-            alert("You have been removed from the room by the instructor.");
-            window.location.replace('/');
+            returnToRoomLobbyAfterKick();
             return;
         }
 
