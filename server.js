@@ -3873,7 +3873,25 @@ app.post('/api/live/student/verify', async (req, res) => {
 app.post('/api/live/student/rejoin', async (req, res) => {
     const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
     if (!liveCheck) return res.status(401).json({ error: 'Invalid session' });
-    await emitAdminBoard(liveCheck.quizId);
+
+    const cleanId = liveCheck.quizId;
+    const studentName = liveCheck.studentName;
+    const presenceKey = `${cleanId}:::${studentName}`;
+
+    if (typeof liveDisconnectTimers !== 'undefined' && liveDisconnectTimers.has(presenceKey)) {
+        clearTimeout(liveDisconnectTimers.get(presenceKey));
+        liveDisconnectTimers.delete(presenceKey);
+    }
+
+    await updateBoardSecurely(cleanId, (board) => {
+        if (board[studentName] && !board[studentName].kicked) {
+            board[studentName].disconnected = false;
+            board[studentName].lastSeenAt = Date.now();
+        }
+        return board;
+    });
+
+    await emitAdminBoard(cleanId);
     res.json({ success: true });
 });
 
