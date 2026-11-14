@@ -184,20 +184,20 @@
     <script src="/js/admin-live.js"></script>
     <script>
     const room = new LivekitClient.Room({
-    adaptiveStream: true,
-    dynacast: true,
-    publishDefaults: {
-        simulcast: true,
-        videoEncoding: {
-            maxBitrate: 900_000,
-            maxFramerate: 30
-        },
-        screenShareEncoding: {
-            maxBitrate: 1_800_000,
-            maxFramerate: 30
+        adaptiveStream: false,
+        dynacast: false,
+        publishDefaults: {
+            simulcast: false,
+            videoEncoding: {
+                maxBitrate: 3_000_000,
+                maxFramerate: 30
+            },
+            screenShareEncoding: {
+                maxBitrate: 3_500_000,
+                maxFramerate: 30
+            }
         }
-    }
-});
+    });
 let videoEnabled = false;
     let audioEnabled = false;
     let broadcastMode = 'question';
@@ -272,14 +272,19 @@ let videoEnabled = false;
         });
     });
 
-    // Listen for any individual student speaking in the room
+    // Listen for any individual student speaking in the room (100% isolated per student)
     room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
         if (track.kind === 'audio') {
-            if (/^admin(_|$)/i.test(String(participant.identity || '').trim())) return;
+            const rawIdentity = String(participant.identity || '').trim();
+            if (/^admin(_|$)/i.test(rawIdentity)) return;
 
-            const existingEl = activeStudentAudioEls.get(participant.identity);
-            if (existingEl) {
-                try { track.detach(existingEl); existingEl.remove(); } catch (e) {}
+            const studentBaseName = rawIdentity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+            for (const [idKey, oldEl] of activeStudentAudioEls.entries()) {
+                const keyBaseName = idKey.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+                if (idKey === rawIdentity || keyBaseName === studentBaseName) {
+                    try { oldEl.pause(); oldEl.srcObject = null; oldEl.remove(); } catch (e) {}
+                    activeStudentAudioEls.delete(idKey);
+                }
             }
 
             const audioEl = document.createElement('audio');
@@ -389,27 +394,33 @@ let videoEnabled = false;
 
         try {
             if (!videoEnabled) {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 360 },
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1920, max: 1920 },
+                        height: { ideal: 1080, max: 1080 },
+                        frameRate: { ideal: 30, max: 30 }
+                    }
+                });
+                await ensureRoomConnected(quizId);
+                currentCamTrack = stream.getVideoTracks()[0];
+                if ('contentHint' in currentCamTrack) {
+                    currentCamTrack.contentHint = 'motion';
+                }
+                await currentCamTrack.applyConstraints({
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
                     frameRate: { ideal: 30, max: 30 }
-                }
-            });
-            await ensureRoomConnected(quizId);
-            currentCamTrack = stream.getVideoTracks()[0];
-            if ('contentHint' in currentCamTrack) {
-                currentCamTrack.contentHint = 'motion';
-            }
-            await room.localParticipant.publishTrack(currentCamTrack, {
-                name: 'camera',
-                simulcast: true,
-                degradationPreference: 'maintain-framerate',
-                videoEncoding: {
-                    maxBitrate: 900_000,
-                    maxFramerate: 30
-                }
-            });
+                }).catch(() => {});
+
+                await room.localParticipant.publishTrack(currentCamTrack, {
+                    name: 'camera',
+                    simulcast: false,
+                    degradationPreference: 'maintain-resolution',
+                    videoEncoding: {
+                        maxBitrate: 3_000_000,
+                        maxFramerate: 30
+                    }
+                });
             document.getElementById('admin-self-video').srcObject = stream;
             videoEnabled = true;
             } else {
@@ -552,7 +563,7 @@ let videoEnabled = false;
                     video: {
                         width: { ideal: 1920, max: 1920 },
                         height: { ideal: 1080, max: 1080 },
-                        frameRate: { ideal: 15, max: 15 }
+                        frameRate: { ideal: 30, max: 30 }
                     },
                     audio: false
                 });
@@ -572,7 +583,7 @@ let videoEnabled = false;
                 await currentScreenTrack.applyConstraints({
                     width: { ideal: 1920 },
                     height: { ideal: 1080 },
-                    frameRate: { ideal: 15, max: 15 }
+                    frameRate: { ideal: 30, max: 30 }
                 }).catch(() => {});
 
                 await room.localParticipant.publishTrack(currentScreenTrack, {
@@ -581,12 +592,12 @@ let videoEnabled = false;
                     simulcast: false,
                     degradationPreference: 'maintain-resolution',
                     videoEncoding: {
-                        maxBitrate: 2_500_000,
-                        maxFramerate: 15
+                        maxBitrate: 3_500_000,
+                        maxFramerate: 30
                     },
                     screenShareEncoding: {
-                        maxBitrate: 2_500_000,
-                        maxFramerate: 15
+                        maxBitrate: 3_500_000,
+                        maxFramerate: 30
                     }
                 });
 

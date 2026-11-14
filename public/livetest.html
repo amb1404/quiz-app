@@ -111,6 +111,10 @@
         dynacast: false
     });
     let activeAudioEl = null;
+    let studentMicTrack = null;
+    let studentMicStream = null;
+    let isConnectingLiveKit = false;
+    window.studentMutedByAdmin = false;
 
     // Strict check: Only allow tracks from the Admin instructor
     function isAdminParticipant(participant) {
@@ -126,13 +130,21 @@
         return false;
     }
 
-    // Refuse subscription to any other student's tracks at the SFU transport level
-    function blockOtherStudents(participant) {
-        if (!participant || isAdminParticipant(participant)) return;
+    // Refuse subscription to any other student's tracks at the SFU transport level, and force subscription to Admin tracks
+    function syncParticipantSubscriptions(participant) {
+        if (!participant) return;
+        const isAdmin = isAdminParticipant(participant);
         try {
             participant.trackPublications.forEach((pub) => {
-                if (typeof pub.setSubscribed === 'function') {
-                    pub.setSubscribed(false);
+                if (!isAdmin) {
+                    if (typeof pub.setSubscribed === 'function') pub.setSubscribed(false);
+                } else {
+                    if (typeof pub.setSubscribed === 'function' && !pub.isSubscribed) {
+                        pub.setSubscribed(true);
+                    }
+                    if (pub.track) {
+                        attachAdminTrackToDOM(pub.track, pub);
+                    }
                 }
             });
         } catch (e) {}
@@ -151,30 +163,10 @@
         }
     }
 
-    room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-        blockOtherStudents(participant);
-    });
-
-    room.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
-        if (!isAdminParticipant(participant)) {
-            try {
-                if (typeof publication.setSubscribed === 'function') {
-                    publication.setSubscribed(false);
-                }
-            } catch (e) {}
-        }
-    });
-
-    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        // BLOCK student-to-student communication completely
-        if (!isAdminParticipant(participant)) {
-            try {
-                if (typeof publication.setSubscribed === 'function') {
-                    publication.setSubscribed(false);
-                }
-            } catch (e) {}
-            return;
-        }
+    function attachAdminTrackToDOM(track, publication) {
+        if (!track || !publication) return;
+        const isScreenTrack = publication.trackName === 'screen' ||
+            (LivekitClient.Track && LivekitClient.Track.Source && publication.source === LivekitClient.Track.Source.ScreenShare);
 
         if (track.kind === 'video') {
             try {
@@ -185,47 +177,119 @@
                     publication.setVideoDimensions({ width: 1920, height: 1080 });
                 }
                 if (typeof publication.setVideoFPS === 'function') {
-                    publication.setVideoFPS(publication.trackName === 'screen' ? 15 : 30);
+                    publication.setVideoFPS(30);
                 }
             } catch (e) {}
 
-            if (publication.trackName === 'screen') {
+            if (isScreenTrack) {
                 const pptVideo = document.getElementById('student-ppt-video');
-                track.attach(pptVideo);
-                pptVideo.play().catch(() => {});
+                if (pptVideo) {
+                    track.attach(pptVideo);
+                    pptVideo.muted = true;
+                    pptVideo.play().catch(() => {});
+                }
             } else {
                 const videoEl = document.getElementById('student-remote-video');
-                track.attach(videoEl);
-                videoEl.style.display = 'block';
-                document.getElementById('student-pip-box').style.display = 'flex';
-                document.getElementById('student-video-placeholder').style.display = 'none';
+                const pipBox = document.getElementById('student-pip-box');
+                const placeholder = document.getElementById('student-video-placeholder');
+                if (videoEl) {
+                    track.attach(videoEl);
+                    videoEl.muted = true;
+                    videoEl.style.display = 'block';
+                    videoEl.play().catch(() => {});
+                }
+                if (pipBox) pipBox.style.display = 'flex';
+                if (placeholder) placeholder.style.display = 'none';
                 document.body.classList.add('rtc-stream-active');
             }
         } else if (track.kind === 'audio') {
             if (activeAudioEl) {
-                try { activeAudioEl.remove(); } catch (e) {}
+                try { track.detach(activeAudioEl); activeAudioEl.remove(); } catch (e) {}
             }
             activeAudioEl = document.createElement('audio');
             activeAudioEl.autoplay = true;
             activeAudioEl.playsInline = true;
             track.attach(activeAudioEl);
             document.body.appendChild(activeAudioEl);
-            document.getElementById('student-pip-box').style.display = 'flex';
+            const pipBox = document.getElementById('student-pip-box');
+            if (pipBox) pipBox.style.display = 'flex';
 
             ensureAdminAudioPlaying();
         }
+    }
+
+    // Sweep all existing participants in the room and attach Admin's 1080p 30fps feeds immediately on join/rejoin
+    function reattachAllAdminFeeds() {
+        try {
+            room.remoteParticipants.forEach((participant) => {
+                syncParticipantSubscriptions(participant);
+            });
+            const pptVideo = document.getElementById('student-ppt-video');
+            if (pptVideo && pptVideo.srcObject && pptVideo.paused) {
+                pptVideo.play().catch(() => {});
+            }
+            const camVideo = document.getElementById('student-remote-video');
+            if (camVideo && camVideo.srcObject && camVideo.paused) {
+                camVideo.play().catch(() => {});
+            }
+            ensureAdminAudioPlaying();
+        } catch (e) {}
+    }
+    window.reattachAllAdminFeeds = reattachAllAdminFeeds;
+
+    room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+        syncParticipantSubscriptions(participant);
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
+        if (!isAdminParticipant(participant)) {
+            try {
+                if (typeof publication.setSubscribed === 'function') {
+                    publication.setSubscribed(false);
+                }
+            } catch (e) {}
+        } else {
+            try {
+                if (typeof publication.setSubscribed === 'function') {
+                    publication.setSubscribed(true);
+                }
+            } catch (e) {}
+        }
+    });
+
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        if (!isAdminParticipant(participant)) {
+            try {
+                if (typeof publication.setSubscribed === 'function') {
+                    publication.setSubscribed(false);
+                }
+            } catch (e) {}
+            return;
+        }
+        attachAdminTrackToDOM(track, publication);
     });
 
     room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
         if (!isAdminParticipant(participant)) return;
+        const isScreenTrack = publication.trackName === 'screen' ||
+            (LivekitClient.Track && LivekitClient.Track.Source && publication.source === LivekitClient.Track.Source.ScreenShare);
 
         if (track.kind === 'video') {
-            if (publication.trackName === 'screen') {
-                document.getElementById('student-ppt-video').srcObject = null;
+            if (isScreenTrack) {
+                const pptVid = document.getElementById('student-ppt-video');
+                if (pptVid) {
+                    try { track.detach(pptVid); } catch (e) {}
+                    pptVid.srcObject = null;
+                }
             } else {
-                document.getElementById('student-remote-video').srcObject = null;
-                document.getElementById('student-remote-video').style.display = 'none';
-                document.getElementById('student-video-placeholder').style.display = 'block';
+                const remVid = document.getElementById('student-remote-video');
+                if (remVid) {
+                    try { track.detach(remVid); } catch (e) {}
+                    remVid.srcObject = null;
+                    remVid.style.display = 'none';
+                }
+                const placeholder = document.getElementById('student-video-placeholder');
+                if (placeholder) placeholder.style.display = 'block';
             }
         } else if (track.kind === 'audio') {
             if (activeAudioEl) {
@@ -233,6 +297,10 @@
                 activeAudioEl = null;
             }
         }
+    });
+
+    room.on(LivekitClient.RoomEvent.Reconnected, () => {
+        reattachAllAdminFeeds();
     });
 
     document.getElementById('btn-unmute-hint').addEventListener('click', async (e) => {
@@ -255,8 +323,15 @@
     }
 
     async function connectLiveKit(quizId) {
+        if (!quizId) return;
+        if (room.state === 'connected') {
+            reattachAllAdminFeeds();
+            return;
+        }
+        if (isConnectingLiveKit || room.state === 'connecting' || room.state === 'reconnecting') return;
+
+        isConnectingLiveKit = true;
         try {
-            if (room.state === 'connected' || room.state === 'connecting') return;
             const tokenObj = localStorage.getItem('pp_id_token') || "";
             let myName = "Student";
             if (tokenObj) {
@@ -268,11 +343,15 @@
             if (!res.ok) return;
             const { token } = await res.json();
 
-            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
-            room.remoteParticipants.forEach((p) => blockOtherStudents(p));
-            await ensureAdminAudioPlaying();
+            // autoSubscribe: false guarantees this student NEVER pulls audio/video from other students
+            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token, {
+                autoSubscribe: false
+            });
+            reattachAllAdminFeeds();
         } catch (err) {
             console.error("LiveKit connection failed:", err);
+        } finally {
+            isConnectingLiveKit = false;
         }
     }
     window.connectLiveKit = connectLiveKit;
@@ -281,24 +360,29 @@
         if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
             connectLiveKit(currentQuizId);
         }
-    }, 3000);
+    }, 2500);
 
-    let studentMicTrack = null;
-    window.studentMutedByAdmin = false;
+    async function stopStudentMicOnly() {
+        if (studentMicTrack) {
+            try {
+                if (room.state === 'connected') {
+                    await room.localParticipant.unpublishTrack(studentMicTrack);
+                }
+            } catch (e) {}
+            try { studentMicTrack.stop(); } catch (e) {}
+            studentMicTrack = null;
+        }
+        if (studentMicStream) {
+            try { studentMicStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+            studentMicStream = null;
+        }
+    }
 
     window.setStudentAdminMute = async function(isMuted) {
         window.studentMutedByAdmin = Boolean(isMuted);
         const callBtn = document.getElementById('btn-student-call');
         if (window.studentMutedByAdmin) {
-            if (studentMicTrack) {
-                try {
-                    if (room.state === 'connected') {
-                        await room.localParticipant.unpublishTrack(studentMicTrack);
-                    }
-                    studentMicTrack.stop();
-                } catch (e) {}
-                studentMicTrack = null;
-            }
+            await stopStudentMicOnly();
             if (callBtn) {
                 callBtn.textContent = '🔇 Muted by Admin';
                 callBtn.classList.remove('on-call');
@@ -321,12 +405,7 @@
     };
 
     window.stopStudentLiveKit = function() {
-        try {
-            if (studentMicTrack) {
-                studentMicTrack.stop();
-                studentMicTrack = null;
-            }
-        } catch (e) {}
+        stopStudentMicOnly();
         try { room.disconnect(); } catch (e) {}
         if (activeAudioEl) {
             try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
@@ -340,44 +419,46 @@
         const pptVid = document.getElementById('student-ppt-video');
         if (pptVid) pptVid.srcObject = null;
         const pipBox = document.getElementById('student-pip-box');
-        if (pipBox) pipBox.remove();
+        if (pipBox) pipBox.style.display = 'none'; // Hide instead of .remove() so rejoin works seamlessly
         document.body.classList.remove('rtc-stream-active', 'rtc-presentation-active', 'rtc-both-active');
     };
 
+    let isMicToggling = false;
     document.getElementById('btn-student-call').addEventListener('click', async (e) => {
+        if (isMicToggling) return;
         if (window.studentMutedByAdmin) {
             alert('You have been muted by the instructor.');
             return;
         }
-        if (!studentMicTrack) {
-            try {
+        isMicToggling = true;
+        try {
+            if (!studentMicTrack) {
                 if (room.state !== 'connected' && typeof currentQuizId !== 'undefined' && currentQuizId) {
                     await connectLiveKit(currentQuizId);
                 }
-                const stream = await navigator.mediaDevices.getUserMedia({
+                studentMicStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
                 });
-                studentMicTrack = stream.getAudioTracks()[0];
-                await room.localParticipant.publishTrack(studentMicTrack, { name: 'student_mic' });
+                studentMicTrack = studentMicStream.getAudioTracks()[0];
+                await room.localParticipant.publishTrack(studentMicTrack, {
+                    name: 'student_mic',
+                    dtx: true,
+                    red: true
+                });
                 e.target.textContent = '🔴 Mute Mic';
                 e.target.classList.add('on-call');
-                // Resume Admin audio immediately in case hardware mic activation paused output
                 await ensureAdminAudioPlaying();
-            } catch (err) {
-                alert('Mic access denied');
+            } else {
+                await stopStudentMicOnly();
+                e.target.textContent = '📞 Speak';
+                e.target.classList.remove('on-call');
+                await ensureAdminAudioPlaying();
             }
-        } else {
-            try {
-                if (room.state === 'connected') {
-                    await room.localParticipant.unpublishTrack(studentMicTrack);
-                }
-                studentMicTrack.stop();
-            } catch (err) {}
-            studentMicTrack = null;
-            e.target.textContent = '📞 Speak';
-            e.target.classList.remove('on-call');
-            // Resume Admin audio immediately after releasing hardware mic
-            await ensureAdminAudioPlaying();
+        } catch (err) {
+            await stopStudentMicOnly();
+            alert('Mic access denied or connection busy. Please try again.');
+        } finally {
+            isMicToggling = false;
         }
     });
 

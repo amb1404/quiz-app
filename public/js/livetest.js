@@ -186,6 +186,10 @@ function applyBroadcastModeUI(mode) {
         if (presScreen) presScreen.style.display = 'none';
         if (quizScreen && testActive) quizScreen.style.display = 'block';
     }
+
+    if (typeof window.reattachAllAdminFeeds === 'function') {
+        window.reattachAllAdminFeeds();
+    }
 }
 window.applyBroadcastModeUI = applyBroadcastModeUI;
 
@@ -290,6 +294,12 @@ if (typeof io !== 'undefined') {
                 if (!socket.connected) socket.connect();
                 socket.emit("student-visibility", { hidden: false });
                 socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            }
+            if (typeof window.connectLiveKit === 'function') {
+                window.connectLiveKit(currentQuizId);
+            }
+            if (typeof window.reattachAllAdminFeeds === 'function') {
+                window.reattachAllAdminFeeds();
             }
             fetch('/api/live/student/rejoin', {
                 method: 'POST',
