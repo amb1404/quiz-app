@@ -3854,6 +3854,8 @@ app.post('/api/live/student/verify', async (req, res) => {
                 board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
             }
             board[studentName].disconnected = false;
+            board[studentName].kicked = false;
+            board[studentName].lastSeenAt = Date.now();
             return board;
         });
 
