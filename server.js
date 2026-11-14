@@ -4071,7 +4071,55 @@ setInterval(() => {
 
 const server = http.createServer(app);
 const { Server } = require("socket.io");
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+    cors: { origin: "*" },
+    pingInterval: 10000,
+    pingTimeout: 5000
+});
+
+// Tracks active socket IDs and refresh grace timers per student
+const liveStudentSockets = new Map();
+const liveDisconnectTimers = new Map();
+
+async function handleStudentDeparture(cleanId, studentName, socketId, isImmediate = false) {
+    if (!cleanId || !studentName) return;
+    const presenceKey = `${cleanId}:::${studentName}`;
+
+    const activeSet = liveStudentSockets.get(presenceKey);
+    if (activeSet) {
+        activeSet.delete(socketId);
+        if (activeSet.size === 0) liveStudentSockets.delete(presenceKey);
+    }
+
+    // If the student still has another active socket open in the room, keep them online
+    if (liveStudentSockets.has(presenceKey)) return;
+
+    const markOffline = async () => {
+        liveDisconnectTimers.delete(presenceKey);
+        if (liveStudentSockets.has(presenceKey)) return;
+        try {
+            await updateBoardSecurely(cleanId, (board) => {
+                if (board[studentName]) {
+                    board[studentName].disconnected = true;
+                }
+                return board;
+            });
+            await emitAdminBoard(cleanId);
+        } catch (err) {}
+    };
+
+    if (liveDisconnectTimers.has(presenceKey)) {
+        clearTimeout(liveDisconnectTimers.get(presenceKey));
+    }
+
+    if (isImmediate) {
+        await markOffline();
+    } else {
+        // 3-second grace window so page refreshes don't flicker the admin board
+        const timer = setTimeout(markOffline, 3000);
+        liveDisconnectTimers.set(presenceKey, timer);
+    }
+}
 
 io.on("connection", (socket) => {
     socket.on("join-room", async ({ quizId, token }) => {
@@ -4086,13 +4134,46 @@ io.on("connection", (socket) => {
             ? liveAuth.studentName
             : `${ssoAuth.firstName || ''} ${ssoAuth.lastName || ''}`.trim();
 
+        const presenceKey = `${cleanId}:::${studentName}`;
+        if (liveDisconnectTimers.has(presenceKey)) {
+            clearTimeout(liveDisconnectTimers.get(presenceKey));
+            liveDisconnectTimers.delete(presenceKey);
+        }
+
+        if (!liveStudentSockets.has(presenceKey)) {
+            liveStudentSockets.set(presenceKey, new Set());
+        }
+        liveStudentSockets.get(presenceKey).add(socket.id);
+
         socket.join(cleanId);
         socket.studentName = studentName;
         socket.quizId = cleanId;
 
+        await updateBoardSecurely(cleanId, (board) => {
+            if (!board[studentName]) {
+                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+            }
+            if (!board[studentName].kicked) {
+                board[studentName].disconnected = false;
+            }
+            return board;
+        });
+
         const payload = await buildLiveStatePayload(cleanId, studentName);
         if (payload) socket.emit("room-state", payload);
         await emitAdminBoard(cleanId);
+    });
+
+    socket.on("leave-room", async () => {
+        if (socket.quizId && socket.studentName) {
+            await handleStudentDeparture(socket.quizId, socket.studentName, socket.id, true);
+        }
+    });
+
+    socket.on("disconnect", async () => {
+        if (socket.quizId && socket.studentName) {
+            await handleStudentDeparture(socket.quizId, socket.studentName, socket.id, false);
+        }
     });
 
     socket.on("join-admin-room", async ({ quizId }) => {
