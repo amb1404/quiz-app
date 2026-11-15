@@ -66,7 +66,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (showBtn) showBtn.style.display = 'none';
 
             const startBtn = document.getElementById('start-btn');
-            startBtn.innerText = "Room Active (Restored)";
+            startBtn.innerText = "Room Active";
             startBtn.disabled = true;
             startBtn.style.opacity = '0.7';
             startBtn.style.cursor = 'not-allowed';
