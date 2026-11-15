@@ -466,14 +466,14 @@ app.use((req, res, next) => {
 
     const cspPolicy = [
         "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net https://checkout.razorpay.com`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net https://checkout.razorpay.com https://accounts.google.com/gsi/client`,
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
         "font-src 'self' https://fonts.gstatic.com data:",
-        "img-src 'self' data: blob: https://*.razorpay.com",
+        "img-src 'self' data: blob: https://*.razorpay.com https://*.googleusercontent.com",
         "media-src 'self' blob:",
-       "worker-src 'self' blob:",
-    "connect-src 'self' wss: https://*.livekit.cloud wss://*.livekit.cloud https://cdn.jsdelivr.net https://api.razorpay.com https://lumberjack-cx.razorpay.com",
-    "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+        "worker-src 'self' blob:",
+        "connect-src 'self' wss: https://*.livekit.cloud wss://*.livekit.cloud https://cdn.jsdelivr.net https://api.razorpay.com https://lumberjack-cx.razorpay.com https://accounts.google.com/gsi/ https://www.googleapis.com",
+        "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com/gsi/",
         "object-src 'none'",
         "base-uri 'self'",
         "frame-ancestors 'none'",
@@ -707,6 +707,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         const headRouteGuardScript = `<base href="/">
         <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
         <script nonce="${nonce}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+        <script nonce="${nonce}" src="https://accounts.google.com/gsi/client" async defer></script>
         <script nonce="${nonce}">
             (function() {
                 var baseRoute = '${canonicalBaseRoute}';
@@ -1524,6 +1525,102 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                     document.addEventListener('DOMContentLoaded', updateInstallButtonVisibility);
                     updateInstallButtonVisibility();
+                })();
+
+                // ============================================================
+                // GOOGLE ACCOUNT CHOOSER SIGN-IN INTEGRATION
+                // ============================================================
+                (function initGoogleAccountSignIn() {
+                    var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
+                    var googleTokenClient = null;
+
+                    function completePortalLogin(data) {
+                        if (!data || !data.success || !data.token) {
+                            alert((data && data.error) ? data.error : 'Google Sign-In failed. Please try again.');
+                            return;
+                        }
+                        localStorage.setItem('pp_id_token', data.token);
+                        localStorage.setItem('pp_fname', data.firstName || '');
+                        localStorage.setItem('pp_lname', data.lastName || '');
+                        localStorage.setItem('pp_email', data.email || '');
+                        sessionStorage.removeItem('force_login_open');
+                        window.location.reload();
+                    }
+
+                    function verifyGoogleWithServer(payload) {
+                        fetch('/api/auth/google', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(completePortalLogin)
+                        .catch(function() {
+                            alert('Network error while verifying Google account.');
+                        });
+                    }
+
+                    function ensureGoogleClientReady() {
+                        if (!GOOGLE_CLIENT_ID) {
+                            alert('Google Sign-In is not configured yet (Missing GOOGLE_CLIENT_ID).');
+                            return false;
+                        }
+                        if (!window.google || !window.google.accounts) {
+                            alert('Google Sign-In is still loading. Please tap Sign In again in a moment.');
+                            return false;
+                        }
+                        if (!googleTokenClient && window.google.accounts.oauth2) {
+                            googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+                                client_id: GOOGLE_CLIENT_ID,
+                                scope: 'openid email profile',
+                                prompt: 'select_account',
+                                callback: function(tokenResponse) {
+                                    if (tokenResponse && tokenResponse.access_token) {
+                                        verifyGoogleWithServer({ accessToken: tokenResponse.access_token });
+                                    }
+                                }
+                            });
+                        }
+                        return true;
+                    }
+
+                    function triggerGoogleAccountChooser() {
+                        if (!ensureGoogleClientReady()) return;
+                        // Opens the native Google Account Picker showing all signed-in Google accounts on the device
+                        googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+                    }
+
+                    // Intercept clicks on #nav-signin-btn in capture phase so the old OTP modal never opens
+                    document.addEventListener('click', function(e) {
+                        var signInBtn = e.target ? e.target.closest('#nav-signin-btn') : null;
+                        if (!signInBtn) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        triggerGoogleAccountChooser();
+                    }, true);
+
+                    // If redirected to home because login was required, auto-prompt Google One Tap
+                    window.addEventListener('load', function() {
+                        if (sessionStorage.getItem('force_login_open') === 'true') {
+                            sessionStorage.removeItem('force_login_open');
+                            // Hide legacy OTP modal if main.js attempted to display it
+                            document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
+                                m.style.display = 'none';
+                            });
+                            if (GOOGLE_CLIENT_ID && window.google && window.google.accounts && window.google.accounts.id) {
+                                window.google.accounts.id.initialize({
+                                    client_id: GOOGLE_CLIENT_ID,
+                                    callback: function(response) {
+                                        if (response && response.credential) {
+                                            verifyGoogleWithServer({ credential: response.credential });
+                                        }
+                                    }
+                                });
+                                window.google.accounts.id.prompt();
+                            }
+                        }
+                    });
                 })();
             })();
         </script>`;
@@ -3078,165 +3175,76 @@ async function saveRegisteredStudentProfile(rawEmail, firstName, lastName) {
     return profile;
 }
 
-app.post('/api/send-otp', async (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
     try {
         const clientIp = getClientIp(req);
-        const now = Date.now();
-
-        const allowed = await stateStore.checkRateLimit('otp', clientIp, 10, 15 * 60);
+        const allowed = await stateStore.checkRateLimit('verify', clientIp, 20, 15 * 60);
         if (!allowed) {
-            return res.status(429).json({ success: false, error: 'Too many requests. Wait 15 minutes.' });
+            return res.status(429).json({ success: false, error: 'Too many sign-in attempts. Please wait 15 minutes.' });
         }
 
-        const email = req.body.email ? String(req.body.email).trim().toLowerCase().slice(0, 120) : '';
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            return res.status(400).json({ success: false, error: 'Please enter a valid Email Address.' });
+        const expectedClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+        if (!expectedClientId) {
+            return res.status(500).json({ success: false, error: 'Server missing GOOGLE_CLIENT_ID configuration.' });
         }
 
-        // Check if this email already has a permanently registered name
-        const existingProfile = await getRegisteredStudentProfile(email);
-        let firstName = '';
-        let lastName = '';
+        const { accessToken, credential } = req.body || {};
+        let email = '';
+        let googleFirstName = '';
+        let googleLastName = '';
 
-        if (existingProfile) {
-            // Returning student: lock in their registered name and ignore any modifications
-            firstName = existingProfile.firstName;
-            lastName = existingProfile.lastName;
-        } else {
-            // First-time student: require First Name and Last Name once
-            firstName = req.body.firstName ? String(req.body.firstName).trim().toUpperCase().slice(0, 60) : '';
-            lastName = req.body.lastName ? String(req.body.lastName).trim().toUpperCase().slice(0, 60) : '';
-            if (!firstName || !lastName) {
-                return res.json({
-                    success: false,
-                    requireName: true,
-                    message: 'First-time sign in: Please enter your First Name and Last Name.'
-                });
+        if (accessToken && typeof accessToken === 'string') {
+            // 1. Verify the access token belongs to our GOOGLE_CLIENT_ID
+            const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`);
+            if (!tokenInfoRes.ok) {
+                return res.status(401).json({ success: false, error: 'Invalid Google access token.' });
             }
+            const tokenInfo = await tokenInfoRes.json();
+            if (tokenInfo.aud !== expectedClientId && tokenInfo.azp !== expectedClientId) {
+                return res.status(403).json({ success: false, error: 'Security Alert: Client ID mismatch.' });
+            }
+
+            // 2. Fetch the user's verified Google profile details
+            const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (!profileRes.ok) {
+                return res.status(401).json({ success: false, error: 'Could not retrieve Google profile.' });
+            }
+            const profile = await profileRes.json();
+            if (!profile.email || !profile.email_verified) {
+                return res.status(400).json({ success: false, error: 'Google account email is not verified.' });
+            }
+
+            email = String(profile.email).trim().toLowerCase();
+            googleFirstName = String(profile.given_name || (profile.name ? profile.name.split(' ')[0] : 'STUDENT')).trim().toUpperCase().slice(0, 60);
+            googleLastName = String(profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : '.')).trim().toUpperCase().slice(0, 60);
+        } else if (credential && typeof credential === 'string') {
+            // Verify Google One Tap ID token
+            const idRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+            if (!idRes.ok) {
+                return res.status(401).json({ success: false, error: 'Invalid Google ID token.' });
+            }
+            const idInfo = await idRes.json();
+            if (idInfo.aud !== expectedClientId) {
+                return res.status(403).json({ success: false, error: 'Security Alert: Client ID mismatch.' });
+            }
+            if (!idInfo.email || String(idInfo.email_verified) !== 'true') {
+                return res.status(400).json({ success: false, error: 'Google account email is not verified.' });
+            }
+
+            email = String(idInfo.email).trim().toLowerCase();
+            googleFirstName = String(idInfo.given_name || (idInfo.name ? idInfo.name.split(' ')[0] : 'STUDENT')).trim().toUpperCase().slice(0, 60);
+            googleLastName = String(idInfo.family_name || (idInfo.name && idInfo.name.split(' ').length > 1 ? idInfo.name.split(' ').slice(1).join(' ') : '.')).trim().toUpperCase().slice(0, 60);
+        } else {
+            return res.status(400).json({ success: false, error: 'Missing Google authentication token.' });
         }
 
-        const otpKey = `otp:pending:${email}`;
-        const rawExistingOtp = await stateStore.get(otpKey);
-        if (rawExistingOtp) {
-            try {
-                const existingOtp = typeof rawExistingOtp === 'string' ? JSON.parse(rawExistingOtp) : rawExistingOtp;
-                if (existingOtp && (now - existingOtp.lastSentAt) < 60 * 1000) {
-                    return res.status(429).json({ success: false, error: 'Please wait 60 seconds before requesting another OTP.' });
-                }
-            } catch {}
-        }
-
-        const otp = crypto.randomInt(100000, 1000000).toString();
-        await stateStore.set(otpKey, {
-            otp, firstName, lastName, expiresAt: now + 5 * 60 * 1000, attempts: 0, lastSentAt: now
-        }, 5 * 60);
-
-        console.log(`[OTP Dispatched] Recipient: ${maskEmail(email)} at ${new Date().toISOString()}`);
-
-        const scriptURL = process.env.APP_SCRIPT_URL;
-        if (scriptURL && APPS_SECRET) {
-            const fullName = `${escapeHtml(firstName)} ${escapeHtml(lastName)}`.trim();
-            const plainTextBody = [
-                `Hello ${firstName} ${lastName},`,
-                ``,
-                `Thank you for signing in to Pioneers Prep (https://pioneersprep.in).`,
-                `Your one-time login verification code is: ${otp}`,
-                ``,
-                `This code is valid for 5 minutes. For your account security, please do not share this code with anyone.`,
-                ``,
-                `If you did not request this sign-in code, you can safely ignore this message.`,
-                ``,
-                `Warm regards,`,
-                `Aniruddha Banerjee`,
-                `Pioneers Prep — Online Mock Tests & Study Portal`,
-                `Berhampore, Murshidabad, West Bengal`
-            ].join('\n');
-
-            const inboxSafeHtml = `
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1e293b; line-height: 1.6; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff;">
-                    <p style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600; color: #1e3a8a;">Pioneers Prep — Student Portal</p>
-                    <p style="margin: 0 0 16px 0; font-size: 15px;">Hello <strong>${fullName}</strong>,</p>
-                    <p style="margin: 0 0 16px 0; font-size: 15px;">You requested a one-time verification code to sign in to your Pioneers Prep student account. Please enter the following 6-digit code on the portal:</p>
-                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px 20px; text-align: center; margin: 20px 0;">
-                        <span style="font-size: 24px; font-weight: 700; color: #1e3a8a; letter-spacing: 4px; font-family: monospace;">${otp}</span>
-                    </div>
-                    <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">This verification code will expire in 5 minutes. Please do not share this code with anyone.</p>
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-                    <p style="margin: 0; font-size: 12px; color: #64748b;">
-                        Warm regards,<br />
-                        <strong>Aniruddha Banerjee</strong><br />
-                        Pioneers Prep (<a href="https://pioneersprep.in" style="color: #2563eb; text-decoration: none;">pioneersprep.in</a>)<br />
-                        Berhampore, Murshidabad, West Bengal
-                    </p>
-                </div>
-            `;
-
-            fetch(scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'otp',
-                    targetEmail: email,
-                    senderName: 'Pioneers Prep',
-                    subject: `Pioneers Prep login code for ${firstName} (${otp})`,
-                    plainText: plainTextBody,
-                    secretKey: APPS_SECRET,
-                    breakdown: inboxSafeHtml
-                })
-            }).catch(err => console.error('OTP email error:', err));
-        }
-        res.json({
-            success: true,
-            isReturningUser: Boolean(existingProfile),
-            firstName,
-            lastName
-        });
-    } catch {
-        res.status(500).json({ success: false, error: 'Failed to process OTP request.' });
-    }
-});
-
-app.post('/api/verify-otp', async (req, res) => {
-    try {
-        const clientIp = getClientIp(req);
-        const allowed = await stateStore.checkRateLimit('verify', clientIp, 15, 15 * 60);
-        if (!allowed) {
-            return res.status(429).json({ success: false, error: 'Too many verification attempts. Please wait 15 minutes.' });
-        }
-
-        const email = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
-        const otp = req.body.otp ? String(req.body.otp).trim() : '';
-        const otpKey = `otp:pending:${email}`;
-        const rawRecord = await stateStore.get(otpKey);
-
-        if (!rawRecord) {
-            return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
-        }
-
-        const record = typeof rawRecord === 'string' ? JSON.parse(rawRecord) : rawRecord;
-        if (!record || Date.now() > record.expiresAt) {
-            await stateStore.del(otpKey);
-            return res.status(400).json({ success: false, error: 'Verification code expired. Please request a new OTP.' });
-        }
-
-        record.attempts = (record.attempts || 0) + 1;
-        if (record.attempts > 5) {
-            await stateStore.del(otpKey);
-            return res.status(429).json({ success: false, error: 'Too many incorrect attempts. Request a new OTP.' });
-        }
-
-        if (!safeCompareStrings(record.otp, otp)) {
-            const remainingSec = Math.max(1, Math.ceil((record.expiresAt - Date.now()) / 1000));
-            await stateStore.set(otpKey, record, remainingSec);
-            return res.status(400).json({ success: false, error: 'Invalid verification code.' });
-        }
-
-        await stateStore.del(otpKey);
-
-        // Permanently lock the student's name to this email upon first successful OTP verification
+        // Preserve existing student's locked name if already registered, otherwise lock their Google name
         const existingProfile = await getRegisteredStudentProfile(email);
-        const finalFirstName = existingProfile ? existingProfile.firstName : record.firstName;
-        const finalLastName = existingProfile ? existingProfile.lastName : record.lastName;
+        const finalFirstName = existingProfile ? existingProfile.firstName : (googleFirstName || 'STUDENT');
+        const finalLastName = existingProfile ? existingProfile.lastName : (googleLastName || '.');
+
         if (!existingProfile) {
             await saveRegisteredStudentProfile(email, finalFirstName, finalLastName);
         }
@@ -3248,19 +3256,23 @@ app.post('/api/verify-otp', async (req, res) => {
         await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
 
         res.cookie(AUTH_COOKIE_NAME, authToken, {
-            httpOnly: true, secure: isSecureConnection(req), sameSite: 'strict', maxAge: TOKEN_MAX_AGE_MS, path: '/'
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            maxAge: TOKEN_MAX_AGE_MS,
+            path: '/'
         });
 
-        // Send the token and locked user data to the frontend for Global SSO
-        res.json({ 
-            success: true, 
-            token: authToken, 
-            firstName: finalFirstName, 
-            lastName: finalLastName, 
-            email: email 
+        res.json({
+            success: true,
+            token: authToken,
+            firstName: finalFirstName,
+            lastName: finalLastName,
+            email
         });
-    } catch {
-        res.status(500).json({ success: false, error: 'OTP verification failed.' });
+    } catch (err) {
+        console.error('Google Auth Error:', err);
+        res.status(500).json({ success: false, error: 'Google authentication failed.' });
     }
 });
 // Secure Logout Endpoint (Token Revocation)
