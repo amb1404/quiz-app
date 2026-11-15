@@ -4095,6 +4095,7 @@ app.post('/api/live/student/rejoin', async (req, res) => {
         return res.status(409).json({ error: 'Session replaced by a newer login.', sessionReplaced: true });
     }
 
+    liveStudentLastSeen.set(presenceKey, Date.now());
     if (rec && !rec.kicked && !rec.disconnected) {
         return res.json({ success: true, studentName });
     }
@@ -4351,9 +4352,8 @@ app.get('/api/livekit/token', async (req, res) => {
             const rawBoard = await stateStore.get(`live:board:${cleanId}`);
             const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
             const studentRec = board[resolvedStudentName];
-            if (studentRec) {
-                if (studentRec.kicked) return res.status(403).json({ error: "Removed from room." });
-                if (studentRec.muted) canStudentPublish = false;
+            if (studentRec && studentRec.kicked) {
+                return res.status(403).json({ error: "Removed from room." });
             }
         }
 
@@ -4418,6 +4418,7 @@ const io = new Server(server, {
 const liveStudentSockets = new Map();
 const liveDisconnectTimers = new Map();
 const liveBackgroundedStudents = new Set();
+const liveStudentLastSeen = new Map();
 
 async function handleStudentDeparture(cleanId, studentName, socketId, isExplicitExit = false) {
     if (!cleanId || !studentName) return;
@@ -4445,8 +4446,9 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
             const rawBoardNow = await stateStore.get(`live:board:${cleanId}`);
             const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
             const rec = boardNow[studentName];
-            // If HTTP heartbeat updated lastSeenAt within the last 25s (and this wasn't an explicit tab close), keep them online
-            if (!isExplicitExit && rec && rec.lastSeenAt && (Date.now() - rec.lastSeenAt) < 25000) {
+            const lastSeen = Math.max(liveStudentLastSeen.get(presenceKey) || 0, rec?.lastSeenAt || 0);
+            // If HTTP heartbeat updated lastSeen within the last 30s (and this wasn't an explicit tab close), keep them online
+            if (!isExplicitExit && lastSeen && (Date.now() - lastSeen) < 30000) {
                 return;
             }
             await updateBoardSecurely(cleanId, (board) => {
@@ -4499,6 +4501,7 @@ io.on("connection", (socket) => {
         }
 
         const presenceKey = `${cleanId}:::${studentName}`;
+        liveStudentLastSeen.set(presenceKey, Date.now());
         if (hidden === true) {
             liveBackgroundedStudents.add(presenceKey);
         } else if (hidden === false) {
@@ -4543,6 +4546,7 @@ io.on("connection", (socket) => {
     socket.on("student-visibility", ({ hidden } = {}) => {
         if (!socket.quizId || !socket.studentName) return;
         const presenceKey = `${socket.quizId}:::${socket.studentName}`;
+        liveStudentLastSeen.set(presenceKey, Date.now());
         if (hidden) {
             liveBackgroundedStudents.add(presenceKey);
             if (liveDisconnectTimers.has(presenceKey)) {

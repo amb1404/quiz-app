@@ -236,7 +236,11 @@ if (typeof io !== 'undefined') {
     // Automatically rejoin room if server restarts due to a new commit or brief disconnect
     socket.on("connect", () => {
         if (testActive && currentQuizId && liveToken) {
-            socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            socket.emit("join-room", {
+                quizId: currentQuizId,
+                token: liveToken,
+                hidden: document.visibilityState === 'hidden'
+            });
         }
     });
 

@@ -170,38 +170,38 @@
 
         if (track.kind === 'video') {
             if (isScreenTrack) {
-                try {
-                    if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
-                        publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
-                    }
-                    if (typeof publication.setVideoDimensions === 'function') {
-                        publication.setVideoDimensions({ width: 1920, height: 1080 });
-                    }
-                } catch (e) {}
-
                 const pptVideo = document.getElementById('student-ppt-video');
                 if (pptVideo) {
-                    if (! Array.isArray(track.attachedElements) || !track.attachedElements.includes(pptVideo)) {
+                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(pptVideo);
+                    if (!alreadyAttached) {
+                        try {
+                            if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                                publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
+                            }
+                            if (typeof publication.setVideoDimensions === 'function') {
+                                publication.setVideoDimensions({ width: 1920, height: 1080 });
+                            }
+                        } catch (e) {}
                         track.attach(pptVideo);
                     }
                     pptVideo.muted = true;
                     if (pptVideo.paused) pptVideo.play().catch(() => {});
                 }
             } else {
-                try {
-                    if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
-                        publication.setVideoQuality(LivekitClient.VideoQuality.LOW);
-                    }
-                    if (typeof publication.setVideoDimensions === 'function') {
-                        publication.setVideoDimensions({ width: 320, height: 180 });
-                    }
-                } catch (e) {}
-
                 const videoEl = document.getElementById('student-remote-video');
                 const pipBox = document.getElementById('student-pip-box');
                 const placeholder = document.getElementById('student-video-placeholder');
                 if (videoEl) {
-                    if (!Array.isArray(track.attachedElements) || !track.attachedElements.includes(videoEl)) {
+                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(videoEl);
+                    if (!alreadyAttached) {
+                        try {
+                            if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                                publication.setVideoQuality(LivekitClient.VideoQuality.LOW);
+                            }
+                            if (typeof publication.setVideoDimensions === 'function') {
+                                publication.setVideoDimensions({ width: 320, height: 180 });
+                            }
+                        } catch (e) {}
                         track.attach(videoEl);
                     }
                     videoEl.muted = true;
