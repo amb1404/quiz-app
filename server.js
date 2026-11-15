@@ -78,7 +78,7 @@ const MAX_MAP_SIZE = 5000;
 const TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // Implementation 1: Extended to 30 Days
 const TOKEN_MAX_AGE_SEC = Math.ceil(TOKEN_MAX_AGE_MS / 1000);
 const CACHE_TTL_MS = 60 * 1000;
-const AUTH_COOKIE_NAME = 'pioneers_auth_token';
+const AUTH_COOKIE_NAME = 'pioneers_google_auth_v2';
 const SUBMISSIONS_REDIS_KEY = 'global:submissions:history';
 
 class NativeRedisClient {
@@ -718,6 +718,14 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     var clickStamp = parseInt(sessionStorage.getItem('pioneers_nav_ok') || '0', 10);
                     var isRecentClick = (Date.now() - clickStamp) < 15000;
                     var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
+
+                    // Force all pre-Google legacy OTP browsers to log out immediately
+                    if (localStorage.getItem('pp_auth_provider') !== 'google_v2') {
+                        localStorage.removeItem('pp_id_token');
+                        localStorage.removeItem('pp_fname');
+                        localStorage.removeItem('pp_lname');
+                        localStorage.removeItem('pp_email');
+                    }
 
                     // GLOBAL SSO GUARD: Warn and kick unauthenticated users to home
                     var token = localStorage.getItem('pp_id_token');
@@ -1539,6 +1547,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             alert((data && data.error) ? data.error : 'Google Sign-In failed. Please try again.');
                             return;
                         }
+                        localStorage.setItem('pp_auth_provider', 'google_v2');
                         localStorage.setItem('pp_id_token', data.token);
                         localStorage.setItem('pp_fname', data.firstName || '');
                         localStorage.setItem('pp_lname', data.lastName || '');
@@ -2019,7 +2028,9 @@ async function verifyAuthToken(authToken, expectedEmail = null, checkReplay = fa
     }
 
     const dataParts = tokenData.split('|');
-    if (dataParts.length < 2) return { valid: false, error: 'Security Alert: Outdated session token.' };
+if (dataParts.length < 5 || !String(dataParts[4]).startsWith('G2_')) {
+    return { valid: false, error: 'Session upgraded to Google Sign-In. Please sign in with Google.' };
+}
 
     const tokenEmail = dataParts[0];
     let issuedAt, firstName = '', lastName = '';
@@ -3151,6 +3162,11 @@ async function getRegisteredStudentProfile(rawEmail) {
     return null;
 }
 
+// Wipe local legacy OTP users.json once on startup
+try {
+    if (fs.existsSync(USERS_FILE_PATH)) fs.unlinkSync(USERS_FILE_PATH);
+} catch {}
+
 async function saveRegisteredStudentProfile(rawEmail, firstName, lastName) {
     const cleanEmail = String(rawEmail || '').trim().toLowerCase();
     const profile = {
@@ -3167,10 +3183,8 @@ async function saveRegisteredStudentProfile(rawEmail, firstName, lastName) {
         if (fs.existsSync(USERS_FILE_PATH)) {
             usersMap = JSON.parse(await fs.promises.readFile(USERS_FILE_PATH, 'utf8')) || {};
         }
-        if (!usersMap[cleanEmail]) {
-            usersMap[cleanEmail] = profile;
-            await fs.promises.writeFile(USERS_FILE_PATH, JSON.stringify(usersMap, null, 2), { mode: 0o600 });
-        }
+        usersMap[cleanEmail] = profile;
+        await fs.promises.writeFile(USERS_FILE_PATH, JSON.stringify(usersMap, null, 2), { mode: 0o600 });
     } catch {}
     return profile;
 }
@@ -3240,16 +3254,12 @@ app.post('/api/auth/google', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing Google authentication token.' });
         }
 
-        // Preserve existing student's locked name if already registered, otherwise lock their Google name
-        const existingProfile = await getRegisteredStudentProfile(email);
-        const finalFirstName = existingProfile ? existingProfile.firstName : (googleFirstName || 'STUDENT');
-        const finalLastName = existingProfile ? existingProfile.lastName : (googleLastName || '.');
+        // Always use and sync the student's verified Google Account name
+        const finalFirstName = googleFirstName || 'STUDENT';
+        const finalLastName = googleLastName || '.';
+        await saveRegisteredStudentProfile(email, finalFirstName, finalLastName);
 
-        if (!existingProfile) {
-            await saveRegisteredStudentProfile(email, finalFirstName, finalLastName);
-        }
-
-        const tokenData = `${email}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|${crypto.randomBytes(8).toString('hex')}`;
+        const tokenData = `${email}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|G2_${crypto.randomBytes(8).toString('hex')}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
         const authToken = `${tokenData}|||${signature}`;
 
