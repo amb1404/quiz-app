@@ -3652,6 +3652,15 @@ app.post('/api/live/admin/moderate-student', async (req, res) => {
     }
 });
 
+function formatLiveStudentIdentity(firstName, lastName, email) {
+    const baseName = `${String(firstName || '').trim().toUpperCase()} ${String(lastName || '').trim().toUpperCase()}`.trim() || 'STUDENT';
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    if (!cleanEmail) return baseName;
+    const localPart = cleanEmail.split('@')[0].replace(/[^a-z0-9._-]/gi, '').slice(0, 12);
+    const domainHash = crypto.createHash('md5').update(cleanEmail).digest('hex').slice(0, 3);
+    return `${baseName} (${localPart}·${domainHash})`;
+}
+
 function verifyLiveRoomToken(liveToken) {
     if (!liveToken || typeof liveToken !== 'string' || !liveToken.includes('|||')) return null;
     const [tokenData, sig] = liveToken.split('|||');
@@ -3659,14 +3668,18 @@ function verifyLiveRoomToken(liveToken) {
     if (!safeCompareHex(sig, expectedSig)) return null;
 
     const parts = tokenData.split('|');
-    if (parts[0] === 'LIVE' && parts.length >= 5) {
+    if (parts[0] === 'LIVE' && parts.length >= 7) {
         const quizId = parts[1];
         const firstName = decodeURIComponent(parts[2] || '');
         const lastName = decodeURIComponent(parts[3] || '');
+        const email = decodeURIComponent(parts[4] || '').trim().toLowerCase();
+        const sessionId = parts[5] || '';
         return {
             valid: true,
             quizId,
-            studentName: `${firstName} ${lastName}`.trim() || 'Student'
+            email,
+            sessionId,
+            studentName: formatLiveStudentIdentity(firstName, lastName, email)
         };
     }
     return null;
@@ -3983,24 +3996,42 @@ app.post('/api/live/student/verify', async (req, res) => {
 
         const fName = String(authCheck.firstName).trim().toUpperCase();
         const lName = String(authCheck.lastName).trim().toUpperCase();
-        const studentName = `${fName} ${lName}`.trim() || 'Student';
+        const cleanEmail = String(authCheck.email || '').trim().toLowerCase();
+        const studentName = formatLiveStudentIdentity(fName, lName, cleanEmail);
+        const newSessionId = crypto.randomBytes(6).toString('hex');
 
         await updateBoardSecurely(cleanId, (board) => {
             if (!board[studentName]) {
-                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false, email: cleanEmail };
             }
+            board[studentName].email = cleanEmail;
+            board[studentName].activeSessionId = newSessionId;
             board[studentName].disconnected = false;
             board[studentName].kicked = false;
             board[studentName].lastSeenAt = Date.now();
             return board;
         });
 
+        // Kick any previous device/browser session for this same email in real time
+        const presenceKey = `${cleanId}:::${studentName}`;
+        const existingSockets = liveStudentSockets.get(presenceKey);
+        if (existingSockets && existingSockets.size > 0) {
+            for (const oldSocketId of existingSockets) {
+                io.to(oldSocketId).emit('session-replaced', {
+                    reason: 'You joined this room from another device or browser tab. Your previous session has been disconnected.'
+                });
+                const sObj = io.sockets.sockets.get(oldSocketId);
+                if (sObj) sObj.leave(cleanId);
+            }
+            existingSockets.clear();
+        }
+
         await emitAdminBoard(cleanId);
 
-        const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${Date.now()}`;
+        const tokenData = `LIVE|${cleanId}|${encodeURIComponent(fName)}|${encodeURIComponent(lName)}|${encodeURIComponent(cleanEmail)}|${newSessionId}|${Date.now()}`;
         const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
 
-        res.json({ success: true, token: `${tokenData}|||${signature}` });
+        res.json({ success: true, token: `${tokenData}|||${signature}`, studentName });
     } catch (err) {
         res.status(500).json({ error: 'Failed to join room.' });
     }
@@ -4014,18 +4045,28 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     const studentName = liveCheck.studentName;
     const presenceKey = `${cleanId}:::${studentName}`;
 
+    let replaced = false;
+    await updateBoardSecurely(cleanId, (board) => {
+        const rec = board[studentName];
+        if (rec && rec.activeSessionId && liveCheck.sessionId && rec.activeSessionId !== liveCheck.sessionId) {
+            replaced = true;
+            return board;
+        }
+        if (rec && !rec.kicked) {
+            rec.disconnected = false;
+            rec.lastSeenAt = Date.now();
+        }
+        return board;
+    });
+
+    if (replaced) {
+        return res.status(409).json({ error: 'Session replaced by a newer login.', sessionReplaced: true });
+    }
+
     if (typeof liveDisconnectTimers !== 'undefined' && liveDisconnectTimers.has(presenceKey)) {
         clearTimeout(liveDisconnectTimers.get(presenceKey));
         liveDisconnectTimers.delete(presenceKey);
     }
-
-    await updateBoardSecurely(cleanId, (board) => {
-        if (board[studentName] && !board[studentName].kicked) {
-            board[studentName].disconnected = false;
-            board[studentName].lastSeenAt = Date.now();
-        }
-        return board;
-    });
 
     await emitAdminBoard(cleanId);
     res.json({ success: true });
@@ -4041,6 +4082,11 @@ app.post('/api/live/student/leave', async (req, res) => {
         const cleanId = liveCheck.quizId;
         const studentName = liveCheck.studentName;
         const presenceKey = `${cleanId}:::${studentName}`;
+        const rawBoardNow = await stateStore.get(`live:board:${cleanId}`);
+        const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
+        if (boardNow[studentName]?.activeSessionId && liveCheck.sessionId && boardNow[studentName].activeSessionId !== liveCheck.sessionId) {
+            return res.json({ success: true, ignoredStaleSession: true });
+        }
 
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
@@ -4345,7 +4391,17 @@ io.on("connection", (socket) => {
 
         const studentName = liveAuth
             ? liveAuth.studentName
-            : `${ssoAuth.firstName || ''} ${ssoAuth.lastName || ''}`.trim();
+            : formatLiveStudentIdentity(ssoAuth.firstName, ssoAuth.lastName, ssoAuth.email);
+
+        // Reject stale socket reconnects from a previous device/browser session
+        const rawBoardCheck = await stateStore.get(`live:board:${cleanId}`);
+        const boardCheck = rawBoardCheck ? (typeof rawBoardCheck === 'string' ? JSON.parse(rawBoardCheck) : rawBoardCheck) : {};
+        if (liveAuth && boardCheck[studentName]?.activeSessionId && boardCheck[studentName].activeSessionId !== liveAuth.sessionId) {
+            socket.emit('session-replaced', {
+                reason: 'You joined this room from another device or browser tab. Your previous session has been disconnected.'
+            });
+            return;
+        }
 
         const presenceKey = `${cleanId}:::${studentName}`;
         liveBackgroundedStudents.delete(presenceKey);

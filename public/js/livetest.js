@@ -142,7 +142,11 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
             localIndex = -1;
             currentActiveQuizFile = "";
 
-            sessionStorage.setItem('live_student_session', JSON.stringify({ token: liveToken, quizId: currentQuizId }));
+            sessionStorage.setItem('live_student_session', JSON.stringify({
+                token: liveToken,
+                quizId: currentQuizId,
+                studentName: data.studentName || ''
+            }));
             try { window.history.pushState({ inLiveRoom: true }, document.title, window.location.href); } catch (e) {}
 
             document.getElementById('auth-screen').style.display = 'none';
@@ -195,20 +199,18 @@ window.applyBroadcastModeUI = applyBroadcastModeUI;
 
 function getMyStudentName() {
     try {
+        const savedSession = JSON.parse(sessionStorage.getItem('live_student_session') || '{}');
+        if (savedSession.studentName) return savedSession.studentName;
         if (liveToken && liveToken.includes('|||')) {
             const parts = liveToken.split('|||')[0].split('|');
             if (parts[0] === 'LIVE' && parts.length >= 4) {
                 return `${decodeURIComponent(parts[2] || '')} ${decodeURIComponent(parts[3] || '')}`.trim();
             }
         }
-        const sso = localStorage.getItem('pp_id_token') || '';
-        if (sso.includes('|||')) {
-            const p = sso.split('|||')[0].split('|');
-            if (p.length >= 3) return `${decodeURIComponent(p[1] || '')} ${decodeURIComponent(p[2] || '')}`.trim();
-        }
     } catch (e) {}
     return '';
 }
+window.getMyStudentName = getMyStudentName;
 
 if (typeof io !== 'undefined') {
     socket = io();
@@ -242,6 +244,16 @@ if (typeof io !== 'undefined') {
                 returnToRoomLobbyAfterKick();
             }
         }
+    });
+
+    socket.on("session-replaced", (data) => {
+        testActive = false;
+        liveToken = "";
+        currentQuizId = "";
+        sessionStorage.removeItem('live_student_session');
+        if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+        alert((data && data.reason) ? data.reason : "You joined this room from another device or browser. This session has been disconnected.");
+        window.location.replace('/live-room');
     });
 
     function sendInstantLeaveSignal(isBackButton = false) {

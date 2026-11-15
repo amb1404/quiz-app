@@ -332,11 +332,14 @@
 
         isConnectingLiveKit = true;
         try {
-            const tokenObj = localStorage.getItem('pp_id_token') || "";
-            let myName = "Student";
-            if (tokenObj) {
-                const parts = tokenObj.split('|||')[0].split('|');
-                if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+            let myName = (typeof window.getMyStudentName === 'function' && window.getMyStudentName()) || "";
+            if (!myName) {
+                const tokenObj = localStorage.getItem('pp_id_token') || "";
+                myName = "Student";
+                if (tokenObj) {
+                    const parts = tokenObj.split('|||')[0].split('|');
+                    if (parts.length > 2) myName = decodeURIComponent(parts[1] + ' ' + parts[2]);
+                }
             }
 
             const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=${encodeURIComponent(myName)}`);
