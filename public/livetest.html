@@ -169,40 +169,55 @@
             (LivekitClient.Track && LivekitClient.Track.Source && publication.source === LivekitClient.Track.Source.ScreenShare);
 
         if (track.kind === 'video') {
-            try {
-                if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
-                    publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
-                }
-                if (typeof publication.setVideoDimensions === 'function') {
-                    publication.setVideoDimensions({ width: 1920, height: 1080 });
-                }
-                if (typeof publication.setVideoFPS === 'function') {
-                    publication.setVideoFPS(30);
-                }
-            } catch (e) {}
-
             if (isScreenTrack) {
+                try {
+                    if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                        publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
+                    }
+                    if (typeof publication.setVideoDimensions === 'function') {
+                        publication.setVideoDimensions({ width: 1920, height: 1080 });
+                    }
+                } catch (e) {}
+
                 const pptVideo = document.getElementById('student-ppt-video');
                 if (pptVideo) {
-                    track.attach(pptVideo);
+                    if (! Array.isArray(track.attachedElements) || !track.attachedElements.includes(pptVideo)) {
+                        track.attach(pptVideo);
+                    }
                     pptVideo.muted = true;
-                    pptVideo.play().catch(() => {});
+                    if (pptVideo.paused) pptVideo.play().catch(() => {});
                 }
             } else {
+                try {
+                    if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
+                        publication.setVideoQuality(LivekitClient.VideoQuality.LOW);
+                    }
+                    if (typeof publication.setVideoDimensions === 'function') {
+                        publication.setVideoDimensions({ width: 320, height: 180 });
+                    }
+                } catch (e) {}
+
                 const videoEl = document.getElementById('student-remote-video');
                 const pipBox = document.getElementById('student-pip-box');
                 const placeholder = document.getElementById('student-video-placeholder');
                 if (videoEl) {
-                    track.attach(videoEl);
+                    if (!Array.isArray(track.attachedElements) || !track.attachedElements.includes(videoEl)) {
+                        track.attach(videoEl);
+                    }
                     videoEl.muted = true;
                     videoEl.style.display = 'block';
-                    videoEl.play().catch(() => {});
+                    if (videoEl.paused) videoEl.play().catch(() => {});
                 }
                 if (pipBox) pipBox.style.display = 'flex';
                 if (placeholder) placeholder.style.display = 'none';
                 document.body.classList.add('rtc-stream-active');
             }
         } else if (track.kind === 'audio') {
+            // Do not detach and recreate <audio> if this track is already attached
+            if (activeAudioEl && Array.isArray(track.attachedElements) && track.attachedElements.includes(activeAudioEl)) {
+                if (activeAudioEl.paused) ensureAdminAudioPlaying();
+                return;
+            }
             if (activeAudioEl) {
                 try { track.detach(activeAudioEl); activeAudioEl.remove(); } catch (e) {}
             }
@@ -311,15 +326,21 @@
 
     const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
     const presentationScreen = document.getElementById('presentation-screen');
+    const pptVideoEl = document.getElementById('student-ppt-video');
     if (fullscreenBtn && presentationScreen) {
         fullscreenBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {
-                presentationScreen.requestFullscreen().catch(() => {});
-                fullscreenBtn.textContent = '✕ Exit Fullscreen';
-            } else {
+                if (presentationScreen.requestFullscreen) {
+                    presentationScreen.requestFullscreen().catch(() => {});
+                } else if (pptVideoEl && pptVideoEl.webkitEnterFullscreen) {
+                    pptVideoEl.webkitEnterFullscreen();
+                }
+            } else if (document.exitFullscreen) {
                 document.exitFullscreen().catch(() => {});
-                fullscreenBtn.textContent = '⛶ Fullscreen';
             }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            fullscreenBtn.textContent = document.fullscreenElement ? '✕ Exit Fullscreen' : '⛶ Fullscreen';
         });
     }
 
@@ -343,7 +364,12 @@
                 }
             }
 
-            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=${encodeURIComponent(myName)}`);
+            const authHeader = (typeof liveToken !== 'undefined' && liveToken)
+                ? { 'Authorization': `Bearer ${liveToken}` }
+                : {};
+            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=${encodeURIComponent(myName)}`, {
+                headers: authHeader
+            });
             if (!res.ok) return;
             const { token } = await res.json();
 
@@ -362,12 +388,13 @@
 
     setInterval(() => {
         if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
-            connectLiveKit(currentQuizId);
-            if (room.state === 'connected') {
+            if (room.state === 'disconnected') {
+                connectLiveKit(currentQuizId);
+            } else if (room.state === 'connected') {
                 reattachAllAdminFeeds();
             }
         }
-    }, 2500);
+    }, 5000);
 
     async function stopStudentMicOnly() {
         if (studentMicTrack) {
@@ -440,6 +467,9 @@
         isMicToggling = true;
         try {
             if (!studentMicTrack) {
+                if (room.state === 'connected' && room.localParticipant?.permissions?.canPublish === false) {
+                    try { await room.disconnect(); } catch (e) {}
+                }
                 if (room.state !== 'connected' && typeof currentQuizId !== 'undefined' && currentQuizId) {
                     await connectLiveKit(currentQuizId);
                 }

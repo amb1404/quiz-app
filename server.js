@@ -119,6 +119,7 @@ class NativeRedisClient {
 
         this.socket.on('error', (err) => {
             this.connected = false;
+            this.buffer = Buffer.alloc(0);
             while (this.queue.length > 0) {
                 this.queue.shift().reject(err);
             }
@@ -126,6 +127,11 @@ class NativeRedisClient {
 
         this.socket.on('close', () => {
             this.connected = false;
+            this.buffer = Buffer.alloc(0);
+            const closeErr = new Error('Redis socket closed');
+            while (this.queue.length > 0) {
+                this.queue.shift().reject(closeErr);
+            }
             setTimeout(() => this.connect(), 3000);
         });
     }
@@ -342,7 +348,7 @@ async function updateBoardSecurely(cleanId, updateFn) {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const newBoard = updateFn(board);
-        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 4);
+        if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 8);
     } finally {
         await stateStore.del(lockKey);
     }
@@ -1648,9 +1654,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         const antiCheatScript = `<script nonce="${nonce}">
             (function enforceSecurity() {
                 setInterval(function() {
+                    if (!document.body.classList.contains('exam-mode')) return;
                     const start = performance.now();
                     debugger; 
-                    if (performance.now() - start > 100 && document.body.classList.contains('exam-mode')) {
+                    if (performance.now() - start > 100) {
                         if (typeof submitQuiz === 'function') submitQuiz(true);
                         window.location.replace('/');
                     }
@@ -3579,7 +3586,7 @@ const LIVE_ROOMS_REDIS_KEY = 'live:active_rooms:registry';
 async function syncActiveRoomsToRedis() {
     try {
         const obj = Object.fromEntries(activeLiveRooms.entries());
-        await stateStore.set(LIVE_ROOMS_REDIS_KEY, obj, 60 * 60 * 4);
+        await stateStore.set(LIVE_ROOMS_REDIS_KEY, obj, 60 * 60 * 8);
     } catch {}
 }
 
@@ -3604,7 +3611,7 @@ app.get('/api/live/rooms', async (req, res) => {
         const rooms = [];
         let changed = false;
         for (const [id, info] of activeLiveRooms.entries()) {
-            if (now - info.lastSeen <= 4 * 60 * 60 * 1000) {
+            if (now - info.lastSeen <= 8 * 60 * 60 * 1000) {
                 rooms.push({ id: info.id, name: info.name });
             } else {
                 activeLiveRooms.delete(id);
@@ -3669,6 +3676,10 @@ function verifyLiveRoomToken(liveToken) {
 
     const parts = tokenData.split('|');
     if (parts[0] === 'LIVE' && parts.length >= 7) {
+        const issuedAt = parseInt(parts[6], 10);
+        if (isNaN(issuedAt) || (Date.now() - issuedAt) > 12 * 60 * 60 * 1000) {
+            return null;
+        }
         const quizId = parts[1];
         const firstName = decodeURIComponent(parts[2] || '');
         const lastName = decodeURIComponent(parts[3] || '');
@@ -3796,8 +3807,8 @@ app.post('/api/live/admin/start', async (req, res) => {
             questionStartTime: Date.now()
         };
 
-        await stateStore.set(`live:state:${cleanId}`, roomState, 60 * 60 * 4);
-        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 4);
+        await stateStore.set(`live:state:${cleanId}`, roomState, 60 * 60 * 8);
+await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
         await stateStore.del(`live:board:${cleanId}`);
 
         await loadActiveRoomsFromRedis();
@@ -3840,7 +3851,7 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
             state.currentIndex = 0;
             state.totalQuestions = 0;
             state.title = state.roomName || cleanId;
-            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
             await emitRoomStateToAll(cleanId);
             await emitAdminBoard(cleanId);
             return res.json({ success: true, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
@@ -3858,7 +3869,7 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
         state.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
         state.questionStartTime = Date.now();
 
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
         await emitRoomStateToAll(cleanId);
         await emitAdminBoard(cleanId);
 
@@ -3886,7 +3897,7 @@ app.post('/api/live/rtc/admin/mode', async (req, res) => {
 
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
         state.broadcastMode = ['question', 'presentation', 'both'].includes(broadcastMode) ? broadcastMode : 'question';
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
 
         await emitRoomStateToAll(cleanId);
         res.json({ success: true, broadcastMode: state.broadcastMode });
@@ -3908,7 +3919,7 @@ app.post('/api/live/admin/clear-question', async (req, res) => {
         const idx = Number(state.currentIndex) || 0;
 
         state.questionStartTime = Date.now();
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
 
         await updateBoardSecurely(cleanId, (board) => {
             Object.keys(board).forEach(student => {
@@ -3942,14 +3953,29 @@ app.post('/api/live/admin/end', async (req, res) => {
         if (stateStr) {
             const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
             state.status = 'ended';
-            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
         }
 
         await loadActiveRoomsFromRedis();
-    activeLiveRooms.delete(cleanId);
-    await syncActiveRoomsToRedis();
-    await stateStore.del(`live:otp:${cleanId}`);
-    await emitRoomStateToAll(cleanId);
+        activeLiveRooms.delete(cleanId);
+        await syncActiveRoomsToRedis();
+        await stateStore.del(`live:otp:${cleanId}`);
+
+        const roomPrefix = `${cleanId}:::`;
+        for (const key of liveDisconnectTimers.keys()) {
+            if (key.startsWith(roomPrefix)) {
+                clearTimeout(liveDisconnectTimers.get(key));
+                liveDisconnectTimers.delete(key);
+            }
+        }
+        for (const key of liveStudentSockets.keys()) {
+            if (key.startsWith(roomPrefix)) liveStudentSockets.delete(key);
+        }
+        for (const key of liveBackgroundedStudents.values()) {
+            if (key.startsWith(roomPrefix)) liveBackgroundedStudents.delete(key);
+        }
+
+        await emitRoomStateToAll(cleanId);
 
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }
@@ -3967,7 +3993,7 @@ app.post('/api/live/admin/set-index', async (req, res) => {
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
         state.currentIndex = parseInt(index, 10);
         state.questionStartTime = Date.now();
-        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 4);
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
 
         await emitRoomStateToAll(cleanId);
         await emitAdminBoard(cleanId);
@@ -4055,30 +4081,47 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     const studentName = liveCheck.studentName;
     const presenceKey = `${cleanId}:::${studentName}`;
 
+    if (typeof liveDisconnectTimers !== 'undefined' && liveDisconnectTimers.has(presenceKey)) {
+        clearTimeout(liveDisconnectTimers.get(presenceKey));
+        liveDisconnectTimers.delete(presenceKey);
+    }
+
+    // Fast-path check without spin-lock if student is already marked connected
+    const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+    const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+    const rec = board[studentName];
+
+    if (rec && rec.activeSessionId && liveCheck.sessionId && rec.activeSessionId !== liveCheck.sessionId) {
+        return res.status(409).json({ error: 'Session replaced by a newer login.', sessionReplaced: true });
+    }
+
+    if (rec && !rec.kicked && !rec.disconnected) {
+        return res.json({ success: true, studentName });
+    }
+
     let replaced = false;
-    await updateBoardSecurely(cleanId, (board) => {
-        const rec = board[studentName];
-        if (rec && rec.activeSessionId && liveCheck.sessionId && rec.activeSessionId !== liveCheck.sessionId) {
+    let reconnectedNow = false;
+    await updateBoardSecurely(cleanId, (lockedBoard) => {
+        const lockedRec = lockedBoard[studentName];
+        if (lockedRec && lockedRec.activeSessionId && liveCheck.sessionId && lockedRec.activeSessionId !== liveCheck.sessionId) {
             replaced = true;
-            return board;
+            return lockedBoard;
         }
-        if (rec && !rec.kicked) {
-            rec.disconnected = false;
-            rec.lastSeenAt = Date.now();
+        if (lockedRec && !lockedRec.kicked) {
+            if (lockedRec.disconnected) reconnectedNow = true;
+            lockedRec.disconnected = false;
+            lockedRec.lastSeenAt = Date.now();
         }
-        return board;
+        return lockedBoard;
     });
 
     if (replaced) {
         return res.status(409).json({ error: 'Session replaced by a newer login.', sessionReplaced: true });
     }
 
-    if (typeof liveDisconnectTimers !== 'undefined' && liveDisconnectTimers.has(presenceKey)) {
-        clearTimeout(liveDisconnectTimers.get(presenceKey));
-        liveDisconnectTimers.delete(presenceKey);
+    if (reconnectedNow) {
+        await emitAdminBoard(cleanId);
     }
-
-    await emitAdminBoard(cleanId);
     res.json({ success: true, studentName });
 });
 
@@ -4282,25 +4325,50 @@ const { AccessToken } = require('livekit-server-sdk');
 
 app.get('/api/livekit/token', async (req, res) => {
     try {
-        const { quizId, studentName } = req.query;
+        const { quizId, studentName, adminKey } = req.query;
         if (!process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) {
             return res.status(500).json({ error: "Missing SFU keys." });
         }
 
+        const cleanId = path.basename(String(quizId || 'default')).trim();
         const rawName = String(studentName || 'user').trim();
         const isAdmin = rawName.toLowerCase() === 'admin';
-        const safeStudentName = rawName.replace(/^admin/i, 'student').trim() || 'Student';
+
+        if (isAdmin) {
+            if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+                return res.status(403).json({ error: "Unauthorized Admin LiveKit token request." });
+            }
+        }
+
+        let canStudentPublish = true;
+        let resolvedStudentName = rawName.replace(/^admin/i, 'student').trim() || 'Student';
+
+        if (!isAdmin) {
+            const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
+            if (liveCheck && liveCheck.studentName) {
+                resolvedStudentName = liveCheck.studentName;
+            }
+            const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+            const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+            const studentRec = board[resolvedStudentName];
+            if (studentRec) {
+                if (studentRec.kicked) return res.status(403).json({ error: "Removed from room." });
+                if (studentRec.muted) canStudentPublish = false;
+            }
+        }
+
         const randSuffix = crypto.randomBytes(2).toString('hex');
-        const identity = isAdmin ? 'admin' : `${safeStudentName}_${randSuffix}`;
+        const identity = isAdmin ? 'admin' : `${resolvedStudentName}_${randSuffix}`;
 
         const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
             identity,
+            ttl: '8h',
             metadata: JSON.stringify({ role: isAdmin ? 'admin' : 'student' })
         });
         at.addGrant({
             roomJoin: true,
-            room: String(quizId || 'default'),
-            canPublish: true,
+            room: cleanId,
+            canPublish: isAdmin ? true : canStudentPublish,
             canSubscribe: true
         });
         res.json({ token: await at.toJwt() });
@@ -4523,7 +4591,8 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("join-admin-room", async ({ quizId }) => {
+    socket.on("join-admin-room", async ({ quizId, adminKey }) => {
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) return;
         const cleanId = path.basename(String(quizId || '')).trim();
         if (!cleanId) return;
         socket.join(`admin-${cleanId}`);

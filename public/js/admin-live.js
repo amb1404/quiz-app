@@ -390,7 +390,9 @@ if (typeof io !== 'undefined') {
     // Automatically rejoin admin room on initial connect AND after any new commit / server restart
     socket.on("connect", () => {
         const creds = getActiveAdminCreds();
-        if (creds.quizId) socket.emit("join-admin-room", { quizId: creds.quizId });
+        if (creds.quizId && creds.adminKey) {
+            socket.emit("join-admin-room", { quizId: creds.quizId, adminKey: creds.adminKey });
+        }
     });
 
     socket.on("room-state", (data) => {
@@ -461,7 +463,9 @@ if (typeof io !== 'undefined') {
 
 window.startDashboardSync = function() {
     const creds = getActiveAdminCreds();
-    if (creds.quizId && socket) socket.emit("join-admin-room", { quizId: creds.quizId });
+    if (creds.quizId && creds.adminKey && socket) {
+        socket.emit("join-admin-room", { quizId: creds.quizId, adminKey: creds.adminKey });
+    }
 };
 
 window.fetchAndRenderDashboard = function() {

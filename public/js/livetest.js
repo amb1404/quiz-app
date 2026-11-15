@@ -439,9 +439,10 @@ function startHeartbeat() {
     heartbeatTimer = setInterval(() => {
         if (testActive && currentQuizId && liveToken) {
             const isHidden = document.visibilityState === 'hidden';
-            if (socket) {
-                if (!socket.connected) socket.connect();
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: isHidden });
+            if (socket && !socket.connected) {
+                socket.connect();
+            } else if (socket && isHidden) {
+                socket.emit("student-visibility", { hidden: true });
             }
             fetch('/api/live/student/rejoin', {
                 method: 'POST',
@@ -459,7 +460,7 @@ function startHeartbeat() {
                 }
             }).catch(() => {});
         }
-    }, 10000);
+    }, 20000);
 }
 
 function xorDecipher(b64Str, key) {
