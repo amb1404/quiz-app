@@ -694,7 +694,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     <strong style="font-size: 15px;">Pioneers Prep</strong> — Mentored by <strong>Aniruddha Banerjee</strong><br>
                     Online Mock Tests, Study Notes & Descriptive Worksheets for NEET, ICSE & WBCHSE.
                 </div>
-                <div class="footer-links"><a href="/sitemap.xml">Sitemap</a></div>
+                <div class="footer-links" style="display: flex; gap: 14px; flex-wrap: wrap; align-items: center;">
+                    <a href="/privacy-policy">Privacy Policy</a>
+                    <span style="color: #64748b;">|</span>
+                    <a href="/terms-of-service">Terms of Service</a>
+                    <span style="color: #64748b;">|</span>
+                    <a href="/sitemap.xml">Sitemap</a>
+                </div>
             </div>
         `;
 
@@ -2190,13 +2196,113 @@ app.get('/sitemap.xml', (req, res) => {
         { loc: '/', priority: '1.0' },
         { loc: '/mock-tests', priority: '0.9' },
         { loc: '/study-notes', priority: '0.9' },
-        { loc: '/descriptive-papers', priority: '0.8' }
+        { loc: '/descriptive-papers', priority: '0.8' },
+        { loc: '/privacy-policy', priority: '0.5' },
+        { loc: '/terms-of-service', priority: '0.5' }
     ];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
         urls.map(u => `  <url>\n    <loc>${SITE_URL}${u.loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join('\n') +
         `\n</urlset>`;
     res.header('Content-Type', 'application/xml');
     res.send(xml);
+});
+
+app.get('/privacy-policy', (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Pioneers Prep</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=${APP_VERSION}">
+    <link rel="stylesheet" href="/css/style.css?v=${APP_VERSION}">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 0; line-height: 1.7; }
+        .legal-wrap { max-width: 820px; margin: 40px auto; background: #ffffff; padding: 36px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+        h1 { color: #1e3a8a; margin-top: 0; }
+        h2 { color: #0f172a; margin-top: 24px; font-size: 18px; }
+        a.back-home { display: inline-block; margin-bottom: 20px; color: #2563eb; font-weight: 700; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="legal-wrap">
+        <a href="/" class="back-home">&larr; Back to Pioneers Prep Home</a>
+        <h1>Privacy Policy</h1>
+        <p><strong>Effective Date:</strong> November 15, 2026</p>
+        <p>Welcome to <strong>Pioneers Prep</strong> (<a href="https://pioneersprep.in">https://pioneersprep.in</a>), founded and managed by <strong>Aniruddha Banerjee</strong> in Berhampore, Murshidabad, West Bengal. We respect your privacy and are committed to protecting the personal information of our students and users.</p>
+
+        <h2>1. Information We Collect</h2>
+        <p>When you sign in using Google Sign-In or register on Pioneers Prep, we collect only your basic profile details provided by Google: your <strong>full name</strong> and <strong>verified email address</strong>. We also record your mock test submissions, scores, and live classroom participation to generate performance scorecards and leaderboards.</p>
+
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+            <li>To authenticate your student account and maintain secure session access across mock tests, study notes, and live classes.</li>
+            <li>To generate personalized assessment scorecards, question-by-question breakdowns, and competitive leaderboards.</li>
+            <li>To verify access to purchased or whitelisted study materials via Razorpay.</li>
+        </ul>
+
+        <h2>3. Data Protection & Third-Party Sharing</h2>
+        <p>We do <strong>not</strong> sell, rent, or trade your personal data or Google user data to any third parties. Payment transactions are processed securely through Razorpay, and live classroom audio/video streams are transmitted securely over encrypted WebRTC connections.</p>
+
+        <h2>4. Data Retention & Deletion Requests</h2>
+        <p>Your account profile and test records are retained to provide continuous access to your academic progress. You may request complete deletion of your account data at any time by contacting us at <a href="mailto:anibanerjee5@gmail.com">anibanerjee5@gmail.com</a>.</p>
+
+        <h2>5. Contact Us</h2>
+        <p>If you have any questions about this Privacy Policy, please contact:<br>
+        <strong>Aniruddha Banerjee</strong> — Pioneers Prep<br>
+        Email: <a href="mailto:anibanerjee5@gmail.com">anibanerjee5@gmail.com</a><br>
+        Location: Berhampore, Murshidabad, West Bengal, India</p>
+    </div>
+</body>
+</html>`);
+});
+
+app.get('/terms-of-service', (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service — Pioneers Prep</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=${APP_VERSION}">
+    <link rel="stylesheet" href="/css/style.css?v=${APP_VERSION}">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; margin: 0; padding: 0; line-height: 1.7; }
+        .legal-wrap { max-width: 820px; margin: 40px auto; background: #ffffff; padding: 36px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+        h1 { color: #1e3a8a; margin-top: 0; }
+        h2 { color: #0f172a; margin-top: 24px; font-size: 18px; }
+        a.back-home { display: inline-block; margin-bottom: 20px; color: #2563eb; font-weight: 700; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="legal-wrap">
+        <a href="/" class="back-home">&larr; Back to Pioneers Prep Home</a>
+        <h1>Terms of Service</h1>
+        <p><strong>Effective Date:</strong> November 15, 2026</p>
+        <p>By accessing or using <strong>Pioneers Prep</strong> (<a href="https://pioneersprep.in">https://pioneersprep.in</a>), operated by <strong>Aniruddha Banerjee</strong>, you agree to comply with and be bound by the following Terms of Service.</p>
+
+        <h2>1. Use of Educational Portal & Intellectual Property</h2>
+        <p>All mock tests, questions, explanations, study notes (PDFs), descriptive worksheets, and live classroom broadcasts on Pioneers Prep are the exclusive intellectual property of Pioneers Prep and Aniruddha Banerjee. Copying, scraping, screen-recording, redistributing, or sharing portal content is strictly prohibited and protected by forensic watermarking.</p>
+
+        <h2>2. Student Accounts & Conduct</h2>
+        <p>You agree to sign in using your own authentic Google account. Sharing account access across multiple users or attempting to tamper with exam timers, client scripts, or live classroom sessions will result in immediate account suspension.</p>
+
+        <h2>3. Premium Content & Payments</h2>
+        <p>Certain mock tests, study notes, and worksheets require whitelisting or a one-time purchase via Razorpay. Once digital study materials or tests are unlocked or downloaded, fees are non-refundable except in cases of duplicate technical charges.</p>
+
+        <h2>4. Limitation of Liability</h2>
+        <p>Pioneers Prep provides educational preparation materials for ICSE, CBSE, WBCHSE, and NEET students on an "as-is" basis. While we strive for 100% accuracy and uptime, we are not liable for external network interruptions on a user's device during online assessments.</p>
+
+        <h2>5. Contact Information</h2>
+        <p>For support or inquiries regarding these Terms:<br>
+        <strong>Aniruddha Banerjee</strong> — Pioneers Prep<br>
+        Email: <a href="mailto:anibanerjee5@gmail.com">anibanerjee5@gmail.com</a><br>
+        Location: Berhampore, Murshidabad, West Bengal, India</p>
+    </div>
+</body>
+</html>`);
 });
 
 app.get('/ping', (req, res) => res.status(200).send('Awake'));
