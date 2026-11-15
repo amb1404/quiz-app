@@ -4155,7 +4155,12 @@ app.post('/api/live/student/submit', async (req, res) => {
             }
         }
 
+        let sessionReplaced = false;
         await updateBoardSecurely(cleanId, (board) => {
+            if (board[studentName]?.activeSessionId && liveCheck.sessionId && board[studentName].activeSessionId !== liveCheck.sessionId) {
+                sessionReplaced = true;
+                return board;
+            }
             if (!board[studentName]) {
                 board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
             }
@@ -4169,6 +4174,10 @@ app.post('/api/live/student/submit', async (req, res) => {
             };
             return board;
         });
+
+        if (sessionReplaced) {
+            return res.status(409).json({ error: 'Session replaced by a newer login.' });
+        }
 
         await emitAdminBoard(cleanId);
         res.json({ success: true });
@@ -4419,6 +4428,7 @@ io.on("connection", (socket) => {
         socket.join(cleanId);
         socket.studentName = studentName;
         socket.quizId = cleanId;
+        socket.sessionId = liveAuth ? liveAuth.sessionId : '';
 
         await updateBoardSecurely(cleanId, (board) => {
             if (!board[studentName]) {
@@ -4452,6 +4462,11 @@ io.on("connection", (socket) => {
 
     socket.on("leave-room", async ({ immediate } = {}) => {
         if (socket.quizId && socket.studentName) {
+            const rawBoardNow = await stateStore.get(`live:state_board_check:${socket.quizId}`) || await stateStore.get(`live:board:${socket.quizId}`);
+            const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
+            if (socket.sessionId && boardNow[socket.studentName]?.activeSessionId && boardNow[socket.studentName].activeSessionId !== socket.sessionId) {
+                return; // Ignore leave signal from a replaced session
+            }
             const presenceKey = `${socket.quizId}:::${socket.studentName}`;
             liveBackgroundedStudents.delete(presenceKey);
             if (immediate) {
