@@ -83,6 +83,24 @@ window.addEventListener('DOMContentLoaded', () => {
         fetch('/api/live/student/rejoin', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${liveToken}` }
+        })
+        .then(async (r) => {
+            if (r.status === 409) {
+                testActive = false;
+                sessionStorage.removeItem('live_student_session');
+                if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+                alert('You joined this room from another device or browser. This session has been disconnected.');
+                window.location.replace('/live-room');
+                return;
+            }
+            const d = await r.json().catch(() => ({}));
+            if (d && d.studentName) {
+                sessionStorage.setItem('live_student_session', JSON.stringify({
+                    token: liveToken,
+                    quizId: currentQuizId,
+                    studentName: d.studentName
+                }));
+            }
         }).catch(() => {});
 
         startSync();
@@ -256,8 +274,14 @@ if (typeof io !== 'undefined') {
         window.location.replace('/live-room');
     });
 
+    let leaveSignalSent = false;
     function sendInstantLeaveSignal(isBackButton = false) {
-        if (!liveToken) return;
+        if (!liveToken || leaveSignalSent) return;
+        leaveSignalSent = true;
+        setTimeout(() => { leaveSignalSent = false; }, 1000);
+        if (typeof window.stopStudentLiveKit === 'function') {
+            try { window.stopStudentLiveKit(); } catch (e) {}
+        }
         if (socket && socket.connected) {
             socket.emit("leave-room", { immediate: isBackButton });
         }
@@ -414,16 +438,28 @@ function startHeartbeat() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
         if (testActive && currentQuizId && liveToken) {
-            if (socket && socket.connected) {
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            const isHidden = document.visibilityState === 'hidden';
+            if (socket) {
+                if (!socket.connected) socket.connect();
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: isHidden });
             }
             fetch('/api/live/student/rejoin', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${liveToken}` },
                 keepalive: true
+            }).then((r) => {
+                if (r.status === 409) {
+                    testActive = false;
+                    liveToken = "";
+                    currentQuizId = "";
+                    sessionStorage.removeItem('live_student_session');
+                    if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+                    alert("You joined this room from another device or browser. This session has been disconnected.");
+                    window.location.replace('/live-room');
+                }
             }).catch(() => {});
         }
-    }, 15000);
+    }, 10000);
 }
 
 function xorDecipher(b64Str, key) {

@@ -418,6 +418,13 @@ if (typeof io !== 'undefined') {
             return;
         }
 
+        const escHtml = (str) => String(str === null || str === undefined ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
         tbody.innerHTML = entries.map(([studentName, info]) => {
             const ansObj = info.answers ? info.answers[qIdx] : null;
             let statusHtml = '<span style="color: #94a3b8;">⏳ Thinking / Listening...</span>';
@@ -426,23 +433,25 @@ if (typeof io !== 'undefined') {
             if (ansObj) {
                 const badgeColor = ansObj.isCorrect === true ? '#10b981' : (ansObj.isCorrect === false ? '#ef4444' : '#3b82f6');
                 const icon = ansObj.isCorrect === true ? '✅' : (ansObj.isCorrect === false ? '❌' : '☑️');
-                statusHtml = `<span style="color: ${badgeColor}; font-weight: bold;">${icon} ${ansObj.optionLabel || ('Option ' + (ansObj.answer + 1))}</span>`;
-                speedHtml = `<span class="time-badge">${ansObj.timeSec}s</span>`;
+                const safeOptionText = escHtml(ansObj.optionLabel || ('Option ' + (ansObj.answer + 1)));
+                statusHtml = `<span style="color: ${badgeColor}; font-weight: bold;">${icon} ${safeOptionText}</span>`;
+                speedHtml = `<span class="time-badge">${escHtml(ansObj.timeSec)}s</span>`;
             }
 
             const isMuted = info.muted === true;
             const muteAction = isMuted ? 'unmute' : 'mute';
             const muteLabel = isMuted ? '🔇 Unmute' : '🎙️ Mute';
             const muteBg = isMuted ? '#64748b' : '#f59e0b';
+            const safeStudent = escHtml(studentName);
 
             return `
                 <tr>
-                    <td style="font-weight: bold;">${studentName}</td>
+                    <td style="font-weight: bold;">${safeStudent}</td>
                     <td>${statusHtml}</td>
                     <td>${speedHtml}</td>
                     <td style="display: flex; gap: 8px; align-items: center;">
-                        <button class="btn-student-moderate" data-student="${studentName}" data-action="${muteAction}" style="background: ${muteBg}; padding: 6px 12px; font-size: 12px;">${muteLabel}</button>
-                        <button class="btn-student-moderate" data-student="${studentName}" data-action="kick" style="background: #dc2626; padding: 6px 12px; font-size: 12px;">Remove</button>
+                        <button class="btn-student-moderate" data-student="${safeStudent}" data-action="${muteAction}" style="background: ${muteBg}; padding: 6px 12px; font-size: 12px;">${muteLabel}</button>
+                        <button class="btn-student-moderate" data-student="${safeStudent}" data-action="kick" style="background: #dc2626; padding: 6px 12px; font-size: 12px;">Remove</button>
                     </td>
                 </tr>
             `;

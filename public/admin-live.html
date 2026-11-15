@@ -200,6 +200,8 @@
     });
 let videoEnabled = false;
     let audioEnabled = false;
+    let isVideoToggling = false;
+    let isAudioToggling = false;
     let broadcastMode = 'question';
     let currentCamTrack = null;
     let currentMicTrack = null;
@@ -234,8 +236,55 @@ let videoEnabled = false;
         }
     }
 
+    async function republishAdminActiveTracks() {
+        if (room.state !== 'connected') return;
+        try {
+            if (audioEnabled && currentMicTrack && currentMicTrack.readyState === 'live') {
+                const alreadyPub = Array.from(room.localParticipant.audioTrackPublications.values())
+                    .some(p => p.track === currentMicTrack);
+                if (!alreadyPub) {
+                    await room.localParticipant.publishTrack(currentMicTrack, {
+                        name: 'mic',
+                        dtx: false,
+                        red: true
+                    });
+                }
+            }
+            if (videoEnabled && currentCamTrack && currentCamTrack.readyState === 'live') {
+                const alreadyPub = Array.from(room.localParticipant.videoTrackPublications.values())
+                    .some(p => p.track === currentCamTrack);
+                if (!alreadyPub) {
+                    await room.localParticipant.publishTrack(currentCamTrack, {
+                        name: 'camera',
+                        simulcast: false,
+                        degradationPreference: 'maintain-resolution',
+                        videoEncoding: { maxBitrate: 3_000_000, maxFramerate: 30 }
+                    });
+                }
+            }
+            if (currentScreenTrack && currentScreenTrack.readyState === 'live') {
+                const alreadyPub = Array.from(room.localParticipant.videoTrackPublications.values())
+                    .some(p => p.track === currentScreenTrack);
+                if (!alreadyPub) {
+                    await room.localParticipant.publishTrack(currentScreenTrack, {
+                        name: 'screen',
+                        source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
+                        simulcast: false,
+                        degradationPreference: 'maintain-resolution',
+                        videoEncoding: { maxBitrate: 3_500_000, maxFramerate: 30 },
+                        screenShareEncoding: { maxBitrate: 3_500_000, maxFramerate: 30 }
+                    });
+                }
+            }
+        } catch (e) {}
+    }
+
+    room.on(LivekitClient.RoomEvent.Reconnected, () => {
+        republishAdminActiveTracks();
+    });
+
     async function ensureRoomConnected(quizId) {
-        if (room.state === 'connected') return;
+        if (room.state === 'connected' || room.state === 'connecting' || room.state === 'reconnecting') return;
         if (connectingPromise) return await connectingPromise;
 
         connectingPromise = (async () => {
@@ -244,6 +293,7 @@ let videoEnabled = false;
             const { token } = await res.json();
             await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
             try { await room.startAudio(); } catch (e) {}
+            await republishAdminActiveTracks();
         })();
 
         try {
@@ -253,14 +303,18 @@ let videoEnabled = false;
         }
     }
 
-    // Automatically connect Admin to LiveKit as soon as a room is active (even before Admin turns on cam/mic)
+    // Automatically connect Admin to LiveKit and verify active tracks stay published
     setInterval(() => {
         const { adminKey, quizId } = getAdminCreds();
         const controlPanel = document.getElementById('control-panel');
         if (adminKey && quizId && controlPanel && controlPanel.style.display !== 'none') {
-            ensureRoomConnected(quizId).catch(() => {});
+            if (room.state === 'disconnected') {
+                ensureRoomConnected(quizId).catch(() => {});
+            } else if (room.state === 'connected') {
+                republishAdminActiveTracks();
+            }
         }
-    }, 2500);
+    }, 3000);
 
     // Unlock browser WebRTC audio playback on any Admin dashboard interaction
     document.addEventListener('click', () => {
@@ -389,9 +443,11 @@ let videoEnabled = false;
 
     // 1. Dedicated Camera Button Handler (Never calls getDisplayMedia)
     document.getElementById('btn-admin-video').addEventListener('click', async () => {
+        if (isVideoToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
 
+        isVideoToggling = true;
         try {
             if (!videoEnabled) {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -421,8 +477,8 @@ let videoEnabled = false;
                         maxFramerate: 30
                     }
                 });
-            document.getElementById('admin-self-video').srcObject = stream;
-            videoEnabled = true;
+                document.getElementById('admin-self-video').srcObject = stream;
+                videoEnabled = true;
             } else {
                 if (currentCamTrack) {
                     if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
@@ -437,20 +493,22 @@ let videoEnabled = false;
             videoEnabled = false;
             updateMediaButtonsUI();
             alert("Camera Error: " + err.message);
+        } finally {
+            isVideoToggling = false;
         }
     });
 
-    // Anti-Thump WebAudio Pipeline State
-    let micAudioCtx = null;
-    let micGainNode = null;
     let rawMicStream = null;
     let micMuteTimeout = null;
+    let isMicToggling = false;
 
-    // 2. Dedicated Microphone Button Handler (Soft-Start & Anti-Thump Filtered)
+    // 2. Dedicated Hardware Microphone Button Handler (Immune to GC & Background Window Suspension)
     document.getElementById('btn-admin-audio').addEventListener('click', async () => {
+        if (isMicToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
 
+        isMicToggling = true;
         try {
             if (micMuteTimeout) {
                 clearTimeout(micMuteTimeout);
@@ -460,13 +518,8 @@ let videoEnabled = false;
             if (!audioEnabled) {
                 await ensureRoomConnected(quizId);
 
-                const hasLivePipeline = currentMicTrack &&
-                    currentMicTrack.readyState === 'live' &&
-                    rawMicStream &&
-                    rawMicStream.getAudioTracks()[0] &&
-                    rawMicStream.getAudioTracks()[0].readyState === 'live';
-
-                if (!hasLivePipeline) {
+                const hasLiveTrack = currentMicTrack && currentMicTrack.readyState === 'live';
+                if (!hasLiveTrack) {
                     rawMicStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
                             echoCancellation: true,
@@ -474,70 +527,35 @@ let videoEnabled = false;
                             autoGainControl: true
                         }
                     });
+                    currentMicTrack = rawMicStream.getAudioTracks()[0];
+                    currentMicTrack.enabled = false; // Muted for first 120ms to suppress hardware wake-up click
 
-                    if (!micAudioCtx) {
-                        micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    }
-                    if (micAudioCtx.state === 'suspended') {
-                        await micAudioCtx.resume();
-                    }
+                    currentMicTrack.onended = () => {
+                        if (audioEnabled) {
+                            currentMicTrack = null;
+                            audioEnabled = false;
+                            updateMediaButtonsUI();
+                        }
+                    };
 
-                    const source = micAudioCtx.createMediaStreamSource(rawMicStream);
-
-                    // 85 Hz High-Pass Filter removes low-end hardware thumps & DC offset pops
-                    const highpass = micAudioCtx.createBiquadFilter();
-                    highpass.type = 'highpass';
-                    highpass.frequency.value = 85;
-                    highpass.Q.value = 0.707;
-
-                    // Start gain at 0 (silent) so the initial hardware wake-up transient is muted
-                    micGainNode = micAudioCtx.createGain();
-                    micGainNode.gain.setValueAtTime(0.0001, micAudioCtx.currentTime);
-
-                    const dest = micAudioCtx.createMediaStreamDestination();
-                    source.connect(highpass);
-                    highpass.connect(micGainNode);
-                    micGainNode.connect(dest);
-
-                    currentMicTrack = dest.stream.getAudioTracks()[0];
-                    await room.localParticipant.publishTrack(currentMicTrack, { name: 'mic' });
-                } else {
-                    if (micAudioCtx && micAudioCtx.state === 'suspended') {
-                        await micAudioCtx.resume();
-                    }
-                    // Lock gain at 0 before waking the raw mic track
-                    const now = micAudioCtx.currentTime;
-                    micGainNode.gain.cancelScheduledValues(now);
-                    micGainNode.gain.setValueAtTime(0.0001, now);
-                    rawMicStream.getAudioTracks().forEach(t => { t.enabled = true; });
+                    await room.localParticipant.publishTrack(currentMicTrack, {
+                        name: 'mic',
+                        dtx: false,
+                        red: true
+                    });
                 }
 
-                // Wait 120ms for the hardware unmute pop to pass, then smoothly fade in over 180ms
                 micMuteTimeout = setTimeout(() => {
-                    if (micAudioCtx && micGainNode && audioEnabled) {
-                        const now = micAudioCtx.currentTime;
-                        micGainNode.gain.cancelScheduledValues(now);
-                        micGainNode.gain.setValueAtTime(0.0001, now);
-                        micGainNode.gain.linearRampToValueAtTime(1.0, now + 0.18);
+                    if (currentMicTrack && audioEnabled) {
+                        currentMicTrack.enabled = true;
                     }
                 }, 120);
 
                 audioEnabled = true;
             } else {
-                // Smoothly fade out over 60ms before disabling raw mic capture (zero pop)
-                if (micAudioCtx && micGainNode) {
-                    const now = micAudioCtx.currentTime;
-                    micGainNode.gain.cancelScheduledValues(now);
-                    micGainNode.gain.setValueAtTime(micGainNode.gain.value, now);
-                    micGainNode.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+                if (currentMicTrack) {
+                    currentMicTrack.enabled = false;
                 }
-
-                micMuteTimeout = setTimeout(() => {
-                    if (!audioEnabled && rawMicStream) {
-                        rawMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
-                    }
-                }, 70);
-
                 audioEnabled = false;
             }
             updateMediaButtonsUI();
@@ -545,6 +563,8 @@ let videoEnabled = false;
             audioEnabled = false;
             updateMediaButtonsUI();
             alert("Microphone Error: " + err.message);
+        } finally {
+            isMicToggling = false;
         }
     });
 

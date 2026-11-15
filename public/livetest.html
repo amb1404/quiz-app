@@ -297,6 +297,7 @@
                 activeAudioEl = null;
             }
         }
+        setTimeout(reattachAllAdminFeeds, 150);
     });
 
     room.on(LivekitClient.RoomEvent.Reconnected, () => {
@@ -362,6 +363,9 @@
     setInterval(() => {
         if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
             connectLiveKit(currentQuizId);
+            if (room.state === 'connected') {
+                reattachAllAdminFeeds();
+            }
         }
     }, 2500);
 

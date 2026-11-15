@@ -4014,6 +4014,11 @@ app.post('/api/live/student/verify', async (req, res) => {
 
         // Kick any previous device/browser session for this same email in real time
         const presenceKey = `${cleanId}:::${studentName}`;
+        liveBackgroundedStudents.delete(presenceKey);
+        if (liveDisconnectTimers.has(presenceKey)) {
+            clearTimeout(liveDisconnectTimers.get(presenceKey));
+            liveDisconnectTimers.delete(presenceKey);
+        }
         const existingSockets = liveStudentSockets.get(presenceKey);
         if (existingSockets && existingSockets.size > 0) {
             for (const oldSocketId of existingSockets) {
@@ -4021,7 +4026,12 @@ app.post('/api/live/student/verify', async (req, res) => {
                     reason: 'You joined this room from another device or browser tab. Your previous session has been disconnected.'
                 });
                 const sObj = io.sockets.sockets.get(oldSocketId);
-                if (sObj) sObj.leave(cleanId);
+                if (sObj) {
+                    sObj.quizId = null;
+                    sObj.studentName = null;
+                    sObj.sessionId = null;
+                    sObj.leave(cleanId);
+                }
             }
             existingSockets.clear();
         }
@@ -4069,10 +4079,10 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     }
 
     await emitAdminBoard(cleanId);
-    res.json({ success: true });
+    res.json({ success: true, studentName });
 });
 
-// Instant removal beacon when student closes tab, closes browser, or presses Back
+// Instant removal beacon when student closes tab or closes browser
 app.post('/api/live/student/leave', async (req, res) => {
     try {
         const rawToken = extractAuthToken(req) || (req.body && req.body.token) || '';
@@ -4091,7 +4101,7 @@ app.post('/api/live/student/leave', async (req, res) => {
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
         }
-        if (typeof liveStudentSockets !== 'undefined') {
+        if (req.body && req.body.immediate && typeof liveStudentSockets !== 'undefined') {
             liveStudentSockets.delete(presenceKey);
         }
 
@@ -4100,7 +4110,6 @@ app.post('/api/live/student/leave', async (req, res) => {
                 clearTimeout(liveDisconnectTimers.get(presenceKey));
                 liveDisconnectTimers.delete(presenceKey);
             }
-            const isBackBtn = Boolean(req.body && req.body.immediate);
             const removeStudentNow = async () => {
                 liveDisconnectTimers.delete(presenceKey);
                 if (typeof liveStudentSockets !== 'undefined' && liveStudentSockets.has(presenceKey)) return;
@@ -4280,8 +4289,8 @@ app.get('/api/livekit/token', async (req, res) => {
         const rawName = String(studentName || 'user').trim();
         const isAdmin = rawName.toLowerCase() === 'admin';
         const safeStudentName = rawName.replace(/^admin/i, 'student').trim() || 'Student';
-        const randSuffix = Math.random().toString(36).substring(2, 6);
-        const identity = isAdmin ? `admin_${randSuffix}` : `${safeStudentName}_${randSuffix}`;
+        const randSuffix = crypto.randomBytes(2).toString('hex');
+        const identity = isAdmin ? 'admin' : `${safeStudentName}_${randSuffix}`;
 
         const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
             identity,
@@ -4333,7 +4342,7 @@ const { Server } = require("socket.io");
 const io = new Server(server, {
     cors: { origin: "*" },
     pingInterval: 10000,
-    pingTimeout: 5000
+    pingTimeout: 20000
 });
 
 // Tracks active socket IDs, refresh timers, and infinite background/minimized state per student
@@ -4354,7 +4363,7 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
     // If the student still has another active socket open in the room, keep them online
     if (liveStudentSockets.has(presenceKey)) return;
 
-    // CRITICAL: If student minimized the app or switched tabs (not an explicit close/back), keep them in the room infinitely
+    // CRITICAL: If student minimized the app or switched tabs (not an explicit close), keep them in the room infinitely
     if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) {
         return;
     }
@@ -4364,6 +4373,13 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
         if (liveStudentSockets.has(presenceKey)) return;
         if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) return;
         try {
+            const rawBoardNow = await stateStore.get(`live:board:${cleanId}`);
+            const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
+            const rec = boardNow[studentName];
+            // If HTTP heartbeat updated lastSeenAt within the last 25s (and this wasn't an explicit tab close), keep them online
+            if (!isExplicitExit && rec && rec.lastSeenAt && (Date.now() - rec.lastSeenAt) < 25000) {
+                return;
+            }
             await updateBoardSecurely(cleanId, (board) => {
                 if (board[studentName]) {
                     board[studentName].disconnected = true;
@@ -4384,13 +4400,14 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
         const timer = setTimeout(markOffline, 600);
         liveDisconnectTimers.set(presenceKey, timer);
     } else {
-        const timer = setTimeout(markOffline, 2000);
+        // 35s grace window for unintentional mobile network drops (allows 2 full 15s heartbeats to recover)
+        const timer = setTimeout(markOffline, 35000);
         liveDisconnectTimers.set(presenceKey, timer);
     }
 }
 
 io.on("connection", (socket) => {
-    socket.on("join-room", async ({ quizId, token }) => {
+    socket.on("join-room", async ({ quizId, token, hidden }) => {
         const cleanId = path.basename(String(quizId || '')).trim();
         if (!cleanId) return;
 
@@ -4413,7 +4430,11 @@ io.on("connection", (socket) => {
         }
 
         const presenceKey = `${cleanId}:::${studentName}`;
-        liveBackgroundedStudents.delete(presenceKey);
+        if (hidden === true) {
+            liveBackgroundedStudents.add(presenceKey);
+        } else if (hidden === false) {
+            liveBackgroundedStudents.delete(presenceKey);
+        }
 
         if (liveDisconnectTimers.has(presenceKey)) {
             clearTimeout(liveDisconnectTimers.get(presenceKey));
@@ -4430,19 +4451,23 @@ io.on("connection", (socket) => {
         socket.quizId = cleanId;
         socket.sessionId = liveAuth ? liveAuth.sessionId : '';
 
+        let neededReconnectFix = false;
         await updateBoardSecurely(cleanId, (board) => {
             if (!board[studentName]) {
                 board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+                neededReconnectFix = true;
             }
             if (!board[studentName].kicked) {
+                if (board[studentName].disconnected) neededReconnectFix = true;
                 board[studentName].disconnected = false;
+                board[studentName].lastSeenAt = Date.now();
             }
             return board;
         });
 
         const payload = await buildLiveStatePayload(cleanId, studentName);
         if (payload) socket.emit("room-state", payload);
-        await emitAdminBoard(cleanId);
+        if (neededReconnectFix) await emitAdminBoard(cleanId);
     });
 
     // Locks student in the room infinitely when they minimize the app or switch tabs
@@ -4462,7 +4487,7 @@ io.on("connection", (socket) => {
 
     socket.on("leave-room", async ({ immediate } = {}) => {
         if (socket.quizId && socket.studentName) {
-            const rawBoardNow = await stateStore.get(`live:state_board_check:${socket.quizId}`) || await stateStore.get(`live:board:${socket.quizId}`);
+            const rawBoardNow = await stateStore.get(`live:board:${socket.quizId}`);
             const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
             if (socket.sessionId && boardNow[socket.studentName]?.activeSessionId && boardNow[socket.studentName].activeSessionId !== socket.sessionId) {
                 return; // Ignore leave signal from a replaced session
@@ -4488,6 +4513,11 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", async () => {
         if (socket.quizId && socket.studentName) {
+            const rawBoardNow = await stateStore.get(`live:board:${socket.quizId}`);
+            const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
+            if (socket.sessionId && boardNow[socket.studentName]?.activeSessionId && boardNow[socket.studentName].activeSessionId !== socket.sessionId) {
+                return;
+            }
             await handleStudentDeparture(socket.quizId, socket.studentName, socket.id, false);
         }
     });
