@@ -4098,10 +4098,11 @@ app.post('/api/live/student/leave', async (req, res) => {
             return res.json({ success: true, ignoredStaleSession: true });
         }
 
+        const isBackBtn = Boolean(req.body && req.body.immediate);
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
         }
-        if (req.body && req.body.immediate && typeof liveStudentSockets !== 'undefined') {
+        if (isBackBtn && typeof liveStudentSockets !== 'undefined') {
             liveStudentSockets.delete(presenceKey);
         }
 
