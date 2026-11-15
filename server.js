@@ -3254,6 +3254,14 @@ app.post('/api/auth/google', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Missing Google authentication token.' });
         }
 
+        // Single-use replay lock: burn this Google token in Redis for 1 hour so it can never be reused
+        const rawGoogleToken = String(accessToken || credential || '');
+        const googleTokenHash = crypto.createHash('sha256').update(rawGoogleToken).digest('hex');
+        const isFreshGoogleToken = await stateStore.setNx(`used:gtoken:${googleTokenHash}`, '1', 3600);
+        if (!isFreshGoogleToken) {
+            return res.status(401).json({ success: false, error: 'Security Alert: This Google sign-in token has already been used.' });
+        }
+
         // Always use and sync the student's verified Google Account name
         const finalFirstName = googleFirstName || 'STUDENT';
         const finalLastName = googleLastName || '.';
