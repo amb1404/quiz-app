@@ -262,15 +262,25 @@ if (typeof io !== 'undefined') {
         } catch (e) {}
     }
 
-    // 1. Back Button: 0ms instant removal from roster + exit room
+    // 1. Back Button: Keep student in the room (prevent exit and maintain active roster status)
     window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
     window.addEventListener("popstate", () => {
         if (testActive) {
-            sendInstantLeaveSignal(true);
-            testActive = false;
-            sessionStorage.removeItem('live_student_session');
-            if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
-            window.location.replace('/');
+            try {
+                window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
+            } catch (e) {}
+            if (socket && currentQuizId && liveToken) {
+                if (!socket.connected) socket.connect();
+                socket.emit("student-visibility", { hidden: false });
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+            }
+            if (liveToken) {
+                fetch('/api/live/student/rejoin', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${liveToken}` },
+                    keepalive: true
+                }).catch(() => {});
+            }
         }
     });
 
