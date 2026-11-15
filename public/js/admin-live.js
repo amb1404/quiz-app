@@ -409,10 +409,16 @@ if (typeof io !== 'undefined') {
 
     socket.on("admin-board", (data) => {
         if (!data || !data.board) return;
+        window.latestAdminBoard = data.board;
         const tbody = document.getElementById('board-body');
         if (!tbody) return;
 
         const qIdx = Number(data.currentIndex) || 0;
+        Object.entries(data.board).forEach(([sName, info]) => {
+            if ((info.kicked || info.disconnected || info.muted) && typeof window.cutStudentAudioImmediately === 'function') {
+                window.cutStudentAudioImmediately(sName);
+            }
+        });
         const entries = Object.entries(data.board).filter(([_, info]) => !info.kicked && !info.disconnected);
 
         if (entries.length === 0) {

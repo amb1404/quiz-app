@@ -213,6 +213,10 @@
                 document.body.classList.add('rtc-stream-active');
             }
         } else if (track.kind === 'audio') {
+            const pipBox = document.getElementById('student-pip-box');
+            if (pipBox) pipBox.style.display = 'flex';
+            document.body.classList.add('rtc-stream-active');
+
             // Do not detach and recreate <audio> if this track is already attached
             if (activeAudioEl && Array.isArray(track.attachedElements) && track.attachedElements.includes(activeAudioEl)) {
                 if (activeAudioEl.paused) ensureAdminAudioPlaying();
@@ -226,8 +230,6 @@
             activeAudioEl.playsInline = true;
             track.attach(activeAudioEl);
             document.body.appendChild(activeAudioEl);
-            const pipBox = document.getElementById('student-pip-box');
-            if (pipBox) pipBox.style.display = 'flex';
 
             ensureAdminAudioPlaying();
         }
@@ -315,8 +317,21 @@
         setTimeout(reattachAllAdminFeeds, 150);
     });
 
-    room.on(LivekitClient.RoomEvent.Reconnected, () => {
+    room.on(LivekitClient.RoomEvent.Reconnected, async () => {
         reattachAllAdminFeeds();
+        if (studentMicTrack && studentMicTrack.readyState === 'live' && !window.studentMutedByAdmin) {
+            try {
+                const alreadyPub = Array.from(room.localParticipant.audioTrackPublications.values())
+                    .some(p => p.track === studentMicTrack);
+                if (!alreadyPub) {
+                    await room.localParticipant.publishTrack(studentMicTrack, {
+                        name: 'student_mic',
+                        dtx: false,
+                        red: true
+                    });
+                }
+            } catch (e) {}
+        }
     });
 
     document.getElementById('btn-unmute-hint').addEventListener('click', async (e) => {
@@ -477,19 +492,57 @@
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
                 });
                 studentMicTrack = studentMicStream.getAudioTracks()[0];
+                studentMicTrack.onended = async () => {
+                    await stopStudentMicOnly();
+                    const callBtn = document.getElementById('btn-student-call');
+                    if (callBtn && !window.studentMutedByAdmin) {
+                        callBtn.textContent = '📞 Speak';
+                        callBtn.classList.remove('on-call');
+                    }
+                    await ensureAdminAudioPlaying();
+                };
                 await room.localParticipant.publishTrack(studentMicTrack, {
                     name: 'student_mic',
-                    dtx: true,
+                    dtx: false,
                     red: true
                 });
                 e.target.textContent = '🔴 Mute Mic';
                 e.target.classList.add('on-call');
                 await ensureAdminAudioPlaying();
+                setTimeout(() => {
+                    try {
+                        room.remoteParticipants.forEach((p) => {
+                            if (isAdminParticipant(p)) {
+                                p.audioTrackPublications.forEach((pub) => {
+                                    if (pub.track && activeAudioEl) pub.track.detach(activeAudioEl);
+                                });
+                            }
+                        });
+                        if (activeAudioEl) activeAudioEl.remove();
+                    } catch (err) {}
+                    activeAudioEl = null;
+                    reattachAllAdminFeeds();
+                }, 450);
+                setTimeout(ensureAdminAudioPlaying, 1000);
             } else {
                 await stopStudentMicOnly();
                 e.target.textContent = '📞 Speak';
                 e.target.classList.remove('on-call');
                 await ensureAdminAudioPlaying();
+                setTimeout(() => {
+                    try {
+                        room.remoteParticipants.forEach((p) => {
+                            if (isAdminParticipant(p)) {
+                                p.audioTrackPublications.forEach((pub) => {
+                                    if (pub.track && activeAudioEl) pub.track.detach(activeAudioEl);
+                                });
+                            }
+                        });
+                        if (activeAudioEl) activeAudioEl.remove();
+                    } catch (err) {}
+                    activeAudioEl = null;
+                    reattachAllAdminFeeds();
+                }, 450);
             }
         } catch (err) {
             await stopStudentMicOnly();

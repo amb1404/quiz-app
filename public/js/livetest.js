@@ -205,6 +205,9 @@ function applyBroadcastModeUI(mode) {
         if (presScreen) presScreen.style.display = 'block';
         if (quizScreen) quizScreen.style.display = 'block';
     } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
         if (presScreen) presScreen.style.display = 'none';
         if (quizScreen && testActive) quizScreen.style.display = 'block';
     }
@@ -374,6 +377,9 @@ if (typeof io !== 'undefined') {
         if (data.status === 'ended') {
             testActive = false;
             sessionStorage.removeItem('live_student_session');
+            if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
             if (typeof window.stopStudentLiveKit === 'function') {
                 window.stopStudentLiveKit();
             }
@@ -443,10 +449,9 @@ function startHeartbeat() {
     heartbeatTimer = setInterval(() => {
         if (testActive && currentQuizId && liveToken) {
             const isHidden = document.visibilityState === 'hidden';
-            if (socket && !socket.connected) {
-                socket.connect();
-            } else if (socket && isHidden) {
-                socket.emit("student-visibility", { hidden: true });
+            if (socket) {
+                if (!socket.connected) socket.connect();
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: isHidden });
             }
             fetch('/api/live/student/rejoin', {
                 method: 'POST',
@@ -512,6 +517,23 @@ function renderQuestion(data) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
                 body: JSON.stringify({ index: localIndex, answer: idx })
+            }).then(r => {
+                if (r.status === 409) {
+                    testActive = false;
+                    sessionStorage.removeItem('live_student_session');
+                    if (typeof window.stopStudentLiveKit === 'function') window.stopStudentLiveKit();
+                    alert("You joined this room from another device or browser. This session has been disconnected.");
+                    window.location.replace('/live-room');
+                } else if (!r.ok) {
+                    throw new Error('Submit failed');
+                }
+            }).catch(() => {
+                btn.classList.remove('selected');
+                document.querySelectorAll('.opt-btn').forEach(b => {
+                    b.disabled = false;
+                    b.classList.remove('locked');
+                });
+                alert("Network connection unstable. Please tap your answer again.");
             });
         };
         optsBox.appendChild(btn);

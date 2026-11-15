@@ -332,7 +332,14 @@ let videoEnabled = false;
             const rawIdentity = String(participant.identity || '').trim();
             if (/^admin(_|$)/i.test(rawIdentity)) return;
 
-            const studentBaseName = rawIdentity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+            const studentDisplay = rawIdentity.replace(/_[a-z0-9]{4}$/i, '').trim();
+            const rec = window.latestAdminBoard && window.latestAdminBoard[studentDisplay];
+            if (rec && (rec.muted || rec.kicked || rec.disconnected)) {
+                try { if (typeof publication.setSubscribed === 'function') publication.setSubscribed(false); } catch (e) {}
+                return;
+            }
+
+            const studentBaseName = studentDisplay.toLowerCase();
             for (const [idKey, oldEl] of activeStudentAudioEls.entries()) {
                 const keyBaseName = idKey.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
                 if (idKey === rawIdentity || keyBaseName === studentBaseName) {

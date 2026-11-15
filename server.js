@@ -779,7 +779,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
         const clientIntegrationScript = `<script nonce="${nonce}">
             (function() {
-                if (typeof MainNav !== 'undefined') {
+                var baseRoute = '${canonicalBaseRoute}';
+                if (typeof MainNav !== 'undefined') {s
                     MainNav.normalizeRoute = function(route) {
                         if (!route) return '/';
                         var r = String(route).toLowerCase();
@@ -3753,11 +3754,31 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
     return out;
 }
 
-async function emitRoomStateToAll(cleanId) {
-    const payload = await buildLiveStatePayload(cleanId);
-    if (payload) {
-        io.to(cleanId).emit('room-state', payload);
-        io.to(`admin-${cleanId}`).emit('room-state', payload);
+async function emitRoomStateToAll(cleanId, forceRefresh = false) {
+    const basePayload = await buildLiveStatePayload(cleanId);
+    if (!basePayload) return;
+    if (forceRefresh) basePayload.forceRefresh = true;
+
+    io.to(`admin-${cleanId}`).emit('room-state', basePayload);
+
+    const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+    const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+    const roomSockets = io.sockets.adapter.rooms.get(cleanId);
+
+    if (roomSockets) {
+        for (const socketId of roomSockets) {
+            const sObj = io.sockets.sockets.get(socketId);
+            const sName = sObj ? sObj.studentName : null;
+            const rec = (sName && board[sName]) ? board[sName] : null;
+            io.to(socketId).emit('room-state', {
+                ...basePayload,
+                muted: rec ? Boolean(rec.muted) : false,
+                kicked: rec ? Boolean(rec.kicked) : false,
+                savedAnswer: (rec && rec.answers && rec.answers[basePayload.currentIndex] !== undefined)
+                    ? rec.answers[basePayload.currentIndex].answer
+                    : null
+            });
+        }
     }
 }
 
@@ -3930,11 +3951,7 @@ app.post('/api/live/admin/clear-question', async (req, res) => {
             return board;
         });
 
-        const payload = await buildLiveStatePayload(cleanId);
-        if (payload) {
-            payload.forceRefresh = true;
-            io.to(cleanId).emit('room-state', payload);
-        }
+        await emitRoomStateToAll(cleanId, true);
         await emitAdminBoard(cleanId);
         res.json({ success: true });
     } catch (err) {
@@ -4103,12 +4120,27 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     let replaced = false;
     let reconnectedNow = false;
     await updateBoardSecurely(cleanId, (lockedBoard) => {
-        const lockedRec = lockedBoard[studentName];
-        if (lockedRec && lockedRec.activeSessionId && liveCheck.sessionId && lockedRec.activeSessionId !== liveCheck.sessionId) {
+        let lockedRec = lockedBoard[studentName];
+        if (!lockedRec) {
+            lockedRec = {
+                joinedAt: Date.now(),
+                answers: {},
+                muted: false,
+                kicked: false,
+                email: liveCheck.email || '',
+                activeSessionId: liveCheck.sessionId || '',
+                disconnected: false,
+                lastSeenAt: Date.now()
+            };
+            lockedBoard[studentName] = lockedRec;
+            reconnectedNow = true;
+            return lockedBoard;
+        }
+        if (lockedRec.activeSessionId && liveCheck.sessionId && lockedRec.activeSessionId !== liveCheck.sessionId) {
             replaced = true;
             return lockedBoard;
         }
-        if (lockedRec && !lockedRec.kicked) {
+        if (!lockedRec.kicked) {
             if (lockedRec.disconnected) reconnectedNow = true;
             lockedRec.disconnected = false;
             lockedRec.lastSeenAt = Date.now();
@@ -4193,7 +4225,10 @@ app.post('/api/live/student/submit', async (req, res) => {
 
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        const qStart = (state && state.questionStartTime) ? state.questionStartTime : Date.now() - 2000;
+        if (!state || state.status !== 'active' || Number(index) !== Number(state.currentIndex)) {
+            return res.status(400).json({ error: 'Question is no longer active for submission.' });
+        }
+        const qStart = state.questionStartTime ? state.questionStartTime : Date.now() - 2000;
         const timeSec = Math.max(0.1, ((Date.now() - qStart) / 1000)).toFixed(1);
 
         let isCorrect = null;
@@ -4218,14 +4253,17 @@ app.post('/api/live/student/submit', async (req, res) => {
             if (!board[studentName]) {
                 board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
             }
+            if (board[studentName].kicked) return board;
             board[studentName].answers = board[studentName].answers || {};
-            board[studentName].answers[index] = {
-                answer: Number(answer),
-                optionLabel,
-                isCorrect,
-                timeSec,
-                submittedAt: Date.now()
-            };
+            if (board[studentName].answers[index] === undefined) {
+                board[studentName].answers[index] = {
+                    answer: Number(answer),
+                    optionLabel,
+                    isCorrect,
+                    timeSec,
+                    submittedAt: Date.now()
+                };
+            }
             return board;
         });
 
@@ -4346,14 +4384,18 @@ app.get('/api/livekit/token', async (req, res) => {
 
         if (!isAdmin) {
             const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
-            if (liveCheck && liveCheck.studentName) {
-                resolvedStudentName = liveCheck.studentName;
+            if (!liveCheck || liveCheck.quizId !== cleanId) {
+                return res.status(401).json({ error: "Unauthorized live room session." });
             }
+            resolvedStudentName = liveCheck.studentName;
             const rawBoard = await stateStore.get(`live:board:${cleanId}`);
             const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
             const studentRec = board[resolvedStudentName];
-            if (studentRec && studentRec.kicked) {
-                return res.status(403).json({ error: "Removed from room." });
+            if (studentRec) {
+                if (studentRec.kicked) return res.status(403).json({ error: "Removed from room." });
+                if (studentRec.activeSessionId && liveCheck.sessionId && studentRec.activeSessionId !== liveCheck.sessionId) {
+                    return res.status(409).json({ error: "Session replaced by a newer login." });
+                }
             }
         }
 
