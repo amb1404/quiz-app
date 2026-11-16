@@ -1878,9 +1878,17 @@ function getAllJsonFiles(dir, fileList = []) {
 function getCachedQuizFiles() {
     const now = Date.now();
     if (fsCache.quizPaths.data && now < fsCache.quizPaths.expiresAt) return fsCache.quizPaths.data;
+    
     const quizzesDir = path.join(__dirname, 'quizzes');
     if (!fs.existsSync(quizzesDir)) fs.mkdirSync(quizzesDir, { recursive: true });
-    const files = getAllJsonFiles(quizzesDir);
+    let files = getAllJsonFiles(quizzesDir);
+
+    // Recursively scan the descriptive folder for JSON tests so they can be executed by the quiz engine
+    const descDir = path.join(__dirname, 'descriptive');
+    if (fs.existsSync(descDir)) {
+        files = files.concat(getAllJsonFiles(descDir));
+    }
+
     fsCache.quizPaths = { data: files, expiresAt: now + CACHE_TTL_MS };
     return files;
 }
@@ -1996,7 +2004,8 @@ function getCachedDescFiles() {
         const cDir = path.join(descDir, c);
         if (!fs.existsSync(cDir)) fs.mkdirSync(cDir, { recursive: true });
     });
-    const files = getAllPdfFiles(descDir);
+    let files = getAllPdfFiles(descDir);
+    files = files.concat(getAllJsonFiles(descDir));
     fsCache.descPaths = { data: files, expiresAt: now + CACHE_TTL_MS };
     return files;
 }
@@ -2782,7 +2791,29 @@ app.get('/api/descriptive-questions', (req, res) => {
             if (lowerPath.includes('physics')) subject = 'Physics';
             else if (lowerPath.includes('chemistry')) subject = 'Chemistry';
 
-            const itemMeta = parsePdfMetadata(fileName);
+            let itemMeta;
+            if (fileName.toLowerCase().endsWith('.json')) {
+                const c = getCachedQuizContent(fullPath);
+                const fileBase = fileName.replace(/\.json$/i, '');
+                const isUltra = c.isUltra === true || fileBase.toUpperCase().startsWith('ULTRA_');
+                const isPremium = isUltra || c.isPremium === true || fileBase.toUpperCase().startsWith('PRO_');
+                const isAvailable = c.isAvailable !== false && !fileBase.toUpperCase().startsWith('SOON_');
+                itemMeta = {
+                    id: fileBase,
+                    title: c.title || fileBase,
+                    name: c.title || fileBase,
+                    fileName: fileName,
+                    isJsonQuiz: true,
+                    duration: c.duration || 900,
+                    isAvailable,
+                    isPremium,
+                    isUltra,
+                    price: Number(c.price) > 0 ? Number(c.price) : 49
+                };
+            } else {
+                itemMeta = parsePdfMetadata(fileName);
+            }
+
             if (grouped[cls] && grouped[cls][subject]) {
                 grouped[cls][subject].push(itemMeta);
             }

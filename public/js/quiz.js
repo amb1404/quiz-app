@@ -295,10 +295,14 @@ function createContentCard(item, type, container) {
             card.innerText = title;
         }
 
-        if (type === 'quiz') {
+        if (type === 'quiz' || item.isJsonQuiz) {
             card.addEventListener('click', (e) => {
                 e.preventDefault();
-                prepareQuiz(item);
+                prepareQuiz({ 
+                    id: item.id || item.fileName.replace('.json', ''), 
+                    title: item.title || item.name, 
+                    duration: item.duration 
+                });
             });
         } else {
             if (item.isPremium || item.isUltra) {
@@ -814,7 +818,9 @@ async function renderQuestion() {
         label.style.cssText = 'display:block;font-weight:600;margin-bottom:8px;color:#334155;';
 
         const fileInput = document.createElement('input');
-        fileInput.type = 'file'; fileInput.accept = 'image/*';
+        fileInput.type = 'file'; 
+        fileInput.accept = 'image/*';
+        fileInput.setAttribute('capture', 'environment'); // Forces mobile camera to open directly
 
         if (userAnswers[currentQuestionIndex] !== undefined) {
             const preview = document.createElement('p');

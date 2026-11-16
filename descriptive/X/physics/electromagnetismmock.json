@@ -1,0 +1,195 @@
+{
+  "title": "Electromagnetism: Complete Chapter Test",
+  "category": "icse",
+  "classLevel": "X",
+  "subject": "Physics",
+  "chapter": "Electromagnetism",
+  "topic": "Complete Chapter",
+  "duration": 3600,
+  "price": 0,
+  "isPremium": false,
+  "isUltra": false,
+  "isAvailable": true,
+  "questions": [
+    {
+      "type": "descriptive",
+      "question": "Describe Oersted's experiment and state the conclusion drawn from it regarding the magnetic effect of electric current.",
+      "model_answer": "Hans Christian Oersted placed a magnetic compass below a wire aligned along the North-South direction. When current was passed through the wire, the compass needle deflected. Reversing the current direction reversed the deflection. Conclusion: A current-carrying conductor produces a magnetic field around it.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State the Right Hand Thumb Rule used to find the direction of the magnetic field around a straight current-carrying conductor.",
+      "model_answer": "Imagine holding the current-carrying straight conductor in your right hand such that the thumb points in the direction of the current. Then, the direction in which the fingers wrap around the conductor gives the direction of the magnetic field lines.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Name two factors on which the strength of the magnetic field produced by a straight current-carrying wire depends. How is the strength related to these factors?",
+      "model_answer": "1. Magnitude of current (I): The magnetic field strength (B) is directly proportional to the current (B ∝ I). 2. Distance from the wire (r): The magnetic field strength is inversely proportional to the distance from the wire (B ∝ 1/r).",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is a solenoid? Describe the pattern of the magnetic field lines produced inside a current-carrying solenoid.",
+      "model_answer": "A solenoid is a long cylindrical coil containing a large number of closely spaced turns of insulated copper wire. The magnetic field lines inside a current-carrying solenoid are parallel straight lines, indicating that the magnetic field is uniform and strong inside.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State three ways to increase the magnetic field strength of a current-carrying solenoid.",
+      "model_answer": "1. Increasing the number of turns in the coil. 2. Increasing the magnitude of the current passing through the coil. 3. Inserting a soft iron core inside the solenoid.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State three key differences between an electromagnet and a permanent magnet.",
+      "model_answer": "1. An electromagnet is temporary (loses magnetism when current stops), while a permanent magnet retains its magnetism. 2. The strength of an electromagnet can be changed by varying current, whereas a permanent magnet's strength is fixed. 3. The polarity of an electromagnet can be reversed by changing the direction of current, but a permanent magnet's polarity is fixed.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Why is soft iron used as the core of an electromagnet instead of steel?",
+      "model_answer": "Soft iron is used because it has high magnetic permeability (easily magnetized) and low retentivity (loses its magnetism almost immediately when the current is switched off). Steel retains magnetism and would become a permanent magnet.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "On what factors does the magnitude of the force experienced by a current-carrying conductor placed in a magnetic field depend?",
+      "model_answer": "The magnitude of the force depends on: 1. The strength of the magnetic field (B). 2. The magnitude of the current (I). 3. The length of the conductor inside the magnetic field (l). Formula: F = BIl (when placed perpendicular to the field).",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State Fleming's Left-Hand Rule. Name one practical device that works on this principle.",
+      "model_answer": "Stretch the thumb, forefinger, and middle finger of your left hand mutually perpendicular to each other. If the forefinger points in the direction of the magnetic field and the middle finger in the direction of the current, the thumb will point in the direction of the force (or motion). Device: DC Motor.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the principle of a D.C. Motor?",
+      "model_answer": "A D.C. motor works on the principle that when a rectangular current-carrying coil is placed in a uniform magnetic field, it experiences a magnetic torque that causes it to rotate continuously. It converts electrical energy into mechanical energy.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the function of the split ring (commutator) in a D.C. Motor?",
+      "model_answer": "The split ring acts as a commutator, which reverses the direction of the current flowing through the coil after every half rotation. This ensures that the force acting on the arms of the coil always pushes it in the same rotational direction, allowing continuous rotation.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the function of carbon brushes in a D.C. motor?",
+      "model_answer": "Carbon brushes maintain a continuous sliding electrical contact between the stationary external D.C. power supply (battery) and the rotating split rings (commutator) of the armature coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State three ways to increase the speed of rotation of the coil in a D.C. motor.",
+      "model_answer": "1. Increasing the strength of the magnetic field. 2. Increasing the current flowing through the coil. 3. Increasing the number of turns in the armature coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Define Electromagnetic Induction.",
+      "model_answer": "Electromagnetic Induction is the phenomenon of generating an induced electromotive force (e.m.f.) and an induced current in a closed circuit whenever there is a change in the magnetic flux linked with the circuit.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State Faraday's laws of Electromagnetic Induction.",
+      "model_answer": "1. Whenever there is a change in the magnetic flux linked with a coil, an e.m.f. is induced in it, which lasts as long as the change in flux continues. 2. The magnitude of the induced e.m.f. is directly proportional to the rate of change of magnetic flux linked with the coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State Lenz's Law of electromagnetic induction. Which fundamental law of physics does it obey?",
+      "model_answer": "Lenz's Law states that the direction of the induced e.m.f. (or induced current) is always such that it opposes the cause (change in magnetic flux) that produces it. It obeys the Law of Conservation of Energy.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Explain how Lenz's law obeys the principle of conservation of energy.",
+      "model_answer": "When a magnet is moved towards a coil, the induced current creates an opposing magnetic pole. Mechanical work must be done against this repulsive force to move the magnet. This mechanical work done is converted into electrical energy in the coil, thus conserving energy.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State Fleming's Right-Hand Rule. Where is it used?",
+      "model_answer": "Stretch the thumb, forefinger, and middle finger of your right hand mutually perpendicular to each other. If the forefinger points in the direction of the magnetic field and the thumb points in the direction of motion of the conductor, the middle finger gives the direction of the induced current. It is used in AC Generators.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the difference between alternating current (A.C.) and direct current (D.C.)?",
+      "model_answer": "Direct Current (D.C.) always flows in one direction and has a constant magnitude. Alternating Current (A.C.) periodically reverses its direction of flow and its magnitude fluctuates continuously with time.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the principle of an A.C. Generator?",
+      "model_answer": "An A.C. Generator works on the principle of Electromagnetic Induction. When a closed coil is rotated rapidly in a uniform magnetic field, the magnetic flux linked with it changes continuously, inducing an alternating e.m.f. and current in the coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is the function of slip rings in an A.C. generator?",
+      "model_answer": "Slip rings maintain a continuous, sliding electrical connection between the rotating armature coil and the stationary external circuit, allowing the alternating current generated in the coil to flow to the external circuit without tangling the wires.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State three ways to increase the magnitude of the induced e.m.f. in an A.C. Generator.",
+      "model_answer": "1. Increasing the speed of rotation of the armature coil. 2. Increasing the number of turns in the coil. 3. Increasing the strength of the permanent magnetic field.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "What is a transformer? State its underlying principle.",
+      "model_answer": "A transformer is an electrical device used to step up (increase) or step down (decrease) the voltage of an alternating current. It works on the principle of Mutual Induction, where a changing current in the primary coil induces an alternating e.m.f. in the secondary coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Why can a transformer not be used with a direct current (D.C.) supply?",
+      "model_answer": "A transformer operates on the principle of electromagnetic induction, which requires a constantly changing magnetic flux. Direct current (D.C.) produces a constant, unchanging magnetic field, so no e.m.f. will be induced in the secondary coil.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State three differences between a Step-up transformer and a Step-down transformer.",
+      "model_answer": "1. Step-up increases output voltage; Step-down decreases it. 2. In Step-up, secondary turns (Ns) > primary turns (Np); in Step-down, Ns < Np. 3. Step-up decreases the current (Is < Ip); Step-down increases the current (Is > Ip).",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "Write the formula relating the primary and secondary voltages, currents, and number of turns in an ideal transformer.",
+      "model_answer": "Es / Ep = Ns / Np = Ip / Is. Where E is voltage, N is number of turns, I is current, and the subscripts s and p denote secondary and primary coils, respectively.",
+      "options": []
+    },
+    {
+      "type": "descriptive",
+      "question": "State two causes of energy loss in a transformer and how they are minimized.",
+      "model_answer": "1. Copper loss (heat dissipation in windings): Minimized by using thick copper wires. 2. Eddy current loss (heating of the iron core): Minimized by using a laminated soft iron core instead of a solid block.",
+      "options": []
+    },
+    {
+      "type": "diagram",
+      "question": "Draw a neat, labeled schematic diagram of a D.C. Motor.",
+      "model_answer": "The diagram must include the North and South magnetic poles, the rectangular armature coil (ABCD), the split ring commutator (half rings), carbon brushes, the axle, and an external battery with a switch. Current direction in the arms should be marked according to Fleming's Left-Hand Rule.",
+      "options": []
+    },
+    {
+      "type": "diagram",
+      "question": "Draw a neat, labeled schematic diagram of an A.C. Generator.",
+      "model_answer": "The diagram must show strong magnetic poles (N and S), the armature coil (ABCD) rotating on an axle, two complete circular slip rings attached to the ends of the coil, two carbon brushes pressing against the rings, and a galvanometer in the external circuit.",
+      "options": []
+    },
+    {
+      "type": "diagram",
+      "question": "Draw a neat, labeled diagram of a Step-down Transformer.",
+      "model_answer": "The diagram must show a laminated rectangular soft iron core. The primary coil must be drawn with a larger number of turns connected to an A.C. input source. The secondary coil must be drawn with a smaller number of turns connected to the output load.",
+      "options": []
+    }
+  ]
+}
