@@ -4272,10 +4272,10 @@ app.post('/api/admin/users/list', async (req, res) => {
     }
 });
 
-// 2. Targetedly delete a user's test history or purchase history
+// 2. Targetedly delete a user's test history, purchase history, or deregister account
 app.post('/api/admin/users/delete-data', async (req, res) => {
     try {
-        const { adminKey, email, dataType } = req.body; // dataType: 'history' or 'purchases'
+        const { adminKey, email, dataType } = req.body;
         if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
@@ -4306,6 +4306,18 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
                 }
             } catch (e) {}
 
+            // CRITICAL FIX: Clear from Redis global history cache
+            try {
+                const rawRedis = await stateStore.get(SUBMISSIONS_REDIS_KEY);
+                if (rawRedis) {
+                    let parsed = typeof rawRedis === 'string' ? JSON.parse(rawRedis) : rawRedis;
+                    if (Array.isArray(parsed)) {
+                        parsed = parsed.filter(s => String(s.email || '').trim().toLowerCase() !== cleanEmail);
+                        await stateStore.set(SUBMISSIONS_REDIS_KEY, parsed, 60 * 60 * 24 * 365 * 10);
+                    }
+                }
+            } catch (e) {}
+
             // Clear Redis attempt keys
             try {
                 const keys = await stateStore.execCommand(['KEYS', `attempt:v1:${cleanEmail}:*`]);
@@ -4314,12 +4326,23 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
                 }
             } catch (e) {}
         } else if (dataType === 'purchases') {
-            // Clear purchase Redis keys and set
             try {
                 await stateStore.del(`user:purchases:${cleanEmail}`);
                 const keys = await stateStore.execCommand(['KEYS', `user:purchases:${cleanEmail}:*`]);
                 if (Array.isArray(keys)) {
                     for (const k of keys) await stateStore.del(k);
+                }
+            } catch (e) {}
+        } else if (dataType === 'account') {
+            // Completely deregister the user profile
+            try {
+                await stateStore.del(`user:profile:${cleanEmail}`);
+                await stateStore.del(`whitelist:vip:${cleanEmail}`);
+                const usersFile = path.join(__dirname, 'users.json');
+                if (fs.existsSync(usersFile)) {
+                    let map = JSON.parse(fs.readFileSync(usersFile, 'utf8')) || {};
+                    delete map[cleanEmail];
+                    fs.writeFileSync(usersFile, JSON.stringify(map, null, 2), { mode: 0o600 });
                 }
             } catch (e) {}
         }
