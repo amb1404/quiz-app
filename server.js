@@ -584,18 +584,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
 
-    // Exempt Home, Admin Dashboard, and Live Room from strict direct-navigation blocks
-    if (!isHome && canonicalBaseRoute !== '/admin-live' && canonicalBaseRoute !== '/live-room') {
-        const secFetchSite = (req.get('Sec-Fetch-Site') || '').toLowerCase();
-        const referer = req.get('Referer') || '';
-        const host = req.get('Host') || '';
-        const hasSameOriginReferer = Boolean(referer && host && referer.includes(host));
-
-        if (secFetchSite === 'none' || secFetchSite === 'cross-site' || !hasSameOriginReferer) {
-            return res.redirect(302, '/');
-        }
-    }
-
     const filePath = path.join(__dirname, 'public', fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) return res.status(500).send("Page not found");
