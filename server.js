@@ -780,7 +780,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         const clientIntegrationScript = `<script nonce="${nonce}">
             (function() {
                 var baseRoute = '${canonicalBaseRoute}';
-                if (typeof MainNav !== 'undefined') {s
+                if (typeof MainNav !== 'undefined') {
                     MainNav.normalizeRoute = function(route) {
                         if (!route) return '/';
                         var r = String(route).toLowerCase();
@@ -1337,7 +1337,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 } catch(e) {}
 
                 window.addEventListener('DOMContentLoaded', function() {
-                    var baseRoute = '${canonicalBaseRoute}';
                     var backEventTriggered = false;
 
                     wrapNavFunctions();
