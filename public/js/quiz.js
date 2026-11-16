@@ -104,9 +104,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch('/api/quizzes');
             const data = await res.json();
             if (data.success) dynamicQuizzes = data.quizzes;
-        } catch (e) {
-            console.error("Failed to load quizzes", e);
-        }
+        } catch (e) {}
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -146,14 +144,30 @@ async function restoreSessionState(state) {
         userAnswers = state.userAnswers || {};
         skippedQuestions = new Set(state.skippedQuestions || []);
 
-        // Pre-load parent menus so Back navigation is always fully populated
-        if (selectedClassName && (selectedClassName === 'XI' || selectedClassName === 'XII' || selectedClassName === 'ISC XI' || selectedClassName === 'ISC XII')) {
-            loadNeetUnits(selectedClassName);
-            if (selectedNeetUnit) {
-                loadNeetChapters(selectedClassName, selectedNeetUnit);
+        // Rebuild DOM Hierarchy Top-Down
+        if (selectedClassName) {
+            if (selectedClassName === 'XI' || selectedClassName === 'XII' || selectedClassName === 'ISC XI' || selectedClassName === 'ISC XII') {
+                buildNeetUnitsDOM(selectedClassName);
+                if (selectedNeetUnit) buildNeetChaptersDOM(selectedClassName, selectedNeetUnit);
+                if (selectedNeetChapter) buildNeetTopicsDOM(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            } else if (selectedClassName === 'IX' || selectedClassName === 'X') {
+                if (selectedSubjectName) buildIxXChapterDOM(selectedClassName, selectedSubjectName);
+            } else {
+                buildDynamicChaptersDOM(selectedClassName);
             }
-            if (selectedNeetUnit && selectedNeetChapter) {
-                loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+        }
+
+        if (selectedNotesClass) {
+            buildNotesSubjectDOM(selectedNotesClass);
+            if (selectedNotesSubject) {
+                await populateNotesList(selectedNotesClass, selectedNotesSubject);
+            }
+        }
+
+        if (selectedDescriptiveClass) {
+            buildDescriptiveSubjectDOM(selectedDescriptiveClass);
+            if (selectedDescriptiveSubject) {
+                await populateDescriptiveList(selectedDescriptiveClass, selectedDescriptiveSubject);
             }
         }
 
@@ -164,54 +178,14 @@ async function restoreSessionState(state) {
             showScreen('quiz-screen');
             await renderQuestion();
             startTimer();
-        } else if (state.activeScreen === 'neet-unit-screen' && selectedClassName) {
-            loadNeetUnits(selectedClassName);
-            screenHistory = ['home-dashboard'];
-        } else if (state.activeScreen === 'neet-chapter-screen' && selectedClassName && selectedNeetUnit) {
-            loadNeetChapters(selectedClassName, selectedNeetUnit);
-            screenHistory = ['home-dashboard', 'neet-unit-screen'];
-        } else if (state.activeScreen === 'neet-topic-screen' && selectedClassName && selectedNeetUnit && selectedNeetChapter) {
-            loadNeetTopics(selectedClassName, selectedNeetUnit, selectedNeetChapter);
-            screenHistory = ['home-dashboard', 'neet-unit-screen', 'neet-chapter-screen'];
-        } else if (state.activeScreen === 'subject-select-screen') {
-            showScreen('subject-select-screen');
-            screenHistory = ['home-dashboard'];
-        } else if (state.activeScreen === 'ix-x-chapter-screen' && selectedClassName) {
-            if ((selectedClassName === 'IX' || selectedClassName === 'X') && selectedSubjectName) {
-                selectSubject(selectedSubjectName);
-                screenHistory = ['home-dashboard', 'subject-select-screen'];
-            } else {
-                loadDynamicChapters(selectedClassName);
-                screenHistory = ['home-dashboard'];
-            }
-        } else if (state.activeScreen === 'notes-subject-screen' && selectedNotesClass) {
-            selectNotesClass(selectedNotesClass);
-            screenHistory = ['home-dashboard'];
-        } else if (state.activeScreen === 'notes-list-screen' && selectedNotesClass && selectedNotesSubject) {
-            await selectNotesSubject(selectedNotesSubject);
-            screenHistory = ['home-dashboard', 'notes-subject-screen'];
-        } else if (state.activeScreen === 'descriptive-subject-screen' && selectedDescriptiveClass) {
-            selectDescriptiveClass(selectedDescriptiveClass);
-            screenHistory = ['home-dashboard'];
-        } else if (state.activeScreen === 'descriptive-list-screen' && selectedDescriptiveClass && selectedDescriptiveSubject) {
-            await selectDescriptiveSubject(selectedDescriptiveSubject);
-            screenHistory = ['home-dashboard', 'descriptive-subject-screen'];
         } else {
             showScreen(state.activeScreen);
-        }
-
-        // Force the active screen to remain visible and correct
-        const targetScreen = document.getElementById(state.activeScreen);
-        if (targetScreen) {
-            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
-            targetScreen.classList.remove('hidden');
         }
 
         if (state.screenHistory && state.screenHistory.length > 0) {
             screenHistory = state.screenHistory;
         }
     } catch (e) {
-        console.error(e);
     } finally {
         isRestoringSession = false;
         updateState();
@@ -267,11 +241,9 @@ function goHome() {
 // ----------------------------------------------------------------------------
 function createContentCard(item, type, container) {
     const card = document.createElement(item.isAvailable === false ? 'div' : 'a');
-
     let icon = '';
     if (type === 'descriptive') icon = '📝 ';
     if (type === 'notes') icon = '📚 ';
-
     const title = type === 'quiz' ? (item.title || item.topic || item.id) : (icon + item.name);
 
     if (item.isAvailable === false) {
@@ -286,7 +258,6 @@ function createContentCard(item, type, container) {
         });
     } else {
         card.className = type === 'quiz' ? 'card' : (type === 'descriptive' ? 'card card-yellow' : 'card');
-
         if (item.isPremium || item.isUltra) {
             const badgeColor = item.isUltra ? '#9333ea' : '#b45309';
             const badgeLabel = item.isUltra ? 'Exclusive' : 'Premium';
@@ -298,6 +269,7 @@ function createContentCard(item, type, container) {
         if (type === 'quiz' || item.isJsonQuiz) {
             card.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 prepareQuiz({ 
                     id: item.id || item.fileName.replace('.json', ''), 
                     title: item.title || item.name, 
@@ -308,6 +280,7 @@ function createContentCard(item, type, container) {
             if (item.isPremium || item.isUltra) {
                 card.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     preparePremiumPdf(item, type);
                 });
             } else {
@@ -318,8 +291,10 @@ function createContentCard(item, type, container) {
     container.appendChild(card);
 }
 
-function selectDescriptiveClass(cName) {
-    selectedDescriptiveClass = cName;
+// ----------------------------------------------------------------------------
+// DESCRIPTIVE PAPERS DOM BUILDERS
+// ----------------------------------------------------------------------------
+function buildDescriptiveSubjectDOM(cName) {
     const container = document.getElementById('descriptive-subject-container');
     if (!container) return;
     container.innerHTML = '';
@@ -331,22 +306,19 @@ function selectDescriptiveClass(cName) {
         card.addEventListener('click', () => selectDescriptiveSubject(sub));
         container.appendChild(card);
     });
+}
+function selectDescriptiveClass(cName) {
+    selectedDescriptiveClass = cName;
+    buildDescriptiveSubjectDOM(cName);
     showScreen('descriptive-subject-screen');
 }
-
-async function selectDescriptiveSubject(subject) {
-    selectedDescriptiveSubject = subject;
-    const heading = document.getElementById('descriptive-screen-heading');
-    if (heading) heading.innerText = `Class ${selectedDescriptiveClass} ${subject} Papers`;
+async function populateDescriptiveList(cName, subject) {
     const container = document.getElementById('descriptive-list-container');
     if (!container) return;
-    container.innerHTML = '<p style="text-align:center;">Loading question papers...</p>';
-    showScreen('descriptive-list-screen');
-
     try {
         const res = await fetch('/api/descriptive-questions');
         const list = await res.json();
-        const matched = list.find(n => n.class === selectedDescriptiveClass && n.subject.toLowerCase() === subject.toLowerCase());
+        const matched = list.find(n => n.class === cName && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
         if (matched?.papers?.length > 0) {
             matched.papers.forEach(item => createContentCard(item, 'descriptive', container));
@@ -356,12 +328,24 @@ async function selectDescriptiveSubject(subject) {
     } catch {
         container.innerHTML = '<p style="text-align:center; color:red;">Failed to load papers.</p>';
     }
+}
+async function selectDescriptiveSubject(subject) {
+    selectedDescriptiveSubject = subject;
+    const heading = document.getElementById('descriptive-screen-heading');
+    if (heading) heading.innerText = `Class ${selectedDescriptiveClass} ${subject} Papers`;
+    const container = document.getElementById('descriptive-list-container');
+    if (container) container.innerHTML = '<p style="text-align:center;">Loading question papers...</p>';
+    showScreen('descriptive-list-screen');
+    await populateDescriptiveList(selectedDescriptiveClass, subject);
     updateState();
 }
 
-function selectNotesClass(cName) {
-    selectedNotesClass = cName;
+// ----------------------------------------------------------------------------
+// STUDY NOTES DOM BUILDERS
+// ----------------------------------------------------------------------------
+function buildNotesSubjectDOM(cName) {
     const container = document.getElementById('notes-subject-container');
+    if (!container) return;
     container.innerHTML = '';
     const subjects = (cName === 'IX' || cName === 'X') ? ['Physics', 'Chemistry', 'Biology'] : ['Biology'];
     subjects.forEach(sub => {
@@ -371,19 +355,19 @@ function selectNotesClass(cName) {
         card.addEventListener('click', () => selectNotesSubject(sub));
         container.appendChild(card);
     });
+}
+function selectNotesClass(cName) {
+    selectedNotesClass = cName;
+    buildNotesSubjectDOM(cName);
     showScreen('notes-subject-screen');
 }
-
-async function selectNotesSubject(subject) {
-    selectedNotesSubject = subject;
+async function populateNotesList(cName, subject) {
     const container = document.getElementById('notes-list-container');
-    container.innerHTML = '<p style="text-align:center;">Loading notes...</p>';
-    showScreen('notes-list-screen');
-
+    if (!container) return;
     try {
         const res = await fetch('/api/notes');
         const list = await res.json();
-        const matched = list.find(n => n.class === selectedNotesClass && n.subject.toLowerCase() === subject.toLowerCase());
+        const matched = list.find(n => n.class === cName && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
         if (matched?.notes?.length > 0) {
             matched.notes.forEach(note => createContentCard(note, 'notes', container));
@@ -393,85 +377,57 @@ async function selectNotesSubject(subject) {
     } catch {
         container.innerHTML = '<p style="text-align:center; color:red;">Failed to load notes.</p>';
     }
+}
+async function selectNotesSubject(subject) {
+    selectedNotesSubject = subject;
+    const container = document.getElementById('notes-list-container');
+    if (container) container.innerHTML = '<p style="text-align:center;">Loading notes...</p>';
+    showScreen('notes-list-screen');
+    await populateNotesList(selectedNotesClass, subject);
     updateState();
 }
 
+// ----------------------------------------------------------------------------
+// MOCK TESTS DOM BUILDERS
+// ----------------------------------------------------------------------------
 function selectClass(cName) {
     selectedClassName = cName;
     if (cName === 'IX' || cName === 'X') showScreen('subject-select-screen');
     else if (cName === 'XI' || cName === 'XII' || cName === 'ISC XI' || cName === 'ISC XII') {
-        loadNeetUnits(cName);
+        buildNeetUnitsDOM(cName);
+        showScreen('neet-unit-screen');
     } else {
-        loadDynamicChapters(cName);
+        buildDynamicChaptersDOM(cName);
+        showScreen('ix-x-chapter-screen');
     }
 }
 
-function selectSubject(sub) {
-    selectedSubjectName = sub;
-    const container = document.getElementById('ix-x-chapter-container');
-    container.innerHTML = '';
-    const matched = dynamicQuizzes.filter(q => q.category === 'icse' && q.classLevel.toLowerCase() === selectedClassName.toLowerCase() && q.subject.toLowerCase() === sub.toLowerCase());
-    if (matched.length === 0) {
-        container.innerHTML = `<p style="text-align:center;">No tests found for ${escapeClientHtml(sub)} yet.</p>`;
-    } else {
-        matched.forEach(q => createContentCard(q, 'quiz', container));
-    }
-    showScreen('ix-x-chapter-screen');
-}
-
-function loadDynamicChapters(cName) {
-    const container = document.getElementById('ix-x-chapter-container');
-    container.innerHTML = '';
-    
-    let targetCategory = 'neet';
-    let cleanClassLevel = cName;
-
-    if (cName.toUpperCase().startsWith('WB ')) {
-        targetCategory = 'wb';
-        cleanClassLevel = cName.substring(3).trim();
-    } else if (cName.toUpperCase().startsWith('ISC ')) {
-        targetCategory = 'isc';
-        cleanClassLevel = cName.substring(4).trim();
-    }
-
-    const matched = dynamicQuizzes.filter(q => 
-        (q.category || '').toLowerCase() === targetCategory && 
-        (q.classLevel || '').toLowerCase() === cleanClassLevel.toLowerCase()
-    );
-
-    if (matched.length === 0) {
-        container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
-    } else {
-        matched.forEach(q => createContentCard(q, 'quiz', container));
-    }
-    showScreen('ix-x-chapter-screen');
-}
-
-function loadNeetUnits(cName) {
+function buildNeetUnitsDOM(cName) {
     const container = document.getElementById('neet-unit-container');
+    if (!container) return;
     container.innerHTML = '';
-    
-    // Extract the base class (XI or XII) to build the correct syllabus hierarchy
     const baseClass = cName.includes('XII') ? 'XII' : 'XI';
     const units = neetHierarchy[baseClass] || {};
-    
     Object.keys(units).forEach(uName => {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerText = uName;
-        card.addEventListener('click', () => { selectedNeetUnit = uName; loadNeetChapters(cName, uName); });
+        card.addEventListener('click', () => selectNeetUnit(cName, uName));
         container.appendChild(card);
     });
-    showScreen('neet-unit-screen');
+}
+function selectNeetUnit(cName, uName) {
+    selectedNeetUnit = uName;
+    buildNeetChaptersDOM(cName, uName);
+    showScreen('neet-chapter-screen');
 }
 
-function loadNeetChapters(cName, uName) {
+function buildNeetChaptersDOM(cName, uName) {
     const container = document.getElementById('neet-chapter-container');
+    if (!container) return;
     container.innerHTML = '';
-    
     const baseClass = cName.includes('XII') ? 'XII' : 'XI';
     const chapters = neetHierarchy[baseClass]?.[uName] || [];
-    
     if (chapters.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No chapters found.</p>';
     } else {
@@ -479,56 +435,75 @@ function loadNeetChapters(cName, uName) {
             const card = document.createElement('div');
             card.className = 'card';
             card.innerText = chap;
-            card.addEventListener('click', () => { selectedNeetChapter = chap; loadNeetTopics(cName, uName, chap); });
+            card.addEventListener('click', () => selectNeetChapter(cName, uName, chap));
             container.appendChild(card);
         });
     }
-    showScreen('neet-chapter-screen');
 }
-
-function loadNeetTopics(cName, uName, chap) {
-    const container = document.getElementById('neet-topic-container');
-    container.innerHTML = '';
-    
-    // Dynamically apply the category filter based on the button clicked
-    const targetCategory = cName.startsWith('ISC') ? 'isc' : 'neet';
-    const targetClass = cName.includes('XII') ? 'xii' : 'xi';
-    
-    const matched = dynamicQuizzes.filter(q => 
-        (q.category || '').toLowerCase() === targetCategory && 
-        (q.classLevel || '').toLowerCase() === targetClass && 
-        isChapterMatch(q.chapter, chap)
-    );
-    
-    if (matched.length === 0) {
-        container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
-    } else {
-        matched.forEach(q => createContentCard(q, 'quiz', container));
-    }
+function selectNeetChapter(cName, uName, chap) {
+    selectedNeetChapter = chap;
+    buildNeetTopicsDOM(cName, uName, chap);
     showScreen('neet-topic-screen');
 }
 
-function loadNeetTopics(cName, uName, chap) {
+function buildNeetTopicsDOM(cName, uName, chap) {
     const container = document.getElementById('neet-topic-container');
+    if (!container) return;
     container.innerHTML = '';
-    
-    // Convert to uppercase to guarantee safe detection of 'ISC XI' or 'ISC XII'
     const upperCName = String(cName).toUpperCase();
     const targetCategory = upperCName.startsWith('ISC') ? 'isc' : 'neet';
     const targetClass = upperCName.includes('XII') ? 'xii' : 'xi';
-    
     const matched = dynamicQuizzes.filter(q => 
         (q.category || '').toLowerCase() === targetCategory && 
         (q.classLevel || '').toLowerCase() === targetClass && 
         isChapterMatch(q.chapter, chap)
     );
-    
     if (matched.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No tests found for this chapter yet.</p>';
     } else {
         matched.forEach(q => createContentCard(q, 'quiz', container));
     }
-    showScreen('neet-topic-screen');
+}
+
+function selectSubject(sub) {
+    selectedSubjectName = sub;
+    buildIxXChapterDOM(selectedClassName, sub);
+    showScreen('ix-x-chapter-screen');
+}
+function buildIxXChapterDOM(cName, sub) {
+    const container = document.getElementById('ix-x-chapter-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const matched = dynamicQuizzes.filter(q => q.category === 'icse' && q.classLevel.toLowerCase() === cName.toLowerCase() && q.subject.toLowerCase() === sub.toLowerCase());
+    if (matched.length === 0) {
+        container.innerHTML = `<p style="text-align:center;">No tests found for ${escapeClientHtml(sub)} yet.</p>`;
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
+}
+
+function buildDynamicChaptersDOM(cName) {
+    const container = document.getElementById('ix-x-chapter-container');
+    if (!container) return;
+    container.innerHTML = '';
+    let targetCategory = 'neet';
+    let cleanClassLevel = cName;
+    if (cName.toUpperCase().startsWith('WB ')) {
+        targetCategory = 'wb';
+        cleanClassLevel = cName.substring(3).trim();
+    } else if (cName.toUpperCase().startsWith('ISC ')) {
+        targetCategory = 'isc';
+        cleanClassLevel = cName.substring(4).trim();
+    }
+    const matched = dynamicQuizzes.filter(q => 
+        (q.category || '').toLowerCase() === targetCategory && 
+        (q.classLevel || '').toLowerCase() === cleanClassLevel.toLowerCase()
+    );
+    if (matched.length === 0) {
+        container.innerHTML = '<p style="text-align:center;">No tests found.</p>';
+    } else {
+        matched.forEach(q => createContentCard(q, 'quiz', container));
+    }
 }
 
 // ----------------------------------------------------------------------------
