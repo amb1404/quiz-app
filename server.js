@@ -707,12 +707,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var baseRoute = '${canonicalBaseRoute}';
                 var isHome = (baseRoute === '/');
                 try {
-                    var navEntries = window.performance && window.performance.getEntriesByType ? window.performance.getEntriesByType('navigation') : [];
-                    var navType = (navEntries && navEntries[0]) ? navEntries[0].type : 'navigate';
-                    var clickStamp = parseInt(sessionStorage.getItem('pioneers_nav_ok') || '0', 10);
-                    var isRecentClick = (Date.now() - clickStamp) < 15000;
-                    var isReload = (navType === 'reload') && (sessionStorage.getItem('pioneers_active_route') === baseRoute);
-
                     // Force all pre-Google legacy OTP browsers to log out immediately
                     if (localStorage.getItem('pp_auth_provider') !== 'google_v2') {
                         localStorage.removeItem('pp_id_token');
@@ -733,35 +727,16 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                     if (isHome) {
                         sessionStorage.setItem('pioneers_active_route', '/');
-                        sessionStorage.removeItem('pioneers_nav_ok');
                         if (window.location.pathname !== '/') {
                             history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
                         }
                     } else {
-                        // Exempt Admin Dashboard and Live Room from frontend direct-navigation blocks
-                        var isExempt = (baseRoute === '/admin-live' || baseRoute === '/live-room');
-                        if (!isExempt && !isRecentClick && !isReload && window.location.search === '') {
-                            sessionStorage.removeItem('pioneers_prep_state');
-                            window.location.replace('/');
-                            return;
-                        }
-                        
-                        sessionStorage.removeItem('pioneers_nav_ok');
                         sessionStorage.setItem('pioneers_active_route', baseRoute);
                         if (window.location.pathname !== baseRoute) {
                             history.replaceState({ app: 'pioneers' }, document.title, baseRoute + window.location.search);
                         }
                     }
                 } catch (e) {}
-
-                function authorizeInternalNav() {
-                    try { sessionStorage.setItem('pioneers_nav_ok', Date.now().toString()); } catch (e) {}
-                }
-                window.addEventListener('mousedown', authorizeInternalNav, true);
-                window.addEventListener('touchstart', authorizeInternalNav, true);
-                window.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') authorizeInternalNav();
-                }, true);
             })();
         </script>`;
 
