@@ -187,18 +187,18 @@
         adaptiveStream: false,
         dynacast: true,
         publishDefaults: {
-            simulcast: true,
+            simulcast: false,
             videoEncoding: {
-                maxBitrate: 450_000,
-                maxFramerate: 24
+                maxBitrate: 220_000,
+                maxFramerate: 20
             },
             screenShareEncoding: {
-                maxBitrate: 2_000_000,
-                maxFramerate: 20
+                maxBitrate: 1_500_000,
+                maxFramerate: 15
             }
         }
     });
-let videoEnabled = false;
+    let videoEnabled = false;
     let audioEnabled = false;
     let isVideoToggling = false;
     let isAudioToggling = false;
@@ -207,6 +207,7 @@ let videoEnabled = false;
     let currentMicTrack = null;
     let currentScreenTrack = null;
     let connectingPromise = null;
+    let isRepublishingTracks = false;
     const activeStudentAudioEls = new Map();
 
     function getAdminCreds() {
@@ -236,12 +237,21 @@ let videoEnabled = false;
         }
     }
 
+    function isNativeTrackPublished(publicationsMap, nativeTrack, expectedName) {
+        for (const pub of publicationsMap.values()) {
+            if (pub.track === nativeTrack || pub.track?.mediaStreamTrack === nativeTrack || pub.trackName === expectedName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     async function republishAdminActiveTracks() {
-        if (room.state !== 'connected') return;
+        if (room.state !== 'connected' || isRepublishingTracks) return;
+        isRepublishingTracks = true;
         try {
             if (audioEnabled && currentMicTrack && currentMicTrack.readyState === 'live') {
-                const alreadyPub = Array.from(room.localParticipant.audioTrackPublications.values())
-                    .some(p => p.track === currentMicTrack);
+                const alreadyPub = isNativeTrackPublished(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
                 if (!alreadyPub) {
                     await room.localParticipant.publishTrack(currentMicTrack, {
                         name: 'mic',
@@ -251,31 +261,31 @@ let videoEnabled = false;
                 }
             }
             if (videoEnabled && currentCamTrack && currentCamTrack.readyState === 'live') {
-                const alreadyPub = Array.from(room.localParticipant.videoTrackPublications.values())
-                    .some(p => p.track === currentCamTrack);
+                const alreadyPub = isNativeTrackPublished(room.localParticipant.videoTrackPublications, currentCamTrack, 'camera');
                 if (!alreadyPub) {
                     await room.localParticipant.publishTrack(currentCamTrack, {
                         name: 'camera',
-                        simulcast: true,
-                        videoEncoding: { maxBitrate: 450_000, maxFramerate: 24 }
+                        simulcast: false,
+                        videoEncoding: { maxBitrate: 220_000, maxFramerate: 20 }
                     });
                 }
             }
             if (currentScreenTrack && currentScreenTrack.readyState === 'live') {
-                const alreadyPub = Array.from(room.localParticipant.videoTrackPublications.values())
-                    .some(p => p.track === currentScreenTrack);
+                const alreadyPub = isNativeTrackPublished(room.localParticipant.videoTrackPublications, currentScreenTrack, 'screen');
                 if (!alreadyPub) {
                     await room.localParticipant.publishTrack(currentScreenTrack, {
                         name: 'screen',
                         source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
-                        simulcast: false,
+                        simulcast: true,
                         degradationPreference: 'maintain-resolution',
-                        videoEncoding: { maxBitrate: 2_000_000, maxFramerate: 20 },
-                        screenShareEncoding: { maxBitrate: 2_000_000, maxFramerate: 20 }
+                        videoEncoding: { maxBitrate: 1_500_000, maxFramerate: 15 },
+                        screenShareEncoding: { maxBitrate: 1_500_000, maxFramerate: 15 }
                     });
                 }
             }
-        } catch (e) {}
+        } catch (e) {} finally {
+            isRepublishingTracks = false;
+        }
     }
 
     room.on(LivekitClient.RoomEvent.Reconnected, () => {
@@ -448,7 +458,7 @@ let videoEnabled = false;
         }).catch(() => {});
     }
 
-    // 1. Dedicated Camera Button Handler (Never calls getDisplayMedia)
+    // 1. Dedicated Camera Button Handler (Lightweight 320x180 PIP stream for zero CPU/bandwidth lag)
     document.getElementById('btn-admin-video').addEventListener('click', async () => {
         if (isVideoToggling) return;
         const { adminKey, quizId } = getAdminCreds();
@@ -459,9 +469,9 @@ let videoEnabled = false;
             if (!videoEnabled) {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 640, max: 640 },
-                        height: { ideal: 360, max: 360 },
-                        frameRate: { ideal: 24, max: 24 }
+                        width: { ideal: 320, max: 480 },
+                        height: { ideal: 180, max: 270 },
+                        frameRate: { ideal: 20, max: 20 }
                     }
                 });
                 await ensureRoomConnected(quizId);
@@ -469,18 +479,13 @@ let videoEnabled = false;
                 if ('contentHint' in currentCamTrack) {
                     currentCamTrack.contentHint = 'motion';
                 }
-                await currentCamTrack.applyConstraints({
-                    width: { ideal: 640 },
-                    height: { ideal: 360 },
-                    frameRate: { ideal: 24, max: 24 }
-                }).catch(() => {});
 
                 await room.localParticipant.publishTrack(currentCamTrack, {
                     name: 'camera',
-                    simulcast: true,
+                    simulcast: false,
                     videoEncoding: {
-                        maxBitrate: 450_000,
-                        maxFramerate: 24
+                        maxBitrate: 220_000,
+                        maxFramerate: 20
                     }
                 });
                 document.getElementById('admin-self-video').srcObject = stream;
@@ -589,7 +594,7 @@ let videoEnabled = false;
                     video: {
                         width: { ideal: 1920, max: 1920 },
                         height: { ideal: 1080, max: 1080 },
-                        frameRate: { ideal: 20, max: 20 }
+                        frameRate: { ideal: 15, max: 15 }
                     },
                     audio: false
                 });
@@ -609,21 +614,21 @@ let videoEnabled = false;
                 await currentScreenTrack.applyConstraints({
                     width: { ideal: 1920 },
                     height: { ideal: 1080 },
-                    frameRate: { ideal: 20, max: 20 }
+                    frameRate: { ideal: 15, max: 15 }
                 }).catch(() => {});
 
                 await room.localParticipant.publishTrack(currentScreenTrack, {
                     name: 'screen',
                     source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
-                    simulcast: false,
+                    simulcast: true,
                     degradationPreference: 'maintain-resolution',
                     videoEncoding: {
-                        maxBitrate: 2_000_000,
-                        maxFramerate: 20
+                        maxBitrate: 1_500_000,
+                        maxFramerate: 15
                     },
                     screenShareEncoding: {
-                        maxBitrate: 2_000_000,
-                        maxFramerate: 20
+                        maxBitrate: 1_500_000,
+                        maxFramerate: 15
                     }
                 });
 
@@ -649,13 +654,6 @@ let videoEnabled = false;
     }
 
     document.getElementById('btn-mode-question').addEventListener('click', async () => {
-        if (currentScreenTrack) {
-            try {
-                if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
-                currentScreenTrack.stop();
-            } catch (e) {}
-            currentScreenTrack = null;
-        }
         broadcastMode = 'question';
         updateModeConsoleUI();
         await syncModeToServer();

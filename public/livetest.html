@@ -172,7 +172,8 @@
             if (isScreenTrack) {
                 const pptVideo = document.getElementById('student-ppt-video');
                 if (pptVideo) {
-                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(pptVideo);
+                    const hasValidSrc = Boolean(pptVideo.srcObject && pptVideo.srcObject.active !== false);
+                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(pptVideo) && hasValidSrc;
                     if (!alreadyAttached) {
                         try {
                             if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
@@ -182,17 +183,21 @@
                                 publication.setVideoDimensions({ width: 1920, height: 1080 });
                             }
                         } catch (e) {}
+                        try { track.detach(pptVideo); } catch (e) {}
                         track.attach(pptVideo);
                     }
                     pptVideo.muted = true;
-                    if (pptVideo.paused) pptVideo.play().catch(() => {});
+                    if (pptVideo.paused || pptVideo.readyState < 2) {
+                        pptVideo.play().catch(() => {});
+                    }
                 }
             } else {
                 const videoEl = document.getElementById('student-remote-video');
                 const pipBox = document.getElementById('student-pip-box');
                 const placeholder = document.getElementById('student-video-placeholder');
                 if (videoEl) {
-                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(videoEl);
+                    const hasValidSrc = Boolean(videoEl.srcObject && videoEl.srcObject.active !== false);
+                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(videoEl) && hasValidSrc;
                     if (!alreadyAttached) {
                         try {
                             if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
@@ -202,11 +207,14 @@
                                 publication.setVideoDimensions({ width: 320, height: 180 });
                             }
                         } catch (e) {}
+                        try { track.detach(videoEl); } catch (e) {}
                         track.attach(videoEl);
                     }
                     videoEl.muted = true;
                     videoEl.style.display = 'block';
-                    if (videoEl.paused) videoEl.play().catch(() => {});
+                    if (videoEl.paused || videoEl.readyState < 2) {
+                        videoEl.play().catch(() => {});
+                    }
                 }
                 if (pipBox) pipBox.style.display = 'flex';
                 if (placeholder) placeholder.style.display = 'none';
@@ -322,7 +330,7 @@
         if (studentMicTrack && studentMicTrack.readyState === 'live' && !window.studentMutedByAdmin) {
             try {
                 const alreadyPub = Array.from(room.localParticipant.audioTrackPublications.values())
-                    .some(p => p.track === studentMicTrack);
+                    .some(p => p.track === studentMicTrack || p.track?.mediaStreamTrack === studentMicTrack);
                 if (!alreadyPub) {
                     await room.localParticipant.publishTrack(studentMicTrack, {
                         name: 'student_mic',
