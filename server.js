@@ -4174,6 +4174,261 @@ app.get('/api/livekit/token', async (req, res) => {
         res.status(500).json({ error: "Token generation failed." });
     }
 });
+// ============================================================================
+// ADMIN CONTROL SYSTEM: USER MANAGEMENT & CROSS-FOLDER QUIZ ANALYTICS
+// ============================================================================
+
+// 1. Get all registered accounts, test histories, and purchase records
+app.post('/api/admin/users/list', async (req, res) => {
+    try {
+        const { adminKey } = req.body;
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+
+        const usersMap = new Map(); // email -> { firstName, lastName, email, attempts, purchases }
+
+        // Helper to register or update user profile info
+        const registerUser = (email, fName = 'STUDENT', lName = '.') => {
+            const cleanEmail = String(email || '').trim().toLowerCase();
+            if (!cleanEmail || !cleanEmail.includes('@')) return;
+            if (!usersMap.has(cleanEmail)) {
+                usersMap.set(cleanEmail, {
+                    email: cleanEmail,
+                    firstName: fName.trim().toUpperCase(),
+                    lastName: lName.trim().toUpperCase(),
+                    attempts: [],
+                    purchases: []
+                });
+            }
+        };
+
+        // A. Scan Redis user profiles & purchases
+        try {
+            const profileKeys = await stateStore.execCommand(['KEYS', 'user:profile:*']);
+            if (Array.isArray(profileKeys)) {
+                for (const k of profileKeys) {
+                    const raw = await stateStore.get(k);
+                    if (raw) {
+                        const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                        if (p.email) registerUser(p.email, p.firstName, p.lastName);
+                    }
+                }
+            }
+
+            const purchaseKeys = await stateStore.execCommand(['KEYS', 'user:purchases:*']);
+            if (Array.isArray(purchaseKeys)) {
+                for (const k of purchaseKeys) {
+                    const parts = k.replace(/^user:purchases:/i, '').split(':');
+                    const email = parts[0];
+                    if (email && email.includes('@')) {
+                        registerUser(email);
+                        if (parts.length > 1) {
+                            usersMap.get(email.toLowerCase()).purchases.push(parts[1]);
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+
+        // B. Scan historical submissions
+        const history = await getHistoricalSubmissions();
+        history.forEach(s => {
+            if (s.email) {
+                registerUser(s.email, s.firstName, s.lastName);
+                usersMap.get(s.email.toLowerCase()).attempts.push({
+                    quizId: s.quizId || s.chapterTitle || 'Unknown Test',
+                    score: s.score,
+                    total: s.total,
+                    timestamp: s.timestamp
+                });
+            }
+        });
+
+        // C. Scan attempts_db.json
+        try {
+            const attFile = path.join(__dirname, 'attempts_db.json');
+            if (fs.existsSync(attFile)) {
+                const db = JSON.parse(fs.readFileSync(attFile, 'utf8')) || {};
+                Object.entries(db).forEach(([compoundKey, att]) => {
+                    const email = compoundKey.split('__')[0];
+                    if (email) {
+                        registerUser(email);
+                        usersMap.get(email.toLowerCase()).attempts.push({
+                            quizId: att.quizId || compoundKey,
+                            score: att.score,
+                            total: att.total,
+                            timestamp: att.timestamp
+                        });
+                    }
+                });
+            }
+        } catch (e) {}
+
+        const usersList = Array.from(usersMap.values());
+        res.json({ success: true, users: usersList });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load user list.' });
+    }
+});
+
+// 2. Targetedly delete a user's test history or purchase history
+app.post('/api/admin/users/delete-data', async (req, res) => {
+    try {
+        const { adminKey, email, dataType } = req.body; // dataType: 'history' or 'purchases'
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail) return res.status(400).json({ error: 'Missing email.' });
+
+        if (dataType === 'history') {
+            // Clear attempts from attempts_db.json
+            try {
+                const attFile = path.join(__dirname, 'attempts_db.json');
+                if (fs.existsSync(attFile)) {
+                    const db = JSON.parse(fs.readFileSync(attFile, 'utf8')) || {};
+                    Object.keys(db).forEach(k => {
+                        if (k.startsWith(`${cleanEmail}__`)) delete db[k];
+                    });
+                    fs.writeFileSync(attFile, JSON.stringify(db, null, 2), { mode: 0o600 });
+                }
+            } catch (e) {}
+
+            // Clear from submissions.json
+            try {
+                const subFile = path.join(__dirname, 'submissions.json');
+                if (fs.existsSync(subFile)) {
+                    let subs = JSON.parse(fs.readFileSync(subFile, 'utf8')) || [];
+                    subs = subs.filter(s => String(s.email || '').trim().toLowerCase() !== cleanEmail);
+                    fs.writeFileSync(subFile, JSON.stringify(subs, null, 2), { mode: 0o600 });
+                }
+            } catch (e) {}
+
+            // Clear Redis attempt keys
+            try {
+                const keys = await stateStore.execCommand(['KEYS', `attempt:v1:${cleanEmail}:*`]);
+                if (Array.isArray(keys)) {
+                    for (const k of keys) await stateStore.del(k);
+                }
+            } catch (e) {}
+        } else if (dataType === 'purchases') {
+            // Clear purchase Redis keys and set
+            try {
+                await stateStore.del(`user:purchases:${cleanEmail}`);
+                const keys = await stateStore.execCommand(['KEYS', `user:purchases:${cleanEmail}:*`]);
+                if (Array.isArray(keys)) {
+                    for (const k of keys) await stateStore.del(k);
+                }
+            } catch (e) {}
+        }
+
+        res.json({ success: true, message: `Successfully cleared ${dataType} for ${cleanEmail}` });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete user data.' });
+    }
+});
+
+// 3. List all JSON files across all folders for the dropdown
+app.post('/api/admin/json-files/list', async (req, res) => {
+    try {
+        const { adminKey } = req.body;
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+
+        const allFolders = [
+            path.join(__dirname, 'quizzes'),
+            path.join(__dirname, 'descriptive'),
+            path.join(__dirname, 'livemock'),
+            path.join(__dirname, 'notes')
+        ];
+
+        const jsonFiles = [];
+        allFolders.forEach(folder => {
+            if (fs.existsSync(folder)) {
+                const files = getAllJsonFiles(folder);
+                files.forEach(filePath => {
+                    const fileName = path.basename(filePath, '.json');
+                    const relativePath = path.relative(__dirname, filePath).replace(/\\/g, '/');
+                    try {
+                        const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                        jsonFiles.push({
+                            id: fileName,
+                            path: relativePath,
+                            title: content.title || fileName,
+                            category: content.category || 'general'
+                        });
+                    } catch (e) {
+                        jsonFiles.push({ id: fileName, path: relativePath, title: fileName, category: 'general' });
+                    }
+                });
+            }
+        });
+
+        res.json({ success: true, files: jsonFiles });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to list JSON files.' });
+    }
+});
+
+// 4. Get attempts and scores for a specific test file ID
+app.post('/api/admin/quiz-attempts', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+
+        const cleanQuizId = path.basename(String(quizId || '')).trim().toLowerCase();
+        const attempts = [];
+        const seenEmails = new Set();
+
+        const addAttemptRecord = (email, name, score, total, timestamp) => {
+            const cleanEm = String(email || 'unknown').trim().toLowerCase();
+            const uniqueKey = `${cleanEm}_${timestamp}`;
+            if (!seenEmails.has(uniqueKey)) {
+                seenEmails.add(uniqueKey);
+                attempts.push({
+                    email: cleanEm,
+                    name: name || 'Student',
+                    score: Number(score) || 0,
+                    total: Number(total) || 1,
+                    timestamp: timestamp || new Date().toISOString()
+                });
+            }
+        };
+
+        // A. Check historical submissions
+        const history = await getHistoricalSubmissions();
+        history.forEach(s => {
+            const sId = path.basename(String(s.quizId || s.chapterTitle || '')).trim().toLowerCase();
+            if (sId === cleanQuizId || sId.includes(cleanQuizId)) {
+                addAttemptRecord(s.email, `${s.firstName || ''} ${s.lastName || ''}`.trim(), s.score, s.total, s.timestamp);
+            }
+        });
+
+        // B. Check attempts_db.json
+        try {
+            const attFile = path.join(__dirname, 'attempts_db.json');
+            if (fs.existsSync(attFile)) {
+                const db = JSON.parse(fs.readFileSync(attFile, 'utf8')) || {};
+                Object.entries(db).forEach(([compoundKey, att]) => {
+                    const [email, qId] = compoundKey.split('__');
+                    if (qId && (qId.toLowerCase() === cleanQuizId || att.quizId?.toLowerCase() === cleanQuizId)) {
+                        addAttemptRecord(email, att.name || email, att.score, att.total, att.timestamp);
+                    }
+                });
+            }
+        } catch (e) {}
+
+        attempts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        res.json({ success: true, attempts });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch test attempts.' });
+    }
+});
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 

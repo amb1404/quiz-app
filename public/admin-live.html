@@ -172,7 +172,56 @@
         </div>
         <div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
     </div>
+<div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
+    </div>
 
+    <!-- Panel 1: Registered Accounts & History Cleaner -->
+    <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
+        <h3 style="margin-top: 0; color: #93c5fd;">👥 Registered Accounts & Data Management</h3>
+        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">View all student accounts and targetedly clear their test history or purchase history.</p>
+        <button id="btn-load-users" type="button" style="background: #2563eb; color: #fff; margin-bottom: 12px;">Load Registered Accounts</button>
+        <div style="overflow-x: auto;">
+            <table id="users-table" style="display: none; width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Email</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Name</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Test Attempts</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Purchases</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Panel 2: Cross-Folder JSON Quiz Analytics -->
+    <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
+        <h3 style="margin-top: 0; color: #c4b5fd;">📊 Cross-Folder Quiz Analytics & Attempts</h3>
+        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">Select any JSON test file across all folders to view who attempted it, their score, and the date.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px;">
+            <select id="admin-all-json-select" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 320px; cursor: pointer;">
+                <option value="">-- Select a JSON Test File --</option>
+            </select>
+            <button id="btn-load-quiz-attempts" type="button" style="background: #059669; color: #fff;">View Attempts</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table id="quiz-attempts-table" style="display: none; width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Email</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Name</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Score Achieved</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Attempt Date</th>
+                    </tr>
+                </thead>
+                <tbody id="quiz-attempts-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="admin-pip-box">
     <div id="admin-pip-box">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
@@ -768,6 +817,142 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
         } catch (err) {
             statusEl.style.color = '#f87171';
             statusEl.textContent = 'Network error while decoding.';
+        }
+    });
+
+    // --- 1. Load & Manage Registered Accounts ---
+    document.getElementById('btn-load-users').addEventListener('click', async () => {
+        const { adminKey } = getAdminCreds();
+        if (!adminKey) return alert('Please enter your Admin Secret Key at the top first.');
+
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#94a3b8;">Loading accounts...</td></tr>';
+        document.getElementById('users-table').style.display = 'table';
+
+        try {
+            const res = await fetch('/api/admin/users/list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey })
+            });
+            const data = await res.json();
+            if (!data.success || !Array.isArray(data.users)) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Failed to load users.</td></tr>';
+                return;
+            }
+
+            if (data.users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#94a3b8;">No registered accounts found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.users.map(u => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.email}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.firstName} ${u.lastName}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.attempts.length} attempts</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.purchases.length} items</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155; display: flex; gap: 8px;">
+                        <button style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" onclick="deleteUserData('${u.email}', 'history')">Wipe History</button>
+                        <button style="background:#9333ea; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" onclick="deleteUserData('${u.email}', 'purchases')">Wipe Purchases</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
+        }
+    });
+
+    window.deleteUserData = async function(email, dataType) {
+        const { adminKey } = getAdminCreds();
+        if (!adminKey) return;
+        if (!confirm(`Are you sure you want to wipe ${dataType} for ${email}?`)) return;
+
+        try {
+            const res = await fetch('/api/admin/users/delete-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, email, dataType })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                document.getElementById('btn-load-users').click(); // Refresh table
+            } else {
+                alert(data.error || 'Failed to delete data.');
+            }
+        } catch (e) {
+            alert('Network error.');
+        }
+    };
+
+    // --- 2. Load JSON Files Dropdown & Quiz Analytics ---
+    async function initAllJsonDropdown() {
+        const { adminKey } = getAdminCreds();
+        if (!adminKey) return;
+        try {
+            const res = await fetch('/api/admin/json-files/list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey })
+            });
+            const data = await res.json();
+            const selectEl = document.getElementById('admin-all-json-select');
+            if (selectEl && data.success && Array.isArray(data.files)) {
+                selectEl.innerHTML = '<option value="">-- Select a JSON Test File --</option>';
+                data.files.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.textContent = `${f.title} (${f.path})`;
+                    selectEl.appendChild(opt);
+                });
+            }
+        } catch (e) {}
+    }
+
+    // Automatically load the dropdown once admin enters key and launches room
+    document.getElementById('start-btn').addEventListener('click', initAllJsonDropdown);
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initAllJsonDropdown, 1000);
+    });
+
+    document.getElementById('btn-load-quiz-attempts').addEventListener('click', async () => {
+        const { adminKey } = getAdminCreds();
+        const quizId = document.getElementById('admin-all-json-select').value;
+        if (!adminKey) return alert('Please enter your Admin Secret Key first.');
+        if (!quizId) return alert('Please select a JSON test file from the dropdown.');
+
+        const tbody = document.getElementById('quiz-attempts-tbody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#94a3b8;">Loading attempts...</td></tr>';
+        document.getElementById('quiz-attempts-table').style.display = 'table';
+
+        try {
+            const res = await fetch('/api/admin/quiz-attempts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, quizId })
+            });
+            const data = await res.json();
+            if (!data.success || !Array.isArray(data.attempts)) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#f87171;">Failed to load attempts.</td></tr>';
+                return;
+            }
+
+            if (data.attempts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#94a3b8;">No student attempts recorded for this test yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.attempts.map(att => `
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${att.email}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${att.name}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155; font-weight:bold; color:#34d399;">${att.score} / ${att.total} (${((att.score/att.total)*100).toFixed(1)}%)</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #334155;">${new Date(att.timestamp).toLocaleString('en-IN')}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
         }
     });
 </script>
