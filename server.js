@@ -2598,10 +2598,6 @@ app.get('/api/download-descriptive/:fileName', async (req, res) => {
     const allowed = await stateStore.checkRateLimit('dl', clientIp, 10, 15 * 60);
     if (!allowed) return res.status(429).send("Rate limit exceeded. Try again in 15 minutes.");
 
-    const referer = req.get('Referer') || '';
-    if (!referer.includes('pioneersprep.in') && !referer.includes(req.get('Host'))) {
-        return res.status(403).send("Direct script downloads are blocked.");
-    }
 
     const filePath = resolveSafeDescriptivePath(rawFileName);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Descriptive paper not found.");
@@ -2687,10 +2683,6 @@ app.get('/api/download-note/:fileName', async (req, res) => {
     const allowed = await stateStore.checkRateLimit('dl', clientIp, 10, 15 * 60);
     if (!allowed) return res.status(429).send("Rate limit exceeded. Try again in 15 minutes.");
 
-    const referer = req.get('Referer') || '';
-    if (!referer.includes('pioneersprep.in') && !referer.includes(req.get('Host'))) {
-        return res.status(403).send("Direct script downloads are blocked.");
-    }
 
     const filePath = resolveSafeNotePath(rawFileName);
     if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Note file not found.");
