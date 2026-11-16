@@ -39,6 +39,29 @@
             <h2 id="descriptive-screen-heading" style="text-align: center; color: #ca8a04; margin-top: 0;">Available Question Papers</h2>
             <div id="descriptive-list-container"></div>
         </div>
+
+        <!-- Dynamic Exam & Camera Capture UI Container -->
+        <div id="quiz-screen" class="app-screen hidden">
+            <div class="quiz-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="back-btn" data-action="go-back" style="padding: 8px 16px; border-radius: 6px; border: none; background: #e2e8f0; font-weight: bold; cursor: pointer;">End Test</button>
+                <div class="timer" id="time-left" style="font-weight: bold; color: #dc2626; font-size: 16px;">Time Left: --:--</div>
+            </div>
+            <h2 id="quiz-screen-heading" style="text-align:center; color:#2563eb; margin-top:0;"></h2>
+            <div id="progress-container" style="width: 100%; background-color: #e2e8f0; border-radius: 8px; height: 10px; margin-bottom: 20px;">
+                <div id="progress-bar" style="width: 0%; background-color: #2563eb; height: 100%; border-radius: 8px; transition: width 0.3s;"></div>
+            </div>
+            <div class="quiz-nav-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span id="quiz-stats" style="font-size: 14px; font-weight: bold; color: #64748b;">Attempted: 0 / 0 | Skipped: 0</span>
+                <button id="clear-btn" data-action="clear-response" style="background: #f59e0b; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; border: none; font-weight: bold;">Clear Response</button>
+            </div>
+            <h3 id="question-box" style="font-size: 18px; color: #1e293b; margin-bottom: 20px;">Loading Question...</h3>
+            <div id="options-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px;"></div>
+            <div class="quiz-nav-container" style="display: flex; justify-content: space-between; gap: 10px;">
+                <button id="prev-btn" data-action="prev-question" style="background: #475569; color: white; padding: 10px 16px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; flex: 1;">Previous</button>
+                <button id="next-btn" data-action="next-question" style="background: #2563eb; color: white; padding: 10px 16px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; flex: 1;">Next</button>
+                <button id="submit-btn" data-action="submit-quiz" style="background: #16a34a; color: white; padding: 10px 16px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; flex: 1;">Submit Quiz</button>
+            </div>
+        </div>
     </main>
 
     <footer id="site-footer" class="site-footer"></footer>

@@ -1305,6 +1305,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             window.selectUnit(cardLabel);
                         } else if (parentScreen.id.indexOf('chapter') !== -1 && typeof window.selectChapter === 'function') {
                             window.selectChapter(cardLabel);
+                        } else if (parentScreen.id.indexOf('descriptive-subject') !== -1 && typeof window.selectDescriptiveSubject === 'function') {
+                            window.selectDescriptiveSubject(cardLabel);
+                        } else if (parentScreen.id.indexOf('notes-subject') !== -1 && typeof window.selectNotesSubject === 'function') {
+                            window.selectNotesSubject(cardLabel);
                         } else if (parentScreen.id.indexOf('subject') !== -1 && typeof window.selectSubject === 'function') {
                             window.selectSubject(cardLabel);
                         }
