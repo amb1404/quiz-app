@@ -1783,6 +1783,11 @@ if (dataParts.length < 5 || !String(dataParts[4]).startsWith('G2_')) {
 }
 
     const tokenEmail = dataParts[0];
+    
+    // Check if the account was deregistered by the admin
+    const isEmailBlacklisted = await stateStore.get(`blacklist:email:${tokenEmail}`);
+    if (isEmailBlacklisted) return { valid: false, error: 'Your account has been deregistered. Please sign in again.' };
+
     let issuedAt, firstName = '', lastName = '';
 
     if (dataParts.length >= 5) {
@@ -3029,6 +3034,7 @@ app.post('/api/auth/google', async (req, res) => {
         // Always use and sync the student's verified Google Account name
         const finalFirstName = googleFirstName || 'STUDENT';
         const finalLastName = googleLastName || '.';
+        await stateStore.del(`blacklist:email:${email}`); // Clear deregistration block so they can re-register
         await saveRegisteredStudentProfile(email, finalFirstName, finalLastName);
 
         const tokenData = `${email}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|G2_${crypto.randomBytes(8).toString('hex')}`;
@@ -4336,6 +4342,7 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
         } else if (dataType === 'account') {
             // Completely deregister the user profile
             try {
+                await stateStore.set(`blacklist:email:${cleanEmail}`, '1', TOKEN_MAX_AGE_SEC); // Instantly kills all active sessions
                 await stateStore.del(`user:profile:${cleanEmail}`);
                 await stateStore.del(`whitelist:vip:${cleanEmail}`);
                 const usersFile = path.join(__dirname, 'users.json');
