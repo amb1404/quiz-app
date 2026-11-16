@@ -856,14 +856,25 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
                     <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.attempts.length} attempts</td>
                     <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.purchases.length} items</td>
                     <td style="padding: 10px; border-bottom: 1px solid #334155; display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" onclick="deleteUserData('${u.email}', 'history')">Wipe History</button>
-                        <button style="background:#9333ea; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" onclick="deleteUserData('${u.email}', 'purchases')">Wipe Purchases</button>
-                        <button style="background:#ea580c; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" onclick="deleteUserData('${u.email}', 'account')">Deregister</button>
+                        <button style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="history" data-email="${u.email}">Wipe History</button>
+                        <button style="background:#9333ea; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="purchases" data-email="${u.email}">Wipe Purchases</button>
+                        <button style="background:#ea580c; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="account" data-email="${u.email}">Deregister</button>
                     </td>
                 </tr>
             `).join('');
         } catch (e) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
+        }
+    });
+
+    // CSP-compliant event delegation for the buttons
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="wipe-data"]');
+        if (!btn) return;
+        const email = btn.getAttribute('data-email');
+        const dataType = btn.getAttribute('data-type');
+        if (email && dataType && typeof window.deleteUserData === 'function') {
+            window.deleteUserData(email, dataType);
         }
     });
 
