@@ -52,11 +52,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         const saved = sessionStorage.getItem('live_admin_session');
         if (saved) {
             const parsed = JSON.parse(saved);
-            adminKey = parsed.adminKey;
             quizId = parsed.quizId;
             activeQuizFile = parsed.activeQuizFile || "";
 
-            document.getElementById('admin-key').value = adminKey;
             document.getElementById('quiz-id').value = quizId;
             document.getElementById('create-room-box').style.display = 'flex';
             document.getElementById('control-panel').style.display = 'block';
@@ -117,7 +115,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'none';
 
-            sessionStorage.setItem('live_admin_session', JSON.stringify({ adminKey, quizId, activeQuizFile }));
+            sessionStorage.setItem('live_admin_session', JSON.stringify({ quizId, activeQuizFile }));
 
             startBtn.innerText = "Room Active";
             startBtn.disabled = true;
@@ -182,7 +180,6 @@ function getActiveAdminCreds() {
         const activeSessionStr = sessionStorage.getItem('live_admin_session');
         if (activeSessionStr) {
             const parsed = JSON.parse(activeSessionStr);
-            if (!creds.adminKey && parsed.adminKey) creds.adminKey = parsed.adminKey;
             if (!creds.quizId && parsed.quizId) creds.quizId = parsed.quizId;
         }
     } catch (err) {}

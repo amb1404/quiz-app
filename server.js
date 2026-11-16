@@ -669,7 +669,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
                         <span>+91 74071 91899 (Call)</span>
                     </a>
-                    <a href="https://wa.me/9117407191899" target="_blank" class="contact-item">
+                    <a href="https://wa.me/917407191899" target="_blank" class="contact-item">
                         <svg class="contact-icon" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 0 0 1.333 4.976L1.92 22.07l5.244-1.376a9.972 9.972 0 0 0 4.847 1.259h.004c5.505 0 9.988-4.478 9.989-9.984 0-2.669-1.037-5.176-2.924-7.063A9.925 9.925 0 0 0 12.012 2zm0 18.283h-.003a8.272 8.272 0 0 1-4.22-1.155l-.303-.179-3.136.822.84-3.056-.197-.313a8.28 8.28 0 0 1-1.267-4.418c.001-4.57 3.72-8.288 8.293-8.288 2.215 0 4.298.863 5.864 2.428a8.236 8.236 0 0 1 2.426 5.866c-.002 4.568-3.721 8.286-8.297 8.288zm4.544-6.196c-.249-.125-1.474-.728-1.703-.811-.23-.083-.398-.124-.564.124-.167.249-.644.811-.79.77-.145-.164-.291-.207-.54-.332-1.398-.698-3.328-1.545-4.226-3.1-.096-.164-.011-.253.113-.377.111-.11.249-.29.373-.435.124-.146.166-.249.249-.415.083-.166.042-.311-.021-.436-.062-.124-.564-1.36-.773-1.865-.203-.49-.408-.424-.564-.432l-.481-.007c-.166 0-.435.062-.663.311s-.871.851-.871 2.074c0 1.223.892 2.405 1.016 2.571.124.166 1.753 2.676 4.246 3.753 1.54.665 2.112.72 2.871.603.861-.131 2.671-1.092 3.045-2.149.373-1.058.373-1.966.262-2.149-.112-.185-.415-.291-.664-.415z"/></svg>
                         <span>+91 74071 91899 (WhatsApp)</span>
                     </a>
@@ -2303,7 +2303,7 @@ app.use((req, res, next) => {
 app.post('/api/admin/decode-leak', async (req, res) => {
     try {
         const { adminKey, leakedText } = req.body;
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ success: false, error: 'Unauthorized Admin Secret Key.' });
         }
         const bits = extractInvisibleWatermarkBits(leakedText);
@@ -3386,7 +3386,7 @@ app.get('/api/live/rooms', async (req, res) => {
 app.post('/api/live/admin/moderate-student', async (req, res) => {
     try {
         const { adminKey, quizId, studentName, action } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
         const targetName = String(studentName || '').trim();
@@ -3554,7 +3554,7 @@ async function emitAdminBoard(cleanId) {
 app.post('/api/live/admin/start', async (req, res) => {
     try {
         const { adminKey, quizId, questionFile } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const rawRoomName = String(quizId || '').trim();
         const cleanId = path.basename(rawRoomName).trim();
@@ -3615,7 +3615,7 @@ await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
 app.post('/api/live/admin/select-quiz', async (req, res) => {
     try {
         const { adminKey, quizId, questionFile } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized Admin' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -3666,7 +3666,7 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
 app.post('/api/live/rtc/admin/mode', async (req, res) => {
     try {
         const { adminKey, quizId, broadcastMode } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -3687,7 +3687,7 @@ app.post('/api/live/rtc/admin/mode', async (req, res) => {
 app.post('/api/live/admin/clear-question', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -3719,7 +3719,7 @@ app.post('/api/live/admin/clear-question', async (req, res) => {
 app.post('/api/live/admin/end', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
         const cleanId = path.basename(String(quizId)).trim();
 
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -3757,7 +3757,7 @@ app.post('/api/live/admin/end', async (req, res) => {
 app.post('/api/live/admin/set-index', async (req, res) => {
     try {
         const { adminKey, quizId, index } = req.body;
-        if (adminKey !== APPS_SECRET) return res.status(403).json({ error: 'Unauthorized' });
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId)).trim();
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
@@ -4130,7 +4130,7 @@ app.get('/api/livekit/token', async (req, res) => {
         const isAdmin = rawName.toLowerCase() === 'admin';
 
         if (isAdmin) {
-            if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+            if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
                 return res.status(403).json({ error: "Unauthorized Admin LiveKit token request." });
             }
         }
@@ -4182,7 +4182,7 @@ app.get('/api/livekit/token', async (req, res) => {
 app.post('/api/admin/users/list', async (req, res) => {
     try {
         const { adminKey } = req.body;
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
 
@@ -4276,7 +4276,7 @@ app.post('/api/admin/users/list', async (req, res) => {
 app.post('/api/admin/users/delete-data', async (req, res) => {
     try {
         const { adminKey, email, dataType } = req.body; // dataType: 'history' or 'purchases'
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
 
@@ -4334,7 +4334,7 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
 app.post('/api/admin/json-files/list', async (req, res) => {
     try {
         const { adminKey } = req.body;
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
 
@@ -4377,7 +4377,7 @@ app.post('/api/admin/json-files/list', async (req, res) => {
 app.post('/api/admin/quiz-attempts', async (req, res) => {
     try {
         const { adminKey, quizId } = req.body;
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) {
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
 
@@ -4649,7 +4649,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("join-admin-room", async ({ quizId, adminKey }) => {
-        if (!APPS_SECRET || adminKey !== APPS_SECRET) return;
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) return;
         const cleanId = path.basename(String(quizId || '')).trim();
         if (!cleanId) return;
         socket.join(`admin-${cleanId}`);
