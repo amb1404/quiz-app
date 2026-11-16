@@ -856,60 +856,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     } catch (e) {}
                 }
 
-                // 3. Rebuild parent screens natively after a page refresh without switching away from the active screen
-                function replayParentHierarchySilently() {
-                    try {
-                        wrapNavFunctions();
-                        var activeBefore = document.querySelector('.app-screen:not(.hidden)');
-                        var activeId = activeBefore ? activeBefore.id : null;
-                        if (!activeId || activeId === 'home-dashboard' || activeId === 'quiz-screen' || activeId === 'result-screen') return;
-
-                        var state = JSON.parse(sessionStorage.getItem('pioneers_prep_state') || '{}');
-                        var chain = JSON.parse(sessionStorage.getItem(NAV_HISTORY_KEY) || '{}');
-
-                        var cls = chain.selectClass || state.selectedClass || state.currentClass || state.classLevel;
-                        var sub = chain.selectSubject || state.selectedSubject || state.currentSubject || state.subject;
-                        var unit = chain.selectUnit || state.selectedUnit || state.currentUnit || state.unit;
-                        var nCls = chain.selectNotesClass || cls;
-                        var dCls = chain.selectDescriptiveClass || cls;
-                        var dSub = chain.selectDescriptiveSubject || sub;
-
-                        // Replay parent builders in order so their DOM containers are populated with live listeners
-                        if (cls && typeof window.selectClass === 'function') window.selectClass(cls);
-                        if (nCls && typeof window.selectNotesClass === 'function') window.selectNotesClass(nCls);
-                        if (dCls && typeof window.selectDescriptiveClass === 'function') window.selectDescriptiveClass(dCls);
-                        if (sub && typeof window.selectSubject === 'function') window.selectSubject(sub);
-                        if (dSub && typeof window.selectDescriptiveSubject === 'function') window.selectDescriptiveSubject(dSub);
-                        if (unit && typeof window.selectUnit === 'function') window.selectUnit(unit);
-
-                        // Restore the exact screen the student was on when they hit refresh
-                        document.querySelectorAll('.app-screen').forEach(function(s) {
-                            if (s.id === activeId) s.classList.remove('hidden');
-                            else s.classList.add('hidden');
-                        });
-                        state.activeScreen = activeId;
-                        sessionStorage.setItem('pioneers_prep_state', JSON.stringify(state));
-                        snapshotAllPopulatedScreens();
-                    } catch (e) {}
-                }
-
-                try {
-                    var origSetItem = sessionStorage.setItem;
-                    sessionStorage.setItem = function(key, val) {
-                        if (key === 'pioneers_prep_state' && typeof val === 'string') {
-                            try {
-                                var parsed = JSON.parse(val);
-                                if (parsed && 'studentAuthToken' in parsed) {
-                                    delete parsed.studentAuthToken;
-                                    val = JSON.stringify(parsed);
-                                }
-                            } catch (e) {}
-                        }
-                        return origSetItem.call(this, key, val);
-                    };
-                } catch (e) {}
-
-                // Intercept fetch so as soon as /api/quizzes, /api/notes, or /api/descriptive-questions finishes loading on refresh, we rebuild parent screens
+                // Clean Fetch Intercept (Preserves headers & auth without forcing unwanted screen replays)
                 var originalFetch = window.fetch;
                 if (originalFetch) {
                     window.fetch = function(input, init) {
@@ -931,43 +878,35 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         } catch (e) {}
                         var p = originalFetch.call(this, input, init);
 
-                    if (url.indexOf('/api/start-quiz') !== -1 || (url.indexOf('/api/quiz/') !== -1 && url.indexOf('/question/') === -1)) {
-                        return p.then(async function(response) {
-                            try {
-                                var clone = response.clone();
-                                var data = await clone.json();
-                                if (data && data.alreadyAttempted) {
-                                    renderComprehensiveResultScreen(data, true);
-                                    return new Promise(function() {}); // Halt quiz initialization cleanly
+                        if (url.indexOf('/api/start-quiz') !== -1 || (url.indexOf('/api/quiz/') !== -1 && url.indexOf('/question/') === -1)) {
+                            return p.then(async function(response) {
+                                try {
+                                    var clone = response.clone();
+                                    var data = await clone.json();
+                                    if (data && data.alreadyAttempted) {
+                                        renderComprehensiveResultScreen(data, true);
+                                        return new Promise(function() {}); 
+                                    }
+                                } catch (e) {}
+                                return response;
+                            });
+                        }
+
+                        if (url.indexOf('/api/submit') !== -1) {
+                            p.then(function(response) {
+                                return response.clone().json();
+                            }).then(function(data) {
+                                if (data && data.success && Array.isArray(data.breakdownItems)) {
+                                    setTimeout(function() {
+                                        renderComprehensiveResultScreen(data, false);
+                                    }, 120);
                                 }
-                            } catch (e) {}
-                            return response;
-                        });
-                    }
+                            }).catch(function() {});
+                        }
 
-                    if (url.indexOf('/api/submit') !== -1) {
-                        p.then(function(response) {
-                            return response.clone().json();
-                        }).then(function(data) {
-                            if (data && data.success && Array.isArray(data.breakdownItems)) {
-                                setTimeout(function() {
-                                    renderComprehensiveResultScreen(data, false);
-                                }, 120);
-                            }
-                        }).catch(function() {});
-                    }
-
-                    if (url.indexOf('/api/quizzes') !== -1 || url.indexOf('/api/notes') !== -1 || url.indexOf('/api/descriptive-questions') !== -1) {
-                        p.then(function() {
-                            setTimeout(function() {
-                                replayParentHierarchySilently();
-                                restoreBlankScreensFromCache();
-                            }, 150);
-                        }).catch(function() {});
-                    }
-                    return p;
-                };
-            }
+                        return p;
+                    };
+                }
 
             function escHtml(str) {
                 var d = document.createElement('div');
@@ -1299,18 +1238,21 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     // If a restored card on Unit/Subject screen was clicked after DOM cache restore
                     var parentScreen = target.closest('.app-screen');
                     if (parentScreen && target.classList.contains('card') && !target.hasAttribute('data-csp-action')) {
-                        var cardTitleEl = target.querySelector('h3, h4, .card-title, strong');
-                        var cardLabel = cardTitleEl ? cardTitleEl.innerText.trim() : txt.split('\\n')[0].trim();
-                        if (parentScreen.id.indexOf('unit') !== -1 && typeof window.selectUnit === 'function') {
-                            window.selectUnit(cardLabel);
-                        } else if (parentScreen.id.indexOf('chapter') !== -1 && typeof window.selectChapter === 'function') {
-                            window.selectChapter(cardLabel);
-                        } else if (parentScreen.id.indexOf('descriptive-subject') !== -1 && typeof window.selectDescriptiveSubject === 'function') {
-                            window.selectDescriptiveSubject(cardLabel);
-                        } else if (parentScreen.id.indexOf('notes-subject') !== -1 && typeof window.selectNotesSubject === 'function') {
-                            window.selectNotesSubject(cardLabel);
-                        } else if (parentScreen.id.indexOf('subject') !== -1 && typeof window.selectSubject === 'function') {
-                            window.selectSubject(cardLabel);
+                        var isLeafContainer = target.closest('#ix-x-chapter-container, #neet-topic-container, #notes-list-container, #descriptive-list-container, #neet-unit-container, #neet-chapter-container');
+                        if (!isLeafContainer) {
+                            var cardTitleEl = target.querySelector('h3, h4, .card-title, strong');
+                            var cardLabel = cardTitleEl ? cardTitleEl.innerText.trim() : txt.split('\n')[0].trim();
+                            if (parentScreen.id.indexOf('unit') !== -1 && typeof window.selectUnit === 'function') {
+                                window.selectUnit(cardLabel);
+                            } else if (parentScreen.id.indexOf('chapter') !== -1 && typeof window.selectChapter === 'function') {
+                                window.selectChapter(cardLabel);
+                            } else if (parentScreen.id === 'descriptive-subject-screen' && typeof window.selectDescriptiveSubject === 'function') {
+                                window.selectDescriptiveSubject(cardLabel);
+                            } else if (parentScreen.id === 'notes-subject-screen' && typeof window.selectNotesSubject === 'function') {
+                                window.selectNotesSubject(cardLabel);
+                            } else if (parentScreen.id.indexOf('subject') !== -1 && typeof window.selectSubject === 'function') {
+                                window.selectSubject(cardLabel);
+                            }
                         }
                     }
                 });
