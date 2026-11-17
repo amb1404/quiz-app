@@ -65,14 +65,19 @@
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.65);
-            z-index: 9998;
+            z-index: 2147483646;
             display: none;
             flex-direction: column;
             touch-action: none;
             user-select: none;
+            cursor: grab;
         }
+        #admin-pip-box:active { cursor: grabbing; }
         #admin-pip-header {
-            background: rgba(15, 23, 42, 0.92);
+            flex: 0 0 28px;
+            height: 28px;
+            box-sizing: border-box;
+            background: rgba(15, 23, 42, 0.95);
             color: #cbd5e1;
             font-size: 11px;
             font-weight: bold;
@@ -86,10 +91,14 @@
         #admin-pip-header:active { cursor: grabbing; }
         #admin-self-video {
             width: 100%;
-            height: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: calc(100% - 28px);
+            display: block;
             object-fit: cover;
             background: #000;
             transform: scaleX(-1);
+            pointer-events: none;
         }
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -172,8 +181,6 @@
         </div>
         <div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
     </div>
-<div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
-    </div>
 
     <!-- Panel 1: Registered Accounts & History Cleaner -->
     <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
@@ -221,7 +228,7 @@
         </div>
     </div>
 
-    <div id="admin-pip-box" style="cursor: grab;">
+    <div id="admin-pip-box">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
             <span style="color: #38bdf8;">● LIVE HD</span>
@@ -258,16 +265,17 @@
     let isRepublishingTracks = false;
     const activeStudentAudioEls = new Map();
 
+    const ADMIN_PANEL_STORAGE_KEY = 'pp_admin_panel_state';
+
     function getAdminCreds() {
         let adminKey = document.getElementById('admin-key')?.value.trim() || '';
         let quizId = document.getElementById('quiz-id')?.value.trim() || '';
-        if (!adminKey || !quizId) {
-            try {
-                const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
-                if (!adminKey && saved.adminKey) adminKey = saved.adminKey;
-                if (!quizId && saved.quizId) quizId = saved.quizId;
-            } catch (e) {}
-        }
+        try {
+            const savedRoom = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
+            const savedPanel = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
+            if (!adminKey) adminKey = savedPanel.adminKey || savedRoom.adminKey || '';
+            if (!quizId) quizId = savedRoom.quizId || '';
+        } catch (e) {}
         return { adminKey, quizId };
     }
 
@@ -341,13 +349,13 @@
     });
 
     async function ensureRoomConnected(quizId) {
-        if (room.state === 'connected' || room.state === 'connecting' || room.state === 'reconnecting') return;
+        if (room.state === 'connected') return;
         if (connectingPromise) return await connectingPromise;
 
         connectingPromise = (async () => {
             const { adminKey } = getAdminCreds();
             const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin&adminKey=${encodeURIComponent(adminKey)}`);
-            if (!res.ok) throw new Error("API Keys missing on server.");
+            if (!res.ok) throw new Error("API Keys missing or unauthorized.");
             const { token } = await res.json();
             await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
             try { await room.startAudio(); } catch (e) {}
@@ -428,7 +436,6 @@
                 try { track.detach(el); el.remove(); } catch (e) {}
                 activeStudentAudioEls.delete(participant.identity);
             }
-            // Ensure remaining students' audio elements continue playing uninterrupted
             activeStudentAudioEls.forEach((remEl) => {
                 if (remEl.paused) remEl.play().catch(() => {});
             });
@@ -457,7 +464,9 @@
         btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
         btnAudio.classList.toggle('active-mic', audioEnabled);
 
-        pipBox.style.display = videoEnabled ? 'flex' : 'none';
+        if (pipBox) {
+            pipBox.style.display = videoEnabled ? 'flex' : 'none';
+        }
         const anyActive = videoEnabled || audioEnabled || Boolean(currentScreenTrack);
         btnStop.style.display = anyActive ? 'inline-block' : 'none';
     }
@@ -506,7 +515,7 @@
         }).catch(() => {});
     }
 
-    // 1. Dedicated Camera Button Handler (Lightweight 320x180 PIP stream for zero CPU/bandwidth lag)
+    // 1. Dedicated Camera Button Handler (Shows PIP & plays local preview FIRST, then publishes to LiveKit)
     document.getElementById('btn-admin-video').addEventListener('click', async () => {
         if (isVideoToggling) return;
         const { adminKey, quizId } = getAdminCreds();
@@ -522,36 +531,49 @@
                         frameRate: { ideal: 20, max: 20 }
                     }
                 });
-                await ensureRoomConnected(quizId);
                 currentCamTrack = stream.getVideoTracks()[0];
                 if ('contentHint' in currentCamTrack) {
                     currentCamTrack.contentHint = 'motion';
                 }
 
-                await room.localParticipant.publishTrack(currentCamTrack, {
-                    name: 'camera',
-                    simulcast: false,
-                    videoEncoding: {
-                        maxBitrate: 220_000,
-                        maxFramerate: 20
-                    }
-                });
+                // Make PIP container visible BEFORE attaching srcObject & calling play()
+                videoEnabled = true;
+                updateMediaButtonsUI();
+
                 const selfVideoEl = document.getElementById('admin-self-video');
                 if (selfVideoEl) {
                     selfVideoEl.srcObject = stream;
-                    selfVideoEl.play().catch(() => {});
+                    selfVideoEl.muted = true;
+                    await selfVideoEl.play().catch(() => {});
                 }
-                videoEnabled = true;
+
+                // Connect & publish to LiveKit without blocking local self-view
+                try {
+                    await ensureRoomConnected(quizId);
+                    await room.localParticipant.publishTrack(currentCamTrack, {
+                        name: 'camera',
+                        simulcast: false,
+                        videoEncoding: {
+                            maxBitrate: 220_000,
+                            maxFramerate: 20
+                        }
+                    });
+                } catch (rtcErr) {
+                    console.warn("LiveKit publish notice:", rtcErr);
+                }
             } else {
                 if (currentCamTrack) {
-                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
+                    try {
+                        if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
+                    } catch (e) {}
                     currentCamTrack.stop();
                     currentCamTrack = null;
                 }
-                document.getElementById('admin-self-video').srcObject = null;
+                const selfVideoEl = document.getElementById('admin-self-video');
+                if (selfVideoEl) selfVideoEl.srcObject = null;
                 videoEnabled = false;
+                updateMediaButtonsUI();
             }
-            updateMediaButtonsUI();
         } catch (err) {
             videoEnabled = false;
             updateMediaButtonsUI();
@@ -565,7 +587,7 @@
     let micMuteTimeout = null;
     let isMicToggling = false;
 
-    // 2. Dedicated Hardware Microphone Button Handler (Immune to GC & Background Window Suspension)
+    // 2. Dedicated Hardware Microphone Button Handler
     document.getElementById('btn-admin-audio').addEventListener('click', async () => {
         if (isMicToggling) return;
         const { adminKey, quizId } = getAdminCreds();
@@ -591,7 +613,7 @@
                         }
                     });
                     currentMicTrack = rawMicStream.getAudioTracks()[0];
-                    currentMicTrack.enabled = false; // Muted for first 120ms to suppress hardware wake-up click
+                    currentMicTrack.enabled = false;
 
                     currentMicTrack.onended = () => {
                         if (audioEnabled) {
@@ -631,7 +653,7 @@
         }
     });
 
-    // 3. Dedicated Screen Share / PPT Helper (Acquires screen IMMEDIATELY on click for Firefox)
+    // 3. Dedicated Screen Share / PPT Helper
     async function activatePptBroadcastMode(targetMode, forceNewWindow = false) {
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
@@ -641,7 +663,6 @@
             const hasLiveScreen = currentScreenTrack && currentScreenTrack.readyState === 'live';
 
             if (!hasLiveScreen || forceNewWindow) {
-                // MUST run before any await fetch() so Firefox preserves user gesture
                 newScreenStream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         width: { ideal: 1920, max: 1920 },
@@ -725,93 +746,108 @@
     });
 
     window.cutStudentAudioImmediately = function(studentName) {
-    const cleanTarget = String(studentName || '').trim().toLowerCase();
-    for (const [identity, el] of activeStudentAudioEls.entries()) {
-        const cleanId = identity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
-        if (cleanId === cleanTarget) {
-            el.pause();
-            el.srcObject = null;
-            el.remove();
-            activeStudentAudioEls.delete(identity);
+        const cleanTarget = String(studentName || '').trim().toLowerCase();
+        for (const [identity, el] of activeStudentAudioEls.entries()) {
+            const cleanId = identity.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+            if (cleanId === cleanTarget) {
+                el.pause();
+                el.srcObject = null;
+                el.remove();
+                activeStudentAudioEls.delete(identity);
+            }
         }
-    }
-    if (activeStudentAudioEls.size === 0) {
+        if (activeStudentAudioEls.size === 0) {
+            const badge = document.getElementById('admin-caller-badge');
+            if (badge) {
+                badge.textContent = '🎧 No active student calls';
+                badge.classList.remove('calling');
+            }
+        }
+    };
+
+    async function stopAdminBroadcastStream(syncServer = true) {
+        if (micMuteTimeout) {
+            clearTimeout(micMuteTimeout);
+            micMuteTimeout = null;
+        }
+        try { room.disconnect(); } catch (e) {}
+        if (currentCamTrack) { try { currentCamTrack.stop(); } catch (e) {} }
+        if (currentMicTrack) { try { currentMicTrack.stop(); } catch (e) {} }
+        if (rawMicStream) { try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+        if (currentScreenTrack) { try { currentScreenTrack.stop(); } catch (e) {} }
+        currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
+
+        for (const [, el] of activeStudentAudioEls.entries()) {
+            try { el.pause(); el.remove(); } catch (e) {}
+        }
+        activeStudentAudioEls.clear();
         const badge = document.getElementById('admin-caller-badge');
         if (badge) {
             badge.textContent = '🎧 No active student calls';
             badge.classList.remove('calling');
         }
+
+        videoEnabled = false;
+        audioEnabled = false;
+        broadcastMode = 'question';
+        const selfVid = document.getElementById('admin-self-video');
+        if (selfVid) selfVid.srcObject = null;
+        updateModeConsoleUI();
+        if (syncServer) await syncModeToServer();
     }
-};
+    window.stopAdminBroadcastStream = stopAdminBroadcastStream;
 
-async function stopAdminBroadcastStream(syncServer = true) {
-    if (micMuteTimeout) {
-        clearTimeout(micMuteTimeout);
-        micMuteTimeout = null;
-    }
-    try { room.disconnect(); } catch (e) {}
-    if (currentCamTrack) { try { currentCamTrack.stop(); } catch (e) {} }
-    if (currentMicTrack) { try { currentMicTrack.stop(); } catch (e) {} }
-    if (rawMicStream) { try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {} }
-    if (currentScreenTrack) { try { currentScreenTrack.stop(); } catch (e) {} }
-    currentCamTrack = currentMicTrack = currentScreenTrack = rawMicStream = null;
+    document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
+        await stopAdminBroadcastStream(true);
+    });
 
-    for (const [, el] of activeStudentAudioEls.entries()) {
-        try { el.pause(); el.remove(); } catch (e) {}
-    }
-    activeStudentAudioEls.clear();
-    const badge = document.getElementById('admin-caller-badge');
-    if (badge) {
-        badge.textContent = '🎧 No active student calls';
-        badge.classList.remove('calling');
-    }
+    // Universal Mouse + Touch Draggable PIP Window (Works in Firefox, Chrome, Edge & Mobile)
+    (function initAdminPipDrag() {
+        const boxEl = document.getElementById('admin-pip-box');
+        if (!boxEl) return;
+        let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
 
-    videoEnabled = false;
-    audioEnabled = false;
-    broadcastMode = 'question';
-    const selfVid = document.getElementById('admin-self-video');
-    if (selfVid) selfVid.srcObject = null;
-    updateModeConsoleUI();
-    if (syncServer) await syncModeToServer();
-}
-window.stopAdminBroadcastStream = stopAdminBroadcastStream;
-
-document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
-    await stopAdminBroadcastStream(true);
-});
-
-    // Draggable PIP Window (Drag from header or video box)
-    const boxEl = document.getElementById('admin-pip-box');
-    let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-    if (boxEl) {
-        boxEl.addEventListener('pointerdown', (e) => {
+        function startDrag(clientX, clientY, e) {
+            if (e && e.cancelable) e.preventDefault();
             isDragging = true;
             boxEl.style.cursor = 'grabbing';
-            boxEl.setPointerCapture(e.pointerId);
             const rect = boxEl.getBoundingClientRect();
-            startX = e.clientX;
-            startY = e.clientY;
+            startX = clientX;
+            startY = clientY;
             initialLeft = rect.left;
             initialTop = rect.top;
             boxEl.style.bottom = 'auto';
             boxEl.style.right = 'auto';
             boxEl.style.left = initialLeft + 'px';
             boxEl.style.top = initialTop + 'px';
-        });
-        boxEl.addEventListener('pointermove', (e) => {
+        }
+
+        function moveDrag(clientX, clientY) {
             if (!isDragging) return;
-            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-        });
-        const stopDrag = (e) => {
+            const maxLeft = Math.max(0, window.innerWidth - boxEl.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - boxEl.offsetHeight);
+            boxEl.style.left = Math.max(0, Math.min(maxLeft, initialLeft + (clientX - startX))) + 'px';
+            boxEl.style.top = Math.max(0, Math.min(maxTop, initialTop + (clientY - startY))) + 'px';
+        }
+
+        function endDrag() {
             if (!isDragging) return;
             isDragging = false;
             boxEl.style.cursor = 'grab';
-            try { boxEl.releasePointerCapture(e.pointerId); } catch (err) {}
-        };
-        boxEl.addEventListener('pointerup', stopDrag);
-        boxEl.addEventListener('pointercancel', stopDrag);
-    }
+        }
+
+        boxEl.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY, e));
+        window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+        window.addEventListener('mouseup', endDrag);
+
+        boxEl.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches[0]) startDrag(e.touches[0].clientX, e.touches[0].clientY, e);
+        }, { passive: false });
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches && e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        window.addEventListener('touchend', endDrag);
+    })();
 
     // Forensic Question Leak Decoder Handler
     document.getElementById('btn-decode-leak').addEventListener('click', async () => {
@@ -832,14 +868,12 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             statusEl.style.color = data.success ? '#34d399' : '#fbbf24';
             statusEl.textContent = data.message || data.error;
         } catch (err) {
-           statusEl.style.color = '#f87171';
+            statusEl.style.color = '#f87171';
             statusEl.textContent = 'Network error while decoding.';
         }
     });
 
     // --- Dedicated State Persistence for Admin Data & Analytics Panels ---
-    const ADMIN_PANEL_STORAGE_KEY = 'pp_admin_panel_state';
-
     function saveAdminPanelState(updates = {}) {
         try {
             const current = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
@@ -849,6 +883,8 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             sessionStorage.setItem(ADMIN_PANEL_STORAGE_KEY, JSON.stringify(current));
         } catch (e) {}
     }
+
+    document.getElementById('admin-key')?.addEventListener('input', () => saveAdminPanelState());
 
     function getSavedAdminKey() {
         let key = document.getElementById('admin-key')?.value.trim() || '';
