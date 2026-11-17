@@ -221,8 +221,7 @@
         </div>
     </div>
 
-    <div id="admin-pip-box">
-    <div id="admin-pip-box">
+    <div id="admin-pip-box" style="cursor: grab;">
         <div id="admin-pip-header">
             <span>⠿ Drag Self-View</span>
             <span style="color: #38bdf8;">● LIVE HD</span>
@@ -537,7 +536,11 @@
                         maxFramerate: 20
                     }
                 });
-                document.getElementById('admin-self-video').srcObject = stream;
+                const selfVideoEl = document.getElementById('admin-self-video');
+                if (selfVideoEl) {
+                    selfVideoEl.srcObject = stream;
+                    selfVideoEl.play().catch(() => {});
+                }
                 videoEnabled = true;
             } else {
                 if (currentCamTrack) {
@@ -777,24 +780,38 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
     await stopAdminBroadcastStream(true);
 });
 
-    // Draggable PIP Window
+    // Draggable PIP Window (Drag from header or video box)
     const boxEl = document.getElementById('admin-pip-box');
-    const handleEl = document.getElementById('admin-pip-header');
     let isDragging = false, startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-    handleEl.addEventListener('pointerdown', (e) => {
-        isDragging = true; handleEl.setPointerCapture(e.pointerId);
-        const rect = boxEl.getBoundingClientRect();
-        startX = e.clientX; startY = e.clientY;
-        initialLeft = rect.left; initialTop = rect.top;
-        boxEl.style.bottom = 'auto'; boxEl.style.right = 'auto';
-        boxEl.style.left = initialLeft + 'px'; boxEl.style.top = initialTop + 'px';
-    });
-    handleEl.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
-        boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
-    });
-    handleEl.addEventListener('pointerup', (e) => { isDragging = false; handleEl.releasePointerCapture(e.pointerId); });
+    if (boxEl) {
+        boxEl.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            boxEl.style.cursor = 'grabbing';
+            boxEl.setPointerCapture(e.pointerId);
+            const rect = boxEl.getBoundingClientRect();
+            startX = e.clientX;
+            startY = e.clientY;
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            boxEl.style.bottom = 'auto';
+            boxEl.style.right = 'auto';
+            boxEl.style.left = initialLeft + 'px';
+            boxEl.style.top = initialTop + 'px';
+        });
+        boxEl.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            boxEl.style.left = Math.max(0, Math.min(window.innerWidth - boxEl.offsetWidth, initialLeft + (e.clientX - startX))) + 'px';
+            boxEl.style.top = Math.max(0, Math.min(window.innerHeight - boxEl.offsetHeight, initialTop + (e.clientY - startY))) + 'px';
+        });
+        const stopDrag = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            boxEl.style.cursor = 'grab';
+            try { boxEl.releasePointerCapture(e.pointerId); } catch (err) {}
+        };
+        boxEl.addEventListener('pointerup', stopDrag);
+        boxEl.addEventListener('pointercancel', stopDrag);
+    }
 
     // Forensic Question Leak Decoder Handler
     document.getElementById('btn-decode-leak').addEventListener('click', async () => {
