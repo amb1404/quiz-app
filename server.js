@@ -1281,22 +1281,28 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 })();
 
                 // ============================================================
-                // UNIVERSAL SIGN-IN: CHROME GMAIL PICKER + ANDROID GMAIL BRIDGE + GMAIL/iOS MAIL APP CODE
+                // UNIVERSAL GOOGLE SIGN-IN (CHROME, ANDROID GMAIL BRIDGE, iOS & DESKTOP)
                 // ============================================================
                 (function initGoogleAccountSignIn() {
                     var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
                     var googleTokenClient = null;
+                    var googleIdInitialized = false;
                     var gsiLoadPromise = null;
 
                     function isIosDevice() {
-                        var ua = navigator.userAgent || '';
-                        return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                        var ua = (navigator.userAgent || '').toLowerCase();
+                        return ua.indexOf('iphone') !== -1 || ua.indexOf('ipad') !== -1 || ua.indexOf('ipod') !== -1 ||
+                               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
                     }
 
                     function isAndroidNonChromeBrowser() {
                         var ua = navigator.userAgent || '';
-                        if (!/Android/i.test(ua)) return false;
-                        return /SamsungBrowser|EdgA|Firefox|FxiOS|OPR|Opera|MiuiBrowser|HeyTapBrowser|VivoBrowser|UCBrowser|Brave|wv|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
+                        if (ua.indexOf('Android') === -1) return false;
+                        var altTokens = ['SamsungBrowser', 'EdgA', 'Firefox', 'FxiOS', 'OPR', 'Opera', 'MiuiBrowser', 'HeyTapBrowser', 'VivoBrowser', 'UCBrowser', 'Brave', 'wv', 'FBAN', 'FBAV', 'Instagram', 'WhatsApp'];
+                        for (var i = 0; i < altTokens.length; i++) {
+                            if (ua.indexOf(altTokens[i]) !== -1) return true;
+                        }
+                        return false;
                     }
 
                     function completePortalLogin(data) {
@@ -1306,7 +1312,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 statusEl.style.color = '#dc2626';
                                 statusEl.textContent = (data && data.error) ? data.error : 'Sign-In failed. Please try again.';
                             } else {
-                                alert((data && data.error) ? data.error : 'Sign-In failed. Please try again.');
+                                alert((data && data.error) ? data.error : 'Google Sign-In failed. Please try again.');
                             }
                             return;
                         }
@@ -1346,6 +1352,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             if (statusEl) {
                                 statusEl.style.color = '#dc2626';
                                 statusEl.textContent = 'Network error while verifying account. Please try again.';
+                            } else {
+                                alert('Network error while verifying Google account.');
                             }
                         });
                     }
@@ -1355,16 +1363,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         try {
                             var hash = window.location.hash || '';
                             if (hash.indexOf('access_token=') !== -1) {
-                                var params = new URLSearchParams(hash.replace(/^#/, ''));
+                                var cleanHash = hash.charAt(0) === '#' ? hash.substring(1) : hash;
+                                var params = new URLSearchParams(cleanHash);
                                 var accessToken = params.get('access_token');
                                 var returnedState = params.get('state');
                                 var expectedState = sessionStorage.getItem('pp_oauth_csrf_state');
                                 sessionStorage.removeItem('pp_oauth_csrf_state');
                                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
 
-                                if (accessToken && expectedState && returnedState === expectedState) {
+                                if (accessToken && (!expectedState || returnedState === expectedState)) {
                                     window.addEventListener('DOMContentLoaded', function() {
-                                        openUniversalSignInModal();
+                                        openUniversalSignInModal(false);
                                         verifyGoogleWithServer({ accessToken: accessToken });
                                     });
                                 }
@@ -1376,13 +1385,18 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 searchParams.delete('auto_google_login');
                                 var cleanSearch = searchParams.toString();
                                 history.replaceState(null, document.title, window.location.pathname + (cleanSearch ? '?' + cleanSearch : ''));
-                                sessionStorage.setItem('force_login_open', 'true');
+                                window.addEventListener('DOMContentLoaded', function() {
+                                    openUniversalSignInModal(true);
+                                });
                             }
                         } catch (e) {}
                     })();
 
                     function redirectToGoogleOAuthPage() {
-                        if (!GOOGLE_CLIENT_ID) return;
+                        if (!GOOGLE_CLIENT_ID) {
+                            alert('Google Sign-In is not configured yet (Missing GOOGLE_CLIENT_ID).');
+                            return;
+                        }
                         var csrfState = '';
                         try {
                             var randArr = new Uint32Array(4);
@@ -1406,7 +1420,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     }
 
                     function waitForGoogleLibrary(maxWaitMs) {
-                        var limit = Math.ceil((maxWaitMs || 2000) / 100);
+                        var limit = Math.ceil((maxWaitMs || 2500) / 100);
                         if (window.google && window.google.accounts) return Promise.resolve(true);
                         if (gsiLoadPromise) return gsiLoadPromise;
 
@@ -1430,6 +1444,23 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                     function setupGoogleClients() {
                         if (!GOOGLE_CLIENT_ID || !window.google || !window.google.accounts) return false;
+
+                        if (!googleIdInitialized && window.google.accounts.id) {
+                            window.google.accounts.id.initialize({
+                                client_id: GOOGLE_CLIENT_ID,
+                                callback: function(response) {
+                                    if (response && response.credential) {
+                                        verifyGoogleWithServer({ credential: response.credential });
+                                    }
+                                },
+                                auto_select: false,
+                                cancel_on_tap_outside: false,
+                                itp_support: true,
+                                use_fedcm_for_prompt: true
+                            });
+                            googleIdInitialized = true;
+                        }
+
                         if (!googleTokenClient && window.google.accounts.oauth2) {
                             googleTokenClient = window.google.accounts.oauth2.initTokenClient({
                                 client_id: GOOGLE_CLIENT_ID,
@@ -1448,7 +1479,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return true;
                     }
 
-                    // Bridges Samsung Browser / Edge / Mi Browser directly into Android's Chrome Account Manager (which has all Gmail app accounts)
+                    // Bridges Samsung Browser / Edge / Mi Browser directly into Android Chrome where the phone Gmail accounts are signed in
                     function bridgeToAndroidChromeAccountPicker() {
                         var sep = window.location.search ? '&' : '?';
                         var targetPath = window.location.host + window.location.pathname + window.location.search + sep + 'auto_google_login=1';
@@ -1456,184 +1487,95 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         window.location.href = 'intent://' + targetPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
                     }
 
-                    function openUniversalSignInModal() {
-                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
-                            if (m.id !== 'pp-universal-auth-modal') m.style.setProperty('display', 'none', 'important');
-                        });
+                    function openUniversalSignInModal(autoTriggerChooser) {
+                        killLegacyOtpModal(false);
 
                         var isAltAndroid = isAndroidNonChromeBrowser();
                         var existing = document.getElementById('pp-universal-auth-modal');
-                        if (existing) existing.remove();
+                        if (!existing) {
+                            var androidGmailBridgeHtml = isAltAndroid
+                                ? '<button id="pp-bridge-chrome-btn" type="button" style="width:100%;padding:14px 16px;background:#059669;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(5,150,105,0.28);margin-bottom:12px;">' +
+                                    '<span>📲 Fetch Gmail Account from Phone</span>' +
+                                  '</button>'
+                                : '';
 
-                        // If in Samsung Browser / Edge on Android, make the 1-Tap Phone Gmail Bridge the #1 primary button!
-                        var primaryActionHtml = isAltAndroid
-                            ? '<button id="pp-bridge-chrome-btn" type="button" style="width:100%;padding:13px 16px;background:#059669;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(5,150,105,0.28);margin-bottom:10px;">' +
-                                '<span>📲 Pick Account from Phone Gmail App</span>' +
-                              '</button>' +
-                              '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:10px 14px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">' +
-                                '<span>🌐 Or Sign In with Google in This Browser</span>' +
-                              '</button>'
-                            : '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:13px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);">' +
-                                '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-                                '<span>Continue with Google Account</span>' +
-                              '</button>';
+                            var chooserBtnStyle = isAltAndroid
+                                ? 'width:100%;padding:12px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;'
+                                : 'width:100%;padding:14px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);';
 
-                        var overlay = document.createElement('div');
-                        overlay.id = 'pp-universal-auth-modal';
-                        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;backdrop-filter:blur(3px);';
-                        overlay.innerHTML =
-                            '<div style="background:#ffffff;max-width:420px;width:100%;border-radius:16px;padding:26px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
-                                '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
-                                '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:50px;height:50px;border-radius:12px;margin-bottom:8px;object-fit:contain;">' +
-                                '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                '<p style="margin:0 0 14px 0;color:#475569;font-size:13px;line-height:1.45;">Choose your Google account or sign in directly via your phone\'s Gmail / iOS Mail app (no password needed):</p>' +
-                                primaryActionHtml +
-                                '<div style="display:flex;align-items:center;gap:10px;margin:16px 0 12px 0;">' +
-                                    '<div style="flex:1;height:1px;background:#e2e8f0;"></div>' +
-                                    '<span style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Or Use Gmail / iOS Mail App</span>' +
-                                    '<div style="flex:1;height:1px;background:#e2e8f0;"></div>' +
-                                '</div>' +
-                                '<div id="pp-mail-app-box" style="text-align:left;background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0;">' +
-                                    '<input id="pp-mail-email-input" type="email" placeholder="Enter your Gmail / Email address" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px;">' +
-                                    '<div id="pp-mail-name-fields" style="display:none;gap:8px;margin-bottom:8px;">' +
-                                        '<input id="pp-mail-fname" type="text" placeholder="First Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;">' +
-                                        '<input id="pp-mail-lname" type="text" placeholder="Last Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;">' +
-                                    '</div>' +
-                                    '<input id="pp-mail-code-input" type="text" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit code from Mail app" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:16px;font-weight:bold;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:8px;">' +
-                                    '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:10px 14px;background:#1e293b;color:#ffffff;border:none;border-radius:8px;font-weight:700;font-size:13.5px;cursor:pointer;">✉️ Send Code to My Gmail / Mail App</button>' +
-                                '</div>' +
-                                '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
-                            '</div>';
+                            var overlay = document.createElement('div');
+                            overlay.id = 'pp-universal-auth-modal';
+                            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;backdrop-filter:blur(3px);';
+                            overlay.innerHTML =
+                                '<div style="background:#ffffff;max-width:410px;width:100%;border-radius:16px;padding:28px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
+                                    '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
+                                    '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:52px;height:52px;border-radius:12px;margin-bottom:10px;object-fit:contain;">' +
+                                    '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
+                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">Select your Google account below to access mock tests, study notes, and live classes:</p>' +
+                                    androidGmailBridgeHtml +
+                                    '<button id="pp-universal-chooser-btn" type="button" style="' + chooserBtnStyle + '">' +
+                                        '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
+                                        '<span>Continue with Google / Choose Account</span>' +
+                                    '</button>' +
+                                    '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-top:12px;"></div>' +
+                                    '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
+                                '</div>';
 
-                        document.body.appendChild(overlay);
+                            document.body.appendChild(overlay);
 
-                        overlay.addEventListener('click', function(ev) {
-                            if (ev.target === overlay || ev.target.id === 'pp-auth-close-btn') {
-                                overlay.remove();
+                            overlay.addEventListener('click', function(ev) {
+                                if (ev.target === overlay || ev.target.id === 'pp-auth-close-btn') {
+                                    overlay.remove();
+                                }
+                            });
+
+                            var bridgeBtn = document.getElementById('pp-bridge-chrome-btn');
+                            if (bridgeBtn) {
+                                bridgeBtn.addEventListener('click', function() {
+                                    bridgeToAndroidChromeAccountPicker();
+                                });
+                            }
+
+                            var chooserBtn = document.getElementById('pp-universal-chooser-btn');
+                            if (chooserBtn) {
+                                chooserBtn.addEventListener('click', function() {
+                                    launchAccountChooserOrRedirect();
+                                });
+                            }
+                        }
+
+                        if (autoTriggerChooser && !isAltAndroid && !isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                            try {
+                                googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+                            } catch (e) {}
+                        }
+
+                        waitForGoogleLibrary(2500).then(function(ready) {
+                            if (ready && setupGoogleClients()) {
+                                var renderBox = document.getElementById('pp-google-rendered-btn');
+                                if (renderBox && !renderBox.hasChildNodes() && window.google.accounts.id) {
+                                    try {
+                                        window.google.accounts.id.renderButton(renderBox, {
+                                            type: 'standard',
+                                            theme: 'outline',
+                                            size: 'large',
+                                            text: 'continue_with',
+                                            shape: 'rectangular',
+                                            logo_alignment: 'left',
+                                            width: 320
+                                        });
+                                    } catch (e) {}
+                                }
+                                if (window.google.accounts.id) {
+                                    try { window.google.accounts.id.prompt(); } catch (e) {}
+                                }
                             }
                         });
-
-                        var bridgeBtn = document.getElementById('pp-bridge-chrome-btn');
-                        if (bridgeBtn) {
-                            bridgeBtn.addEventListener('click', function() {
-                                bridgeToAndroidChromeAccountPicker();
-                            });
-                        }
-
-                        var chooserBtn = document.getElementById('pp-universal-chooser-btn');
-                        if (chooserBtn) {
-                            chooserBtn.addEventListener('click', function() {
-                                launchAccountChooserOrRedirect();
-                            });
-                        }
-
-                        // Gmail / iOS Mail App Code Handler (Zero Google Password Needed)
-                        var mailStep = 'send';
-                        var mailBtn = document.getElementById('pp-mail-submit-btn');
-                        var emailInp = document.getElementById('pp-mail-email-input');
-                        var codeInp = document.getElementById('pp-mail-code-input');
-                        var nameBox = document.getElementById('pp-mail-name-fields');
-                        var statusEl = document.getElementById('pp-google-auth-status');
-
-                        if (mailBtn) {
-                            mailBtn.addEventListener('click', function() {
-                                var emailVal = (emailInp.value || '').trim().toLowerCase();
-                                if (!emailVal || emailVal.indexOf('@') === -1) {
-                                    statusEl.style.color = '#dc2626';
-                                    statusEl.textContent = 'Please enter your email address first.';
-                                    return;
-                                }
-
-                                if (mailStep === 'send') {
-                                    mailBtn.disabled = true;
-                                    mailBtn.textContent = 'Sending to your Mail app...';
-                                    statusEl.style.color = '#2563eb';
-                                    statusEl.textContent = 'Sending 6-digit code to your Gmail / Mail app...';
-
-                                    fetch('/api/auth/mail-app/send', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ email: emailVal })
-                                    })
-                                    .then(function(r) { return r.json(); })
-                                    .then(function(d) {
-                                        mailBtn.disabled = false;
-                                        if (!d.success) {
-                                            mailBtn.textContent = '✉️ Send Code to My Gmail / Mail App';
-                                            statusEl.style.color = '#dc2626';
-                                            statusEl.textContent = d.error || 'Failed to send code.';
-                                            return;
-                                        }
-                                        mailStep = 'verify';
-                                        emailInp.readOnly = true;
-                                        emailInp.style.background = '#e2e8f0';
-                                        codeInp.style.display = 'block';
-                                        if (!d.hasExistingProfile) {
-                                            nameBox.style.display = 'flex';
-                                        }
-                                        mailBtn.style.background = '#2563eb';
-                                        mailBtn.textContent = '✅ Verify Code & Sign In';
-                                        statusEl.style.color = '#059669';
-                                        statusEl.textContent = 'Code sent! Open your Gmail or iOS Mail app to view it.';
-                                        codeInp.focus();
-                                    })
-                                    .catch(function() {
-                                        mailBtn.disabled = false;
-                                        mailBtn.textContent = '✉️ Send Code to My Gmail / Mail App';
-                                        statusEl.style.color = '#dc2626';
-                                        statusEl.textContent = 'Network error. Please try again.';
-                                    });
-                                } else {
-                                    var codeVal = (codeInp.value || '').trim();
-                                    var fNameVal = (document.getElementById('pp-mail-fname')?.value || '').trim();
-                                    var lNameVal = (document.getElementById('pp-mail-lname')?.value || '').trim();
-                                    if (codeVal.length < 4) {
-                                        statusEl.style.color = '#dc2626';
-                                        statusEl.textContent = 'Please enter the 6-digit code from your Mail app.';
-                                        return;
-                                    }
-                                    if (nameBox.style.display !== 'none' && !fNameVal) {
-                                        statusEl.style.color = '#dc2626';
-                                        statusEl.textContent = 'Please enter your First Name.';
-                                        return;
-                                    }
-                                    mailBtn.disabled = true;
-                                    mailBtn.textContent = 'Verifying...';
-                                    fetch('/api/auth/mail-app/verify', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            email: emailVal,
-                                            code: codeVal,
-                                            firstName: fNameVal,
-                                            lastName: lNameVal
-                                        })
-                                    })
-                                    .then(function(r) { return r.json(); })
-                                    .then(function(d) {
-                                        mailBtn.disabled = false;
-                                        if (!d.success) {
-                                            mailBtn.textContent = '✅ Verify Code & Sign In';
-                                            statusEl.style.color = '#dc2626';
-                                            statusEl.textContent = d.error || 'Invalid code.';
-                                            return;
-                                        }
-                                        completePortalLogin(d);
-                                    })
-                                    .catch(function() {
-                                        mailBtn.disabled = false;
-                                        mailBtn.textContent = '✅ Verify Code & Sign In';
-                                        statusEl.style.color = '#dc2626';
-                                        statusEl.textContent = 'Network error verifying code.';
-                                    });
-                                }
-                            });
-                        }
                     }
 
                     function launchAccountChooserOrRedirect() {
                         var statusEl = document.getElementById('pp-google-auth-status');
-                        if (!isIosDevice() && !isAndroidNonChromeBrowser() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (!isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             if (statusEl) statusEl.textContent = '';
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
@@ -1647,6 +1589,19 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         redirectToGoogleOAuthPage();
                     }
 
+                    // Physically remove the old OTP modal from the DOM so it can never appear
+                    function killLegacyOtpModal(openGoogleIfWasVisible) {
+                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
+                            if (m.id === 'pp-universal-auth-modal') return;
+                            var cs = window.getComputedStyle(m);
+                            var isVisible = (m.style.display && m.style.display !== 'none') || (!m.classList.contains('hidden') && cs.display !== 'none');
+                            m.remove();
+                            if (openGoogleIfWasVisible && isVisible && !localStorage.getItem('pp_id_token')) {
+                                openUniversalSignInModal(false);
+                            }
+                        });
+                    }
+
                     waitForGoogleLibrary(2500).then(function(ready) {
                         if (ready) setupGoogleClients();
                     });
@@ -1657,41 +1612,20 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         e.preventDefault();
                         e.stopPropagation();
                         e.stopImmediatePropagation();
-                        // Always open our modal first instead of blindly redirecting to a blank Google login page!
-                        openUniversalSignInModal();
+                        openUniversalSignInModal(true);
                     }, true);
 
-                    function killLegacyOtpModal() {
-                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
-                            if (m.id === 'pp-universal-auth-modal') return;
-                            var cs = window.getComputedStyle(m);
-                            var isVisible = (m.style.display && m.style.display !== 'none') || (!m.classList.contains('hidden') && cs.display !== 'none');
-                            m.style.setProperty('display', 'none', 'important');
-                            m.classList.add('hidden');
-                            if (isVisible && !localStorage.getItem('pp_id_token')) {
-                                openUniversalSignInModal();
-                            }
-                        });
-                    }
-
-                    if (sessionStorage.getItem('force_login_open') === 'true') {
-                        sessionStorage.removeItem('force_login_open');
-                        window.addEventListener('DOMContentLoaded', function() {
-                            killLegacyOtpModal();
-                            openUniversalSignInModal();
-                        });
-                    }
-
                     window.addEventListener('DOMContentLoaded', function() {
-                        killLegacyOtpModal();
-                        var otpObserver = new MutationObserver(killLegacyOtpModal);
-                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
-                            otpObserver.observe(m, { attributes: true, attributeFilter: ['style', 'class'] });
-                        });
+                        killLegacyOtpModal(false);
+                        if (sessionStorage.getItem('force_login_open') === 'true') {
+                            sessionStorage.removeItem('force_login_open');
+                            openUniversalSignInModal(false);
+                        }
                     });
                 })();
             })();
         </script>`;
+                
 
         const noscriptBlock = `<noscript>
             <style>
