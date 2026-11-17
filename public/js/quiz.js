@@ -38,7 +38,7 @@ function handleExpiredSession() {
     localStorage.clear();
     sessionStorage.removeItem('pioneers_prep_state');
     sessionStorage.setItem('force_login_open', 'true');
-    alert('Session expired. Please sign in again.');
+    alert('Session expired or account deregistered. Please sign in again.');
     window.location.replace('/');
 }
 
@@ -86,22 +86,90 @@ function isChapterMatch(quizChap, targetChap) {
     return clean(quizChap).includes(clean(targetChap)) || clean(targetChap).includes(clean(quizChap));
 }
 
+function getBackupStorageKey() {
+    const norm = MainNav.normalizeRoute(CURRENT_ROUTE);
+    return `pioneers_backup_state_${norm}`;
+}
+
 function updateState() {
     if (isRestoringSession) return;
+    const extraData = {
+        selectedClassName,
+        selectedSubjectName,
+        currentQuestionsCount,
+        questionCache,
+        selectedNotesClass,
+        selectedNotesSubject,
+        selectedDescriptiveClass,
+        selectedDescriptiveSubject,
+        selectedNeetUnit,
+        selectedNeetChapter
+    };
     MainNav.saveSessionState(
         CURRENT_ROUTE, currentQuizId, activeQuizTitle, currentQuestionIndex,
         timeRemaining, quizDuration, serverStartTime, timerSignature,
         userAnswers, skippedQuestions, screenHistory,
-        { selectedClassName, selectedSubjectName, currentQuestionsCount, questionCache, selectedNotesClass, selectedNotesSubject, selectedDescriptiveClass, selectedDescriptiveSubject, selectedNeetUnit, selectedNeetChapter }
+        extraData
     );
+    try {
+        const activeScr = document.querySelector('.app-screen:not(.hidden)')?.id || 'home-dashboard';
+        localStorage.setItem(getBackupStorageKey(), JSON.stringify({
+            route: MainNav.normalizeRoute(CURRENT_ROUTE),
+            activeScreen: activeScr,
+            currentQuizId,
+            activeQuizTitle,
+            quizDuration,
+            ...extraData
+        }));
+    } catch (e) {}
+}
+
+// Resolve target screen directly from the browser URL pathname
+function getScreenFromUrlPath(normalizedRoute) {
+    const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+    if (normalizedRoute === '/descriptive.html') {
+        if (path.endsWith('/select-subject')) return 'descriptive-subject-screen';
+        if (path.endsWith('/question-papers')) return 'descriptive-list-screen';
+        if (path.endsWith('/live-assessment')) return 'quiz-screen';
+        if (path.endsWith('/scorecard')) return 'result-screen';
+        return null;
+    }
+    if (normalizedRoute === '/notes.html') {
+        if (path.endsWith('/select-subject')) return 'notes-subject-screen';
+        if (path.endsWith('/study-materials')) return 'notes-list-screen';
+        return null;
+    }
+    if (normalizedRoute === '/test-portal.html') {
+        if (path.endsWith('/select-subject')) return 'subject-select-screen';
+        if (path.endsWith('/select-unit')) return 'neet-unit-screen';
+        if (path.endsWith('/select-chapter')) return 'SELECT_CHAPTER_SCREEN';
+        if (path.endsWith('/select-topic')) return 'neet-topic-screen';
+        if (path.endsWith('/live-assessment')) return 'quiz-screen';
+        if (path.endsWith('/scorecard')) return 'result-screen';
+        return null;
+    }
+    return null;
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+    const token = localStorage.getItem('pp_id_token');
+    if (!token) {
+        handleExpiredSession();
+        return;
+    }
+
     const normalizedRoute = MainNav.normalizeRoute(CURRENT_ROUTE);
 
     if (normalizedRoute === '/test-portal.html') {
         try {
-            const res = await fetch('/api/quizzes');
+            const res = await fetch('/api/quizzes', {
+                credentials: 'same-origin',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.status === 401) {
+                handleExpiredSession();
+                return;
+            }
             const data = await res.json();
             if (data.success) dynamicQuizzes = data.quizzes;
         } catch (e) {}
@@ -109,16 +177,71 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const params = new URLSearchParams(window.location.search);
     const queryClass = params.get('class');
-    const savedState = MainNav.getSavedState(CURRENT_ROUTE);
+    const querySubject = params.get('subject');
+    const queryUnit = params.get('unit');
+    const queryChapter = params.get('chapter');
+    const queryQuiz = params.get('quiz');
 
-    if (savedState && savedState.activeScreen !== 'home-dashboard') {
-        await restoreSessionState(savedState);
-    } else if (queryClass) {
+    const urlScreen = getScreenFromUrlPath(normalizedRoute);
+    let savedState = MainNav.getSavedState(CURRENT_ROUTE);
+
+    // Fallback to cross-tab localStorage backup if pasting a deep URL in a new tab
+    if (!savedState) {
+        try {
+            const rawBackup = localStorage.getItem(getBackupStorageKey());
+            if (rawBackup) savedState = JSON.parse(rawBackup);
+        } catch (e) {}
+    }
+
+    const navEntries = window.performance?.getEntriesByType?.('navigation') || [];
+    const isReload = (navEntries[0]?.type === 'reload');
+
+    // If user directly visited or pasted a deep sub-route URL (e.g. /descriptive-papers/question-papers)
+    if (urlScreen) {
+        const stateToRestore = Object.assign({}, savedState || {});
+        if (queryClass) {
+            stateToRestore.selectedClassName = queryClass;
+            stateToRestore.selectedNotesClass = queryClass;
+            stateToRestore.selectedDescriptiveClass = queryClass;
+        }
+        if (querySubject) {
+            stateToRestore.selectedSubjectName = querySubject;
+            stateToRestore.selectedNotesSubject = querySubject;
+            stateToRestore.selectedDescriptiveSubject = querySubject;
+        }
+        if (queryUnit) stateToRestore.selectedNeetUnit = queryUnit;
+        if (queryChapter) stateToRestore.selectedNeetChapter = queryChapter;
+        if (queryQuiz) stateToRestore.currentQuizId = queryQuiz;
+
+        if (urlScreen === 'SELECT_CHAPTER_SCREEN') {
+            const cls = stateToRestore.selectedClassName || 'IX';
+            const isNeetOrIsc = ['XI', 'XII', 'ISC XI', 'ISC XII'].includes(cls);
+            stateToRestore.activeScreen = isNeetOrIsc ? 'neet-chapter-screen' : 'ix-x-chapter-screen';
+        } else {
+            stateToRestore.activeScreen = urlScreen;
+        }
+
+        await restoreSessionState(stateToRestore);
+        return;
+    }
+
+    // If user visited a URL with ?class=... query param
+    if (queryClass) {
         window.history.replaceState({}, document.title, window.location.pathname);
         if (normalizedRoute === '/test-portal.html') selectClass(queryClass);
         else if (normalizedRoute === '/notes.html') selectNotesClass(queryClass);
         else if (normalizedRoute === '/descriptive.html') selectDescriptiveClass(queryClass);
+        return;
     }
+
+    // If user hit F5 refresh on the base route with active state
+    if (isReload && savedState && savedState.activeScreen && savedState.activeScreen !== 'home-dashboard') {
+        await restoreSessionState(savedState);
+        return;
+    }
+
+    // Otherwise show the root dashboard for the portal
+    showScreen('home-dashboard');
 });
 
 async function restoreSessionState(state) {
@@ -144,48 +267,161 @@ async function restoreSessionState(state) {
         userAnswers = state.userAnswers || {};
         skippedQuestions = new Set(state.skippedQuestions || []);
 
-        // Rebuild DOM Hierarchy Top-Down
-        if (selectedClassName) {
-            if (selectedClassName === 'XI' || selectedClassName === 'XII' || selectedClassName === 'ISC XI' || selectedClassName === 'ISC XII') {
-                buildNeetUnitsDOM(selectedClassName);
-                if (selectedNeetUnit) buildNeetChaptersDOM(selectedClassName, selectedNeetUnit);
-                if (selectedNeetChapter) buildNeetTopicsDOM(selectedClassName, selectedNeetUnit, selectedNeetChapter);
-            } else if (selectedClassName === 'IX' || selectedClassName === 'X') {
-                if (selectedSubjectName) buildIxXChapterDOM(selectedClassName, selectedSubjectName);
+        const targetScreen = state.activeScreen || 'home-dashboard';
+
+        // 1. DESCRIPTIVE PORTAL DEEP-URL & STATE RESTORATION
+        if (targetScreen === 'descriptive-subject-screen') {
+            if (!selectedDescriptiveClass) selectedDescriptiveClass = 'IX';
+            buildDescriptiveSubjectDOM(selectedDescriptiveClass);
+            screenHistory = ['home-dashboard'];
+            showScreen('descriptive-subject-screen');
+            return;
+        }
+        if (targetScreen === 'descriptive-list-screen') {
+            if (!selectedDescriptiveClass) selectedDescriptiveClass = 'IX';
+            if (!selectedDescriptiveSubject) {
+                selectedDescriptiveSubject = (selectedDescriptiveClass === 'XI' || selectedDescriptiveClass === 'XII') ? 'Biology' : 'Physics';
+            }
+            buildDescriptiveSubjectDOM(selectedDescriptiveClass);
+            const heading = document.getElementById('descriptive-screen-heading');
+            if (heading) heading.innerText = `Class ${selectedDescriptiveClass} ${selectedDescriptiveSubject} Papers`;
+            screenHistory = ['home-dashboard', 'descriptive-subject-screen'];
+            showScreen('descriptive-list-screen');
+            await populateDescriptiveList(selectedDescriptiveClass, selectedDescriptiveSubject);
+            return;
+        }
+
+        // 2. STUDY NOTES PORTAL DEEP-URL & STATE RESTORATION
+        if (targetScreen === 'notes-subject-screen') {
+            if (!selectedNotesClass) selectedNotesClass = 'IX';
+            buildNotesSubjectDOM(selectedNotesClass);
+            screenHistory = ['home-dashboard'];
+            showScreen('notes-subject-screen');
+            return;
+        }
+        if (targetScreen === 'notes-list-screen') {
+            if (!selectedNotesClass) selectedNotesClass = 'IX';
+            if (!selectedNotesSubject) {
+                selectedNotesSubject = (selectedNotesClass === 'XI' || selectedNotesClass === 'XII') ? 'Biology' : 'Physics';
+            }
+            buildNotesSubjectDOM(selectedNotesClass);
+            screenHistory = ['home-dashboard', 'notes-subject-screen'];
+            showScreen('notes-list-screen');
+            await populateNotesList(selectedNotesClass, selectedNotesSubject);
+            return;
+        }
+
+        // 3. MOCK TESTS PORTAL DEEP-URL & STATE RESTORATION
+        if (targetScreen === 'subject-select-screen') {
+            if (selectedClassName !== 'IX' && selectedClassName !== 'X') selectedClassName = 'IX';
+            screenHistory = ['home-dashboard'];
+            showScreen('subject-select-screen');
+            return;
+        }
+        if (targetScreen === 'neet-unit-screen') {
+            if (!['XI', 'XII', 'ISC XI', 'ISC XII'].includes(selectedClassName)) selectedClassName = 'XI';
+            buildNeetUnitsDOM(selectedClassName);
+            screenHistory = ['home-dashboard'];
+            showScreen('neet-unit-screen');
+            return;
+        }
+        if (targetScreen === 'neet-chapter-screen') {
+            if (!['XI', 'XII', 'ISC XI', 'ISC XII'].includes(selectedClassName)) selectedClassName = 'XI';
+            const baseClass = selectedClassName.includes('XII') ? 'XII' : 'XI';
+            if (!selectedNeetUnit || !neetHierarchy[baseClass]?.[selectedNeetUnit]) {
+                selectedNeetUnit = Object.keys(neetHierarchy[baseClass])[0];
+            }
+            buildNeetUnitsDOM(selectedClassName);
+            buildNeetChaptersDOM(selectedClassName, selectedNeetUnit);
+            screenHistory = ['home-dashboard', 'neet-unit-screen'];
+            showScreen('neet-chapter-screen');
+            return;
+        }
+        if (targetScreen === 'neet-topic-screen') {
+            if (!['XI', 'XII', 'ISC XI', 'ISC XII'].includes(selectedClassName)) selectedClassName = 'XI';
+            const baseClass = selectedClassName.includes('XII') ? 'XII' : 'XI';
+            if (!selectedNeetUnit || !neetHierarchy[baseClass]?.[selectedNeetUnit]) {
+                selectedNeetUnit = Object.keys(neetHierarchy[baseClass])[0];
+            }
+            const unitChapters = neetHierarchy[baseClass][selectedNeetUnit] || [];
+            if (!selectedNeetChapter || !unitChapters.includes(selectedNeetChapter)) {
+                selectedNeetChapter = unitChapters[0] || '';
+            }
+            buildNeetUnitsDOM(selectedClassName);
+            buildNeetChaptersDOM(selectedClassName, selectedNeetUnit);
+            buildNeetTopicsDOM(selectedClassName, selectedNeetUnit, selectedNeetChapter);
+            screenHistory = ['home-dashboard', 'neet-unit-screen', 'neet-chapter-screen'];
+            showScreen('neet-topic-screen');
+            return;
+        }
+        if (targetScreen === 'ix-x-chapter-screen') {
+            if (!selectedClassName) selectedClassName = 'IX';
+            if (selectedClassName === 'IX' || selectedClassName === 'X') {
+                if (!selectedSubjectName) selectedSubjectName = 'Physics';
+                buildIxXChapterDOM(selectedClassName, selectedSubjectName);
+                screenHistory = ['home-dashboard', 'subject-select-screen'];
             } else {
                 buildDynamicChaptersDOM(selectedClassName);
+                screenHistory = ['home-dashboard'];
             }
+            showScreen('ix-x-chapter-screen');
+            return;
         }
 
-        if (selectedNotesClass) {
-            buildNotesSubjectDOM(selectedNotesClass);
-            if (selectedNotesSubject) {
-                await populateNotesList(selectedNotesClass, selectedNotesSubject);
-            }
-        }
-
-        if (selectedDescriptiveClass) {
-            buildDescriptiveSubjectDOM(selectedDescriptiveClass);
-            if (selectedDescriptiveSubject) {
-                await populateDescriptiveList(selectedDescriptiveClass, selectedDescriptiveSubject);
-            }
-        }
-
-        if (state.activeScreen === 'quiz-screen' && currentQuizId) {
-            if (serverStartTime && quizDuration) {
+        // 4. ACTIVE QUIZ OR SCORECARD DEEP-URL RESTORATION (Enforces Auth, Purchase & Availability)
+        if (targetScreen === 'quiz-screen' && currentQuizId) {
+            if (serverStartTime && timerSignature && quizDuration) {
+                // Verify quiz access & active session with server
+                const token = localStorage.getItem('pp_id_token');
+                const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'PioneersPrepApp',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (qRes.status === 401) {
+                    handleExpiredSession();
+                    return;
+                }
+                if (qRes.status === 402 || qRes.status === 403 || !qRes.ok) {
+                    isRestoringSession = false;
+                    prepareQuiz({ id: currentQuizId, title: activeQuizTitle || currentQuizId, duration: quizDuration });
+                    return;
+                }
+                const metaData = await qRes.json();
+                currentQuestionsCount = metaData.totalQuestions || currentQuestionsCount;
                 timeRemaining = Math.max(0, quizDuration - Math.floor((Date.now() - serverStartTime) / 1000));
+                showScreen('quiz-screen');
+                await renderQuestion();
+                startTimer();
+            } else {
+                isRestoringSession = false;
+                prepareQuiz({ id: currentQuizId, title: activeQuizTitle || currentQuizId, duration: quizDuration });
             }
-            showScreen('quiz-screen');
-            await renderQuestion();
-            startTimer();
-        } else {
-            showScreen(state.activeScreen);
+            return;
         }
 
-        if (state.screenHistory && state.screenHistory.length > 0) {
-            screenHistory = state.screenHistory;
+        if (targetScreen === 'result-screen' && currentQuizId) {
+            const token = localStorage.getItem('pp_id_token');
+            const qRes = await fetch('/api/quiz/' + encodeURIComponent(currentQuizId), {
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'PioneersPrepApp',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (qRes.status === 401) {
+                handleExpiredSession();
+                return;
+            }
+            showScreen('result-screen');
+            return;
         }
+
+        showScreen('home-dashboard');
     } catch (e) {
+        showScreen('home-dashboard');
     } finally {
         isRestoringSession = false;
         updateState();
@@ -234,6 +470,7 @@ function goHome() {
     sessionStorage.removeItem('pioneers_prep_state');
     document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
     document.getElementById('home-dashboard')?.classList.remove('hidden');
+    updateState();
 }
 
 // ----------------------------------------------------------------------------
@@ -315,8 +552,16 @@ function selectDescriptiveClass(cName) {
 async function populateDescriptiveList(cName, subject) {
     const container = document.getElementById('descriptive-list-container');
     if (!container) return;
+    const token = localStorage.getItem('pp_id_token');
     try {
-        const res = await fetch('/api/descriptive-questions');
+        const res = await fetch('/api/descriptive-questions', {
+            credentials: 'same-origin',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.status === 401) {
+            handleExpiredSession();
+            return;
+        }
         const list = await res.json();
         const matched = list.find(n => n.class === cName && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
@@ -364,8 +609,16 @@ function selectNotesClass(cName) {
 async function populateNotesList(cName, subject) {
     const container = document.getElementById('notes-list-container');
     if (!container) return;
+    const token = localStorage.getItem('pp_id_token');
     try {
-        const res = await fetch('/api/notes');
+        const res = await fetch('/api/notes', {
+            credentials: 'same-origin',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.status === 401) {
+            handleExpiredSession();
+            return;
+        }
         const list = await res.json();
         const matched = list.find(n => n.class === cName && n.subject.toLowerCase() === subject.toLowerCase());
         container.innerHTML = '';
@@ -647,7 +900,7 @@ async function attemptQuizStart() {
         }
         
         if (startRes.status === 403) {
-            alert(startData.error || 'Access denied. Your email is not whitelisted for this premium content.');
+            alert(startData.error || 'Access denied. Your email is not whitelisted or this test is not yet available.');
             return;
         }
 
@@ -715,16 +968,10 @@ async function attemptPdfDownload() {
         return;
     }
 
-    if (res.status === 402) {
+    if (res.status === 402 || res.status === 403) {
         initiateRazorpayPayment(activePremiumPdf.fileName, activePremiumPdf.price || 49, email, first, last, () => {
             window.location.href = url;
-            goHome();
         });
-        return;
-    }
-    
-    if (res.status === 403) {
-        alert('Access denied. Your email is not whitelisted for this premium content.');
         return;
     }
 
@@ -734,7 +981,6 @@ async function attemptPdfDownload() {
     }
 
     window.location.href = url;
-    goHome();
 }
 
 function updateQuizStats() {
@@ -795,7 +1041,7 @@ async function renderQuestion() {
         const fileInput = document.createElement('input');
         fileInput.type = 'file'; 
         fileInput.accept = 'image/*';
-        fileInput.setAttribute('capture', 'environment'); // Forces mobile camera to open directly
+        fileInput.setAttribute('capture', 'environment');
 
         if (userAnswers[currentQuestionIndex] !== undefined) {
             const preview = document.createElement('p');
@@ -936,69 +1182,14 @@ async function submitQuiz(isAuto = false) {
         const data = await res.json();
         if (res.ok && data.success) {
             sessionStorage.removeItem('pioneers_prep_state');
-            const safeCandidate = escapeClientHtml(`${first} ${last}`);
-            const safeScore = escapeClientHtml(data.score);
-            const safeTotal = escapeClientHtml(data.total);
-            const percentage = ((data.score / data.total) * 100).toFixed(1);
-            
-            let lbHtml = `<table style="width:100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; text-align: left;">
-                <tr style="background:#e2e8f0; color:#1e293b;">
-                    <th style="padding:10px; border-radius: 6px 0 0 0;">Rank</th>
-                    <th style="padding:10px;">Student</th>
-                    <th style="padding:10px; text-align:right; border-radius: 0 6px 0 0;">Score</th>
-                </tr>`;
-                
-            if (data.leaderboard && data.leaderboard.length > 0) {
-                data.leaderboard.forEach((user, idx) => {
-                    const isMe = user.name === `${first} ${last}`.trim();
-                    const rowStyle = isMe ? 'background:#dbeafe; font-weight:bold; color:#1e40af;' : 'border-bottom: 1px solid #e2e8f0;';
-                    lbHtml += `<tr style="${rowStyle}">
-                        <td style="padding:10px; font-weight:600;">#${idx + 1}</td>
-                        <td style="padding:10px;">${escapeClientHtml(user.name)}${isMe ? ' <span style="font-size:11px; color:#2563eb;">(You)</span>' : ''}</td>
-                        <td style="padding:10px; text-align:right; font-weight:600;">${escapeClientHtml(user.score)}</td>
-                    </tr>`;
-                });
+            let resultScreen = document.getElementById('result-screen');
+            if (!resultScreen) {
+                const mainEl = document.querySelector('main.site-main') || document.body;
+                resultScreen = document.createElement('div');
+                resultScreen.id = 'result-screen';
+                resultScreen.className = 'app-screen hidden';
+                mainEl.appendChild(resultScreen);
             }
-            lbHtml += `</table>`;
-
-            document.getElementById('result-screen').innerHTML = `
-                <button class="back-btn" data-action="go-home">Back to Portal</button>
-                <div style="max-width: 650px; margin: 0 auto; padding: 10px;">
-                    <h2 style="text-align:center; color:#4285f4; margin-top:0;">Performance Dashboard</h2>
-                    
-                    <div style="text-align:center; margin-top:20px; background: #ffffff; border-radius: 12px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                        <p style="font-size:15px; color:#64748b; margin-bottom: 5px;">Candidate: <strong>${safeCandidate}</strong></p>
-                        
-                        <h1 style="color:#2563eb; font-size:58px; margin:10px 0; line-height: 1;">${percentage}%</h1>
-                        <p style="font-size:18px; font-weight:600; color:#0f172a; margin-top:0;">${safeScore} / ${safeTotal} Correct</p>
-                        
-                        <div style="width:100%; background:#e2e8f0; border-radius:8px; height:12px; margin:20px 0; overflow:hidden;">
-                            <div style="width:${percentage}%; background:linear-gradient(90deg, #3b82f6, #2563eb); height:100%; border-radius:8px;"></div>
-                        </div>
-                        
-                        <div style="display:flex; justify-content:space-around; margin-top: 25px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
-                            <div>
-                                <span style="display:block; font-size:24px; font-weight:800; color:#10b981;">Top ${Math.max(1, 100 - Number(data.percentile || 0))}%</span>
-                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Your Percentile</span>
-                            </div>
-                            <div>
-                                <span style="display:block; font-size:24px; font-weight:800; color:#f59e0b;">${data.average}</span>
-                                <span style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:1px;">Class Average</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 25px; background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h3 style="margin:0; color:#1e293b; font-size: 16px;">🏆 Top Performers</h3>
-                            <span style="font-size:12px; background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:12px; font-weight:bold;">${data.totalAttempts} Total Attempts</span>
-                        </div>
-                        ${lbHtml}
-                    </div>
-
-                    <p style="font-size:13px; color:#94a3b8; text-align:center; margin-top:25px;">A detailed copy of your response has been mailed to your registered email.</p>
-                </div>
-            `;
             screenHistory = [];
             showScreen('result-screen');
             try {

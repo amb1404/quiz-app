@@ -732,7 +732,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         }
                     } else {
                         sessionStorage.setItem('pioneers_active_route', baseRoute);
-                        if (window.location.pathname !== baseRoute) {
+                        // Preserve valid sub-routes (e.g. /descriptive-papers/question-papers), only rewrite raw .html paths
+                        if (window.location.pathname.indexOf(baseRoute) !== 0) {
                             history.replaceState({ app: 'pioneers' }, document.title, baseRoute + window.location.search);
                         }
                     }
@@ -813,11 +814,16 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
             function renderComprehensiveResultScreen(data, isSavedAttempt) {
                 try {
-                    document.body.classList.remove('exam-mode');
                     var pageIntro = document.querySelector('.page-intro');
                     if (pageIntro) pageIntro.style.display = 'none';
                     var resultScreen = document.getElementById('result-screen');
-                    if (!resultScreen) return;
+                    if (!resultScreen) {
+                        var mainEl = document.querySelector('main.site-main') || document.body;
+                        resultScreen = document.createElement('div');
+                        resultScreen.id = 'result-screen';
+                        resultScreen.className = 'app-screen hidden';
+                        mainEl.appendChild(resultScreen);
+                    }
 
                     document.querySelectorAll('.app-screen').forEach(function(scr) {
                         if (scr.id === 'result-screen') scr.classList.remove('hidden');
@@ -1120,13 +1126,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return baseRoute + slug;
                     }
 
-                    setTimeout(function() {
-                        if (window.location.search && window.location.search.indexOf('class=') !== -1) return;
-                        var activeEl = document.querySelector('.app-screen:not(.hidden)');
-                        if (!activeEl) return;
-                        history.replaceState({ app: 'pioneers', screen: activeEl.id }, document.title, getCleanUrlForScreen(activeEl.id));
-                    }, 0);
-
                     var observer = new MutationObserver(function(mutations) {
                         mutations.forEach(function(m) {
                             var el = m.target;
@@ -1135,8 +1134,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 if (introEl && baseRoute !== '/') {
                                     introEl.style.display = (el.id === 'result-screen' || el.id === 'quiz-screen') ? 'none' : '';
                                 }
-                                var targetUrl = getCleanUrlForScreen(el.id);
-                                if (backEventTriggered) {
+                                var targetUrl = getCleanUrlForScreen(el.id) + window.location.search;
+                                if (window.location.pathname === getCleanUrlForScreen(el.id)) {
+                                    history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
+                                } else if (backEventTriggered) {
                                     backEventTriggered = false;
                                     history.replaceState({ app: 'pioneers', screen: el.id }, document.title, targetUrl);
                                 } else if (el.id !== 'home-dashboard' && el.id !== 'result-screen') {
@@ -1440,7 +1441,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             .replace(/<footer id="site-footer"[^>]*>.*?<\/footer>/is, `<footer id="site-footer" class="site-footer">${footerHTML}</footer>`)
             .replace('</body>', `${clientIntegrationScript}\n</body>`);
 
-        if (req.query && req.query.class) {
+        const cleanReqPath = req.path.replace(/\/+$/, '').toLowerCase();
+        const isSubScreenUrl = cleanReqPath !== canonicalBaseRoute && !cleanReqPath.endsWith('.html') && cleanReqPath.startsWith(canonicalBaseRoute + '/');
+        if ((req.query && req.query.class) || isSubScreenUrl) {
             dynamicHtml = dynamicHtml.replace(/id="home-dashboard"\s*class="app-screen"/g, 'id="home-dashboard" class="app-screen hidden"');
         }
 
@@ -2504,8 +2507,13 @@ function parsePdfMetadata(fileName) {
     };
 }
 
-app.get('/api/descriptive-questions', (req, res) => {
+app.get('/api/descriptive-questions', async (req, res) => {
     try {
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
+
         const now = Date.now();
         if (fsCache.descList.data && now < fsCache.descList.expiresAt) return res.json(fsCache.descList.data);
 
@@ -2611,8 +2619,13 @@ app.get('/api/download-descriptive/:fileName', async (req, res) => {
     });
 });
 
-app.get('/api/notes', (req, res) => {
+app.get('/api/notes', async (req, res) => {
     try {
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
+
         const now = Date.now();
         if (fsCache.notesList.data && now < fsCache.notesList.expiresAt) return res.json(fsCache.notesList.data);
 
@@ -2696,8 +2709,13 @@ app.get('/api/download-note/:fileName', async (req, res) => {
     });
 });
 
-app.get('/api/quizzes', (req, res) => {
+app.get('/api/quizzes', async (req, res) => {
     try {
+        const token = extractAuthToken(req);
+        const authCheck = await verifyAuthToken(token);
+        if (!authCheck.valid) return res.status(401).json({ error: authCheck.error });
+        syncAuthCookieIfNeeded(req, res, token);
+
         const now = Date.now();
         if (fsCache.quizzesList.data && now < fsCache.quizzesList.expiresAt) return res.json({ success: true, quizzes: fsCache.quizzesList.data });
 
