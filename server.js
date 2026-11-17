@@ -1600,11 +1600,34 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         openUniversalSignInModal(true);
                     }, true);
 
-                    window.addEventListener('DOMContentLoaded', function() {
-                        if (sessionStorage.getItem('force_login_open') === 'true') {
-                            sessionStorage.removeItem('force_login_open');
+                    // Permanently neutralize the legacy OTP modal in index.html & redirect any trigger to Google Sign-In
+                    function killLegacyOtpModal() {
+                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
+                            if (m.id === 'pp-universal-auth-modal') return;
+                            var cs = window.getComputedStyle(m);
+                            var isVisible = (m.style.display && m.style.display !== 'none') || (!m.classList.contains('hidden') && cs.display !== 'none');
+                            m.style.setProperty('display', 'none', 'important');
+                            m.classList.add('hidden');
+                            if (isVisible && !localStorage.getItem('pp_id_token')) {
+                                openUniversalSignInModal(false);
+                            }
+                        });
+                    }
+
+                    if (sessionStorage.getItem('force_login_open') === 'true') {
+                        sessionStorage.removeItem('force_login_open');
+                        window.addEventListener('DOMContentLoaded', function() {
+                            killLegacyOtpModal();
                             openUniversalSignInModal(false);
-                        }
+                        });
+                    }
+
+                    window.addEventListener('DOMContentLoaded', function() {
+                        killLegacyOtpModal();
+                        var otpObserver = new MutationObserver(killLegacyOtpModal);
+                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
+                            otpObserver.observe(m, { attributes: true, attributeFilter: ['style', 'class'] });
+                        });
                     });
                 })();
             })();
