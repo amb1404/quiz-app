@@ -1315,7 +1315,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     function shouldForceTopLevelRedirect() {
                         var ua = navigator.userAgent || '';
                         if (isIosDevice() || isStandalonePwa() || isAndroidNonChromeBrowser()) return true;
-                        if (/Edg\/|Firefox\/|OPR\/|Brave/i.test(ua)) return true;
+                        if (ua.indexOf('Edg/') !== -1 || ua.indexOf('Firefox/') !== -1 || ua.indexOf('OPR/') !== -1 || ua.indexOf('Brave') !== -1) {
+                            return true;
+                        }
                         return false;
                     }
 
