@@ -815,17 +815,49 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             statusEl.style.color = data.success ? '#34d399' : '#fbbf24';
             statusEl.textContent = data.message || data.error;
         } catch (err) {
-            statusEl.style.color = '#f87171';
+           statusEl.style.color = '#f87171';
             statusEl.textContent = 'Network error while decoding.';
         }
     });
 
+    // --- Dedicated State Persistence for Admin Data & Analytics Panels ---
+    const ADMIN_PANEL_STORAGE_KEY = 'pp_admin_panel_state';
+
+    function saveAdminPanelState(updates = {}) {
+        try {
+            const current = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
+            const keyInput = document.getElementById('admin-key')?.value.trim() || '';
+            if (keyInput) current.adminKey = keyInput;
+            Object.assign(current, updates);
+            sessionStorage.setItem(ADMIN_PANEL_STORAGE_KEY, JSON.stringify(current));
+        } catch (e) {}
+    }
+
+    function getSavedAdminKey() {
+        let key = document.getElementById('admin-key')?.value.trim() || '';
+        if (!key) {
+            try {
+                const panelState = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
+                if (panelState.adminKey) {
+                    key = panelState.adminKey;
+                    const inputEl = document.getElementById('admin-key');
+                    if (inputEl) inputEl.value = key;
+                }
+            } catch (e) {}
+        }
+        if (!key) {
+            const creds = getAdminCreds();
+            key = creds.adminKey || '';
+        }
+        return key;
+    }
+
     // --- 1. Load & Manage Registered Accounts ---
-    document.getElementById('btn-load-users').addEventListener('click', async () => {
-        const { adminKey } = getAdminCreds();
+    async function loadRegisteredUsersTable() {
+        const adminKey = getSavedAdminKey();
         if (!adminKey) return alert('Please enter your Admin Secret Key at the top first.');
 
-        // FIX: Load the JSON dropdown right now, since we know the admin key has been entered!
+        saveAdminPanelState({ adminKey, usersTableOpen: true });
         initAllJsonDropdown();
 
         const tbody = document.getElementById('users-tbody');
@@ -840,7 +872,7 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             });
             const data = await res.json();
             if (!data.success || !Array.isArray(data.users)) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Failed to load users.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Failed to load users. Check your Admin Key.</td></tr>';
                 return;
             }
 
@@ -856,18 +888,20 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
                     <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.attempts.length} attempts</td>
                     <td style="padding: 10px; border-bottom: 1px solid #334155;">${u.purchases.length} items</td>
                     <td style="padding: 10px; border-bottom: 1px solid #334155; display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="history" data-email="${u.email}">Wipe History</button>
-                        <button style="background:#9333ea; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="purchases" data-email="${u.email}">Wipe Purchases</button>
-                        <button style="background:#ea580c; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="account" data-email="${u.email}">Deregister</button>
+                        <button type="button" style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="history" data-email="${u.email}">Wipe History</button>
+                        <button type="button" style="background:#9333ea; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="purchases" data-email="${u.email}">Wipe Purchases</button>
+                        <button type="button" style="background:#ea580c; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size:12px; font-weight: bold; cursor: pointer;" data-action="wipe-data" data-type="account" data-email="${u.email}">Deregister</button>
                     </td>
                 </tr>
             `).join('');
         } catch (e) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
         }
-    });
+    }
 
-    // CSP-compliant event delegation for the buttons
+    document.getElementById('btn-load-users').addEventListener('click', loadRegisteredUsersTable);
+
+    // CSP-compliant event delegation for Wipe History / Wipe Purchases / Deregister buttons
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action="wipe-data"]');
         if (!btn) return;
@@ -879,9 +913,9 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
     });
 
     window.deleteUserData = async function(email, dataType) {
-        const { adminKey } = getAdminCreds();
+        const adminKey = getSavedAdminKey();
         if (!adminKey) return;
-        
+
         let msg = `Are you sure you want to wipe ${dataType} for ${email}?`;
         if (dataType === 'account') msg = `WARNING: Are you sure you want to completely deregister ${email}? They will need to sign in again to create a new profile.`;
         if (!confirm(msg)) return;
@@ -894,7 +928,7 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             });
             const data = await res.json();
             if (data.success) {
-                document.getElementById('btn-load-users').click(); // Auto-refresh table
+                await loadRegisteredUsersTable();
             } else {
                 alert(data.error || 'Failed to delete data.');
             }
@@ -904,8 +938,8 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
     };
 
     // --- 2. Load JSON Files Dropdown & Quiz Analytics ---
-    async function initAllJsonDropdown() {
-        const { adminKey } = getAdminCreds();
+    async function initAllJsonDropdown(selectedIdToRestore = '') {
+        const adminKey = getSavedAdminKey();
         if (!adminKey) return;
         try {
             const res = await fetch('/api/admin/json-files/list', {
@@ -916,8 +950,7 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
             const data = await res.json();
             const selectEl = document.getElementById('admin-all-json-select');
             if (selectEl && data.success && Array.isArray(data.files)) {
-                // Save currently selected value to restore it after refresh
-                const currentVal = selectEl.value; 
+                const currentVal = selectedIdToRestore || selectEl.value;
                 selectEl.innerHTML = '<option value="">-- Select a JSON Test File --</option>';
                 data.files.forEach(f => {
                     const opt = document.createElement('option');
@@ -930,11 +963,13 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
         } catch (e) {}
     }
 
-    document.getElementById('btn-load-quiz-attempts').addEventListener('click', async () => {
-        const { adminKey } = getAdminCreds();
+    async function loadQuizAttemptsTable() {
+        const adminKey = getSavedAdminKey();
         const quizId = document.getElementById('admin-all-json-select').value;
         if (!adminKey) return alert('Please enter your Admin Secret Key first.');
         if (!quizId) return alert('Please select a JSON test file from the dropdown.');
+
+        saveAdminPanelState({ adminKey, selectedAnalyticsJson: quizId });
 
         const tbody = document.getElementById('quiz-attempts-tbody');
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#94a3b8;">Loading attempts...</td></tr>';
@@ -968,6 +1003,28 @@ document.getElementById('btn-admin-stop-stream').addEventListener('click', async
         } catch (e) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
         }
+    }
+
+    document.getElementById('btn-load-quiz-attempts').addEventListener('click', loadQuizAttemptsTable);
+
+    // --- 3. Auto-Restore & Fetch Latest Data on Browser Refresh ---
+    window.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const saved = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
+            if (saved.adminKey) {
+                const keyEl = document.getElementById('admin-key');
+                if (keyEl) keyEl.value = saved.adminKey;
+
+                await initAllJsonDropdown(saved.selectedAnalyticsJson || '');
+
+                if (saved.usersTableOpen) {
+                    await loadRegisteredUsersTable();
+                }
+                if (saved.selectedAnalyticsJson) {
+                    await loadQuizAttemptsTable();
+                }
+            }
+        } catch (e) {}
     });
 </script>
 </body>

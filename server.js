@@ -4184,7 +4184,7 @@ app.get('/api/livekit/token', async (req, res) => {
 // ADMIN CONTROL SYSTEM: USER MANAGEMENT & CROSS-FOLDER QUIZ ANALYTICS
 // ============================================================================
 
-// 1. Get all registered accounts, test histories, and purchase records
+// 1. Get all registered accounts, test histories, and purchase records (Deduplicated)
 app.post('/api/admin/users/list', async (req, res) => {
     try {
         const { adminKey } = req.body;
@@ -4192,86 +4192,119 @@ app.post('/api/admin/users/list', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
 
-        const usersMap = new Map(); // email -> { firstName, lastName, email, attempts, purchases }
+        const usersMap = new Map();
 
-        // Helper to register or update user profile info
         const registerUser = (email, fName = 'STUDENT', lName = '.') => {
             const cleanEmail = String(email || '').trim().toLowerCase();
-            if (!cleanEmail || !cleanEmail.includes('@')) return;
+            if (!cleanEmail || !cleanEmail.includes('@')) return null;
             if (!usersMap.has(cleanEmail)) {
                 usersMap.set(cleanEmail, {
                     email: cleanEmail,
-                    firstName: fName.trim().toUpperCase(),
-                    lastName: lName.trim().toUpperCase(),
-                    attempts: [],
-                    purchases: []
+                    firstName: String(fName || 'STUDENT').trim().toUpperCase(),
+                    lastName: String(lName || '.').trim().toUpperCase(),
+                    attemptsMap: new Map(), // Deduplicates attempts across submissions.json & attempts_db.json
+                    purchasesSet: new Set()
                 });
+            } else {
+                const existing = usersMap.get(cleanEmail);
+                if (existing.firstName === 'STUDENT' && fName && fName !== 'STUDENT') {
+                    existing.firstName = String(fName).trim().toUpperCase();
+                    existing.lastName = String(lName || '.').trim().toUpperCase();
+                }
             }
+            return usersMap.get(cleanEmail);
+        };
+
+        // Helper to collect keys from both external Redis and in-memory fallbackMap
+        const getMatchingKeys = async (prefix) => {
+            const matched = new Set();
+            if (stateStore.fallbackMap) {
+                for (const k of stateStore.fallbackMap.keys()) {
+                    if (k.startsWith(prefix)) matched.add(k);
+                }
+            }
+            try {
+                const redisKeys = await stateStore.execCommand(['KEYS', `${prefix}*`]);
+                if (Array.isArray(redisKeys)) redisKeys.forEach(k => matched.add(k));
+            } catch (e) {}
+            return Array.from(matched);
         };
 
         // A. Scan Redis user profiles & purchases
         try {
-            const profileKeys = await stateStore.execCommand(['KEYS', 'user:profile:*']);
-            if (Array.isArray(profileKeys)) {
-                for (const k of profileKeys) {
-                    const raw = await stateStore.get(k);
-                    if (raw) {
-                        const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                        if (p.email) registerUser(p.email, p.firstName, p.lastName);
-                    }
+            const profileKeys = await getMatchingKeys('user:profile:');
+            for (const k of profileKeys) {
+                const raw = await stateStore.get(k);
+                if (raw) {
+                    const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    if (p && p.email) registerUser(p.email, p.firstName, p.lastName);
                 }
             }
 
-            const purchaseKeys = await stateStore.execCommand(['KEYS', 'user:purchases:*']);
-            if (Array.isArray(purchaseKeys)) {
-                for (const k of purchaseKeys) {
-                    const parts = k.replace(/^user:purchases:/i, '').split(':');
-                    const email = parts[0];
-                    if (email && email.includes('@')) {
-                        registerUser(email);
-                        if (parts.length > 1) {
-                            usersMap.get(email.toLowerCase()).purchases.push(parts[1]);
-                        }
+            const purchaseKeys = await getMatchingKeys('user:purchases:');
+            for (const k of purchaseKeys) {
+                const parts = k.replace(/^user:purchases:/i, '').split(':');
+                const email = parts[0];
+                if (email && email.includes('@')) {
+                    const u = registerUser(email);
+                    if (u && parts.length > 1 && parts[1]) {
+                        u.purchasesSet.add(parts[1]);
                     }
                 }
             }
         } catch (e) {}
 
-        // B. Scan historical submissions
-        const history = await getHistoricalSubmissions();
-        history.forEach(s => {
-            if (s.email) {
-                registerUser(s.email, s.firstName, s.lastName);
-                usersMap.get(s.email.toLowerCase()).attempts.push({
-                    quizId: s.quizId || s.chapterTitle || 'Unknown Test',
-                    score: s.score,
-                    total: s.total,
-                    timestamp: s.timestamp
-                });
-            }
-        });
-
-        // C. Scan attempts_db.json
+        // B. Scan attempts_db.json first (authoritative per-quiz attempt store)
         try {
             const attFile = path.join(__dirname, 'attempts_db.json');
             if (fs.existsSync(attFile)) {
                 const db = JSON.parse(fs.readFileSync(attFile, 'utf8')) || {};
                 Object.entries(db).forEach(([compoundKey, att]) => {
                     const email = compoundKey.split('__')[0];
+                    const qIdFromKey = compoundKey.split('__')[1] || '';
                     if (email) {
-                        registerUser(email);
-                        usersMap.get(email.toLowerCase()).attempts.push({
-                            quizId: att.quizId || compoundKey,
-                            score: att.score,
-                            total: att.total,
-                            timestamp: att.timestamp
-                        });
+                        const u = registerUser(email);
+                        const rawQuizId = att.quizId || qIdFromKey || 'Unknown Test';
+                        const dedupeKey = path.basename(String(rawQuizId)).trim().toLowerCase();
+                        if (u && !u.attemptsMap.has(dedupeKey)) {
+                            u.attemptsMap.set(dedupeKey, {
+                                quizId: rawQuizId,
+                                score: att.score,
+                                total: att.total,
+                                timestamp: att.timestamp
+                            });
+                        }
                     }
                 });
             }
         } catch (e) {}
 
-        const usersList = Array.from(usersMap.values());
+        // C. Scan historical submissions (merges without duplicating existing quizId attempts)
+        const history = await getHistoricalSubmissions();
+        history.forEach(s => {
+            if (s.email) {
+                const u = registerUser(s.email, s.firstName, s.lastName);
+                const rawQuizId = s.quizId || s.chapterTitle || 'Unknown Test';
+                const dedupeKey = path.basename(String(rawQuizId)).trim().toLowerCase();
+                if (u && !u.attemptsMap.has(dedupeKey)) {
+                    u.attemptsMap.set(dedupeKey, {
+                        quizId: rawQuizId,
+                        score: s.score,
+                        total: s.total,
+                        timestamp: s.timestamp
+                    });
+                }
+            }
+        });
+
+        const usersList = Array.from(usersMap.values()).map(u => ({
+            email: u.email,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            attempts: Array.from(u.attemptsMap.values()),
+            purchases: Array.from(u.purchasesSet)
+        }));
+
         res.json({ success: true, users: usersList });
     } catch (err) {
         res.status(500).json({ error: 'Failed to load user list.' });
@@ -4289,20 +4322,34 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
         const cleanEmail = String(email || '').trim().toLowerCase();
         if (!cleanEmail) return res.status(400).json({ error: 'Missing email.' });
 
+        const deleteKeysByPrefix = async (prefix) => {
+            if (stateStore.fallbackMap) {
+                for (const k of Array.from(stateStore.fallbackMap.keys())) {
+                    if (k.startsWith(prefix)) stateStore.fallbackMap.delete(k);
+                }
+            }
+            try {
+                const keys = await stateStore.execCommand(['KEYS', `${prefix}*`]);
+                if (Array.isArray(keys)) {
+                    for (const k of keys) await stateStore.del(k);
+                }
+            } catch (e) {}
+        };
+
         if (dataType === 'history') {
-            // Clear attempts from attempts_db.json
+            // 1. Clear attempts from attempts_db.json
             try {
                 const attFile = path.join(__dirname, 'attempts_db.json');
                 if (fs.existsSync(attFile)) {
                     const db = JSON.parse(fs.readFileSync(attFile, 'utf8')) || {};
                     Object.keys(db).forEach(k => {
-                        if (k.startsWith(`${cleanEmail}__`)) delete db[k];
+                        if (k.toLowerCase().startsWith(`${cleanEmail}__`)) delete db[k];
                     });
                     fs.writeFileSync(attFile, JSON.stringify(db, null, 2), { mode: 0o600 });
                 }
             } catch (e) {}
 
-            // Clear from submissions.json
+            // 2. Clear from submissions.json
             try {
                 const subFile = path.join(__dirname, 'submissions.json');
                 if (fs.existsSync(subFile)) {
@@ -4312,7 +4359,7 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
                 }
             } catch (e) {}
 
-            // CRITICAL FIX: Clear from Redis global history cache
+            // 3. Clear from Redis global history cache
             try {
                 const rawRedis = await stateStore.get(SUBMISSIONS_REDIS_KEY);
                 if (rawRedis) {
@@ -4324,27 +4371,16 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
                 }
             } catch (e) {}
 
-            // Clear Redis attempt keys
-            try {
-                const keys = await stateStore.execCommand(['KEYS', `attempt:v1:${cleanEmail}:*`]);
-                if (Array.isArray(keys)) {
-                    for (const k of keys) await stateStore.del(k);
-                }
-            } catch (e) {}
+            // 4. Clear Redis & fallbackMap attempt keys
+            await deleteKeysByPrefix(`attempt:v1:${cleanEmail}:`);
         } else if (dataType === 'purchases') {
-            try {
-                await stateStore.del(`user:purchases:${cleanEmail}`);
-                const keys = await stateStore.execCommand(['KEYS', `user:purchases:${cleanEmail}:*`]);
-                if (Array.isArray(keys)) {
-                    for (const k of keys) await stateStore.del(k);
-                }
-            } catch (e) {}
+            await stateStore.del(`user:purchases:${cleanEmail}`);
+            await deleteKeysByPrefix(`user:purchases:${cleanEmail}:`);
         } else if (dataType === 'account') {
-            // Completely deregister the user profile
+            await stateStore.set(`blacklist:email:${cleanEmail}`, '1', TOKEN_MAX_AGE_SEC);
+            await stateStore.del(`user:profile:${cleanEmail}`);
+            await stateStore.del(`whitelist:vip:${cleanEmail}`);
             try {
-                await stateStore.set(`blacklist:email:${cleanEmail}`, '1', TOKEN_MAX_AGE_SEC); // Instantly kills all active sessions
-                await stateStore.del(`user:profile:${cleanEmail}`);
-                await stateStore.del(`whitelist:vip:${cleanEmail}`);
                 const usersFile = path.join(__dirname, 'users.json');
                 if (fs.existsSync(usersFile)) {
                     let map = JSON.parse(fs.readFileSync(usersFile, 'utf8')) || {};
