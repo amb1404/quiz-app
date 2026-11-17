@@ -3339,6 +3339,113 @@ app.post('/api/auth/google', async (req, res) => {
         res.status(500).json({ success: false, error: 'Google authentication failed.' });
     }
 });
+// Mail App (Gmail / iOS Mail) Passwordless Sign-In for Browsers Without a Google Session
+app.post('/api/auth/mail-app/send', async (req, res) => {
+    try {
+        const clientIp = getClientIp(req);
+        const allowed = await stateStore.checkRateLimit('mail_send', clientIp, 6, 10 * 60);
+        if (!allowed) return res.status(429).json({ success: false, error: 'Too many requests. Please wait a few minutes.' });
+
+        const rawEmail = String(req.body.email || '').trim().toLowerCase();
+        if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+            return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
+        }
+
+        const existingProfile = await getRegisteredStudentProfile(rawEmail);
+        const code = String( crypto.randomInt(100000, 999999) );
+        await stateStore.set(`mailauth:otp:${rawEmail}`, code, 600); // Valid 10 mins
+
+        const scriptURL = process.env.APP_SCRIPT_URL;
+        if (!scriptURL || !APPS_SECRET) {
+            return res.status(500).json({ success: false, error: 'Mail service not configured on server.' });
+        }
+
+        await fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'send_otp',
+                type: 'otp',
+                email: rawEmail,
+                targetEmail: rawEmail,
+                otp: code,
+                code: code,
+                subject: `${code} is your Pioneers Prep Sign-In Code`,
+                breakdown: `<div style="font-family:sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:10px;max-width:480px;">
+                    <h2 style="color:#1e3a8a;margin-top:0;">Pioneers Prep Sign-In</h2>
+                    <p style="color:#334155;font-size:15px;">Use this verification code to sign in to Pioneers Prep:</p>
+                    <div style="font-size:32px;font-weight:800;letter-spacing:4px;color:#2563eb;background:#eff6ff;padding:14px;text-align:center;border-radius:8px;margin:16px 0;">${code}</div>
+                    <p style="color:#64748b;font-size:12px;">Valid for 10 minutes.</p>
+                </div>`,
+                secretKey: APPS_SECRET
+            })
+        });
+
+        res.json({
+            success: true,
+            hasExistingProfile: Boolean(existingProfile && existingProfile.firstName && existingProfile.firstName !== 'STUDENT'),
+            firstName: existingProfile ? existingProfile.firstName : '',
+            lastName: existingProfile ? existingProfile.lastName : ''
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Could not send verification email.' });
+    }
+});
+
+app.post('/api/auth/mail-app/verify', async (req, res) => {
+    try {
+        const clientIp = getClientIp(req);
+        const allowed = await stateStore.checkRateLimit('mail_verify', clientIp, 15, 15 * 60);
+        if (!allowed) return res.status(429).json({ success: false, error: 'Too many attempts. Please wait.' });
+
+        const cleanEmail = String(req.body.email || '').trim().toLowerCase();
+        const code = String(req.body.code || '').trim();
+        const inputFirst = String(req.body.firstName || '').trim().toUpperCase().slice(0, 60);
+        const inputLast = String(req.body.lastName || '').trim().toUpperCase().slice(0, 60);
+
+        if (!cleanEmail || !code) {
+            return res.status(400).json({ success: false, error: 'Email and verification code are required.' });
+        }
+
+        const savedCode = await stateStore.get(`mailauth:otp:${cleanEmail}`);
+        if (!savedCode || !safeCompareStrings(String(savedCode), code)) {
+            return res.status(401).json({ success: false, error: 'Invalid or expired code. Please check your Gmail / Mail app.' });
+        }
+        await stateStore.del(`mailauth:otp:${cleanEmail}`);
+
+        const existingProfile = await getRegisteredStudentProfile(cleanEmail);
+        const finalFirstName = inputFirst || (existingProfile ? existingProfile.firstName : cleanEmail.split('@')[0].toUpperCase());
+        const finalLastName = inputLast || (existingProfile ? existingProfile.lastName : '.');
+
+        await stateStore.del(`blacklist:email:${cleanEmail}`);
+        await saveRegisteredStudentProfile(cleanEmail, finalFirstName, finalLastName);
+
+        const tokenData = `${cleanEmail}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|G2_${crypto.randomBytes(8).toString('hex')}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        const authToken = `${tokenData}|||${signature}`;
+
+        await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
+
+        res.cookie(AUTH_COOKIE_NAME, authToken, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            maxAge: TOKEN_MAX_AGE_MS,
+            path: '/'
+        });
+
+        res.json({
+            success: true,
+            token: authToken,
+            firstName: finalFirstName,
+            lastName: finalLastName,
+            email: cleanEmail
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Verification failed.' });
+    }
+});
+
 // Secure Logout Endpoint (Token Revocation)
 app.post('/api/logout', async (req, res) => {
     try {
