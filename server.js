@@ -717,11 +717,12 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         localStorage.removeItem('pp_email');
                     }
 
-                    // GLOBAL SSO GUARD: Warn and kick unauthenticated users to home
+                    // GLOBAL SSO GUARD: Warn, save target deep URL, and kick unauthenticated users to home
                     var token = localStorage.getItem('pp_id_token');
                     var isExemptAdmin = (baseRoute === '/admin-live');
                     if (!isHome && !isExemptAdmin && !token) {
                         alert('Please sign in to access premium study contents.');
+                        sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
                         sessionStorage.setItem('force_login_open', 'true');
                         window.location.replace('/');
                         return;
@@ -816,6 +817,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
             function renderComprehensiveResultScreen(data, isSavedAttempt) {
                 try {
+                    document.body.classList.remove('exam-mode');
                     var pageIntro = document.querySelector('.page-intro');
                     if (pageIntro) pageIntro.style.display = 'none';
                     var resultScreen = document.getElementById('result-screen');
@@ -1383,6 +1385,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
 
                                 if (accessToken && expectedState && returnedState === expectedState) {
+                                    openUniversalSignInModal(false);
                                     verifyGoogleWithServer({ accessToken: accessToken });
                                 } else {
                                     alert('Security Alert: Sign-in session expired or invalid redirect state. Please try signing in again.');
@@ -1403,7 +1406,9 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             window.crypto.getRandomValues(randArr);
                             csrfState = Array.from(randArr, function(n) { return n.toString(16); }).join('');
                             sessionStorage.setItem('pp_oauth_csrf_state', csrfState);
-                            sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
+                            if (!sessionStorage.getItem('pp_post_login_redirect')) {
+                                sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
+                            }
                         } catch (e) {}
                         var redirectUri = window.location.origin;
                         var oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
