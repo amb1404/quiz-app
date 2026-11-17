@@ -730,7 +730,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     if (isHome) {
                         sessionStorage.setItem('pioneers_active_route', '/');
                         if (window.location.pathname !== '/') {
-                            history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search);
+                            history.replaceState({ app: 'pioneers' }, document.title, '/' + window.location.search + window.location.hash);
                         }
                     } else {
                         sessionStorage.setItem('pioneers_active_route', baseRoute);
@@ -1279,19 +1279,53 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 })();
 
                 // ============================================================
-                // UNIVERSAL GOOGLE SIGN-IN (GMAIL, iOS MAIL, BROWSER SESSIONS & NEW ACCOUNTS)
+                // UNIVERSAL GOOGLE SIGN-IN (CHROME, iOS SAFARI/PWA, EDGE, FIREFOX & IN-APP BROWSERS)
                 // ============================================================
                 (function initGoogleAccountSignIn() {
                     var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
                     var googleTokenClient = null;
-                    var googleIdInitialized = false;
                     var gsiLoadPromise = null;
+
+                    function isIosDevice() {
+                        var ua = navigator.userAgent || '';
+                        return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                    }
+
+                    function isStandalonePwa() {
+                        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                               window.navigator.standalone === true;
+                    }
+
+                    function isAndroidNonChromeBrowser() {
+                        var ua = navigator.userAgent || '';
+                        if (!/Android/i.test(ua)) return false;
+                        return /EdgA|Firefox|FxiOS|OPR|Opera|SamsungBrowser|MiuiBrowser|HeyTapBrowser|VivoBrowser|UCBrowser|Brave|wv|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
+                    }
+
+                    function isIosInAppOrSafari() {
+                        if (!isIosDevice()) return false;
+                        var ua = navigator.userAgent || '';
+                        // True if not already inside iOS Chrome (CriOS)
+                        return !/CriOS/i.test(ua);
+                    }
+
+                    // Browsers where OAuth popups fail or third-party scripts are blocked -> ALWAYS use Same-Tab Redirect
+                    function shouldForceTopLevelRedirect() {
+                        var ua = navigator.userAgent || '';
+                        if (isIosDevice() || isStandalonePwa() || isAndroidNonChromeBrowser()) return true;
+                        if (/Edg\/|Firefox\/|OPR\/|Brave/i.test(ua)) return true;
+                        return false;
+                    }
 
                     function completePortalLogin(data) {
                         if (!data || !data.success || !data.token) {
                             var statusEl = document.getElementById('pp-google-auth-status');
-                            if (statusEl) statusEl.textContent = (data && data.error) ? data.error : 'Sign-In failed. Please try again.';
-                            else alert((data && data.error) ? data.error : 'Google Sign-In failed. Please try again.');
+                            if (statusEl) {
+                                statusEl.style.color = '#dc2626';
+                                statusEl.textContent = (data && data.error) ? data.error : 'Sign-In failed. Please try again.';
+                            } else {
+                                alert((data && data.error) ? data.error : 'Google Sign-In failed. Please try again.');
+                            }
                             return;
                         }
                         localStorage.setItem('pp_auth_provider', 'google_v2');
@@ -1300,9 +1334,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         localStorage.setItem('pp_lname', data.lastName || '');
                         localStorage.setItem('pp_email', data.email || '');
                         sessionStorage.removeItem('force_login_open');
+
                         var modal = document.getElementById('pp-universal-auth-modal');
                         if (modal) modal.remove();
-                        window.location.reload();
+
+                        var savedTarget = sessionStorage.getItem('pp_post_login_redirect');
+                        sessionStorage.removeItem('pp_post_login_redirect');
+                        if (savedTarget && savedTarget.indexOf('/') === 0 && savedTarget !== window.location.pathname) {
+                            window.location.replace(savedTarget);
+                        } else {
+                            window.location.reload();
+                        }
                     }
 
                     function verifyGoogleWithServer(payload) {
@@ -1328,8 +1370,55 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         });
                     }
 
-                    // Dynamically waits for or reloads the Google Identity script so it NEVER shows a "still loading" error
-                    function waitForGoogleLibrary() {
+                    // 1. Automatically process OAuth 2.0 Redirect Callback (#access_token=...) with strict CSRF state validation
+                    (function handleOAuthRedirectHash() {
+                        try {
+                            var hash = window.location.hash || '';
+                            if (hash.indexOf('access_token=') !== -1) {
+                                var params = new URLSearchParams(hash.replace(/^#/, ''));
+                                var accessToken = params.get('access_token');
+                                var returnedState = params.get('state');
+                                var expectedState = sessionStorage.getItem('pp_oauth_csrf_state');
+                                sessionStorage.removeItem('pp_oauth_csrf_state');
+                                history.replaceState(null, document.title, window.location.pathname + window.location.search);
+
+                                if (accessToken && expectedState && returnedState === expectedState) {
+                                    verifyGoogleWithServer({ accessToken: accessToken });
+                                } else {
+                                    alert('Security Alert: Sign-in session expired or invalid redirect state. Please try signing in again.');
+                                }
+                            }
+                        } catch (e) {}
+                    })();
+
+                    // 2. Same-Tab Top-Level Google OAuth 2.0 Redirect with cryptographic CSRF state token
+                    function redirectToGoogleOAuthPage() {
+                        if (!GOOGLE_CLIENT_ID) {
+                            alert('Google Sign-In is not configured yet (Missing GOOGLE_CLIENT_ID).');
+                            return;
+                        }
+                        var csrfState = '';
+                        try {
+                            var randArr = new Uint32Array(4);
+                            window.crypto.getRandomValues(randArr);
+                            csrfState = Array.from(randArr, function(n) { return n.toString(16); }).join('');
+                            sessionStorage.setItem('pp_oauth_csrf_state', csrfState);
+                            sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
+                        } catch (e) {}
+                        var redirectUri = window.location.origin;
+                        var oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
+                            '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
+                            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+                            '&response_type=token' +
+                            '&scope=' + encodeURIComponent('openid email profile') +
+                            '&state=' + encodeURIComponent(csrfState) +
+                            '&prompt=select_account' +
+                            '&include_granted_scopes=true';
+                        window.location.href = oauthUrl;
+                    }
+
+                    function waitForGoogleLibrary(maxWaitMs) {
+                        var limit = Math.ceil((maxWaitMs || 2000) / 100);
                         if (window.google && window.google.accounts) {
                             return Promise.resolve(true);
                         }
@@ -1337,26 +1426,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                         gsiLoadPromise = new Promise(function(resolve) {
                             var attempts = 0;
-                            var existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-                            if (!existingScript) {
-                                var s = document.createElement('script');
-                                s.src = 'https://accounts.google.com/gsi/client';
-                                s.async = true;
-                                document.head.appendChild(s);
-                            }
                             var timer = setInterval(function() {
                                 attempts++;
                                 if (window.google && window.google.accounts) {
                                     clearInterval(timer);
                                     gsiLoadPromise = null;
                                     resolve(true);
-                                } else if (attempts === 25) {
-                                    // Retry injecting script if slow mobile network dropped it
-                                    var retryScript = document.createElement('script');
-                                    retryScript.src = 'https://accounts.google.com/gsi/client?retry=' + Date.now();
-                                    retryScript.async = true;
-                                    document.head.appendChild(retryScript);
-                                } else if (attempts >= 80) {
+                                } else if (attempts >= limit) {
                                     clearInterval(timer);
                                     gsiLoadPromise = null;
                                     resolve(false);
@@ -1368,23 +1444,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                     function setupGoogleClients() {
                         if (!GOOGLE_CLIENT_ID || !window.google || !window.google.accounts) return false;
-
-                        if (!googleIdInitialized && window.google.accounts.id) {
-                            window.google.accounts.id.initialize({
-                                client_id: GOOGLE_CLIENT_ID,
-                                callback: function(response) {
-                                    if (response && response.credential) {
-                                        verifyGoogleWithServer({ credential: response.credential });
-                                    }
-                                },
-                                auto_select: false,
-                                cancel_on_tap_outside: false,
-                                itp_support: true,
-                                use_fedcm_for_prompt: true
-                            });
-                            googleIdInitialized = true;
-                        }
-
                         if (!googleTokenClient && window.google.accounts.oauth2) {
                             googleTokenClient = window.google.accounts.oauth2.initTokenClient({
                                 client_id: GOOGLE_CLIENT_ID,
@@ -1394,17 +1453,55 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     if (tokenResponse && tokenResponse.access_token) {
                                         verifyGoogleWithServer({ accessToken: tokenResponse.access_token });
                                     }
+                                },
+                                error_callback: function() {
+                                    redirectToGoogleOAuthPage();
                                 }
                             });
                         }
                         return true;
                     }
 
-                    function openUniversalSignInModal(autoTriggerPopup) {
-                        // Hide any legacy modals
+                    function openInChromeApp() {
+                        var cleanHostAndPath = window.location.host + window.location.pathname + window.location.search;
+                        if (isIosDevice()) {
+                            // iOS Chrome URL scheme
+                            window.location.href = 'googlechromes://' + cleanHostAndPath;
+                            setTimeout(function() {
+                                redirectToGoogleOAuthPage();
+                            }, 1500);
+                        } else {
+                            // Android Chrome Intent
+                            var fallback = encodeURIComponent(window.location.href);
+                            window.location.href = 'intent://' + cleanHostAndPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+                        }
+                    }
+
+                    function openUniversalSignInModal(autoTrigger) {
                         document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
                             m.style.display = 'none';
                         });
+
+                        // If user directly tapped the blue "Sign In" navbar button on iOS or non-Chrome browser, go straight to Google OAuth!
+                        if (autoTrigger && shouldForceTopLevelRedirect()) {
+                            redirectToGoogleOAuthPage();
+                            return;
+                        }
+
+                        var showChromeSwitchBtn = isAndroidNonChromeBrowser() || (isIosInAppOrSafari() && !isStandalonePwa());
+                        var chromeBtnLabel = isIosDevice()
+                            ? '📲 Sign In via iPhone Chrome App'
+                            : '📲 Auto-Fetch Phone Gmail (Open in Chrome)';
+
+                        var chromeSwitchHtml = showChromeSwitchBtn
+                            ? '<button id="pp-open-chrome-btn" type="button" style="width:100%;padding:12px 14px;background:#059669;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(5,150,105,0.25);margin-top:10px;">' +
+                                '<span>' + chromeBtnLabel + '</span>' +
+                              '</button>'
+                            : '';
+
+                        var helperSubtext = isIosDevice()
+                            ? 'Tap below to sign in with Google (supports iPhone FaceID / Keychain autofill or any Gmail address):'
+                            : 'Continue with your Google or Gmail account to access mock tests, notes, and live classes:';
 
                         var existing = document.getElementById('pp-universal-auth-modal');
                         if (!existing) {
@@ -1416,18 +1513,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
                                     '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:54px;height:54px;border-radius:12px;margin-bottom:10px;object-fit:contain;">' +
                                     '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">Sign in using any Google or Gmail account on your device, iOS/Android Mail, or type a different email address:</p>' +
-                                    '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:13px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);margin-bottom:14px;">' +
+                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">' + helperSubtext + '</p>' +
+                                    '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:13px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);">' +
                                         '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-                                        '<span>Choose Google Account / Use Another</span>' +
+                                        '<span>Continue with Google / Choose Account</span>' +
                                     '</button>' +
-                                    '<div style="display:flex;align-items:center;gap:10px;margin:10px 0;">' +
-                                        '<div style="flex:1;height:1px;background:#e2e8f0;"></div>' +
-                                        '<span style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;">Or Quick Browser / iOS Sign-In</span>' +
-                                        '<div style="flex:1;height:1px;background:#e2e8f0;"></div>' +
-                                    '</div>' +
-                                    '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;min-height:44px;margin-top:10px;"></div>' +
-                                    '<div id="pp-google-auth-status" style="margin-top:12px;font-size:13px;font-weight:600;color:#64748b;min-height:18px;"></div>' +
+                                    chromeSwitchHtml +
+                                    '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
                                 '</div>';
 
                             document.body.appendChild(overlay);
@@ -1441,80 +1533,57 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             var chooserBtn = document.getElementById('pp-universal-chooser-btn');
                             if (chooserBtn) {
                                 chooserBtn.addEventListener('click', function() {
-                                    launchAccountChooserPopup();
+                                    launchAccountChooserOrRedirect();
+                                });
+                            }
+
+                            var chromeBtn = document.getElementById('pp-open-chrome-btn');
+                            if (chromeBtn) {
+                                chromeBtn.addEventListener('click', function() {
+                                    openInChromeApp();
                                 });
                             }
                         }
 
-                        var statusEl = document.getElementById('pp-google-auth-status');
-
-                        // If Google library is already loaded and user clicked Sign In directly, open chooser right away
-                        if (autoTriggerPopup && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (autoTrigger && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-                            } catch (e) {}
+                            } catch (e) {
+                                redirectToGoogleOAuthPage();
+                            }
                         }
-
-                        if (!window.google || !window.google.accounts) {
-                            if (statusEl) statusEl.textContent = 'Connecting to Google Sign-In...';
-                        }
-
-                        waitForGoogleLibrary().then(function(ready) {
-                            if (!ready || !setupGoogleClients()) {
-                                if (statusEl) {
-                                    statusEl.style.color = '#dc2626';
-                                    statusEl.textContent = 'Could not load Google Sign-In. Please check your internet or disable ad-blockers.';
-                                }
-                                return;
-                            }
-                            if (statusEl && statusEl.textContent === 'Connecting to Google Sign-In...') {
-                                statusEl.textContent = '';
-                            }
-                            var renderBox = document.getElementById('pp-google-rendered-btn');
-                            if (renderBox && !renderBox.hasChildNodes() && window.google.accounts.id) {
-                                try {
-                                    window.google.accounts.id.renderButton(renderBox, {
-                                        type: 'standard',
-                                        theme: 'outline',
-                                        size: 'large',
-                                        text: 'continue_with',
-                                        shape: 'rectangular',
-                                        logo_alignment: 'left',
-                                        width: 340
-                                    });
-                                } catch (e) {}
-                            }
-                        });
                     }
 
-                    function launchAccountChooserPopup() {
+                    function launchAccountChooserOrRedirect() {
                         var statusEl = document.getElementById('pp-google-auth-status');
+                        // On iOS, PWAs, Edge, Firefox, or In-App Browsers: always use Same-Tab Redirect (never popups)
+                        if (shouldForceTopLevelRedirect()) {
+                            if (statusEl) {
+                                statusEl.style.color = '#2563eb';
+                                statusEl.textContent = 'Opening Google Sign-In...';
+                            }
+                            redirectToGoogleOAuthPage();
+                            return;
+                        }
+                        // On Desktop/Android Chrome: use instant popup chooser if ready, else redirect
                         if (window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             if (statusEl) statusEl.textContent = '';
-                            googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-                            return;
+                            try {
+                                googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+                                return;
+                            } catch (e) {}
                         }
                         if (statusEl) {
                             statusEl.style.color = '#2563eb';
-                            statusEl.textContent = 'Loading Google Account Chooser...';
+                            statusEl.textContent = 'Opening Google Sign-In...';
                         }
-                        waitForGoogleLibrary().then(function(ready) {
-                            if (ready && setupGoogleClients() && googleTokenClient) {
-                                if (statusEl) statusEl.textContent = '';
-                                googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-                            } else if (statusEl) {
-                                statusEl.style.color = '#dc2626';
-                                statusEl.textContent = 'Connection slow. Please tap the button above again.';
-                            }
-                        });
+                        redirectToGoogleOAuthPage();
                     }
 
-                    // Pre-initialize as soon as Google script finishes loading in the background
-                    waitForGoogleLibrary().then(function(ready) {
+                    waitForGoogleLibrary(2500).then(function(ready) {
                         if (ready) setupGoogleClients();
                     });
 
-                    // Intercept clicks on #nav-signin-btn in capture phase
                     document.addEventListener('click', function(e) {
                         var signInBtn = e.target ? e.target.closest('#nav-signin-btn') : null;
                         if (!signInBtn) return;
@@ -1524,7 +1593,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         openUniversalSignInModal(true);
                     }, true);
 
-                    // If redirected to home because login was required, open Universal Sign-In Modal immediately
                     window.addEventListener('DOMContentLoaded', function() {
                         if (sessionStorage.getItem('force_login_open') === 'true') {
                             sessionStorage.removeItem('force_login_open');
