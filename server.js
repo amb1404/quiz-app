@@ -1606,7 +1606,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             return;
                         }
 
-                        var isIos = isIosDevice();
                         var existing = document.getElementById('pp-universal-auth-modal');
                         if (!existing) {
                             var passwordlessMailHtml =
@@ -1614,10 +1613,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 '<div id="pp-mail-fallback-box" style="display:block;margin-top:10px;text-align:left;background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #cbd5e1;">' +
                                     '<div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;">⚡ Instant Passwordless Sign-In</div>' +
                                     '<input id="pp-mail-email-input" type="email" autocomplete="email" inputmode="email" placeholder="Enter your email address" style="width:100%;padding:11px 12px;border:1px solid #94a3b8;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
-                                    '<div id="pp-mail-name-fields" style="display:none;gap:8px;margin-bottom:8px;">' +
-                                        '<input id="pp-mail-fname" type="text" autocomplete="given-name" placeholder="First Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
-                                        '<input id="pp-mail-lname" type="text" autocomplete="family-name" placeholder="Last Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
-                                    '</div>' +
                                     '<input id="pp-mail-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="Or enter 6-digit code" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:15px;font-weight:bold;text-align:center;letter-spacing:2px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
                                     '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:12px 14px;background:#2563eb;color:#ffffff;border:none;border-radius:9px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 10px rgba(37,99,235,0.25);">📲 Sign In via Mail App (No Password)</button>' +
                                 '</div>';
@@ -1634,7 +1629,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
                                     '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:50px;height:50px;border-radius:12px;margin-bottom:8px;object-fit:contain;">' +
                                     '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                    '<p style="margin:0 0 14px 0;color:#475569;font-size:13.5px;line-height:1.45;">Select your account below to access mock tests, study notes, and live classes:</p>' +
+                                    '<p style="margin:0 0 14px 0;color:#475569;font-size:13.5px;line-height:1.45;">Sign in to access mock tests, study notes, and live classes:</p>' +
                                     bodyLayoutHtml +
                                     '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
                                 '</div>';
@@ -1664,7 +1659,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             var mailStep = 'send';
                             var mailBtn = document.getElementById('pp-mail-submit-btn');
                             var codeInp = document.getElementById('pp-mail-code-input');
-                            var nameBox = document.getElementById('pp-mail-name-fields');
                             var statusEl = document.getElementById('pp-google-auth-status');
 
                             if (mailBtn) {
@@ -1695,7 +1689,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                             mailStep = 'verify';
                                             emailInp.readOnly = true;
                                             codeInp.style.display = 'block';
-                                            if (!d.hasExistingProfile) nameBox.style.display = 'flex';
                                             mailBtn.style.background = '#059669';
                                             mailBtn.textContent = '✅ Verify Code & Sign In';
                                             statusEl.style.color = '#059669';
@@ -1704,22 +1697,15 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         })
                                         .catch(function() {
                                             mailBtn.disabled = false;
-                                            mailBtn.textContent = '📲 Sign In via Mail App (No Password)';
+                                            mailBtn.textContent = 'Sign In via OTP';
                                             statusEl.style.color = '#dc2626';
                                             statusEl.textContent = 'Network error. Please try again.';
                                         });
                                     } else {
                                         var codeVal = (codeInp.value || '').trim();
-                                        var fNameVal = (document.getElementById('pp-mail-fname')?.value || '').trim();
-                                        var lNameVal = (document.getElementById('pp-mail-lname')?.value || '').trim();
                                         if (codeVal.length < 4) {
                                             statusEl.style.color = '#dc2626';
                                             statusEl.textContent = 'Tap the 1-Tap link in your Mail app or enter the 6-digit code.';
-                                            return;
-                                        }
-                                        if (nameBox.style.display !== 'none' && !fNameVal) {
-                                            statusEl.style.color = '#dc2626';
-                                            statusEl.textContent = 'Please enter your First Name.';
                                             return;
                                         }
                                         mailBtn.disabled = true;
@@ -1727,7 +1713,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         fetch('/api/auth/mail-app/verify', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ email: emailVal, code: codeVal, firstName: fNameVal, lastName: lNameVal })
+                                            body: JSON.stringify({ email: emailVal, code: codeVal })
                                         })
                                         .then(function(r) { return r.json(); })
                                         .then(function(d) {
@@ -1751,7 +1737,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             }
                         }
 
-                        if (autoTriggerChooser && !isAndroidNonChromeBrowser() && !isIos && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (autoTriggerChooser && !isAndroidNonChromeBrowser() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
                             } catch (e) {}
@@ -1773,7 +1759,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         });
                                     } catch (e) {}
                                 }
-                                if (!isIos && !isUserSignedIn() && window.google.accounts.id) {
+                                if (!isUserSignedIn() && window.google.accounts.id) {
                                     try { window.google.accounts.id.prompt(); } catch (e) {}
                                 }
                             }
