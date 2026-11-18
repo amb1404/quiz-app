@@ -282,7 +282,10 @@ if (typeof io !== 'undefined') {
     });
 
     let leaveSignalSent = false;
-    function sendInstantLeaveSignal(isBackButton = false) {
+    let hiddenKickTimer = null;
+    let hiddenTimestamp = 0;
+
+    function sendInstantLeaveSignal(isImmediateExit = false) {
         if (!liveToken || leaveSignalSent) return;
         leaveSignalSent = true;
         setTimeout(() => { leaveSignalSent = false; }, 1000);
@@ -290,8 +293,15 @@ if (typeof io !== 'undefined') {
             try { window.stopStudentLiveKit(); } catch (e) {}
         }
         if (socket && socket.connected) {
-            socket.emit("leave-room", { immediate: isBackButton });
+            socket.emit("leave-room", { immediate: isImmediateExit });
         }
+        const payloadStr = JSON.stringify({ token: liveToken, immediate: isImmediateExit });
+        try {
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payloadStr], { type: 'application/json' });
+                navigator.sendBeacon('/api/live/student/leave', blob);
+            }
+        } catch (e) {}
         try {
             fetch('/api/live/student/leave', {
                 method: 'POST',
@@ -299,35 +309,45 @@ if (typeof io !== 'undefined') {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${liveToken}`
                 },
-                body: JSON.stringify({ token: liveToken, immediate: isBackButton }),
+                body: payloadStr,
                 keepalive: true
             }).catch(() => {});
         } catch (e) {}
     }
 
-    // 1. Back Button: Keep student in the room (prevent exit and maintain active roster status)
-    window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
-    window.addEventListener("popstate", () => {
+    function exitRoomAndReturnToLobby() {
+        if (!testActive && !liveToken) return;
+        testActive = false;
+        if (hiddenKickTimer) {
+            clearTimeout(hiddenKickTimer);
+            hiddenKickTimer = null;
+        }
+        if (heartbeatTimer) {
+            clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+        }
+        sendInstantLeaveSignal(true);
+        liveToken = "";
+        currentQuizId = "";
+        sessionStorage.removeItem('live_student_session');
+        window.location.replace('/live-room');
+    }
+
+    socket.on("tab-switch-timeout", () => {
         if (testActive) {
-            try {
-                window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
-            } catch (e) {}
-            if (socket && currentQuizId && liveToken) {
-                if (!socket.connected) socket.connect();
-                socket.emit("student-visibility", { hidden: false });
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
-            }
-            if (liveToken) {
-                fetch('/api/live/student/rejoin', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${liveToken}` },
-                    keepalive: true
-                }).catch(() => {});
-            }
+            exitRoomAndReturnToLobby();
         }
     });
 
-    // 2. Closing Tab or Closing Browser: Fires OS-level keepalive beacon + socket leave immediately
+    // 1. Device or Browser Back Button: Remove student from roster immediately in real time
+    window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
+    window.addEventListener("popstate", () => {
+        if (testActive) {
+            exitRoomAndReturnToLobby();
+        }
+    });
+
+    // 2. Closing Tab, Closing Browser, or Forced Exit: Fires OS-level keepalive beacon + socket leave
     window.addEventListener("beforeunload", () => {
         if (testActive) sendInstantLeaveSignal(false);
     });
@@ -335,18 +355,49 @@ if (typeof io !== 'undefined') {
         if (testActive) sendInstantLeaveSignal(false);
     });
 
-    // 3. Minimize App or Switch Tabs: Locks student in room infinitely while backgrounded, and re-syncs on return
+    // 3. Switch Tab or Minimize Browser for 3 Seconds: Removes student from roster in real time at 3s mark
     document.addEventListener("visibilitychange", () => {
         if (!testActive || !currentQuizId || !liveToken) return;
         if (document.visibilityState === 'hidden') {
+            hiddenTimestamp = Date.now();
             if (socket && socket.connected) {
                 socket.emit("student-visibility", { hidden: true });
             }
+            // Backup HTTP timer on server in case mobile OS suspends background tab JS
+            try {
+                fetch('/api/live/student/leave', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${liveToken}`
+                    },
+                    body: JSON.stringify({ token: liveToken, immediate: false, hiddenGraceMs: 3000 }),
+                    keepalive: true
+                }).catch(() => {});
+            } catch (e) {}
+
+            if (hiddenKickTimer) clearTimeout(hiddenKickTimer);
+            hiddenKickTimer = setTimeout(() => {
+                if (testActive && document.visibilityState === 'hidden') {
+                    exitRoomAndReturnToLobby();
+                }
+            }, 3000);
         } else if (document.visibilityState === 'visible') {
+            if (hiddenKickTimer) {
+                clearTimeout(hiddenKickTimer);
+                hiddenKickTimer = null;
+            }
+            // If mobile OS froze the tab for >= 3 seconds, exit immediately on return
+            if (hiddenTimestamp > 0 && (Date.now() - hiddenTimestamp) >= 3000) {
+                exitRoomAndReturnToLobby();
+                return;
+            }
+            hiddenTimestamp = 0;
+
             if (socket) {
                 if (!socket.connected) socket.connect();
                 socket.emit("student-visibility", { hidden: false });
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken });
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: false });
             }
             if (typeof window.connectLiveKit === 'function') {
                 window.connectLiveKit(currentQuizId);
@@ -448,10 +499,11 @@ function startHeartbeat() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
         if (testActive && currentQuizId && liveToken) {
-            const isHidden = document.visibilityState === 'hidden';
+            // Never send a rejoin heartbeat while the tab is hidden/backgrounded
+            if (document.visibilityState === 'hidden') return;
             if (socket) {
                 if (!socket.connected) socket.connect();
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: isHidden });
+                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: false });
             }
             fetch('/api/live/student/rejoin', {
                 method: 'POST',

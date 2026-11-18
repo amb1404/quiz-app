@@ -581,9 +581,28 @@ async function preSubmitSecurityGuard(req, res, next) {
 // ============================================================================
 // 4. DYNAMIC HTML INTERCEPTOR (CLEAN URLS, NONCE INJECTION & EVENT DELEGATION)
 // ============================================================================
-function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
+async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
     const isHome = canonicalBaseRoute === '/';
     const nonce = res.locals.cspNonce;
+
+    // Check if the browser already has a valid 30-day HttpOnly auth cookie
+    let serverRestoredSession = null;
+    try {
+        const cookieToken = extractAuthToken(req);
+        if (cookieToken) {
+            const authCheck = await verifyAuthToken(cookieToken, null, false);
+            if (authCheck && authCheck.valid) {
+                serverRestoredSession = {
+                    token: cookieToken,
+                    firstName: authCheck.firstName || '',
+                    lastName: authCheck.lastName || '',
+                    email: authCheck.email || ''
+                };
+            } else {
+                res.clearCookie(AUTH_COOKIE_NAME);
+            }
+        }
+    } catch (e) {}
 
     const filePath = path.join(__dirname, 'public', fileName);
     fs.readFile(filePath, 'utf8', (err, data) => {
@@ -699,6 +718,16 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
             </div>
         `;
 
+        const restoredSessionScript = serverRestoredSession
+            ? `if (!localStorage.getItem('pp_id_token') || localStorage.getItem('pp_auth_provider') !== 'google_v2') {
+                        localStorage.setItem('pp_auth_provider', 'google_v2');
+                        localStorage.setItem('pp_id_token', ${JSON.stringify(serverRestoredSession.token)});
+                        localStorage.setItem('pp_fname', ${JSON.stringify(serverRestoredSession.firstName)});
+                        localStorage.setItem('pp_lname', ${JSON.stringify(serverRestoredSession.lastName)});
+                        localStorage.setItem('pp_email', ${JSON.stringify(serverRestoredSession.email)});
+                    }`
+            : '';
+
         const headRouteGuardScript = `<base href="/">
         <link rel="preconnect" href="https://accounts.google.com">
         <script nonce="${nonce}" src="https://accounts.google.com/gsi/client" async></script>
@@ -709,6 +738,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 var baseRoute = '${canonicalBaseRoute}';
                 var isHome = (baseRoute === '/');
                 try {
+                    ${restoredSessionScript}
+
                     // Force all pre-Google legacy OTP browsers to log out immediately
                     if (localStorage.getItem('pp_auth_provider') !== 'google_v2') {
                         localStorage.removeItem('pp_id_token');
@@ -717,14 +748,17 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         localStorage.removeItem('pp_email');
                     }
 
-                    // Convert any legacy force_login_open flag in <head> BEFORE main.js loads
-                    if (sessionStorage.getItem('force_login_open') === 'true') {
+                    var token = localStorage.getItem('pp_id_token');
+                    if (token) {
+                        // Browser is already signed in: clear any pending login popup flags
+                        sessionStorage.removeItem('force_login_open');
+                        sessionStorage.removeItem('pp_open_google_auth');
+                    } else if (sessionStorage.getItem('force_login_open') === 'true') {
                         sessionStorage.removeItem('force_login_open');
                         sessionStorage.setItem('pp_open_google_auth', 'true');
                     }
 
                     // GLOBAL SSO GUARD: Save target deep URL and send unauthenticated users to the Google Sign-In screen
-                    var token = localStorage.getItem('pp_id_token');
                     var isExemptAdmin = (baseRoute === '/admin-live');
                     if (!isHome && !isExemptAdmin && !token) {
                         sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
@@ -1287,7 +1321,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 })();
 
                 // ============================================================
-                // UNIVERSAL GOOGLE SIGN-IN (ANDROID PLAY SERVICES, iOS & DIRECT URL GUARD)
+                // UNIVERSAL GOOGLE SIGN-IN (PERSISTENT 30-DAY SESSION & DIRECT URL GUARD)
                 // ============================================================
                 (function initGoogleAccountSignIn() {
                     var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
@@ -1314,6 +1348,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             if (ua.indexOf(altTokens[i]) !== -1) return true;
                         }
                         return false;
+                    }
+
+                    function isUserSignedIn() {
+                        return Boolean(localStorage.getItem('pp_id_token') && localStorage.getItem('pp_auth_provider') === 'google_v2');
                     }
 
                     function completePortalLogin(data) {
@@ -1370,7 +1408,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         });
                     }
 
-                    // 1. Handle OAuth Redirect Hash (#access_token=...) OR Auto-Trigger (?auto_google_login=1)
+                    // 1. Handle OAuth Redirect Hash (#access_token=...)
                     (function handleStartupAuthTriggers() {
                         try {
                             var hash = window.location.hash || '';
@@ -1384,10 +1422,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
 
                                 if (accessToken && (!expectedState || returnedState === expectedState)) {
-                                    window.addEventListener('DOMContentLoaded', function() {
-                                        openUniversalSignInModal(false);
-                                        verifyGoogleWithServer({ accessToken: accessToken });
-                                    });
+                                    verifyGoogleWithServer({ accessToken: accessToken });
                                 }
                                 return;
                             }
@@ -1397,9 +1432,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 searchParams.delete('auto_google_login');
                                 var cleanSearch = searchParams.toString();
                                 history.replaceState(null, document.title, window.location.pathname + (cleanSearch ? '?' + cleanSearch : ''));
-                                window.addEventListener('DOMContentLoaded', function() {
-                                    openUniversalSignInModal(true);
-                                });
+                                if (!isUserSignedIn()) {
+                                    window.addEventListener('DOMContentLoaded', function() {
+                                        openUniversalSignInModal(true);
+                                    });
+                                }
                             }
                         } catch (e) {}
                     })();
@@ -1491,17 +1528,10 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return true;
                     }
 
-                    // Launches the native Android Google Play Services / Chrome Account Picker or iOS Account Chooser
+                    // Signs the student into their CURRENT browser so their session persists in this browser for 30 days
                     function triggerDeviceAccountSelection() {
                         var statusEl = document.getElementById('pp-google-auth-status');
-                        if (isAndroidNonChromeBrowser()) {
-                            var sep = window.location.search ? '&' : '?';
-                            var targetPath = window.location.host + window.location.pathname + window.location.search + sep + 'auto_google_login=1';
-                            var fallback = encodeURIComponent(window.location.href);
-                            window.location.href = 'intent://' + targetPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
-                            return;
-                        }
-                        if (!isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (!isIosDevice() && !isAndroidNonChromeBrowser() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             if (statusEl) statusEl.textContent = '';
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
@@ -1517,6 +1547,15 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                     function openUniversalSignInModal(autoTriggerChooser) {
                         killLegacyOtpModal();
+
+                        // NEVER show the sign-in popup if this browser is already signed in
+                        if (isUserSignedIn()) {
+                            sessionStorage.removeItem('pp_open_google_auth');
+                            sessionStorage.removeItem('force_login_open');
+                            var existingModal = document.getElementById('pp-universal-auth-modal');
+                            if (existingModal) existingModal.remove();
+                            return;
+                        }
 
                         var isAndroid = isAndroidDevice();
                         var isIos = isIosDevice();
@@ -1581,14 +1620,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         });
                                     } catch (e) {}
                                 }
-                                if (window.google.accounts.id) {
-                                    try { window.google.accounts.id.prompt(); } catch (e) {}
-                                }
                             }
                         });
                     }
 
-                    // Hunt down and remove ANY legacy Email-OTP modal by ID, class, or inner text ("Continue & Send OTP")
+                    // Silently remove any legacy Email-OTP modal from the DOM without auto-popping the sign-in modal on load
                     function killLegacyOtpModal() {
                         var knownModals = document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal, #sso-modal');
                         for (var i = 0; i < knownModals.length; i++) {
@@ -1603,9 +1639,6 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 var parentOverlay = allBtns[j].closest('div[style*="fixed"], div[class*="modal"], div[id*="modal"]') || allBtns[j].parentElement?.parentElement;
                                 if (parentOverlay && parentOverlay.id !== 'pp-universal-auth-modal' && parentOverlay !== document.body) {
                                     parentOverlay.remove();
-                                    if (!localStorage.getItem('pp_id_token') && !document.getElementById('pp-universal-auth-modal')) {
-                                        openUniversalSignInModal(false);
-                                    }
                                 }
                             }
                         }
@@ -1615,8 +1648,25 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         if (ready) setupGoogleClients();
                     });
 
-                    // Capture-phase click interceptor: catches #nav-signin-btn AND any unauthenticated portal links/cards before main.js can open the old OTP box
+                    // Capture-phase click interceptor for Sign In, Logout, and unauthenticated portal links/cards
                     document.addEventListener('click', function(e) {
+                        var logoutBtn = e.target ? e.target.closest('#nav-logout-btn') : null;
+                        if (logoutBtn) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            localStorage.removeItem('pp_auth_provider');
+                            localStorage.removeItem('pp_id_token');
+                            localStorage.removeItem('pp_fname');
+                            localStorage.removeItem('pp_lname');
+                            localStorage.removeItem('pp_email');
+                            sessionStorage.clear();
+                            fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).finally(function() {
+                                window.location.replace('/');
+                            });
+                            return;
+                        }
+
                         var signInBtn = e.target ? e.target.closest('#nav-signin-btn') : null;
                         if (signInBtn) {
                             e.preventDefault();
@@ -1626,8 +1676,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             return;
                         }
 
-                        // If user is logged out on Home and clicks a protected portal link or card, intercept before main.js shows the OTP modal
-                        if (!localStorage.getItem('pp_id_token') && baseRoute !== '/admin-live') {
+                        if (!isUserSignedIn() && baseRoute !== '/admin-live') {
                             var clickedInsideAuth = e.target ? e.target.closest('#pp-universal-auth-modal, #pwa-download-btn, #pwa-install-helper-modal, .footer-contact, .footer-links') : null;
                             if (clickedInsideAuth) return;
 
@@ -1646,8 +1695,13 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     }, true);
 
                     window.addEventListener('DOMContentLoaded', function() {
-                        // Run once on load; since killLegacyOtpModal() calls .remove(), the legacy modal is permanently deleted from the DOM
                         killLegacyOtpModal();
+
+                        if (isUserSignedIn()) {
+                            sessionStorage.removeItem('pp_open_google_auth');
+                            sessionStorage.removeItem('force_login_open');
+                            return;
+                        }
 
                         if (sessionStorage.getItem('pp_open_google_auth') === 'true' || sessionStorage.getItem('force_login_open') === 'true') {
                             sessionStorage.removeItem('pp_open_google_auth');
@@ -4349,7 +4403,7 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     res.json({ success: true, studentName });
 });
 
-// Instant removal beacon when student closes tab or closes browser
+// Instant removal beacon when student closes tab, presses Back button, or switches tab for 3s
 app.post('/api/live/student/leave', async (req, res) => {
     try {
         const rawToken = extractAuthToken(req) || (req.body && req.body.token) || '';
@@ -4365,12 +4419,11 @@ app.post('/api/live/student/leave', async (req, res) => {
             return res.json({ success: true, ignoredStaleSession: true });
         }
 
-        const isBackBtn = Boolean(req.body && req.body.immediate);
+        const isImmediate = Boolean(req.body && req.body.immediate);
+        const hiddenGraceMs = Number(req.body && req.body.hiddenGraceMs) || 0;
+
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
-        }
-        if (isBackBtn && typeof liveStudentSockets !== 'undefined') {
-            liveStudentSockets.delete(presenceKey);
         }
 
         if (typeof liveDisconnectTimers !== 'undefined') {
@@ -4378,9 +4431,18 @@ app.post('/api/live/student/leave', async (req, res) => {
                 clearTimeout(liveDisconnectTimers.get(presenceKey));
                 liveDisconnectTimers.delete(presenceKey);
             }
-            const removeStudentNow = async () => {
+
+            const forceRemoveStudent = async (notifyTabTimeout = false) => {
                 liveDisconnectTimers.delete(presenceKey);
-                if (typeof liveStudentSockets !== 'undefined' && liveStudentSockets.has(presenceKey)) return;
+                if (typeof liveStudentSockets !== 'undefined') {
+                    const activeSet = liveStudentSockets.get(presenceKey);
+                    if (activeSet && notifyTabTimeout) {
+                        for (const sId of activeSet) {
+                            io.to(sId).emit('tab-switch-timeout');
+                        }
+                    }
+                    liveStudentSockets.delete(presenceKey);
+                }
                 await updateBoardSecurely(cleanId, (board) => {
                     if (board[studentName]) {
                         board[studentName].disconnected = true;
@@ -4390,11 +4452,18 @@ app.post('/api/live/student/leave', async (req, res) => {
                 await emitAdminBoard(cleanId);
             };
 
-            if (isBackBtn) {
-                await removeStudentNow();
+            if (isImmediate) {
+                await forceRemoveStudent(false);
+            } else if (hiddenGraceMs > 0) {
+                const timer = setTimeout(() => forceRemoveStudent(true), hiddenGraceMs);
+                liveDisconnectTimers.set(presenceKey, timer);
             } else {
-                // 600ms micro-check so F5 page refresh stays connected, while tab/browser close removes immediately
-                const timer = setTimeout(removeStudentNow, 600);
+                // 800ms micro-buffer so F5 refresh stays connected, while tab/browser close removes in real time
+                const timer = setTimeout(async () => {
+                    liveDisconnectTimers.delete(presenceKey);
+                    if (typeof liveStudentSockets !== 'undefined' && liveStudentSockets.has(presenceKey)) return;
+                    await forceRemoveStudent(false);
+                }, 800);
                 liveDisconnectTimers.set(presenceKey, timer);
             }
         }
@@ -4959,11 +5028,11 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
     cors: { origin: "*" },
-    pingInterval: 10000,
-    pingTimeout: 20000
+    pingInterval: 4000,
+    pingTimeout: 4000
 });
 
-// Tracks active socket IDs, refresh timers, and infinite background/minimized state per student
+// Tracks active socket IDs, disconnect timers, and last-seen timestamps per student
 const liveStudentSockets = new Map();
 const liveDisconnectTimers = new Map();
 const liveBackgroundedStudents = new Set();
@@ -4982,24 +5051,11 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
     // If the student still has another active socket open in the room, keep them online
     if (liveStudentSockets.has(presenceKey)) return;
 
-    // CRITICAL: If student minimized the app or switched tabs (not an explicit close), keep them in the room infinitely
-    if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) {
-        return;
-    }
-
     const markOffline = async () => {
         liveDisconnectTimers.delete(presenceKey);
+        liveBackgroundedStudents.delete(presenceKey);
         if (liveStudentSockets.has(presenceKey)) return;
-        if (!isExplicitExit && liveBackgroundedStudents.has(presenceKey)) return;
         try {
-            const rawBoardNow = await stateStore.get(`live:board:${cleanId}`);
-            const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
-            const rec = boardNow[studentName];
-            const lastSeen = Math.max(liveStudentLastSeen.get(presenceKey) || 0, rec?.lastSeenAt || 0);
-            // If HTTP heartbeat updated lastSeen within the last 30s (and this wasn't an explicit tab close), keep them online
-            if (!isExplicitExit && lastSeen && (Date.now() - lastSeen) < 30000) {
-                return;
-            }
             await updateBoardSecurely(cleanId, (board) => {
                 if (board[studentName]) {
                     board[studentName].disconnected = true;
@@ -5014,16 +5070,10 @@ async function handleStudentDeparture(cleanId, studentName, socketId, isExplicit
         clearTimeout(liveDisconnectTimers.get(presenceKey));
     }
 
-    if (isExplicitExit) {
-        liveBackgroundedStudents.delete(presenceKey);
-        // 600ms micro-buffer ONLY so pressing F5 (Refresh) doesn't blink; closing tab/browser removes in 0.6s
-        const timer = setTimeout(markOffline, 600);
-        liveDisconnectTimers.set(presenceKey, timer);
-    } else {
-        // 35s grace window for unintentional mobile network drops (allows 2 full 15s heartbeats to recover)
-        const timer = setTimeout(markOffline, 35000);
-        liveDisconnectTimers.set(presenceKey, timer);
-    }
+    // 900ms micro-buffer so pressing F5 (Refresh) doesn't blink; closing tab or forced exit removes in <1s
+    const delayMs = isExplicitExit ? 600 : 900;
+    const timer = setTimeout(markOffline, delayMs);
+    liveDisconnectTimers.set(presenceKey, timer);
 }
 
 io.on("connection", (socket) => {
@@ -5051,13 +5101,9 @@ io.on("connection", (socket) => {
 
         const presenceKey = `${cleanId}:::${studentName}`;
         liveStudentLastSeen.set(presenceKey, Date.now());
-        if (hidden === true) {
-            liveBackgroundedStudents.add(presenceKey);
-        } else if (hidden === false) {
-            liveBackgroundedStudents.delete(presenceKey);
-        }
+        liveBackgroundedStudents.delete(presenceKey);
 
-        if (liveDisconnectTimers.has(presenceKey)) {
+        if (!hidden && liveDisconnectTimers.has(presenceKey)) {
             clearTimeout(liveDisconnectTimers.get(presenceKey));
             liveDisconnectTimers.delete(presenceKey);
         }
@@ -5091,18 +5137,42 @@ io.on("connection", (socket) => {
         if (neededReconnectFix) await emitAdminBoard(cleanId);
     });
 
-    // Locks student in the room infinitely when they minimize the app or switch tabs
+    // Removes student from roster in real time if they switch tabs or minimize for 3 seconds
     socket.on("student-visibility", ({ hidden } = {}) => {
         if (!socket.quizId || !socket.studentName) return;
-        const presenceKey = `${socket.quizId}:::${socket.studentName}`;
-        liveStudentLastSeen.set(presenceKey, Date.now());
+        const cleanId = socket.quizId;
+        const studentName = socket.studentName;
+        const presenceKey = `${cleanId}:::${studentName}`;
+
+        if (liveDisconnectTimers.has(presenceKey)) {
+            clearTimeout(liveDisconnectTimers.get(presenceKey));
+            liveDisconnectTimers.delete(presenceKey);
+        }
+
         if (hidden) {
-            liveBackgroundedStudents.add(presenceKey);
-            if (liveDisconnectTimers.has(presenceKey)) {
-                clearTimeout(liveDisconnectTimers.get(presenceKey));
+            const timer = setTimeout(async () => {
                 liveDisconnectTimers.delete(presenceKey);
-            }
+                liveBackgroundedStudents.delete(presenceKey);
+                const activeSet = liveStudentSockets.get(presenceKey);
+                if (activeSet) {
+                    for (const sId of activeSet) {
+                        io.to(sId).emit('tab-switch-timeout');
+                    }
+                    liveStudentSockets.delete(presenceKey);
+                }
+                try {
+                    await updateBoardSecurely(cleanId, (board) => {
+                        if (board[studentName]) {
+                            board[studentName].disconnected = true;
+                        }
+                        return board;
+                    });
+                    await emitAdminBoard(cleanId);
+                } catch (e) {}
+            }, 3000);
+            liveDisconnectTimers.set(presenceKey, timer);
         } else {
+            liveStudentLastSeen.set(presenceKey, Date.now());
             liveBackgroundedStudents.delete(presenceKey);
         }
     });
@@ -5112,7 +5182,7 @@ io.on("connection", (socket) => {
             const rawBoardNow = await stateStore.get(`live:board:${socket.quizId}`);
             const boardNow = rawBoardNow ? (typeof rawBoardNow === 'string' ? JSON.parse(rawBoardNow) : rawBoardNow) : {};
             if (socket.sessionId && boardNow[socket.studentName]?.activeSessionId && boardNow[socket.studentName].activeSessionId !== socket.sessionId) {
-                return; // Ignore leave signal from a replaced session
+                return;
             }
             const presenceKey = `${socket.quizId}:::${socket.studentName}`;
             liveBackgroundedStudents.delete(presenceKey);
