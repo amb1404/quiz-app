@@ -369,6 +369,37 @@
         }
     }
 
+    // Ensure any unmuted speaking student's audio stays attached even if their Socket.IO connection briefly blipped
+    function recoverActiveStudentAudioTracks() {
+        if (room.state !== 'connected') return;
+        try {
+            room.remoteParticipants.forEach((participant) => {
+                const rawIdentity = String(participant.identity || '').trim();
+                if (!rawIdentity || /^admin(_|$)/i.test(rawIdentity)) return;
+                if (activeStudentAudioEls.has(rawIdentity)) return;
+
+                const studentDisplay = rawIdentity.replace(/_[a-z0-9]{4}$/i, '').trim();
+                const rec = window.latestAdminBoard && window.latestAdminBoard[studentDisplay];
+                if (rec && (rec.muted || rec.kicked || rec.disconnected)) return;
+
+                participant.audioTrackPublications.forEach((pub) => {
+                    if (pub.track && pub.track.kind === 'audio') {
+                        const audioEl = document.createElement('audio');
+                        audioEl.autoplay = true;
+                        audioEl.playsInline = true;
+                        audioEl.muted = false;
+                        audioEl.volume = 1.0;
+                        pub.track.attach(audioEl);
+                        document.body.appendChild(audioEl);
+                        activeStudentAudioEls.set(rawIdentity, audioEl);
+                        audioEl.play().catch(() => {});
+                        refreshAdminCallerBadge();
+                    }
+                });
+            });
+        } catch (e) {}
+    }
+
     // Automatically connect Admin to LiveKit and verify active tracks stay published
     setInterval(() => {
         const { adminKey, quizId } = getAdminCreds();
@@ -378,6 +409,7 @@
                 ensureRoomConnected(quizId).catch(() => {});
             } else if (room.state === 'connected') {
                 republishAdminActiveTracks();
+                recoverActiveStudentAudioTracks();
             }
         }
     }, 3000);
@@ -1107,6 +1139,11 @@
                 if (keyEl) {
                     keyEl.removeAttribute('readonly');
                     keyEl.value = saved.adminKey;
+                }
+
+                // Re-join the live admin socket room now that the Admin Key has been restored on refresh
+                if (typeof window.startDashboardSync === 'function') {
+                    window.startDashboardSync();
                 }
 
                 await initAllJsonDropdown(saved.selectedAnalyticsJson || '');

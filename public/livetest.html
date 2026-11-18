@@ -411,8 +411,22 @@
     }
     window.connectLiveKit = connectLiveKit;
 
+    // Keep mobile phone screen awake during multi-hour live lectures & PPT broadcasts
+    let studentWakeLock = null;
+    async function ensureStudentScreenWakeLock() {
+        try {
+            if ('wakeLock' in navigator && typeof testActive !== 'undefined' && testActive && document.visibilityState === 'visible') {
+                if (!studentWakeLock || studentWakeLock.released) {
+                    studentWakeLock = await navigator.wakeLock.request('screen');
+                }
+            }
+        } catch (e) {}
+    }
+    document.addEventListener('click', ensureStudentScreenWakeLock);
+
     setInterval(() => {
         if (typeof testActive !== 'undefined' && testActive && typeof currentQuizId !== 'undefined' && currentQuizId) {
+            ensureStudentScreenWakeLock();
             if (room.state === 'disconnected') {
                 connectLiveKit(currentQuizId);
             } else if (room.state === 'connected') {

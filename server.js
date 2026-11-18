@@ -1606,49 +1606,25 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             return;
                         }
 
-                        var isAndroid = isAndroidDevice();
                         var isIos = isIosDevice();
-                        var primaryBtnLabel = isAndroid
-                            ? 'Choose Google Play Account'
-                            : (isIos ? 'Continue with Saved Google Account' : 'Choose Google Account');
-
                         var existing = document.getElementById('pp-universal-auth-modal');
                         if (!existing) {
-                            // On iOS, display the Zero-Password Mail/Gmail App Sign-In box expanded by default so iPhone users never have to type their Google password
-                            var mailBoxDisplay = isIos ? 'block' : 'none';
-                            var toggleLinkDisplay = isIos ? 'none' : 'inline-block';
-                            var iosHeaderNote = isIos
-                                ? 'Sign in instantly without typing your email password via your iPhone Mail or Gmail app:'
-                                : 'Select your account below to access mock tests, study notes, and live classes:';
-
-                            var googleChooserButtonHtml =
-                                '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:13px 16px;background:' + (isIos ? '#f1f5f9' : '#2563eb') + ';color:' + (isIos ? '#1e293b' : '#ffffff') + ';border:' + (isIos ? '1px solid #cbd5e1' : 'none') + ';border-radius:10px;font-weight:700;font-size:14.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:' + (isIos ? '12px' : '0') + ';">' +
-                                    '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-                                    '<span>' + primaryBtnLabel + '</span>' +
-                                '</button>';
-
                             var passwordlessMailHtml =
-                                '<div id="pp-mail-fallback-box" style="display:' + mailBoxDisplay + ';margin-top:10px;text-align:left;background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #cbd5e1;">' +
+                                '<button id="pp-toggle-mail-fallback" type="button" style="width:100%;margin-top:8px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;color:#1e293b;font-size:14px;font-weight:700;cursor:pointer;">Enter your email</button>' +
+                                '<div id="pp-mail-fallback-box" style="display:block;margin-top:10px;text-align:left;background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #cbd5e1;">' +
                                     '<div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;">⚡ Instant Passwordless Sign-In</div>' +
-                                    '<input id="pp-mail-email-input" type="email" autocomplete="email" inputmode="email" placeholder="Tap to autofill your email address" style="width:100%;padding:11px 12px;border:1px solid #94a3b8;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
+                                    '<input id="pp-mail-email-input" type="email" autocomplete="email" inputmode="email" placeholder="Enter your email address" style="width:100%;padding:11px 12px;border:1px solid #94a3b8;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
                                     '<div id="pp-mail-name-fields" style="display:none;gap:8px;margin-bottom:8px;">' +
                                         '<input id="pp-mail-fname" type="text" autocomplete="given-name" placeholder="First Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
                                         '<input id="pp-mail-lname" type="text" autocomplete="family-name" placeholder="Last Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
                                     '</div>' +
-                                    '<div id="pp-ios-mail-launchers" style="display:none;gap:8px;margin-bottom:10px;">' +
-                                        '<a href="message://" style="flex:1;padding:10px 8px;background:#0284c7;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:12.5px;text-align:center;">📬 Open Apple Mail</a>' +
-                                        '<a href="googlegmail://" style="flex:1;padding:10px 8px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:12.5px;text-align:center;">📨 Open Gmail App</a>' +
-                                    '</div>' +
-                                    '<input id="pp-mail-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="Or enter 6-digit code here" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:16px;font-weight:bold;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
+                                    '<input id="pp-mail-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="Or enter 6-digit code" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:15px;font-weight:bold;text-align:center;letter-spacing:2px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
                                     '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:12px 14px;background:#2563eb;color:#ffffff;border:none;border-radius:9px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 10px rgba(37,99,235,0.25);">📲 Sign In via Mail App (No Password)</button>' +
                                 '</div>';
 
-                            var bodyLayoutHtml = isIos
-                                ? passwordlessMailHtml + googleChooserButtonHtml
-                                : googleChooserButtonHtml +
-                                  '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-top:12px;"></div>' +
-                                  '<button id="pp-toggle-mail-fallback" type="button" style="display:' + toggleLinkDisplay + ';margin-top:12px;background:none;border:none;color:#475569;font-size:12.5px;font-weight:600;text-decoration:underline;cursor:pointer;">No Chrome or not signed into browser? Sign in without password</button>' +
-                                  passwordlessMailHtml;
+                            var bodyLayoutHtml =
+                                '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-bottom:6px;"></div>' +
+                                passwordlessMailHtml;
 
                             var overlay = document.createElement('div');
                             overlay.id = 'pp-universal-auth-modal';
@@ -1658,7 +1634,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
                                     '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:50px;height:50px;border-radius:12px;margin-bottom:8px;object-fit:contain;">' +
                                     '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                    '<p style="margin:0 0 14px 0;color:#475569;font-size:13.5px;line-height:1.45;">' + iosHeaderNote + '</p>' +
+                                    '<p style="margin:0 0 14px 0;color:#475569;font-size:13.5px;line-height:1.45;">Select your account below to access mock tests, study notes, and live classes:</p>' +
                                     bodyLayoutHtml +
                                     '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
                                 '</div>';
@@ -1675,27 +1651,20 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 }
                             });
 
-                            var chooserBtn = document.getElementById('pp-universal-chooser-btn');
-                            if (chooserBtn) {
-                                chooserBtn.addEventListener('click', function() {
-                                    triggerDeviceAccountSelection();
-                                });
-                            }
-
                             var toggleMailBtn = document.getElementById('pp-toggle-mail-fallback');
                             var mailBox = document.getElementById('pp-mail-fallback-box');
+                            var emailInp = document.getElementById('pp-mail-email-input');
                             if (toggleMailBtn && mailBox) {
                                 toggleMailBtn.addEventListener('click', function() {
-                                    mailBox.style.display = mailBox.style.display === 'none' ? 'block' : 'none';
+                                    mailBox.style.display = 'block';
+                                    if (emailInp) emailInp.focus();
                                 });
                             }
 
                             var mailStep = 'send';
                             var mailBtn = document.getElementById('pp-mail-submit-btn');
-                            var emailInp = document.getElementById('pp-mail-email-input');
                             var codeInp = document.getElementById('pp-mail-code-input');
                             var nameBox = document.getElementById('pp-mail-name-fields');
-                            var launchersBox = document.getElementById('pp-ios-mail-launchers');
                             var statusEl = document.getElementById('pp-google-auth-status');
 
                             if (mailBtn) {
@@ -1703,7 +1672,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     var emailVal = (emailInp.value || '').trim().toLowerCase();
                                     if (!emailVal || emailVal.indexOf('@') === -1) {
                                         statusEl.style.color = '#dc2626';
-                                        statusEl.textContent = 'Please tap the box above to enter your email address.';
+                                        statusEl.textContent = 'Please enter your email address above.';
                                         return;
                                     }
                                     if (mailStep === 'send') {
@@ -1726,7 +1695,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                             mailStep = 'verify';
                                             emailInp.readOnly = true;
                                             codeInp.style.display = 'block';
-                                            if (launchersBox) launchersBox.style.display = 'flex';
                                             if (!d.hasExistingProfile) nameBox.style.display = 'flex';
                                             mailBtn.style.background = '#059669';
                                             mailBtn.textContent = '✅ Verify Code & Sign In';
