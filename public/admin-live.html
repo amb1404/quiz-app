@@ -108,7 +108,7 @@
     <h2>Live Mock Control Center</h2>
     
     <div class="panel" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
-        <input type="password" id="admin-key" placeholder="Enter Admin Secret Key" style="min-width: 220px;">
+        <input type="password" id="admin-key" autocomplete="new-password" data-lpignore="true" readonly placeholder="Enter Admin Secret Key" style="min-width: 220px;">
         <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
 
         <div id="create-room-box" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -1069,13 +1069,45 @@
 
     document.getElementById('btn-load-quiz-attempts').addEventListener('click', loadQuizAttemptsTable);
 
-    // --- 3. Auto-Restore & Fetch Latest Data on Browser Refresh ---
+    // Unlock #admin-key on user interaction (readonly on load blocks browser password manager autofill)
+    const adminKeyInputEl = document.getElementById('admin-key');
+    if (adminKeyInputEl) {
+        const unlockAdminKeyInput = () => adminKeyInputEl.removeAttribute('readonly');
+        adminKeyInputEl.addEventListener('focus', unlockAdminKeyInput);
+        adminKeyInputEl.addEventListener('pointerdown', unlockAdminKeyInput);
+        adminKeyInputEl.addEventListener('keydown', unlockAdminKeyInput);
+    }
+
+    // --- 3. Require Secret Key on New Visits; Keep Key Only on Browser Refresh ---
     window.addEventListener('DOMContentLoaded', async () => {
         try {
+            const navEntries = (window.performance && window.performance.getEntriesByType)
+                ? window.performance.getEntriesByType('navigation')
+                : [];
+            const isPageRefresh = (navEntries.length > 0 && navEntries[0].type === 'reload') ||
+                (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+
+            const keyEl = document.getElementById('admin-key');
+
+            if (!isPageRefresh) {
+                // New visit: wipe saved key state and force input to stay blank
+                sessionStorage.removeItem(ADMIN_PANEL_STORAGE_KEY);
+                if (keyEl) {
+                    keyEl.value = '';
+                    setTimeout(() => {
+                        if (document.activeElement !== keyEl) keyEl.value = '';
+                    }, 100);
+                }
+                return;
+            }
+
+            // Browser Refresh (F5 / Reload): keep Secret Key and fetch latest table updates
             const saved = JSON.parse(sessionStorage.getItem(ADMIN_PANEL_STORAGE_KEY) || '{}');
             if (saved.adminKey) {
-                const keyEl = document.getElementById('admin-key');
-                if (keyEl) keyEl.value = saved.adminKey;
+                if (keyEl) {
+                    keyEl.removeAttribute('readonly');
+                    keyEl.value = saved.adminKey;
+                }
 
                 await initAllJsonDropdown(saved.selectedAnalyticsJson || '');
 
