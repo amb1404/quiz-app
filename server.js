@@ -1321,13 +1321,14 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 })();
 
                 // ============================================================
-                // UNIVERSAL GOOGLE SIGN-IN (PERSISTENT 30-DAY SESSION & DIRECT URL GUARD)
+                // UNIVERSAL GOOGLE SIGN-IN (ANDROID CHROME INTENT, iOS ZERO-PASSWORD & 30-DAY SESSION)
                 // ============================================================
                 (function initGoogleAccountSignIn() {
                     var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
                     var googleTokenClient = null;
                     var googleIdInitialized = false;
                     var gsiLoadPromise = null;
+                    var activePollTimer = null;
 
                     function isIosDevice() {
                         var ua = (navigator.userAgent || '').toLowerCase();
@@ -1355,6 +1356,10 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     }
 
                     function completePortalLogin(data) {
+                        if (activePollTimer) {
+                            clearInterval(activePollTimer);
+                            activePollTimer = null;
+                        }
                         if (!data || !data.success || !data.token) {
                             var statusEl = document.getElementById('pp-google-auth-status');
                             if (statusEl) {
@@ -1408,7 +1413,39 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         });
                     }
 
-                    // 1. Handle OAuth Redirect Hash (#access_token=...)
+                    function buildGoogleOAuthUrl() {
+                        if (!GOOGLE_CLIENT_ID) return '';
+                        var csrfState = '';
+                        try {
+                            var randArr = new Uint32Array(4);
+                            window.crypto.getRandomValues(randArr);
+                            csrfState = Array.from(randArr, function(n) { return n.toString(16); }).join('');
+                            sessionStorage.setItem('pp_oauth_csrf_state', csrfState);
+                            if (!sessionStorage.getItem('pp_post_login_redirect')) {
+                                sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
+                            }
+                        } catch (e) {}
+                        var redirectUri = window.location.origin;
+                        return 'https://accounts.google.com/o/oauth2/v2/auth' +
+                            '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
+                            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+                            '&response_type=token' +
+                            '&scope=' + encodeURIComponent('openid email profile') +
+                            '&state=' + encodeURIComponent(csrfState) +
+                            '&prompt=select_account' +
+                            '&include_granted_scopes=true';
+                    }
+
+                    function redirectToGoogleOAuthPage() {
+                        var oauthUrl = buildGoogleOAuthUrl();
+                        if (!oauthUrl) {
+                            alert('Google Sign-In is not configured yet (Missing GOOGLE_CLIENT_ID).');
+                            return;
+                        }
+                        window.location.href = oauthUrl;
+                    }
+
+                    // 1. Handle OAuth Redirect Hash (#access_token=...) OR Android Chrome Intent Arrival (?auto_google_login=1)
                     (function handleStartupAuthTriggers() {
                         try {
                             var hash = window.location.hash || '';
@@ -1422,51 +1459,39 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
 
                                 if (accessToken && (!expectedState || returnedState === expectedState)) {
-                                    verifyGoogleWithServer({ accessToken: accessToken });
+                                    window.addEventListener('DOMContentLoaded', function() {
+                                        verifyGoogleWithServer({ accessToken: accessToken });
+                                    });
                                 }
                                 return;
                             }
 
                             var searchParams = new URLSearchParams(window.location.search);
                             if (searchParams.get('auto_google_login') === '1') {
+                                var nextRoute = searchParams.get('next') || '';
+                                if (nextRoute && nextRoute.indexOf('/') === 0) {
+                                    sessionStorage.setItem('pp_post_login_redirect', nextRoute);
+                                }
                                 searchParams.delete('auto_google_login');
+                                searchParams.delete('next');
                                 var cleanSearch = searchParams.toString();
                                 history.replaceState(null, document.title, window.location.pathname + (cleanSearch ? '?' + cleanSearch : ''));
-                                if (!isUserSignedIn()) {
-                                    window.addEventListener('DOMContentLoaded', function() {
-                                        openUniversalSignInModal(true);
-                                    });
-                                }
+
+                                window.addEventListener('DOMContentLoaded', function() {
+                                    // If Chrome is ALREADY signed in, skip popup and go straight to destination
+                                    if (isUserSignedIn()) {
+                                        var target = sessionStorage.getItem('pp_post_login_redirect');
+                                        sessionStorage.removeItem('pp_post_login_redirect');
+                                        if (target && target.indexOf('/') === 0 && target !== window.location.pathname) {
+                                            window.location.replace(target);
+                                        }
+                                        return;
+                                    }
+                                    openUniversalSignInModal(true);
+                                });
                             }
                         } catch (e) {}
                     })();
-
-                    function redirectToGoogleOAuthPage() {
-                        if (!GOOGLE_CLIENT_ID) {
-                            alert('Google Sign-In is not configured yet (Missing GOOGLE_CLIENT_ID).');
-                            return;
-                        }
-                        var csrfState = '';
-                        try {
-                            var randArr = new Uint32Array(4);
-                            window.crypto.getRandomValues(randArr);
-                            csrfState = Array.from(randArr, function(n) { return n.toString(16); }).join('');
-                            sessionStorage.setItem('pp_oauth_csrf_state', csrfState);
-                            if (!sessionStorage.getItem('pp_post_login_redirect')) {
-                                sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
-                            }
-                        } catch (e) {}
-                        var redirectUri = window.location.origin;
-                        var oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
-                            '?client_id=' + encodeURIComponent(GOOGLE_CLIENT_ID) +
-                            '&redirect_uri=' + encodeURIComponent(redirectUri) +
-                            '&response_type=token' +
-                            '&scope=' + encodeURIComponent('openid email profile') +
-                            '&state=' + encodeURIComponent(csrfState) +
-                            '&prompt=select_account' +
-                            '&include_granted_scopes=true';
-                        window.location.href = oauthUrl;
-                    }
 
                     function waitForGoogleLibrary(maxWaitMs) {
                         var limit = Math.ceil((maxWaitMs || 2500) / 100);
@@ -1528,10 +1553,18 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return true;
                     }
 
-                    // Signs the student into their CURRENT browser so their session persists in this browser for 30 days
+                    // Restored Android Chrome / Google Play Services Account Picker Method
                     function triggerDeviceAccountSelection() {
                         var statusEl = document.getElementById('pp-google-auth-status');
-                        if (!isIosDevice() && !isAndroidNonChromeBrowser() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (isAndroidNonChromeBrowser()) {
+                            var savedNext = sessionStorage.getItem('pp_post_login_redirect') || (window.location.pathname + window.location.search);
+                            var sep = window.location.search ? '&' : '?';
+                            var targetPath = window.location.host + window.location.pathname + window.location.search + sep + 'auto_google_login=1&next=' + encodeURIComponent(savedNext);
+                            var fallback = encodeURIComponent(buildGoogleOAuthUrl() || window.location.href);
+                            window.location.href = 'intent://' + targetPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+                            return;
+                        }
+                        if (!isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             if (statusEl) statusEl.textContent = '';
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
@@ -1545,10 +1578,26 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         redirectToGoogleOAuthPage();
                     }
 
+                    function startMagicLinkPolling(pollId) {
+                        if (activePollTimer) clearInterval(activePollTimer);
+                        activePollTimer = setInterval(function() {
+                            fetch('/api/auth/mail-app/poll?pollId=' + encodeURIComponent(pollId))
+                                .then(function(r) { return r.json(); })
+                                .then(function(d) {
+                                    if (d && d.approved && d.token) {
+                                        clearInterval(activePollTimer);
+                                        activePollTimer = null;
+                                        completePortalLogin(d);
+                                    }
+                                })
+                                .catch(function() {});
+                        }, 2000);
+                    }
+
                     function openUniversalSignInModal(autoTriggerChooser) {
                         killLegacyOtpModal();
 
-                        // NEVER show the sign-in popup if this browser is already signed in
+                        // Never show the sign-in popup if this browser is already signed in
                         if (isUserSignedIn()) {
                             sessionStorage.removeItem('pp_open_google_auth');
                             sessionStorage.removeItem('force_login_open');
@@ -1561,24 +1610,56 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         var isIos = isIosDevice();
                         var primaryBtnLabel = isAndroid
                             ? 'Choose Google Play Account'
-                            : (isIos ? 'Choose iOS / Google Account' : 'Choose Google Account');
+                            : (isIos ? 'Continue with Saved Google Account' : 'Choose Google Account');
 
                         var existing = document.getElementById('pp-universal-auth-modal');
                         if (!existing) {
+                            // On iOS, display the Zero-Password Mail/Gmail App Sign-In box expanded by default so iPhone users never have to type their Google password
+                            var mailBoxDisplay = isIos ? 'block' : 'none';
+                            var toggleLinkDisplay = isIos ? 'none' : 'inline-block';
+                            var iosHeaderNote = isIos
+                                ? 'Sign in instantly without typing your email password via your iPhone Mail or Gmail app:'
+                                : 'Select your account below to access mock tests, study notes, and live classes:';
+
+                            var googleChooserButtonHtml =
+                                '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:13px 16px;background:' + (isIos ? '#f1f5f9' : '#2563eb') + ';color:' + (isIos ? '#1e293b' : '#ffffff') + ';border:' + (isIos ? '1px solid #cbd5e1' : 'none') + ';border-radius:10px;font-weight:700;font-size:14.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:' + (isIos ? '12px' : '0') + ';">' +
+                                    '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
+                                    '<span>' + primaryBtnLabel + '</span>' +
+                                '</button>';
+
+                            var passwordlessMailHtml =
+                                '<div id="pp-mail-fallback-box" style="display:' + mailBoxDisplay + ';margin-top:10px;text-align:left;background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #cbd5e1;">' +
+                                    '<div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;">⚡ Instant Passwordless Sign-In</div>' +
+                                    '<input id="pp-mail-email-input" type="email" autocomplete="email" inputmode="email" placeholder="Tap to autofill your email address" style="width:100%;padding:11px 12px;border:1px solid #94a3b8;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
+                                    '<div id="pp-mail-name-fields" style="display:none;gap:8px;margin-bottom:8px;">' +
+                                        '<input id="pp-mail-fname" type="text" autocomplete="given-name" placeholder="First Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
+                                        '<input id="pp-mail-lname" type="text" autocomplete="family-name" placeholder="Last Name" style="width:50%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;">' +
+                                    '</div>' +
+                                    '<div id="pp-ios-mail-launchers" style="display:none;gap:8px;margin-bottom:10px;">' +
+                                        '<a href="message://" style="flex:1;padding:10px 8px;background:#0284c7;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:12.5px;text-align:center;">📬 Open Apple Mail</a>' +
+                                        '<a href="googlegmail://" style="flex:1;padding:10px 8px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:12.5px;text-align:center;">📨 Open Gmail App</a>' +
+                                    '</div>' +
+                                    '<input id="pp-mail-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="Or enter 6-digit code here" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:16px;font-weight:bold;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
+                                    '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:12px 14px;background:#2563eb;color:#ffffff;border:none;border-radius:9px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 10px rgba(37,99,235,0.25);">📲 Sign In via Mail App (No Password)</button>' +
+                                '</div>';
+
+                            var bodyLayoutHtml = isIos
+                                ? passwordlessMailHtml + googleChooserButtonHtml
+                                : googleChooserButtonHtml +
+                                  '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-top:12px;"></div>' +
+                                  '<button id="pp-toggle-mail-fallback" type="button" style="display:' + toggleLinkDisplay + ';margin-top:12px;background:none;border:none;color:#475569;font-size:12.5px;font-weight:600;text-decoration:underline;cursor:pointer;">No Chrome or not signed into browser? Sign in without password</button>' +
+                                  passwordlessMailHtml;
+
                             var overlay = document.createElement('div');
                             overlay.id = 'pp-universal-auth-modal';
                             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;backdrop-filter:blur(3px);';
                             overlay.innerHTML =
-                                '<div style="background:#ffffff;max-width:400px;width:100%;border-radius:16px;padding:28px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
+                                '<div style="background:#ffffff;max-width:410px;width:100%;border-radius:16px;padding:26px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
                                     '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
-                                    '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:52px;height:52px;border-radius:12px;margin-bottom:10px;object-fit:contain;">' +
+                                    '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:50px;height:50px;border-radius:12px;margin-bottom:8px;object-fit:contain;">' +
                                     '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">Select your account below to access mock tests, study notes, and live classes:</p>' +
-                                    '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:14px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);">' +
-                                        '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-                                        '<span>' + primaryBtnLabel + '</span>' +
-                                    '</button>' +
-                                    '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-top:12px;"></div>' +
+                                    '<p style="margin:0 0 14px 0;color:#475569;font-size:13.5px;line-height:1.45;">' + iosHeaderNote + '</p>' +
+                                    bodyLayoutHtml +
                                     '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
                                 '</div>';
 
@@ -1586,6 +1667,10 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
 
                             overlay.addEventListener('click', function(ev) {
                                 if (ev.target === overlay || ev.target.id === 'pp-auth-close-btn') {
+                                    if (activePollTimer) {
+                                        clearInterval(activePollTimer);
+                                        activePollTimer = null;
+                                    }
                                     overlay.remove();
                                 }
                             });
@@ -1594,6 +1679,106 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             if (chooserBtn) {
                                 chooserBtn.addEventListener('click', function() {
                                     triggerDeviceAccountSelection();
+                                });
+                            }
+
+                            var toggleMailBtn = document.getElementById('pp-toggle-mail-fallback');
+                            var mailBox = document.getElementById('pp-mail-fallback-box');
+                            if (toggleMailBtn && mailBox) {
+                                toggleMailBtn.addEventListener('click', function() {
+                                    mailBox.style.display = mailBox.style.display === 'none' ? 'block' : 'none';
+                                });
+                            }
+
+                            var mailStep = 'send';
+                            var mailBtn = document.getElementById('pp-mail-submit-btn');
+                            var emailInp = document.getElementById('pp-mail-email-input');
+                            var codeInp = document.getElementById('pp-mail-code-input');
+                            var nameBox = document.getElementById('pp-mail-name-fields');
+                            var launchersBox = document.getElementById('pp-ios-mail-launchers');
+                            var statusEl = document.getElementById('pp-google-auth-status');
+
+                            if (mailBtn) {
+                                mailBtn.addEventListener('click', function() {
+                                    var emailVal = (emailInp.value || '').trim().toLowerCase();
+                                    if (!emailVal || emailVal.indexOf('@') === -1) {
+                                        statusEl.style.color = '#dc2626';
+                                        statusEl.textContent = 'Please tap the box above to enter your email address.';
+                                        return;
+                                    }
+                                    if (mailStep === 'send') {
+                                        mailBtn.disabled = true;
+                                        mailBtn.textContent = 'Sending 1-Tap Sign-In Link...';
+                                        fetch('/api/auth/mail-app/send', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ email: emailVal })
+                                        })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(d) {
+                                            mailBtn.disabled = false;
+                                            if (!d.success) {
+                                                mailBtn.textContent = '📲 Sign In via Mail App (No Password)';
+                                                statusEl.style.color = '#dc2626';
+                                                statusEl.textContent = d.error || 'Could not send link.';
+                                                return;
+                                            }
+                                            mailStep = 'verify';
+                                            emailInp.readOnly = true;
+                                            codeInp.style.display = 'block';
+                                            if (launchersBox) launchersBox.style.display = 'flex';
+                                            if (!d.hasExistingProfile) nameBox.style.display = 'flex';
+                                            mailBtn.style.background = '#059669';
+                                            mailBtn.textContent = '✅ Verify Code & Sign In';
+                                            statusEl.style.color = '#059669';
+                                            statusEl.textContent = 'Sent! Tap "1-Tap Sign In" in your Mail app (or enter the 6-digit code).';
+                                            if (d.pollId) startMagicLinkPolling(d.pollId);
+                                        })
+                                        .catch(function() {
+                                            mailBtn.disabled = false;
+                                            mailBtn.textContent = '📲 Sign In via Mail App (No Password)';
+                                            statusEl.style.color = '#dc2626';
+                                            statusEl.textContent = 'Network error. Please try again.';
+                                        });
+                                    } else {
+                                        var codeVal = (codeInp.value || '').trim();
+                                        var fNameVal = (document.getElementById('pp-mail-fname')?.value || '').trim();
+                                        var lNameVal = (document.getElementById('pp-mail-lname')?.value || '').trim();
+                                        if (codeVal.length < 4) {
+                                            statusEl.style.color = '#dc2626';
+                                            statusEl.textContent = 'Tap the 1-Tap link in your Mail app or enter the 6-digit code.';
+                                            return;
+                                        }
+                                        if (nameBox.style.display !== 'none' && !fNameVal) {
+                                            statusEl.style.color = '#dc2626';
+                                            statusEl.textContent = 'Please enter your First Name.';
+                                            return;
+                                        }
+                                        mailBtn.disabled = true;
+                                        mailBtn.textContent = 'Verifying...';
+                                        fetch('/api/auth/mail-app/verify', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ email: emailVal, code: codeVal, firstName: fNameVal, lastName: lNameVal })
+                                        })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(d) {
+                                            mailBtn.disabled = false;
+                                            if (!d.success) {
+                                                mailBtn.textContent = '✅ Verify Code & Sign In';
+                                                statusEl.style.color = '#dc2626';
+                                                statusEl.textContent = d.error || 'Invalid code.';
+                                                return;
+                                            }
+                                            completePortalLogin(d);
+                                        })
+                                        .catch(function() {
+                                            mailBtn.disabled = false;
+                                            mailBtn.textContent = '✅ Verify Code & Sign In';
+                                            statusEl.style.color = '#dc2626';
+                                            statusEl.textContent = 'Network error verifying code.';
+                                        });
+                                    }
                                 });
                             }
                         }
@@ -1620,11 +1805,13 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         });
                                     } catch (e) {}
                                 }
+                                if (!isIos && !isUserSignedIn() && window.google.accounts.id) {
+                                    try { window.google.accounts.id.prompt(); } catch (e) {}
+                                }
                             }
                         });
                     }
 
-                    // Silently remove any legacy Email-OTP modal from the DOM without auto-popping the sign-in modal on load
                     function killLegacyOtpModal() {
                         var knownModals = document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal, #sso-modal');
                         for (var i = 0; i < knownModals.length; i++) {
@@ -1648,7 +1835,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         if (ready) setupGoogleClients();
                     });
 
-                    // Capture-phase click interceptor for Sign In, Logout, and unauthenticated portal links/cards
                     document.addEventListener('click', function(e) {
                         var logoutBtn = e.target ? e.target.closest('#nav-logout-btn') : null;
                         if (logoutBtn) {
@@ -3436,7 +3622,7 @@ app.post('/api/auth/google', async (req, res) => {
         res.status(500).json({ success: false, error: 'Google authentication failed.' });
     }
 });
-// Mail App (Gmail / iOS Mail) Passwordless Sign-In for Browsers Without a Google Session
+// Mail App (iOS Mail / Gmail App) Passwordless 1-Tap Magic Link & Code Sign-In
 app.post('/api/auth/mail-app/send', async (req, res) => {
     try {
         const clientIp = getClientIp(req);
@@ -3449,8 +3635,15 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
         }
 
         const existingProfile = await getRegisteredStudentProfile(rawEmail);
-        const code = String( crypto.randomInt(100000, 999999) );
-        await stateStore.set(`mailauth:otp:${rawEmail}`, code, 600); // Valid 10 mins
+        const code = String(crypto.randomInt(100000, 999999));
+        const pollId = crypto.randomBytes(16).toString('hex');
+        const magicPayload = `${rawEmail}|${pollId}|${Date.now()}`;
+        const magicSig = crypto.createHmac('sha256', SECRET).update(`MAGIC:${magicPayload}`).digest('hex');
+        const magicToken = Buffer.from(`${magicPayload}|||${magicSig}`, 'utf8').toString('base64url');
+        const magicLink = `${SITE_URL}/api/auth/mail-app/magic?t=${encodeURIComponent(magicToken)}`;
+
+        await stateStore.set(`mailauth:otp:${rawEmail}`, code, 600);
+        await stateStore.set(`mailauth:poll:${pollId}`, JSON.stringify({ status: 'pending', email: rawEmail }), 600);
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (!scriptURL || !APPS_SECRET) {
@@ -3467,12 +3660,16 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
                 targetEmail: rawEmail,
                 otp: code,
                 code: code,
-                subject: `${code} is your Pioneers Prep Sign-In Code`,
-                breakdown: `<div style="font-family:sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:10px;max-width:480px;">
-                    <h2 style="color:#1e3a8a;margin-top:0;">Pioneers Prep Sign-In</h2>
-                    <p style="color:#334155;font-size:15px;">Use this verification code to sign in to Pioneers Prep:</p>
-                    <div style="font-size:32px;font-weight:800;letter-spacing:4px;color:#2563eb;background:#eff6ff;padding:14px;text-align:center;border-radius:8px;margin:16px 0;">${code}</div>
-                    <p style="color:#64748b;font-size:12px;">Valid for 10 minutes.</p>
+                subject: `Tap to Sign In to Pioneers Prep (Code: ${code})`,
+                breakdown: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;max-width:480px;margin:0 auto;text-align:center;">
+                    <h2 style="color:#1e3a8a;margin-top:0;">Pioneers Prep Instant Sign-In</h2>
+                    <p style="color:#334155;font-size:15px;line-height:1.5;">Tap the button below to sign in instantly without a password:</p>
+                    <div style="margin:22px 0;">
+                        <a href="${magicLink}" style="background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:bold;font-size:16px;display:inline-block;">✅ 1-Tap Sign In to Pioneers Prep</a>
+                    </div>
+                    <p style="color:#64748b;font-size:13px;margin-top:18px;">Or enter this 6-digit code in your browser:</p>
+                    <div style="font-size:30px;font-weight:800;letter-spacing:4px;color:#2563eb;background:#eff6ff;padding:12px;text-align:center;border-radius:8px;margin:10px 0;">${code}</div>
+                    <p style="color:#94a3b8;font-size:12px;">Valid for 10 minutes.</p>
                 </div>`,
                 secretKey: APPS_SECRET
             })
@@ -3480,12 +3677,126 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
 
         res.json({
             success: true,
+            pollId,
             hasExistingProfile: Boolean(existingProfile && existingProfile.firstName && existingProfile.firstName !== 'STUDENT'),
             firstName: existingProfile ? existingProfile.firstName : '',
             lastName: existingProfile ? existingProfile.lastName : ''
         });
     } catch (err) {
         res.status(500).json({ success: false, error: 'Could not send verification email.' });
+    }
+});
+
+// 1-Tap Magic Link Handler (Approves original iOS Safari/PWA tab AND signs in current tab)
+app.get('/api/auth/mail-app/magic', async (req, res) => {
+    try {
+        const rawT = String(req.query.t || '');
+        if (!rawT) return res.status(400).send('Invalid sign-in link.');
+
+        const decoded = Buffer.from(rawT, 'base64url').toString('utf8');
+        if (!decoded.includes('|||')) return res.status(400).send('Malformed sign-in link.');
+
+        const [magicPayload, sig] = decoded.split('|||');
+        const expectedSig = crypto.createHmac('sha256', SECRET).update(`MAGIC:${magicPayload}`).digest('hex');
+        if (!safeCompareHex(sig, expectedSig)) return res.status(403).send('Invalid or expired sign-in link.');
+
+        const [cleanEmail, pollId, issuedAtStr] = magicPayload.split('|');
+        const issuedAt = parseInt(issuedAtStr, 10);
+        if (!cleanEmail || isNaN(issuedAt) || (Date.now() - issuedAt) > 10 * 60 * 1000) {
+            return res.status(403).send('This sign-in link has expired. Please request a new one.');
+        }
+
+        const existingProfile = await getRegisteredStudentProfile(cleanEmail);
+        const finalFirstName = (existingProfile && existingProfile.firstName) ? existingProfile.firstName : cleanEmail.split('@')[0].toUpperCase().slice(0, 60);
+        const finalLastName = (existingProfile && existingProfile.lastName) ? existingProfile.lastName : '.';
+
+        await stateStore.del(`blacklist:email:${cleanEmail}`);
+        await saveRegisteredStudentProfile(cleanEmail, finalFirstName, finalLastName);
+
+        const tokenData = `${cleanEmail}|${encodeURIComponent(finalFirstName)}|${encodeURIComponent(finalLastName)}|${Date.now()}|G2_${crypto.randomBytes(8).toString('hex')}`;
+        const signature = crypto.createHmac('sha256', SECRET).update(tokenData).digest('hex');
+        const authToken = `${tokenData}|||${signature}`;
+
+        const clientIp = getClientIp(req);
+        await stateStore.set(`ip:verified:${clientIp}`, '1', TOKEN_MAX_AGE_SEC);
+
+        if (pollId) {
+            await stateStore.set(`mailauth:poll:${pollId}`, JSON.stringify({
+                status: 'approved',
+                token: authToken,
+                firstName: finalFirstName,
+                lastName: finalLastName,
+                email: cleanEmail
+            }), 300);
+        }
+
+        res.cookie(AUTH_COOKIE_NAME, authToken, {
+            httpOnly: true,
+            secure: isSecureConnection(req),
+            sameSite: 'strict',
+            maxAge: TOKEN_MAX_AGE_MS,
+            path: '/'
+        });
+
+        const nonce = res.locals.cspNonce;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Signed In — Pioneers Prep</title></head>
+        <body style="font-family:-apple-system,sans-serif;background:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px;text-align:center;">
+            <div style="background:#fff;padding:28px;border-radius:16px;max-width:380px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,0.08);border:1px solid #e2e8f0;">
+                <div style="font-size:44px;margin-bottom:10px;">✅</div>
+                <h2 style="color:#0f172a;margin:0 0 8px 0;">Signed In Successfully!</h2>
+                <p style="color:#475569;font-size:14px;margin:0 0 18px 0;">Welcome, <strong>${escapeHtml(finalFirstName)}</strong>. Your session is now active.</p>
+                <a href="/" style="display:block;background:#2563eb;color:#fff;text-decoration:none;padding:12px;border-radius:10px;font-weight:bold;font-size:15px;">Continue to Pioneers Prep &rarr;</a>
+            </div>
+            <script nonce="${nonce}">
+                try {
+                    localStorage.setItem('pp_auth_provider', 'google_v2');
+                    localStorage.setItem('pp_id_token', ${JSON.stringify(authToken)});
+                    localStorage.setItem('pp_fname', ${JSON.stringify(finalFirstName)});
+                    localStorage.setItem('pp_lname', ${JSON.stringify(finalLastName)});
+                    localStorage.setItem('pp_email', ${JSON.stringify(cleanEmail)});
+                    var target = sessionStorage.getItem('pp_post_login_redirect') || '/';
+                    sessionStorage.removeItem('pp_post_login_redirect');
+                    setTimeout(function() { window.location.replace(target); }, 600);
+                } catch (e) {}
+            </script>
+        </body></html>`);
+    } catch (err) {
+        res.status(500).send('Sign-in failed. Please try again.');
+    }
+});
+
+// Cross-App Polling Endpoint (Auto-completes login in Safari/PWA as soon as user taps Magic Link in Apple Mail/Gmail)
+app.get('/api/auth/mail-app/poll', async (req, res) => {
+    try {
+        const pollId = String(req.query.pollId || '').trim();
+        if (!pollId) return res.json({ approved: false });
+
+        const raw = await stateStore.get(`mailauth:poll:${pollId}`);
+        if (!raw) return res.json({ approved: false });
+
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (data && data.status === 'approved' && data.token) {
+            await stateStore.del(`mailauth:poll:${pollId}`);
+            res.cookie(AUTH_COOKIE_NAME, data.token, {
+                httpOnly: true,
+                secure: isSecureConnection(req),
+                sameSite: 'strict',
+                maxAge: TOKEN_MAX_AGE_MS,
+                path: '/'
+            });
+            return res.json({
+                approved: true,
+                success: true,
+                token: data.token,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email
+            });
+        }
+        res.json({ approved: false });
+    } catch (err) {
+        res.json({ approved: false });
     }
 });
 
