@@ -1614,7 +1614,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     '<div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;">⚡ Instant Passwordless Sign-In</div>' +
                                     '<input id="pp-mail-email-input" type="email" autocomplete="email" inputmode="email" placeholder="Enter your email address" style="width:100%;padding:11px 12px;border:1px solid #94a3b8;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
                                     '<input id="pp-mail-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="Or enter 6-digit code" style="display:none;width:100%;padding:10px 12px;border:2px solid #2563eb;border-radius:8px;font-size:15px;font-weight:bold;text-align:center;letter-spacing:2px;box-sizing:border-box;margin-bottom:8px;background:#fff;">' +
-                                    '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:12px 14px;background:#2563eb;color:#ffffff;border:none;border-radius:9px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 10px rgba(37,99,235,0.25);">📲 Sign In via Mail App (No Password)</button>' +
+                                    '<button id="pp-mail-submit-btn" type="button" style="width:100%;padding:12px 14px;background:#2563eb;color:#ffffff;border:none;border-radius:9px;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 10px rgba(37,99,235,0.25);">Sign In via OTP</button>' +
                                 '</div>';
 
                             var bodyLayoutHtml =
@@ -1681,7 +1681,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                         .then(function(d) {
                                             mailBtn.disabled = false;
                                             if (!d.success) {
-                                                mailBtn.textContent = '📲 Sign In via Mail App (No Password)';
+                                                mailBtn.textContent = 'Sign In via OTP';
                                                 statusEl.style.color = '#dc2626';
                                                 statusEl.textContent = d.error || 'Could not send link.';
                                                 return;
@@ -1692,7 +1692,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                             mailBtn.style.background = '#059669';
                                             mailBtn.textContent = '✅ Verify Code & Sign In';
                                             statusEl.style.color = '#059669';
-                                            statusEl.textContent = 'Sent! Tap "1-Tap Sign In" in your Mail app (or enter the 6-digit code).';
+                                            statusEl.textContent = '6-digit code sent! Please check your Inbox (or Spam folder).';
                                             if (d.pollId) startMagicLinkPolling(d.pollId);
                                         })
                                         .catch(function() {
@@ -3576,7 +3576,7 @@ app.post('/api/auth/google', async (req, res) => {
         res.status(500).json({ success: false, error: 'Google authentication failed.' });
     }
 });
-// Mail App (iOS Mail / Gmail App) Passwordless 1-Tap Magic Link & Code Sign-In
+// Spam-Proof 6-Digit Verification Code Sender (No External Links or Emojis to Trigger Phishing Filters)
 app.post('/api/auth/mail-app/send', async (req, res) => {
     try {
         const clientIp = getClientIp(req);
@@ -3590,14 +3590,7 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
 
         const existingProfile = await getRegisteredStudentProfile(rawEmail);
         const code = String(crypto.randomInt(100000, 999999));
-        const pollId = crypto.randomBytes(16).toString('hex');
-        const magicPayload = `${rawEmail}|${pollId}|${Date.now()}`;
-        const magicSig = crypto.createHmac('sha256', SECRET).update(`MAGIC:${magicPayload}`).digest('hex');
-        const magicToken = Buffer.from(`${magicPayload}|||${magicSig}`, 'utf8').toString('base64url');
-        const magicLink = `${SITE_URL}/api/auth/mail-app/magic?t=${encodeURIComponent(magicToken)}`;
-
-        await stateStore.set(`mailauth:otp:${rawEmail}`, code, 600);
-        await stateStore.set(`mailauth:poll:${pollId}`, JSON.stringify({ status: 'pending', email: rawEmail }), 600);
+        await stateStore.set(`mailauth:otp:${rawEmail}`, code, 600); // Valid 10 mins
 
         const scriptURL = process.env.APP_SCRIPT_URL;
         if (!scriptURL || !APPS_SECRET) {
@@ -3614,16 +3607,13 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
                 targetEmail: rawEmail,
                 otp: code,
                 code: code,
-                subject: `Tap to Sign In to Pioneers Prep (Code: ${code})`,
-                breakdown: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;max-width:480px;margin:0 auto;text-align:center;">
-                    <h2 style="color:#1e3a8a;margin-top:0;">Pioneers Prep Instant Sign-In</h2>
-                    <p style="color:#334155;font-size:15px;line-height:1.5;">Tap the button below to sign in instantly without a password:</p>
-                    <div style="margin:22px 0;">
-                        <a href="${magicLink}" style="background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:bold;font-size:16px;display:inline-block;">✅ 1-Tap Sign In to Pioneers Prep</a>
-                    </div>
-                    <p style="color:#64748b;font-size:13px;margin-top:18px;">Or enter this 6-digit code in your browser:</p>
-                    <div style="font-size:30px;font-weight:800;letter-spacing:4px;color:#2563eb;background:#eff6ff;padding:12px;text-align:center;border-radius:8px;margin:10px 0;">${code}</div>
-                    <p style="color:#94a3b8;font-size:12px;">Valid for 10 minutes.</p>
+                subject: `Pioneers Prep Verification Code: ${code}`,
+                plainBody: `Your Pioneers Prep verification code is ${code}. This code is valid for 10 minutes. Do not share this code with anyone.`,
+                breakdown: `<div style="font-family:Arial,sans-serif;padding:20px;border:1px solid #e2e8f0;border-radius:8px;max-width:440px;color:#0f172a;">
+                    <h3 style="margin:0 0 12px 0;color:#1e3a8a;">Pioneers Prep Account Verification</h3>
+                    <p style="font-size:14px;color:#334155;margin:0 0 14px 0;">Use the 6-digit verification code below to complete your sign-in:</p>
+                    <div style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0f172a;background:#f8fafc;border:1px solid #cbd5e1;padding:12px;text-align:center;border-radius:6px;margin:14px 0;">${code}</div>
+                    <p style="font-size:12px;color:#64748b;margin:14px 0 0 0;">This code is valid for 10 minutes. If you did not request this code, you can safely ignore this email.</p>
                 </div>`,
                 secretKey: APPS_SECRET
             })
@@ -3631,7 +3621,6 @@ app.post('/api/auth/mail-app/send', async (req, res) => {
 
         res.json({
             success: true,
-            pollId,
             hasExistingProfile: Boolean(existingProfile && existingProfile.firstName && existingProfile.firstName !== 'STUDENT'),
             firstName: existingProfile ? existingProfile.firstName : '',
             lastName: existingProfile ? existingProfile.lastName : ''
