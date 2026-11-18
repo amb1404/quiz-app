@@ -332,7 +332,7 @@
                     await room.localParticipant.publishTrack(currentScreenTrack, {
                         name: 'screen',
                         source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
-                        simulcast: true,
+                        simulcast: false,
                         degradationPreference: 'maintain-resolution',
                         videoEncoding: { maxBitrate: 1_500_000, maxFramerate: 15 },
                         screenShareEncoding: { maxBitrate: 1_500_000, maxFramerate: 15 }
@@ -628,15 +628,24 @@
                         dtx: false,
                         red: true
                     });
+                } else {
+                    // Ensure existing live mic track is published if room reconnected while muted
+                    const alreadyPub = isNativeTrackPublished(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
+                    if (!alreadyPub) {
+                        await room.localParticipant.publishTrack(currentMicTrack, {
+                            name: 'mic',
+                            dtx: false,
+                            red: true
+                        });
+                    }
                 }
 
+                audioEnabled = true;
                 micMuteTimeout = setTimeout(() => {
                     if (currentMicTrack && audioEnabled) {
                         currentMicTrack.enabled = true;
                     }
                 }, 120);
-
-                audioEnabled = true;
             } else {
                 if (currentMicTrack) {
                     currentMicTrack.enabled = false;
@@ -693,7 +702,7 @@
                 await room.localParticipant.publishTrack(currentScreenTrack, {
                     name: 'screen',
                     source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
-                    simulcast: true,
+                    simulcast: false,
                     degradationPreference: 'maintain-resolution',
                     videoEncoding: {
                         maxBitrate: 1_500_000,

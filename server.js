@@ -1646,13 +1646,8 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     }, true);
 
                     window.addEventListener('DOMContentLoaded', function() {
+                        // Run once on load; since killLegacyOtpModal() calls .remove(), the legacy modal is permanently deleted from the DOM
                         killLegacyOtpModal();
-                        var bodyObserver = new MutationObserver(function() {
-                            killLegacyOtpModal();
-                        });
-                        if (document.body) {
-                            bodyObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-                        }
 
                         if (sessionStorage.getItem('pp_open_google_auth') === 'true' || sessionStorage.getItem('force_login_open') === 'true') {
                             sessionStorage.removeItem('pp_open_google_auth');
@@ -2101,8 +2096,15 @@ if (dataParts.length < 5 || !String(dataParts[4]).startsWith('G2_')) {
     return { valid: true, email: tokenEmail, firstName, lastName, signature: authSignature };
 }
 
-// Implementation 6: Dual Redis + File Persistence for Submissions & Leaderboard History
-async function getHistoricalSubmissions() {
+// Implementation 6: Dual Redis + File Persistence for Submissions & Leaderboard History (With 30s RAM Cache)
+let historicalSubmissionsRamCache = { data: null, expiresAt: 0 };
+
+async function getHistoricalSubmissions(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && historicalSubmissionsRamCache.data && now < historicalSubmissionsRamCache.expiresAt) {
+        return historicalSubmissionsRamCache.data;
+    }
+
     let redisList = [];
     let fileList = [];
 
@@ -2123,31 +2125,40 @@ async function getHistoricalSubmissions() {
         }
     } catch {}
 
-    if (redisList.length === 0) return fileList;
-    if (fileList.length === 0) return redisList;
-
-    const merged = [...redisList];
-    const seenKeys = new Set(redisList.map(s => `${s.timestamp || ''}|${s.email || ''}|${s.quizId || s.chapterTitle || ''}|${s.score}`));
-    for (const item of fileList) {
-        const key = `${item.timestamp || ''}|${item.email || ''}|${item.quizId || item.chapterTitle || ''}|${item.score}`;
-        if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            merged.push(item);
+    let finalMerged;
+    if (redisList.length === 0) {
+        finalMerged = fileList;
+    } else if (fileList.length === 0) {
+        finalMerged = redisList;
+    } else {
+        const merged = [...redisList];
+        const seenKeys = new Set(redisList.map(s => `${s.timestamp || ''}|${s.email || ''}|${s.quizId || s.chapterTitle || ''}|${s.score}`));
+        for (const item of fileList) {
+            const key = `${item.timestamp || ''}|${item.email || ''}|${item.quizId || item.chapterTitle || ''}|${item.score}`;
+            if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                merged.push(item);
+            }
         }
+        finalMerged = merged.slice(-5000);
     }
-    return merged.slice(-5000);
+
+    historicalSubmissionsRamCache = { data: finalMerged, expiresAt: now + 30000 };
+    return finalMerged;
 }
 
 let submissionWritePromise = Promise.resolve();
 function queueSubmissionBackup(entry) {
     submissionWritePromise = submissionWritePromise.then(async () => {
         try {
-            let allSubmissions = await getHistoricalSubmissions();
+            let allSubmissions = [...(await getHistoricalSubmissions(true))];
             const { secretKey, breakdown, ...safeMetadata } = entry;
             allSubmissions.push(safeMetadata);
             if (allSubmissions.length > 5000) {
                 allSubmissions = allSubmissions.slice(-5000);
             }
+            historicalSubmissionsRamCache = { data: allSubmissions, expiresAt: Date.now() + 30000 };
+
             const tenYearsSec = 60 * 60 * 24 * 365 * 10;
             await stateStore.set(SUBMISSIONS_REDIS_KEY, allSubmissions, tenYearsSec);
 
@@ -4165,8 +4176,11 @@ app.post('/api/live/admin/end', async (req, res) => {
         for (const key of liveStudentSockets.keys()) {
             if (key.startsWith(roomPrefix)) liveStudentSockets.delete(key);
         }
-        for (const key of liveBackgroundedStudents.values()) {
+        for (const key of Array.from(liveBackgroundedStudents.values())) {
             if (key.startsWith(roomPrefix)) liveBackgroundedStudents.delete(key);
+        }
+        for (const key of Array.from(liveStudentLastSeen.keys())) {
+            if (key.startsWith(roomPrefix)) liveStudentLastSeen.delete(key);
         }
 
         await emitRoomStateToAll(cleanId);
@@ -4786,7 +4800,8 @@ app.post('/api/admin/users/delete-data', async (req, res) => {
                 }
             } catch (e) {}
 
-            // 4. Clear Redis & fallbackMap attempt keys
+            // 4. Clear Redis & fallbackMap attempt keys + reset submissions RAM cache
+            historicalSubmissionsRamCache = { data: null, expiresAt: 0 };
             await deleteKeysByPrefix(`attempt:v1:${cleanEmail}:`);
         } else if (dataType === 'purchases') {
             await stateStore.del(`user:purchases:${cleanEmail}`);

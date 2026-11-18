@@ -26,7 +26,7 @@
         #student-pip-header:active { cursor: grabbing; }
         #student-video-stage { position: relative; width: 100%; height: 112px; background: #000; display: flex; align-items: center; justify-content: center; }
         @media (max-width: 600px) { #student-video-stage { height: 96px; } }
-        #student-remote-video { width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1); will-change: contents; }
+        #student-remote-video { width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1); }
         #student-video-placeholder { color: #94a3b8; font-size: 12px; font-weight: bold; text-align: center; padding: 8px; }
         #btn-unmute-hint {
             position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
@@ -250,8 +250,10 @@
                 syncParticipantSubscriptions(participant);
             });
             const pptVideo = document.getElementById('student-ppt-video');
-            if (pptVideo && pptVideo.srcObject && pptVideo.paused) {
-                pptVideo.play().catch(() => {});
+            if (pptVideo && pptVideo.srcObject) {
+                requestAnimationFrame(() => {
+                    if (pptVideo.paused) pptVideo.play().catch(() => {});
+                });
             }
             const camVideo = document.getElementById('student-remote-video');
             if (camVideo && camVideo.srcObject && camVideo.paused) {
@@ -517,40 +519,16 @@
                 e.target.textContent = '🔴 Mute Mic';
                 e.target.classList.add('on-call');
                 await ensureAdminAudioPlaying();
-                setTimeout(() => {
-                    try {
-                        room.remoteParticipants.forEach((p) => {
-                            if (isAdminParticipant(p)) {
-                                p.audioTrackPublications.forEach((pub) => {
-                                    if (pub.track && activeAudioEl) pub.track.detach(activeAudioEl);
-                                });
-                            }
-                        });
-                        if (activeAudioEl) activeAudioEl.remove();
-                    } catch (err) {}
-                    activeAudioEl = null;
-                    reattachAllAdminFeeds();
-                }, 450);
-                setTimeout(ensureAdminAudioPlaying, 1000);
+                // Keep the gesture-unlocked <audio> element alive; just resume playback if mobile OS briefly paused it during mic switch
+                setTimeout(ensureAdminAudioPlaying, 250);
+                setTimeout(ensureAdminAudioPlaying, 800);
             } else {
                 await stopStudentMicOnly();
                 e.target.textContent = '📞 Speak';
                 e.target.classList.remove('on-call');
                 await ensureAdminAudioPlaying();
-                setTimeout(() => {
-                    try {
-                        room.remoteParticipants.forEach((p) => {
-                            if (isAdminParticipant(p)) {
-                                p.audioTrackPublications.forEach((pub) => {
-                                    if (pub.track && activeAudioEl) pub.track.detach(activeAudioEl);
-                                });
-                            }
-                        });
-                        if (activeAudioEl) activeAudioEl.remove();
-                    } catch (err) {}
-                    activeAudioEl = null;
-                    reattachAllAdminFeeds();
-                }, 450);
+                setTimeout(ensureAdminAudioPlaying, 250);
+                setTimeout(ensureAdminAudioPlaying, 800);
             }
         } catch (err) {
             await stopStudentMicOnly();
