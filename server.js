@@ -1671,7 +1671,7 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                     }
                                     if (mailStep === 'send') {
                                         mailBtn.disabled = true;
-                                        mailBtn.textContent = 'Sending 1-Tap Sign-In Link...';
+                                        mailBtn.textContent = 'Sending OTP...';
                                         fetch('/api/auth/mail-app/send', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
