@@ -717,13 +717,19 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         localStorage.removeItem('pp_email');
                     }
 
-                    // GLOBAL SSO GUARD: Warn, save target deep URL, and kick unauthenticated users to home
+                    // Convert any legacy force_login_open flag in <head> BEFORE main.js loads
+                    if (sessionStorage.getItem('force_login_open') === 'true') {
+                        sessionStorage.removeItem('force_login_open');
+                        sessionStorage.setItem('pp_open_google_auth', 'true');
+                    }
+
+                    // GLOBAL SSO GUARD: Save target deep URL and send unauthenticated users to the Google Sign-In screen
                     var token = localStorage.getItem('pp_id_token');
                     var isExemptAdmin = (baseRoute === '/admin-live');
                     if (!isHome && !isExemptAdmin && !token) {
-                        alert('Please sign in to access premium study contents.');
                         sessionStorage.setItem('pp_post_login_redirect', window.location.pathname + window.location.search);
-                        sessionStorage.setItem('force_login_open', 'true');
+                        sessionStorage.removeItem('force_login_open');
+                        sessionStorage.setItem('pp_open_google_auth', 'true');
                         window.location.replace('/');
                         return;
                     }
@@ -1281,7 +1287,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                 })();
 
                 // ============================================================
-                // UNIVERSAL GOOGLE SIGN-IN (CHROME, ANDROID GMAIL BRIDGE, iOS & DESKTOP)
+                // UNIVERSAL GOOGLE SIGN-IN (ANDROID PLAY SERVICES, iOS & DIRECT URL GUARD)
                 // ============================================================
                 (function initGoogleAccountSignIn() {
                     var GOOGLE_CLIENT_ID = '${process.env.GOOGLE_CLIENT_ID || ''}';
@@ -1293,6 +1299,11 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         var ua = (navigator.userAgent || '').toLowerCase();
                         return ua.indexOf('iphone') !== -1 || ua.indexOf('ipad') !== -1 || ua.indexOf('ipod') !== -1 ||
                                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                    }
+
+                    function isAndroidDevice() {
+                        var ua = navigator.userAgent || '';
+                        return ua.indexOf('Android') !== -1;
                     }
 
                     function isAndroidNonChromeBrowser() {
@@ -1322,6 +1333,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         localStorage.setItem('pp_lname', data.lastName || '');
                         localStorage.setItem('pp_email', data.email || '');
                         sessionStorage.removeItem('force_login_open');
+                        sessionStorage.removeItem('pp_open_google_auth');
 
                         var modal = document.getElementById('pp-universal-auth-modal');
                         if (modal) modal.remove();
@@ -1358,7 +1370,7 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         });
                     }
 
-                    // 1. Handle OAuth Redirect Hash (#access_token=...) OR Auto-Open Picker (?auto_google_login=1)
+                    // 1. Handle OAuth Redirect Hash (#access_token=...) OR Auto-Trigger (?auto_google_login=1)
                     (function handleStartupAuthTriggers() {
                         try {
                             var hash = window.location.hash || '';
@@ -1479,43 +1491,53 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         return true;
                     }
 
-                    // Bridges Samsung Browser / Edge / Mi Browser directly into Android Chrome where the phone Gmail accounts are signed in
-                    function bridgeToAndroidChromeAccountPicker() {
-                        var sep = window.location.search ? '&' : '?';
-                        var targetPath = window.location.host + window.location.pathname + window.location.search + sep + 'auto_google_login=1';
-                        var fallback = encodeURIComponent(window.location.href);
-                        window.location.href = 'intent://' + targetPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+                    // Launches the native Android Google Play Services / Chrome Account Picker or iOS Account Chooser
+                    function triggerDeviceAccountSelection() {
+                        var statusEl = document.getElementById('pp-google-auth-status');
+                        if (isAndroidNonChromeBrowser()) {
+                            var sep = window.location.search ? '&' : '?';
+                            var targetPath = window.location.host + window.location.pathname + window.location.search + sep + 'auto_google_login=1';
+                            var fallback = encodeURIComponent(window.location.href);
+                            window.location.href = 'intent://' + targetPath + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+                            return;
+                        }
+                        if (!isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                            if (statusEl) statusEl.textContent = '';
+                            try {
+                                googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+                                return;
+                            } catch (e) {}
+                        }
+                        if (statusEl) {
+                            statusEl.style.color = '#2563eb';
+                            statusEl.textContent = 'Opening Account Chooser...';
+                        }
+                        redirectToGoogleOAuthPage();
                     }
 
                     function openUniversalSignInModal(autoTriggerChooser) {
-                        killLegacyOtpModal(false);
+                        killLegacyOtpModal();
 
-                        var isAltAndroid = isAndroidNonChromeBrowser();
+                        var isAndroid = isAndroidDevice();
+                        var isIos = isIosDevice();
+                        var primaryBtnLabel = isAndroid
+                            ? 'Choose Google Play Account'
+                            : (isIos ? 'Choose iOS / Google Account' : 'Choose Google Account');
+
                         var existing = document.getElementById('pp-universal-auth-modal');
                         if (!existing) {
-                            var androidGmailBridgeHtml = isAltAndroid
-                                ? '<button id="pp-bridge-chrome-btn" type="button" style="width:100%;padding:14px 16px;background:#059669;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(5,150,105,0.28);margin-bottom:12px;">' +
-                                    '<span>📲 Fetch Gmail Account from Phone</span>' +
-                                  '</button>'
-                                : '';
-
-                            var chooserBtnStyle = isAltAndroid
-                                ? 'width:100%;padding:12px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;'
-                                : 'width:100%;padding:14px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);';
-
                             var overlay = document.createElement('div');
                             overlay.id = 'pp-universal-auth-modal';
                             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;backdrop-filter:blur(3px);';
                             overlay.innerHTML =
-                                '<div style="background:#ffffff;max-width:410px;width:100%;border-radius:16px;padding:28px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
+                                '<div style="background:#ffffff;max-width:400px;width:100%;border-radius:16px;padding:28px 22px;box-shadow:0 25px 50px rgba(0,0,0,0.35);text-align:center;position:relative;border:1px solid #e2e8f0;">' +
                                     '<button id="pp-auth-close-btn" type="button" aria-label="Close" style="position:absolute;top:12px;right:14px;background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:16px;font-weight:bold;color:#475569;cursor:pointer;">✕</button>' +
                                     '<img src="/favicon.png?v=${APP_VERSION}" alt="Pioneers Prep" style="width:52px;height:52px;border-radius:12px;margin-bottom:10px;object-fit:contain;">' +
                                     '<h3 style="margin:0 0 6px 0;color:#0f172a;font-size:20px;font-weight:800;">Sign in to Pioneers Prep</h3>' +
-                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">Select your Google account below to access mock tests, study notes, and live classes:</p>' +
-                                    androidGmailBridgeHtml +
-                                    '<button id="pp-universal-chooser-btn" type="button" style="' + chooserBtnStyle + '">' +
+                                    '<p style="margin:0 0 18px 0;color:#475569;font-size:13.5px;line-height:1.5;">Select your account below to access mock tests, study notes, and live classes:</p>' +
+                                    '<button id="pp-universal-chooser-btn" type="button" style="width:100%;padding:14px 16px;background:#2563eb;color:#ffffff;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,0.28);">' +
                                         '<svg width="18" height="18" viewBox="0 0 48 48" style="background:#fff;border-radius:50%;padding:2px;"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-                                        '<span>Continue with Google / Choose Account</span>' +
+                                        '<span>' + primaryBtnLabel + '</span>' +
                                     '</button>' +
                                     '<div id="pp-google-rendered-btn" style="display:flex;justify-content:center;margin-top:12px;"></div>' +
                                     '<div id="pp-google-auth-status" style="margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;min-height:18px;"></div>' +
@@ -1529,22 +1551,15 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                                 }
                             });
 
-                            var bridgeBtn = document.getElementById('pp-bridge-chrome-btn');
-                            if (bridgeBtn) {
-                                bridgeBtn.addEventListener('click', function() {
-                                    bridgeToAndroidChromeAccountPicker();
-                                });
-                            }
-
                             var chooserBtn = document.getElementById('pp-universal-chooser-btn');
                             if (chooserBtn) {
                                 chooserBtn.addEventListener('click', function() {
-                                    launchAccountChooserOrRedirect();
+                                    triggerDeviceAccountSelection();
                                 });
                             }
                         }
 
-                        if (autoTriggerChooser && !isAltAndroid && !isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
+                        if (autoTriggerChooser && !isAndroidNonChromeBrowser() && !isIos && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
                             try {
                                 googleTokenClient.requestAccessToken({ prompt: 'select_account' });
                             } catch (e) {}
@@ -1573,51 +1588,74 @@ function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                         });
                     }
 
-                    function launchAccountChooserOrRedirect() {
-                        var statusEl = document.getElementById('pp-google-auth-status');
-                        if (!isIosDevice() && window.google && window.google.accounts && setupGoogleClients() && googleTokenClient) {
-                            if (statusEl) statusEl.textContent = '';
-                            try {
-                                googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-                                return;
-                            } catch (e) {}
-                        }
-                        if (statusEl) {
-                            statusEl.style.color = '#2563eb';
-                            statusEl.textContent = 'Opening Google Sign-In...';
-                        }
-                        redirectToGoogleOAuthPage();
-                    }
-
-                    // Physically remove the old OTP modal from the DOM so it can never appear
-                    function killLegacyOtpModal(openGoogleIfWasVisible) {
-                        document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal').forEach(function(m) {
-                            if (m.id === 'pp-universal-auth-modal') return;
-                            var cs = window.getComputedStyle(m);
-                            var isVisible = (m.style.display && m.style.display !== 'none') || (!m.classList.contains('hidden') && cs.display !== 'none');
-                            m.remove();
-                            if (openGoogleIfWasVisible && isVisible && !localStorage.getItem('pp_id_token')) {
-                                openUniversalSignInModal(false);
+                    // Hunt down and remove ANY legacy Email-OTP modal by ID, class, or inner text ("Continue & Send OTP")
+                    function killLegacyOtpModal() {
+                        var knownModals = document.querySelectorAll('.modal, #auth-modal, #login-modal, #otp-modal, #sso-modal');
+                        for (var i = 0; i < knownModals.length; i++) {
+                            if (knownModals[i].id !== 'pp-universal-auth-modal') {
+                                knownModals[i].remove();
                             }
-                        });
+                        }
+                        var allBtns = document.querySelectorAll('button, input[type="submit"]');
+                        for (var j = 0; j < allBtns.length; j++) {
+                            var txt = (allBtns[j].textContent || allBtns[j].value || '').trim();
+                            if (txt.indexOf('Continue & Send OTP') !== -1 || txt.indexOf('Send OTP') !== -1) {
+                                var parentOverlay = allBtns[j].closest('div[style*="fixed"], div[class*="modal"], div[id*="modal"]') || allBtns[j].parentElement?.parentElement;
+                                if (parentOverlay && parentOverlay.id !== 'pp-universal-auth-modal' && parentOverlay !== document.body) {
+                                    parentOverlay.remove();
+                                    if (!localStorage.getItem('pp_id_token') && !document.getElementById('pp-universal-auth-modal')) {
+                                        openUniversalSignInModal(false);
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     waitForGoogleLibrary(2500).then(function(ready) {
                         if (ready) setupGoogleClients();
                     });
 
+                    // Capture-phase click interceptor: catches #nav-signin-btn AND any unauthenticated portal links/cards before main.js can open the old OTP box
                     document.addEventListener('click', function(e) {
                         var signInBtn = e.target ? e.target.closest('#nav-signin-btn') : null;
-                        if (!signInBtn) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
-                        openUniversalSignInModal(true);
+                        if (signInBtn) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            openUniversalSignInModal(true);
+                            return;
+                        }
+
+                        // If user is logged out on Home and clicks a protected portal link or card, intercept before main.js shows the OTP modal
+                        if (!localStorage.getItem('pp_id_token') && baseRoute !== '/admin-live') {
+                            var clickedInsideAuth = e.target ? e.target.closest('#pp-universal-auth-modal, #pwa-download-btn, #pwa-install-helper-modal, .footer-contact, .footer-links') : null;
+                            if (clickedInsideAuth) return;
+
+                            var portalLink = e.target ? e.target.closest('a[href*="/mock-tests"], a[href*="/study-notes"], a[href*="/descriptive"], a[href*="/live-room"], .card, [data-action^="select-"]') : null;
+                            if (portalLink) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                var href = portalLink.getAttribute('href');
+                                if (href && href.indexOf('/') === 0) {
+                                    sessionStorage.setItem('pp_post_login_redirect', href);
+                                }
+                                openUniversalSignInModal(false);
+                            }
+                        }
                     }, true);
 
                     window.addEventListener('DOMContentLoaded', function() {
-                        killLegacyOtpModal(false);
-                        if (sessionStorage.getItem('force_login_open') === 'true') {
+                        killLegacyOtpModal();
+                        var bodyObserver = new MutationObserver(function() {
+                            killLegacyOtpModal();
+                        });
+                        if (document.body) {
+                            bodyObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+                        }
+
+                        if (sessionStorage.getItem('pp_open_google_auth') === 'true' || sessionStorage.getItem('force_login_open') === 'true') {
+                            sessionStorage.removeItem('pp_open_google_auth');
                             sessionStorage.removeItem('force_login_open');
                             openUniversalSignInModal(false);
                         }
