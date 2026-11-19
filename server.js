@@ -4623,7 +4623,8 @@ app.post('/api/live/student/verify', async (req, res) => {
             board[studentName].email = cleanEmail;
             board[studentName].activeSessionId = newSessionId;
             board[studentName].disconnected = false;
-            board[studentName].kicked = false;
+            board[studentName].hiddenAway = false;
+            board[studentName].kicked = false; 
             board[studentName].lastSeenAt = Date.now();
             return board;
         });
@@ -4687,7 +4688,7 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     }
 
     liveStudentLastSeen.set(presenceKey, Date.now());
-    if (rec && !rec.kicked && !rec.disconnected) {
+    if (rec && !rec.kicked && !rec.disconnected && !rec.hiddenAway) {
         return res.json({ success: true, studentName });
     }
 
@@ -4715,8 +4716,9 @@ app.post('/api/live/student/rejoin', async (req, res) => {
             return lockedBoard;
         }
         if (!lockedRec.kicked) {
-            if (lockedRec.disconnected) reconnectedNow = true;
+            if (lockedRec.disconnected || lockedRec.hiddenAway) reconnectedNow = true;
             lockedRec.disconnected = false;
+            lockedRec.hiddenAway = false;
             lockedRec.lastSeenAt = Date.now();
         }
         return lockedBoard;
@@ -4750,6 +4752,17 @@ app.post('/api/live/student/leave', async (req, res) => {
 
         if (req.body && req.body.cancelHidden) {
             if (typeof clearHiddenRosterTimer === 'function') clearHiddenRosterTimer(presenceKey);
+            let restoredFromHidden = false;
+            await updateBoardSecurely(cleanId, (board) => {
+                if (board[studentName] && !board[studentName].kicked && (board[studentName].hiddenAway || board[studentName].disconnected)) {
+                    board[studentName].hiddenAway = false;
+                    board[studentName].disconnected = false;
+                    board[studentName].lastSeenAt = Date.now();
+                    restoredFromHidden = true;
+                }
+                return board;
+            });
+            if (restoredFromHidden) await emitAdminBoard(cleanId);
             return res.json({ success: true, cancelled: true });
         }
 
@@ -4764,7 +4777,9 @@ app.post('/api/live/student/leave', async (req, res) => {
             return res.json({ success: true, hiddenScheduled: true });
         }
 
-        if (typeof clearHiddenRosterTimer === 'function') clearHiddenRosterTimer(presenceKey);
+        if (isImmediate && typeof clearHiddenRosterTimer === 'function') {
+            clearHiddenRosterTimer(presenceKey);
+        }
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
         }
@@ -5388,7 +5403,7 @@ function scheduleHiddenRosterRemoval(cleanId, studentName, delayMs = 3000) {
         try {
             await updateBoardSecurely(cleanId, (board) => {
                 if (board[studentName]) {
-                    board[studentName].disconnected = true;
+                    board[studentName].hiddenAway = true;
                 }
                 return board;
             });
@@ -5489,8 +5504,9 @@ io.on("connection", (socket) => {
                     neededReconnectFix = true;
                 }
                 if (!board[studentName].kicked) {
-                    if (board[studentName].disconnected) neededReconnectFix = true;
+                    if (board[studentName].disconnected || board[studentName].hiddenAway) neededReconnectFix = true;
                     board[studentName].disconnected = false;
+                    board[studentName].hiddenAway = false;
                     board[studentName].lastSeenAt = Date.now();
                 }
                 return board;
@@ -5503,7 +5519,7 @@ io.on("connection", (socket) => {
     });
 
     // Removes student from admin roster after 3s on tab switch/minimize, while keeping them live in the room
-    socket.on("student-visibility", ({ hidden } = {}) => {
+    socket.on("student-visibility", async ({ hidden } = {}) => {
         if (!socket.quizId || !socket.studentName) return;
         const cleanId = socket.quizId;
         const studentName = socket.studentName;
@@ -5515,6 +5531,19 @@ io.on("connection", (socket) => {
             clearHiddenRosterTimer(presenceKey);
             liveStudentLastSeen.set(presenceKey, Date.now());
             liveBackgroundedStudents.delete(presenceKey);
+            let restored = false;
+            try {
+                await updateBoardSecurely(cleanId, (board) => {
+                    if (board[studentName] && !board[studentName].kicked && (board[studentName].hiddenAway || board[studentName].disconnected)) {
+                        board[studentName].hiddenAway = false;
+                        board[studentName].disconnected = false;
+                        board[studentName].lastSeenAt = Date.now();
+                        restored = true;
+                    }
+                    return board;
+                });
+                if (restored) await emitAdminBoard(cleanId);
+            } catch (e) {}
         }
     });
 

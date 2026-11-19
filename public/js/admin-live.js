@@ -506,7 +506,7 @@ if (typeof io !== 'undefined') {
                 window.cutStudentAudioImmediately(sName);
             }
         });
-        const entries = Object.entries(data.board).filter(([_, info]) => !info.kicked && !info.disconnected);
+        const entries = Object.entries(data.board).filter(([_, info]) => !info.kicked && !info.disconnected && !info.hiddenAway);
 
         if (entries.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" style="color: #94a3b8; text-align: center;">No students in room yet.</td></tr>';

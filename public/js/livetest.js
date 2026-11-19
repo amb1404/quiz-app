@@ -289,7 +289,7 @@ if (typeof io !== 'undefined') {
         if (!liveToken || leaveSignalSent) return;
         leaveSignalSent = true;
         setTimeout(() => { leaveSignalSent = false; }, 1000);
-        if (typeof window.stopStudentLiveKit === 'function') {
+        if (isImmediateExit && typeof window.stopStudentLiveKit === 'function') {
             try { window.stopStudentLiveKit(); } catch (e) {}
         }
         if (socket && socket.connected) {
@@ -401,7 +401,7 @@ if (typeof io !== 'undefined') {
             window.connectLiveKit(currentQuizId);
         }
         if (typeof window.reattachAllAdminFeeds === 'function') {
-            window.reattachAllAdminFeeds();
+            window.reattachAllAdminFeeds(true);
         }
         fetch('/api/live/student/rejoin', {
             method: 'POST',

@@ -838,6 +838,11 @@
     }
     window.stopAdminBroadcastStream = stopAdminBroadcastStream;
 
+    // Immediately release LiveKit tracks on accidental tab closure so student feeds go blank without freezing
+    window.addEventListener('pagehide', () => {
+        try { room.disconnect(); } catch (e) {}
+    });
+
     document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
         await stopAdminBroadcastStream(true);
     });
