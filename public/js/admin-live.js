@@ -43,7 +43,93 @@ function updateQuestionControlsUI() {
     }
 }
 
-// Restore active Room session on browser refresh
+async function rejoinActiveRoom(targetRoomId, targetRoomName, btnEl) {
+    adminKey = document.getElementById('admin-key').value.trim();
+    if (!adminKey) {
+        alert("Please enter your Admin Secret Key first.");
+        document.getElementById('admin-key')?.focus();
+        return;
+    }
+
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerText = "Rejoining Room...";
+    }
+
+    try {
+        const res = await fetch('/api/live/admin/resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminKey, quizId: targetRoomId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            quizId = data.quizId;
+            activeQuizFile = data.activeQuizFile || "";
+            totalQuestions = data.totalQuestions || 0;
+            currentIndex = data.currentIndex || 0;
+
+            document.getElementById('quiz-id').value = quizId;
+            document.getElementById('otp-display').innerText = `🟢 Active Room: ${data.roomName}`;
+            document.getElementById('create-room-box').style.display = 'flex';
+            document.getElementById('control-panel').style.display = 'block';
+            document.getElementById('board-panel').style.display = 'block';
+
+            const showBtn = document.getElementById('show-create-room-btn');
+            if (showBtn) showBtn.style.display = 'none';
+            if (btnEl) btnEl.remove();
+
+            sessionStorage.setItem('live_admin_session', JSON.stringify({ quizId, activeQuizFile }));
+
+            const startBtn = document.getElementById('start-btn');
+            startBtn.innerText = "Room Active";
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.7';
+            startBtn.style.cursor = 'not-allowed';
+
+            await populateAdminQuizDropdown(activeQuizFile);
+            updateQuestionControlsUI();
+            startDashboardSync();
+        } else {
+            alert(data.error || "Could not rejoin room.");
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerText = `🔄 Rejoin Last Room: ${targetRoomName}`;
+            }
+        }
+    } catch (e) {
+        alert("Network error rejoining room.");
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerText = `🔄 Rejoin Last Room: ${targetRoomName}`;
+        }
+    }
+}
+
+async function checkAndShowRejoinRoomButton() {
+    try {
+        const res = await fetch('/api/live/rooms');
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.rooms) || data.rooms.length === 0) return;
+
+        const sorted = [...data.rooms].sort((a, b) => (Number(b.lastSeen) || 0) - (Number(a.lastSeen) || 0));
+        const latestRoom = sorted[0];
+        if (!latestRoom || !latestRoom.id) return;
+
+        const showBtn = document.getElementById('show-create-room-btn');
+        if (!showBtn || document.getElementById('rejoin-room-btn')) return;
+
+        const rejoinBtn = document.createElement('button');
+        rejoinBtn.id = 'rejoin-room-btn';
+        rejoinBtn.type = 'button';
+        rejoinBtn.style.background = '#059669';
+        rejoinBtn.innerText = `🔄 Rejoin Last Room: ${latestRoom.name}`;
+        rejoinBtn.addEventListener('click', () => rejoinActiveRoom(latestRoom.id, latestRoom.name, rejoinBtn));
+        showBtn.insertAdjacentElement('afterend', rejoinBtn);
+    } catch (e) {}
+}
+
+// Restore active Room session on browser refresh, or offer 1-click Rejoin after browser close
 window.addEventListener('DOMContentLoaded', async () => {
     await populateAdminQuizDropdown();
     updateQuestionControlsUI();
@@ -71,6 +157,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
             await populateAdminQuizDropdown(activeQuizFile);
             startDashboardSync();
+        } else {
+            await checkAndShowRejoinRoomButton();
         }
     } catch (e) {}
 });
@@ -107,13 +195,14 @@ document.getElementById('start-btn').addEventListener('click', async () => {
         if (data.success) {
             activeQuizFile = data.activeQuizFile || "";
             totalQuestions = data.totalQuestions || 0;
-            currentIndex = 0;
+            currentIndex = data.currentIndex || 0;
 
             document.getElementById('otp-display').innerText = `🟢 Active Room: ${data.roomName}`;
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
 
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'none';
+            document.getElementById('rejoin-room-btn')?.remove();
 
             sessionStorage.setItem('live_admin_session', JSON.stringify({ quizId, activeQuizFile }));
 
@@ -304,6 +393,7 @@ document.addEventListener('click', async (e) => {
             document.getElementById('control-panel').style.display = 'none';
             document.getElementById('board-panel').style.display = 'none';
             document.getElementById('create-room-box').style.display = 'none';
+            document.getElementById('rejoin-room-btn')?.remove();
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'inline-block';
 
             const startBtn = document.getElementById('start-btn');

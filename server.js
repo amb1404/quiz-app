@@ -4109,7 +4109,7 @@ app.get('/api/live/rooms', async (req, res) => {
         let changed = false;
         for (const [id, info] of activeLiveRooms.entries()) {
             if (now - info.lastSeen <= 8 * 60 * 60 * 1000) {
-                rooms.push({ id: info.id, name: info.name });
+                rooms.push({ id: info.id, name: info.name, lastSeen: info.lastSeen || info.createdAt || 0 });
             } else {
                 activeLiveRooms.delete(id);
                 changed = true;
@@ -4290,7 +4290,7 @@ async function emitAdminBoard(cleanId) {
     });
 }
 
-// Step 1: Admin Creates a Named Room
+// Step 1: Admin Creates a Named Room (resumes intact if an active room with the same name already exists)
 app.post('/api/live/admin/start', async (req, res) => {
     try {
         const { adminKey, quizId, questionFile } = req.body;
@@ -4299,6 +4299,32 @@ app.post('/api/live/admin/start', async (req, res) => {
         const rawRoomName = String(quizId || '').trim();
         const cleanId = path.basename(rawRoomName).trim();
         if (!cleanId) return res.status(400).json({ error: 'Room name is required.' });
+
+        // If this room is already active, resume it without wiping live students or answers
+        const existingRaw = await stateStore.get(`live:state:${cleanId}`);
+        const existingState = existingRaw ? (typeof existingRaw === 'string' ? JSON.parse(existingRaw) : existingRaw) : null;
+        if (existingState && existingState.status === 'active') {
+            await stateStore.set(`live:state:${cleanId}`, existingState, 60 * 60 * 8);
+            await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
+            await loadActiveRoomsFromRedis();
+            activeLiveRooms.set(cleanId, {
+                id: cleanId,
+                name: existingState.roomName || rawRoomName,
+                createdAt: activeLiveRooms.get(cleanId)?.createdAt || Date.now(),
+                lastSeen: Date.now()
+            });
+            await syncActiveRoomsToRedis();
+            await emitAdminBoard(cleanId);
+            return res.json({
+                success: true,
+                resumed: true,
+                quizId: cleanId,
+                roomName: existingState.roomName || rawRoomName,
+                activeQuizFile: existingState.activeQuizFile || '',
+                totalQuestions: Number(existingState.totalQuestions) || 0,
+                currentIndex: Number(existingState.currentIndex) || 0
+            });
+        }
 
         let activeQuizFile = '';
         let totalQuestions = 0;
@@ -4325,7 +4351,7 @@ app.post('/api/live/admin/start', async (req, res) => {
         };
 
         await stateStore.set(`live:state:${cleanId}`, roomState, 60 * 60 * 8);
-await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
         await stateStore.del(`live:board:${cleanId}`);
 
         await loadActiveRoomsFromRedis();
@@ -4342,12 +4368,54 @@ await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
 
         res.json({
             success: true,
+            quizId: cleanId,
             roomName: rawRoomName,
             activeQuizFile,
-            totalQuestions
+            totalQuestions,
+            currentIndex: 0
         });
     } catch (err) {
         res.status(500).json({ error: 'Failed to create room.' });
+    }
+});
+
+// Admin Rejoin Last Active Room (after disconnect or accidental browser close)
+app.post('/api/live/admin/resume', async (req, res) => {
+    try {
+        const { adminKey, quizId } = req.body;
+        if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized Admin' });
+
+        const cleanId = path.basename(String(quizId || '')).trim();
+        if (!cleanId) return res.status(400).json({ error: 'Room ID is required.' });
+
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        if (!state || state.status !== 'active') {
+            return res.status(404).json({ error: 'This room is no longer active.' });
+        }
+
+        await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
+        await stateStore.set(`live:admin_seen:${cleanId}`, Date.now(), 60 * 60 * 8);
+        await loadActiveRoomsFromRedis();
+        activeLiveRooms.set(cleanId, {
+            id: cleanId,
+            name: state.roomName || cleanId,
+            createdAt: activeLiveRooms.get(cleanId)?.createdAt || Date.now(),
+            lastSeen: Date.now()
+        });
+        await syncActiveRoomsToRedis();
+        await emitAdminBoard(cleanId);
+
+        res.json({
+            success: true,
+            quizId: cleanId,
+            roomName: state.roomName || cleanId,
+            activeQuizFile: state.activeQuizFile || '',
+            totalQuestions: Number(state.totalQuestions) || 0,
+            currentIndex: Number(state.currentIndex) || 0
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to rejoin room.' });
     }
 });
 
@@ -4481,6 +4549,12 @@ app.post('/api/live/admin/end', async (req, res) => {
                 liveDisconnectTimers.delete(key);
             }
         }
+        for (const key of liveHiddenTimers.keys()) {
+            if (key.startsWith(roomPrefix)) {
+                clearTimeout(liveHiddenTimers.get(key));
+                liveHiddenTimers.delete(key);
+            }
+        }
         for (const key of liveStudentSockets.keys()) {
             if (key.startsWith(roomPrefix)) liveStudentSockets.delete(key);
         }
@@ -4597,6 +4671,7 @@ app.post('/api/live/student/rejoin', async (req, res) => {
     const studentName = liveCheck.studentName;
     const presenceKey = `${cleanId}:::${studentName}`;
 
+    if (typeof clearHiddenRosterTimer === 'function') clearHiddenRosterTimer(presenceKey);
     if (typeof liveDisconnectTimers !== 'undefined' && liveDisconnectTimers.has(presenceKey)) {
         clearTimeout(liveDisconnectTimers.get(presenceKey));
         liveDisconnectTimers.delete(presenceKey);
@@ -4673,9 +4748,23 @@ app.post('/api/live/student/leave', async (req, res) => {
             return res.json({ success: true, ignoredStaleSession: true });
         }
 
+        if (req.body && req.body.cancelHidden) {
+            if (typeof clearHiddenRosterTimer === 'function') clearHiddenRosterTimer(presenceKey);
+            return res.json({ success: true, cancelled: true });
+        }
+
         const isImmediate = Boolean(req.body && req.body.immediate);
         const hiddenGraceMs = Number(req.body && req.body.hiddenGraceMs) || 0;
 
+        // Tab switch / minimize (Android & iOS): remove from admin roster after 3s, keep student live in room
+        if (!isImmediate && hiddenGraceMs > 0) {
+            if (typeof scheduleHiddenRosterRemoval === 'function') {
+                scheduleHiddenRosterRemoval(cleanId, studentName, hiddenGraceMs);
+            }
+            return res.json({ success: true, hiddenScheduled: true });
+        }
+
+        if (typeof clearHiddenRosterTimer === 'function') clearHiddenRosterTimer(presenceKey);
         if (typeof liveBackgroundedStudents !== 'undefined') {
             liveBackgroundedStudents.delete(presenceKey);
         }
@@ -4686,15 +4775,9 @@ app.post('/api/live/student/leave', async (req, res) => {
                 liveDisconnectTimers.delete(presenceKey);
             }
 
-            const forceRemoveStudent = async (notifyTabTimeout = false) => {
+            const forceRemoveStudent = async () => {
                 liveDisconnectTimers.delete(presenceKey);
                 if (typeof liveStudentSockets !== 'undefined') {
-                    const activeSet = liveStudentSockets.get(presenceKey);
-                    if (activeSet && notifyTabTimeout) {
-                        for (const sId of activeSet) {
-                            io.to(sId).emit('tab-switch-timeout');
-                        }
-                    }
                     liveStudentSockets.delete(presenceKey);
                 }
                 await updateBoardSecurely(cleanId, (board) => {
@@ -4707,16 +4790,13 @@ app.post('/api/live/student/leave', async (req, res) => {
             };
 
             if (isImmediate) {
-                await forceRemoveStudent(false);
-            } else if (hiddenGraceMs > 0) {
-                const timer = setTimeout(() => forceRemoveStudent(true), hiddenGraceMs);
-                liveDisconnectTimers.set(presenceKey, timer);
+                await forceRemoveStudent();
             } else {
                 // 800ms micro-buffer so F5 refresh stays connected, while tab/browser close removes in real time
                 const timer = setTimeout(async () => {
                     liveDisconnectTimers.delete(presenceKey);
                     if (typeof liveStudentSockets !== 'undefined' && liveStudentSockets.has(presenceKey)) return;
-                    await forceRemoveStudent(false);
+                    await forceRemoveStudent();
                 }, 800);
                 liveDisconnectTimers.set(presenceKey, timer);
             }
@@ -5286,11 +5366,37 @@ const io = new Server(server, {
     pingTimeout: 4000
 });
 
-// Tracks active socket IDs, disconnect timers, and last-seen timestamps per student
+// Tracks active socket IDs, disconnect timers, hidden roster timers, and last-seen timestamps per student
 const liveStudentSockets = new Map();
 const liveDisconnectTimers = new Map();
+const liveHiddenTimers = new Map();
 const liveBackgroundedStudents = new Set();
 const liveStudentLastSeen = new Map();
+
+function clearHiddenRosterTimer(presenceKey) {
+    if (liveHiddenTimers.has(presenceKey)) {
+        clearTimeout(liveHiddenTimers.get(presenceKey));
+        liveHiddenTimers.delete(presenceKey);
+    }
+}
+
+function scheduleHiddenRosterRemoval(cleanId, studentName, delayMs = 3000) {
+    const presenceKey = `${cleanId}:::${studentName}`;
+    if (liveHiddenTimers.has(presenceKey)) return; // Already counting down
+    const timer = setTimeout(async () => {
+        liveHiddenTimers.delete(presenceKey);
+        try {
+            await updateBoardSecurely(cleanId, (board) => {
+                if (board[studentName]) {
+                    board[studentName].disconnected = true;
+                }
+                return board;
+            });
+            await emitAdminBoard(cleanId);
+        } catch (e) {}
+    }, delayMs);
+    liveHiddenTimers.set(presenceKey, timer);
+}
 
 async function handleStudentDeparture(cleanId, studentName, socketId, isExplicitExit = false) {
     if (!cleanId || !studentName) return;
@@ -5357,9 +5463,12 @@ io.on("connection", (socket) => {
         liveStudentLastSeen.set(presenceKey, Date.now());
         liveBackgroundedStudents.delete(presenceKey);
 
-        if (!hidden && liveDisconnectTimers.has(presenceKey)) {
-            clearTimeout(liveDisconnectTimers.get(presenceKey));
-            liveDisconnectTimers.delete(presenceKey);
+        if (!hidden) {
+            clearHiddenRosterTimer(presenceKey);
+            if (liveDisconnectTimers.has(presenceKey)) {
+                clearTimeout(liveDisconnectTimers.get(presenceKey));
+                liveDisconnectTimers.delete(presenceKey);
+            }
         }
 
         if (!liveStudentSockets.has(presenceKey)) {
@@ -5373,59 +5482,37 @@ io.on("connection", (socket) => {
         socket.sessionId = liveAuth ? liveAuth.sessionId : '';
 
         let neededReconnectFix = false;
-        await updateBoardSecurely(cleanId, (board) => {
-            if (!board[studentName]) {
-                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
-                neededReconnectFix = true;
-            }
-            if (!board[studentName].kicked) {
-                if (board[studentName].disconnected) neededReconnectFix = true;
-                board[studentName].disconnected = false;
-                board[studentName].lastSeenAt = Date.now();
-            }
-            return board;
-        });
+        if (!hidden) {
+            await updateBoardSecurely(cleanId, (board) => {
+                if (!board[studentName]) {
+                    board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+                    neededReconnectFix = true;
+                }
+                if (!board[studentName].kicked) {
+                    if (board[studentName].disconnected) neededReconnectFix = true;
+                    board[studentName].disconnected = false;
+                    board[studentName].lastSeenAt = Date.now();
+                }
+                return board;
+            });
+        }
 
         const payload = await buildLiveStatePayload(cleanId, studentName);
         if (payload) socket.emit("room-state", payload);
         if (neededReconnectFix) await emitAdminBoard(cleanId);
     });
 
-    // Removes student from roster in real time if they switch tabs or minimize for 3 seconds
+    // Removes student from admin roster after 3s on tab switch/minimize, while keeping them live in the room
     socket.on("student-visibility", ({ hidden } = {}) => {
         if (!socket.quizId || !socket.studentName) return;
         const cleanId = socket.quizId;
         const studentName = socket.studentName;
         const presenceKey = `${cleanId}:::${studentName}`;
 
-        if (liveDisconnectTimers.has(presenceKey)) {
-            clearTimeout(liveDisconnectTimers.get(presenceKey));
-            liveDisconnectTimers.delete(presenceKey);
-        }
-
         if (hidden) {
-            const timer = setTimeout(async () => {
-                liveDisconnectTimers.delete(presenceKey);
-                liveBackgroundedStudents.delete(presenceKey);
-                const activeSet = liveStudentSockets.get(presenceKey);
-                if (activeSet) {
-                    for (const sId of activeSet) {
-                        io.to(sId).emit('tab-switch-timeout');
-                    }
-                    liveStudentSockets.delete(presenceKey);
-                }
-                try {
-                    await updateBoardSecurely(cleanId, (board) => {
-                        if (board[studentName]) {
-                            board[studentName].disconnected = true;
-                        }
-                        return board;
-                    });
-                    await emitAdminBoard(cleanId);
-                } catch (e) {}
-            }, 3000);
-            liveDisconnectTimers.set(presenceKey, timer);
+            scheduleHiddenRosterRemoval(cleanId, studentName, 3000);
         } else {
+            clearHiddenRosterTimer(presenceKey);
             liveStudentLastSeen.set(presenceKey, Date.now());
             liveBackgroundedStudents.delete(presenceKey);
         }

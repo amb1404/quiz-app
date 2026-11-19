@@ -333,12 +333,6 @@ if (typeof io !== 'undefined') {
         window.location.replace('/live-room');
     }
 
-    socket.on("tab-switch-timeout", () => {
-        if (testActive) {
-            exitRoomAndReturnToLobby();
-        }
-    });
-
     // 1. Device or Browser Back Button: Remove student from roster immediately in real time
     window.history.pushState({ inLiveRoom: true }, document.title, window.location.href);
     window.addEventListener("popstate", () => {
@@ -351,19 +345,25 @@ if (typeof io !== 'undefined') {
     window.addEventListener("beforeunload", () => {
         if (testActive) sendInstantLeaveSignal(false);
     });
-    window.addEventListener("pagehide", () => {
-        if (testActive) sendInstantLeaveSignal(false);
+    window.addEventListener("pagehide", (e) => {
+        if (testActive && (!e || !e.persisted)) sendInstantLeaveSignal(false);
     });
 
-    // 3. Switch Tab or Minimize Browser for 3 Seconds: Removes student from roster in real time at 3s mark
-    document.addEventListener("visibilitychange", () => {
+    // 3. Switch Tab or Minimize (Android & iOS): Remove from admin roster after 3s, keep student live in room
+    function handleTabHidden() {
         if (!testActive || !currentQuizId || !liveToken) return;
-        if (document.visibilityState === 'hidden') {
-            hiddenTimestamp = Date.now();
-            if (socket && socket.connected) {
-                socket.emit("student-visibility", { hidden: true });
+        if (socket && socket.connected) {
+            socket.emit("student-visibility", { hidden: true });
+        }
+        const hiddenPayload = JSON.stringify({ token: liveToken, immediate: false, hiddenGraceMs: 3000 });
+        let beaconQueued = false;
+        try {
+            if (navigator.sendBeacon) {
+                const blob = new Blob([hiddenPayload], { type: 'application/json' });
+                beaconQueued = navigator.sendBeacon('/api/live/student/leave', blob);
             }
-            // Backup HTTP timer on server in case mobile OS suspends background tab JS
+        } catch (e) {}
+        if (!beaconQueued) {
             try {
                 fetch('/api/live/student/leave', {
                     method: 'POST',
@@ -371,45 +371,57 @@ if (typeof io !== 'undefined') {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${liveToken}`
                     },
-                    body: JSON.stringify({ token: liveToken, immediate: false, hiddenGraceMs: 3000 }),
+                    body: hiddenPayload,
                     keepalive: true
                 }).catch(() => {});
             } catch (e) {}
+        }
+    }
 
-            if (hiddenKickTimer) clearTimeout(hiddenKickTimer);
-            hiddenKickTimer = setTimeout(() => {
-                if (testActive && document.visibilityState === 'hidden') {
-                    exitRoomAndReturnToLobby();
-                }
-            }, 3000);
-        } else if (document.visibilityState === 'visible') {
-            if (hiddenKickTimer) {
-                clearTimeout(hiddenKickTimer);
-                hiddenKickTimer = null;
-            }
-            // If mobile OS froze the tab for >= 3 seconds, exit immediately on return
-            if (hiddenTimestamp > 0 && (Date.now() - hiddenTimestamp) >= 3000) {
-                exitRoomAndReturnToLobby();
-                return;
-            }
-            hiddenTimestamp = 0;
-
-            if (socket) {
-                if (!socket.connected) socket.connect();
-                socket.emit("student-visibility", { hidden: false });
-                socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: false });
-            }
-            if (typeof window.connectLiveKit === 'function') {
-                window.connectLiveKit(currentQuizId);
-            }
-            if (typeof window.reattachAllAdminFeeds === 'function') {
-                window.reattachAllAdminFeeds();
-            }
-            fetch('/api/live/student/rejoin', {
+    function handleTabVisible() {
+        if (!testActive || !currentQuizId || !liveToken) return;
+        try {
+            fetch('/api/live/student/leave', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${liveToken}` },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${liveToken}`
+                },
+                body: JSON.stringify({ token: liveToken, cancelHidden: true }),
                 keepalive: true
             }).catch(() => {});
+        } catch (e) {}
+
+        if (socket) {
+            if (!socket.connected) socket.connect();
+            socket.emit("student-visibility", { hidden: false });
+            socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: false });
+        }
+        if (typeof window.connectLiveKit === 'function') {
+            window.connectLiveKit(currentQuizId);
+        }
+        if (typeof window.reattachAllAdminFeeds === 'function') {
+            window.reattachAllAdminFeeds();
+        }
+        fetch('/api/live/student/rejoin', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${liveToken}` },
+            keepalive: true
+        }).catch(() => {});
+    }
+
+    document.addEventListener("visibilitychange", () => {
+        if (!testActive || !currentQuizId || !liveToken) return;
+        if (document.visibilityState === 'hidden' || document.hidden) {
+            handleTabHidden();
+        } else if (document.visibilityState === 'visible') {
+            handleTabVisible();
+        }
+    });
+
+    window.addEventListener("pageshow", () => {
+        if (testActive && document.visibilityState === 'visible') {
+            handleTabVisible();
         }
     });
 
