@@ -655,10 +655,13 @@ async function renderLivePdf(data) {
         const pdfLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
         if (!pdfLib) throw new Error('PDF.js library did not load');
 
+        if (pdfLib.GlobalWorkerOptions && !pdfLib.GlobalWorkerOptions.workerSrc) {
+            pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        }
+
         // Uses in-memory pdfjsWorker loaded via nonced <script> tag — 100% CSP-safe on Chrome, Firefox, Android & iOS
         const loadingTask = pdfLib.getDocument({
             data: new Uint8Array(arrayBuf),
-            disableWorker: true,
             isEvalSupported: false,
             useSystemFonts: true
         });
