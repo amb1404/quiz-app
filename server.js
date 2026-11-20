@@ -336,23 +336,36 @@ class StateStore {
 }
 
 const stateStore = new StateStore();
+const localRoomBoardQueues = new Map();
+
 async function updateBoardSecurely(cleanId, updateFn) {
+    const prev = localRoomBoardQueues.get(cleanId) || Promise.resolve();
+    let releaseLocal;
+    const current = new Promise(resolve => { releaseLocal = resolve; });
+    const chained = prev.then(() => current);
+    localRoomBoardQueues.set(cleanId, chained);
+
+    await prev;
     const lockKey = `live:lock:${cleanId}`;
     let acquired = false;
-    for (let i = 0; i < 50; i++) {
-        acquired = await stateStore.setNx(lockKey, '1', 5);
-        if (acquired) break;
-        await new Promise(r => setTimeout(r, 100));
-    }
-    if (!acquired) throw new Error('Data collision lock timeout');
-
     try {
+        for (let i = 0; i < 80; i++) {
+            acquired = await stateStore.setNx(lockKey, '1', 5);
+            if (acquired) break;
+            await new Promise(r => setTimeout(r, 40 + Math.floor(Math.random() * 50)));
+        }
+        if (!acquired) throw new Error('Data collision lock timeout');
+
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         let board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const newBoard = updateFn(board);
         if (newBoard) await stateStore.set(`live:board:${cleanId}`, newBoard, 60 * 60 * 8);
     } finally {
-        await stateStore.del(lockKey);
+        if (acquired) await stateStore.del(lockKey).catch(() => {});
+        releaseLocal();
+        if (localRoomBoardQueues.get(cleanId) === chained) {
+            localRoomBoardQueues.delete(cleanId);
+        }
     }
 }
 // ============================================================================
@@ -4460,7 +4473,9 @@ async function emitRoomStateToAll(cleanId, forceRefresh = false) {
     }
 }
 
-async function emitAdminBoard(cleanId) {
+const adminBoardEmitState = new Map();
+
+async function flushAdminBoardNow(cleanId) {
     const rawBoard = await stateStore.get(`live:board:${cleanId}`);
     const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
     const payload = await buildLiveStatePayload(cleanId);
@@ -4470,6 +4485,32 @@ async function emitAdminBoard(cleanId) {
         activeQuizFile: payload ? payload.activeQuizFile : '',
         totalQuestions: payload ? payload.totalQuestions : 0
     });
+}
+
+async function emitAdminBoard(cleanId) {
+    const now = Date.now();
+    let st = adminBoardEmitState.get(cleanId);
+    if (!st) {
+        st = { lastSentAt: 0, timer: null };
+        adminBoardEmitState.set(cleanId, st);
+    }
+    const elapsed = now - st.lastSentAt;
+    if (elapsed >= 150 && !st.timer) {
+        st.lastSentAt = now;
+        await flushAdminBoardNow(cleanId);
+        return;
+    }
+    if (!st.timer) {
+        const waitMs = Math.max(20, 150 - elapsed);
+        st.timer = setTimeout(async () => {
+            st.timer = null;
+            st.lastSentAt = Date.now();
+            try { await flushAdminBoardNow(cleanId); } catch (e) {}
+            if (!st.timer && Date.now() - st.lastSentAt > 60000) {
+                adminBoardEmitState.delete(cleanId);
+            }
+        }, waitMs);
+    }
 }
 
 // Step 1: Admin Creates a Named Room (resumes intact if an active room with the same name already exists)

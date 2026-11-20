@@ -192,6 +192,7 @@ let socket = null;
 let lastRenderedKey = "";
 
 function applyBroadcastModeUI(mode) {
+    window.currentBroadcastMode = (mode === 'presentation' || mode === 'both') ? mode : 'question';
     const presScreen = document.getElementById('presentation-screen');
     const quizScreen = document.getElementById('quiz-screen');
     document.body.classList.remove('rtc-presentation-active', 'rtc-both-active');
@@ -614,8 +615,12 @@ const _PDF_MAX_ZOOM = 3;
 
 function computeSafePdfScale(baseWidth, baseHeight, desiredCssWidth, dpr) {
     const rawScale = (desiredCssWidth / baseWidth) * dpr;
-    const maxByDim = Math.min(2400 / baseWidth, 3400 / baseHeight);
-    const maxByArea = Math.sqrt(6500000 / (baseWidth * baseHeight));
+    const isLowPowerMobile = _isMobileBrowser || (navigator.deviceMemory && navigator.deviceMemory <= 4);
+    const maxW = isLowPowerMobile ? 1800 : 2400;
+    const maxH = isLowPowerMobile ? 2600 : 3400;
+    const maxArea = isLowPowerMobile ? 3800000 : 6500000;
+    const maxByDim = Math.min(maxW / baseWidth, maxH / baseHeight);
+    const maxByArea = Math.sqrt(maxArea / (baseWidth * baseHeight));
     return Math.max(0.5, Math.min(rawScale, maxByDim, maxByArea));
 }
 
@@ -678,12 +683,29 @@ async function rerenderVisiblePdfPagesSharp() {
         }
     }
 
+    // Cancel any previous in-flight page render immediately so zooming/scrolling stays responsive
+    for (const entry of _pdfPageEntries) {
+        if (entry.activeRenderTask) {
+            try { entry.activeRenderTask.cancel(); } catch (e) {}
+            entry.activeRenderTask = null;
+        }
+    }
+
     // Reclaim mobile GPU memory from far-offscreen zoomed pages before allocating new high-res canvases
-    if (farHighResEntries.length > 4) {
+    const maxCachedHiRes = _isMobileBrowser ? 2 : 4;
+    if (farHighResEntries.length > maxCachedHiRes) {
         for (const oldEntry of farHighResEntries) {
             downscalePdfEntryToBase(oldEntry);
         }
     }
+
+    // Prioritize sharpening the page closest to the center of the student's screen first
+    const viewerCenterY = (viewerRect.top + viewerRect.bottom) / 2;
+    visibleEntries.sort((a, b) => {
+        const ra = a.canvas.getBoundingClientRect();
+        const rb = b.canvas.getBoundingClientRect();
+        return Math.abs(((ra.top + ra.bottom) / 2) - viewerCenterY) - Math.abs(((rb.top + rb.bottom) / 2) - viewerCenterY);
+    });
 
     for (const entry of visibleEntries) {
         if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen || !_activePdfDoc) return;
@@ -702,6 +724,10 @@ async function rerenderVisiblePdfPagesSharp() {
         }
 
         try {
+            // Yield one animation frame so touch scrolling never stiffens on budget phones
+            await new Promise(r => requestAnimationFrame(r));
+            if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen || !_activePdfDoc) return;
+
             const page = await _activePdfDoc.getPage(entry.pageNum);
             if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen) return;
 
@@ -713,7 +739,11 @@ async function rerenderVisiblePdfPagesSharp() {
             hiResCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
             const ctx = hiResCanvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            const renderTask = page.render({ canvasContext: ctx, viewport });
+            entry.activeRenderTask = renderTask;
+            await renderTask.promise;
+            entry.activeRenderTask = null;
+
             if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen || !entry.canvas.parentNode) {
                 hiResCanvas.width = 0;
                 hiResCanvas.height = 0;
@@ -726,7 +756,9 @@ async function rerenderVisiblePdfPagesSharp() {
             oldCanvas.height = 0;
             entry.canvas = hiResCanvas;
             entry.renderedScale = targetScale;
-        } catch (e) {}
+        } catch (e) {
+            entry.activeRenderTask = null;
+        }
     }
 }
 

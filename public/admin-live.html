@@ -122,6 +122,7 @@
         <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & HD Voice Console:</strong>
         <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
         <button id="btn-admin-audio" class="stream-btn" type="button">🎙️ Audio: OFF</button>
+        <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Students Audio: ON</button>
         <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
         <span id="admin-caller-badge">🎧 No active student calls</span>
     </div>
@@ -264,6 +265,10 @@
     let connectingPromise = null;
     let isRepublishingTracks = false;
     let adminReplacedByOtherDevice = false;
+    let adminSpeakersManualMuted = false;
+    let adminSilencedByOtherTab = false;
+    const adminTabId = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    let adminFocusChannel = null;
     const activeStudentAudioEls = new Map();
 
     const ADMIN_PANEL_STORAGE_KEY = 'pp_admin_panel_state';
@@ -283,6 +288,21 @@
     function refreshAdminCallerBadge() {
         const badge = document.getElementById('admin-caller-badge');
         if (!badge) return;
+        if (adminReplacedByOtherDevice) {
+            badge.textContent = '⚠️ This room is active on another tab/device';
+            badge.classList.remove('calling');
+            return;
+        }
+        if (adminSilencedByOtherTab) {
+            badge.textContent = '🔇 Room audio paused (Active in another room tab)';
+            badge.classList.remove('calling');
+            return;
+        }
+        if (adminSpeakersManualMuted) {
+            badge.textContent = '🔇 Students audio muted in this room';
+            badge.classList.remove('calling');
+            return;
+        }
         if (activeStudentAudioEls.size === 0) {
             badge.textContent = '🎧 No active student calls';
             badge.classList.remove('calling');
@@ -293,6 +313,56 @@
             badge.classList.add('calling');
         }
     }
+
+    function applyAdminIncomingAudioMuteState() {
+        const shouldMute = adminSpeakersManualMuted || adminSilencedByOtherTab;
+        const spkBtn = document.getElementById('btn-admin-speakers');
+        if (spkBtn) {
+            spkBtn.textContent = adminSpeakersManualMuted ? '🔇 Students Audio: OFF' : '🔊 Students Audio: ON';
+            spkBtn.classList.toggle('active-mic', !adminSpeakersManualMuted);
+        }
+        activeStudentAudioEls.forEach((el) => {
+            el.muted = shouldMute;
+            if (!shouldMute && el.paused) el.play().catch(() => {});
+        });
+        refreshAdminCallerBadge();
+    }
+
+    function notifyThisAdminTabFocused() {
+        const { quizId } = getAdminCreds();
+        if (!quizId || adminReplacedByOtherDevice) return;
+        if (adminSilencedByOtherTab) {
+            adminSilencedByOtherTab = false;
+            applyAdminIncomingAudioMuteState();
+        }
+        if (adminFocusChannel) {
+            try { adminFocusChannel.postMessage({ type: 'admin-focus', tabId: adminTabId, quizId }); } catch (e) {}
+        }
+    }
+
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            adminFocusChannel = new BroadcastChannel('pp_admin_live_focus');
+            adminFocusChannel.onmessage = (ev) => {
+                const msg = ev && ev.data;
+                if (!msg || msg.type !== 'admin-focus' || msg.tabId === adminTabId) return;
+                const { quizId } = getAdminCreds();
+                if (quizId && msg.quizId && msg.quizId !== quizId) {
+                    adminSilencedByOtherTab = true;
+                    applyAdminIncomingAudioMuteState();
+                }
+            };
+        }
+    } catch (e) {}
+
+    window.addEventListener('focus', notifyThisAdminTabFocused);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') notifyThisAdminTabFocused();
+    });
+    document.getElementById('btn-admin-speakers')?.addEventListener('click', () => {
+        adminSpeakersManualMuted = !adminSpeakersManualMuted;
+        applyAdminIncomingAudioMuteState();
+    });
 
     function findPublishedTrack(publicationsMap, nativeTrack, expectedName) {
         for (const pub of publicationsMap.values()) {
@@ -453,7 +523,7 @@
                         const audioEl = document.createElement('audio');
                         audioEl.autoplay = true;
                         audioEl.playsInline = true;
-                        audioEl.muted = false;
+                        audioEl.muted = (adminSpeakersManualMuted || adminSilencedByOtherTab);
                         audioEl.volume = 1.0;
                         pub.track.attach(audioEl);
                         document.body.appendChild(audioEl);
@@ -516,7 +586,7 @@
             const audioEl = document.createElement('audio');
             audioEl.autoplay = true;
             audioEl.playsInline = true;
-            audioEl.muted = false;
+            audioEl.muted = (adminSpeakersManualMuted || adminSilencedByOtherTab);
             audioEl.volume = 1.0;
             track.attach(audioEl);
             document.body.appendChild(audioEl);
@@ -583,24 +653,32 @@
             b.style.borderColor = 'transparent';
         });
 
+        const hasLiveScreen = Boolean(currentScreenTrack && currentScreenTrack.readyState === 'live');
         if (broadcastMode === 'presentation') {
             btnPpt.style.background = '#7c3aed';
-            btnPpt.style.borderColor = '#c4b5fd';
-            modeBadge.textContent = '📌 Showing: Live Presentation (PPT)';
-            modeBadge.style.color = '#c4b5fd';
+            btnPpt.style.borderColor = hasLiveScreen ? '#c4b5fd' : '#f59e0b';
+            modeBadge.textContent = hasLiveScreen
+                ? '📌 Showing: Live Presentation (PPT)'
+                : '⚠️ PPT Paused (Rejoined) — Click PPT Button to Re-Share Slides';
+            modeBadge.style.color = hasLiveScreen ? '#c4b5fd' : '#fbbf24';
+            modeBadge.style.borderColor = hasLiveScreen ? '#334155' : '#f59e0b';
         } else if (broadcastMode === 'both') {
             btnBoth.style.background = '#059669';
-            btnBoth.style.borderColor = '#6ee7b7';
-            modeBadge.textContent = '📌 Showing: PPT + Question Together';
-            modeBadge.style.color = '#6ee7b7';
+            btnBoth.style.borderColor = hasLiveScreen ? '#6ee7b7' : '#f59e0b';
+            modeBadge.textContent = hasLiveScreen
+                ? '📌 Showing: PPT + Question Together'
+                : '⚠️ PPT Paused (Rejoined) — Click Cast Together to Re-Share Slides';
+            modeBadge.style.color = hasLiveScreen ? '#6ee7b7' : '#fbbf24';
+            modeBadge.style.borderColor = hasLiveScreen ? '#334155' : '#f59e0b';
         } else {
             btnQ.style.background = '#2563eb';
             btnQ.style.borderColor = '#60a5fa';
             modeBadge.textContent = '📌 Showing: Question Card';
             modeBadge.style.color = '#60a5fa';
+            modeBadge.style.borderColor = '#334155';
         }
 
-        btnReselect.style.display = (currentScreenTrack && currentScreenTrack.readyState === 'live') ? 'inline-block' : 'none';
+        btnReselect.style.display = hasLiveScreen ? 'inline-block' : 'none';
         updateMediaButtonsUI();
     }
 
@@ -708,7 +786,10 @@
             const selfVideoEl = document.getElementById('admin-self-video');
             if (selfVideoEl) selfVideoEl.srcObject = null;
             videoEnabled = false;
-            alert("Camera Error: " + err.message);
+            const isBusyCam = err && (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.name === 'AbortError');
+            alert(isBusyCam
+                ? "Camera is busy in another browser/app. Turn Video OFF (Ctrl+D) in the other browser first, then try again."
+                : ("Camera Error: " + err.message));
         } finally {
             isVideoToggling = false;
             if (btnVideo) btnVideo.disabled = false;
@@ -742,55 +823,54 @@
                 await ensureRoomConnected(quizId, true);
                 if (room.state !== 'connected') throw new Error("Live room connection is not ready.");
 
-                rawMicStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-                currentMicTrack = rawMicStream.getAudioTracks()[0];
-                currentMicTrack.enabled = true;
-
-                currentMicTrack.onended = () => {
-                    if (audioEnabled) {
-                        currentMicTrack = null;
-                        rawMicStream = null;
-                        audioEnabled = false;
-                        updateMediaButtonsUI();
-                    }
-                };
-
-                const staleMicPub = findPublishedTrack(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
-                if (staleMicPub && staleMicPub.track) {
-                    try { await room.localParticipant.unpublishTrack(staleMicPub.track); } catch (e) {}
+                // Keep existing live mic track published (zero Bluetooth A2DP/HFP dropout & zero iOS autoplay re-block)
+                const hasLiveMic = Boolean(currentMicTrack && currentMicTrack.readyState === 'live');
+                if (!hasLiveMic) {
+                    rawMicStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                    currentMicTrack = rawMicStream.getAudioTracks()[0];
+                    currentMicTrack.onended = () => {
+                        if (audioEnabled) {
+                            currentMicTrack = null;
+                            rawMicStream = null;
+                            audioEnabled = false;
+                            updateMediaButtonsUI();
+                        }
+                    };
                 }
-                await room.localParticipant.publishTrack(currentMicTrack, {
-                    name: 'mic',
-                    dtx: false,
-                    red: true
-                });
+
+                currentMicTrack.enabled = true;
+                const existingPub = findPublishedTrack(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
+                if (existingPub && isPublicationHealthy(existingPub)) {
+                    if (existingPub.isMuted && typeof existingPub.unmute === 'function') {
+                        try { await existingPub.unmute(); } catch (e) {}
+                    }
+                } else {
+                    if (existingPub && existingPub.track) {
+                        try { await room.localParticipant.unpublishTrack(existingPub.track); } catch (e) {}
+                    }
+                    await room.localParticipant.publishTrack(currentMicTrack, {
+                        name: 'mic',
+                        dtx: false,
+                        red: true
+                    });
+                }
 
                 audioEnabled = true;
+                notifyThisAdminTabFocused();
             } else {
                 audioEnabled = false;
-                const micPub = findPublishedTrack(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
-                try {
-                    if (room.state === 'connected') {
-                        if (micPub && micPub.track) {
-                            await room.localParticipant.unpublishTrack(micPub.track);
-                        } else if (currentMicTrack) {
-                            await room.localParticipant.unpublishTrack(currentMicTrack);
-                        }
-                    }
-                } catch (e) {}
                 if (currentMicTrack) {
-                    try { currentMicTrack.onended = null; currentMicTrack.stop(); } catch (e) {}
-                    currentMicTrack = null;
+                    currentMicTrack.enabled = false;
                 }
-                if (rawMicStream) {
-                    try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {}
-                    rawMicStream = null;
+                const micPub = findPublishedTrack(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
+                if (micPub && !micPub.isMuted && typeof micPub.mute === 'function') {
+                    try { await micPub.mute(); } catch (e) {}
                 }
             }
         } catch (err) {
