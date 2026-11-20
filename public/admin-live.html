@@ -288,6 +288,8 @@
         return { adminKey, quizId };
     }
 
+    const studentAudioSignalState = new Map(); // identity -> 'live' | 'silent' | 'connecting'
+
     function refreshAdminCallerBadge() {
         const badge = document.getElementById('admin-caller-badge');
         if (!badge) return;
@@ -309,16 +311,22 @@
         }
         if (activeStudentAudioEls.size === 0) {
             adminAudioAutoplayBlocked = false;
+            studentAudioSignalState.clear();
             badge.textContent = '🎧 No active student calls';
             badge.classList.remove('calling');
         } else {
-            const names = Array.from(activeStudentAudioEls.keys())
-                .map(id => id.replace(/_[a-z0-9]{4}$/i, ''));
+            const entries = Array.from(activeStudentAudioEls.keys()).map((id) => {
+                const cleanName = id.replace(/_[a-z0-9]{4}$/i, '');
+                const sig = studentAudioSignalState.get(id);
+                if (sig === 'live') return `${cleanName} (🔊 Live)`;
+                if (sig === 'silent') return `${cleanName} (No mic input)`;
+                return cleanName;
+            });
             if (adminAudioAutoplayBlocked) {
-                badge.textContent = `🔊 Click here to hear: ${names.join(', ')}`;
+                badge.textContent = `🔊 Click here to hear: ${entries.join(', ')}`;
                 badge.style.cursor = 'pointer';
             } else {
-                badge.textContent = `🟢 Student Speaking: ${names.join(', ')}`;
+                badge.textContent = `🟢 Student Speaking: ${entries.join(', ')}`;
             }
             badge.classList.add('calling');
         }
@@ -334,14 +342,21 @@
         activeStudentAudioEls.forEach((el) => {
             el.muted = shouldMute;
             el.volume = shouldMute ? 0 : 1.0;
-            if (shouldMute) {
-                try { el.pause(); } catch (e) {}
-            } else {
-                el.play().catch(() => {});
+            if (!shouldMute && el.paused) {
+                el.play().then(() => {
+                    adminAudioAutoplayBlocked = false;
+                    refreshAdminCallerBadge();
+                }).catch(() => {
+                    adminAudioAutoplayBlocked = true;
+                    refreshAdminCallerBadge();
+                });
             }
         });
         try {
             if (room && room.state === 'connected') {
+                if (!shouldMute) {
+                    try { room.startAudio(); } catch (e) {}
+                }
                 room.remoteParticipants.forEach((participant) => {
                     if (/^admin(_|$)/i.test(String(participant.identity || '').trim())) return;
                     participant.audioTrackPublications.forEach((pub) => {
@@ -350,7 +365,7 @@
                                 pub.track.setVolume(shouldMute ? 0 : 1);
                             }
                             if (pub.track.mediaStreamTrack) {
-                                pub.track.mediaStreamTrack.enabled = !shouldMute;
+                                pub.track.mediaStreamTrack.enabled = true;
                             }
                         }
                     });
@@ -555,7 +570,7 @@
         return null;
     }
 
-    async function attachOrUpdateStudentAudio(track, publication, participant) {
+    async function attachOrUpdateStudentAudio(track, publication, participant, isRecoveryPass = false) {
         if (!track || track.kind !== 'audio' || !participant) return;
         const rawIdentity = String(participant.identity || '').trim();
         if (!rawIdentity || /^admin(_|$)/i.test(rawIdentity)) return;
@@ -567,6 +582,7 @@
             if (blockedEl) {
                 try { track.detach(blockedEl); blockedEl.pause(); blockedEl.srcObject = null; blockedEl.remove(); } catch (e) {}
                 activeStudentAudioEls.delete(rawIdentity);
+                studentAudioSignalState.delete(rawIdentity);
                 refreshAdminCallerBadge();
             }
             return;
@@ -575,6 +591,8 @@
         const shouldMuteNow = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
         const existingEl = activeStudentAudioEls.get(rawIdentity);
         const mst = track.mediaStreamTrack || null;
+        if (mst) mst.enabled = true;
+
         const hasHealthyExisting = Boolean(
             existingEl &&
             document.body.contains(existingEl) &&
@@ -582,9 +600,6 @@
             mst &&
             existingEl.srcObject.getAudioTracks().some(t => (t === mst || t.id === mst.id) && t.readyState === 'live')
         );
-
-        if (typeof track.setVolume === 'function') track.setVolume(shouldMuteNow ? 0 : 1);
-        if (mst) mst.enabled = !shouldMuteNow;
 
         let audioEl = existingEl;
         if (!hasHealthyExisting) {
@@ -595,24 +610,32 @@
                     try { track.detach(oldEl); } catch (e) {}
                     try { oldEl.pause(); oldEl.srcObject = null; oldEl.remove(); } catch (e) {}
                     activeStudentAudioEls.delete(idKey);
+                    studentAudioSignalState.delete(idKey);
                 }
             }
+            // Append to DOM BEFORE attaching WebRTC stream (avoids Firefox/Safari detached-audio silence)
             audioEl = document.createElement('audio');
             audioEl.autoplay = true;
             audioEl.playsInline = true;
-            audioEl.style.display = 'none';
-            track.attach(audioEl);
+            audioEl.muted = shouldMuteNow;
+            audioEl.volume = shouldMuteNow ? 0 : 1.0;
+            audioEl.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;';
             document.body.appendChild(audioEl);
+            track.attach(audioEl);
+            if (!audioEl.srcObject && mst) {
+                audioEl.srcObject = new MediaStream([mst]);
+            }
             activeStudentAudioEls.set(rawIdentity, audioEl);
         }
 
+        if (typeof track.setVolume === 'function') track.setVolume(shouldMuteNow ? 0 : 1);
         audioEl.muted = shouldMuteNow;
         audioEl.volume = shouldMuteNow ? 0 : 1.0;
 
-        if (shouldMuteNow) {
-            try { audioEl.pause(); } catch (e) {}
-        } else {
-            try { await room.startAudio(); } catch (e) {}
+        if (!shouldMuteNow && (!isRecoveryPass || audioEl.paused)) {
+            if (!room.canPlaybackAudio) {
+                try { await room.startAudio(); } catch (e) {}
+            }
             audioEl.play().then(() => {
                 adminAudioAutoplayBlocked = false;
                 refreshAdminCallerBadge();
@@ -624,10 +647,11 @@
         refreshAdminCallerBadge();
     }
 
-    // Re-subscribe and repair any unmuted speaking student's audio across reconnects, unmutes, or autoplay blocks
-    function recoverActiveStudentAudioTracks() {
+    // Re-subscribe and repair any unmuted speaking student's audio + update live audio signal diagnostics
+    async function recoverActiveStudentAudioTracks() {
         if (room.state !== 'connected') return;
         try {
+            const statsJobs = [];
             room.remoteParticipants.forEach((participant) => {
                 const rawIdentity = String(participant.identity || '').trim();
                 if (!rawIdentity || /^admin(_|$)/i.test(rawIdentity)) return;
@@ -646,10 +670,33 @@
                         try { pub.setSubscribed(true); } catch (e) {}
                     }
                     if (pub.track && pub.track.kind === 'audio') {
-                        attachOrUpdateStudentAudio(pub.track, pub, participant);
+                        attachOrUpdateStudentAudio(pub.track, pub, participant, true);
+                        if (typeof pub.track.getRTCStatsReport === 'function') {
+                            statsJobs.push(
+                                pub.track.getRTCStatsReport().then((report) => {
+                                    if (!report) return;
+                                    let bytes = 0;
+                                    let energy = 0;
+                                    let level = 0;
+                                    report.forEach((s) => {
+                                        if (s.type === 'inbound-rtp' && (s.kind === 'audio' || s.mediaType === 'audio')) {
+                                            bytes = Math.max(bytes, Number(s.bytesReceived) || 0);
+                                            energy = Math.max(energy, Number(s.totalAudioEnergy) || 0);
+                                            level = Math.max(level, Number(s.audioLevel) || 0);
+                                        }
+                                    });
+                                    const nextSig = (energy > 0.0001 || level > 0.001) ? 'live' : (bytes > 0 ? 'silent' : 'connecting');
+                                    if (studentAudioSignalState.get(rawIdentity) !== nextSig) {
+                                        studentAudioSignalState.set(rawIdentity, nextSig);
+                                        refreshAdminCallerBadge();
+                                    }
+                                }).catch(() => {})
+                            );
+                        }
                     }
                 });
             });
+            if (statsJobs.length > 0) await Promise.all(statsJobs);
         } catch (e) {}
     }
 
@@ -670,7 +717,7 @@
 
     // Unlock browser WebRTC audio playback on any Admin dashboard interaction (respecting speaker mute)
     document.addEventListener('click', () => {
-        if (room.state === 'connected') {
+        if (room.state === 'connected' && !room.canPlaybackAudio) {
             try { room.startAudio(); } catch (e) {}
         }
         if (adminSpeakersManualMuted || adminSilencedByOtherTab) return;
@@ -706,7 +753,7 @@
     // Listen for any individual student speaking in the room (100% isolated per student)
     room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
         if (track.kind === 'audio') {
-            await attachOrUpdateStudentAudio(track, publication, participant);
+            await attachOrUpdateStudentAudio(track, publication, participant, false);
         }
     });
 
@@ -717,9 +764,12 @@
                 try { track.detach(el); el.remove(); } catch (e) {}
                 activeStudentAudioEls.delete(participant.identity);
             }
-            activeStudentAudioEls.forEach((remEl) => {
-                if (remEl.paused) remEl.play().catch(() => {});
-            });
+            studentAudioSignalState.delete(participant.identity);
+            if (!adminSpeakersManualMuted && !adminSilencedByOtherTab) {
+                activeStudentAudioEls.forEach((remEl) => {
+                    if (remEl.paused) remEl.play().catch(() => {});
+                });
+            }
             refreshAdminCallerBadge();
         }
     });
@@ -729,8 +779,9 @@
         if (el) {
             try { el.pause(); el.srcObject = null; el.remove(); } catch (e) {}
             activeStudentAudioEls.delete(participant.identity);
-            refreshAdminCallerBadge();
         }
+        studentAudioSignalState.delete(participant.identity);
+        refreshAdminCallerBadge();
     });
 
     function updateMediaButtonsUI() {

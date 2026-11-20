@@ -776,10 +776,14 @@
                 if (room.state !== 'connected' && typeof currentQuizId !== 'undefined' && currentQuizId) {
                     await connectLiveKit(currentQuizId);
                 }
+                if (_iosKeepAliveCtx && _iosKeepAliveCtx.state === 'running') {
+                    try { await _iosKeepAliveCtx.suspend(); } catch (err) {}
+                }
                 studentMicStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
                 });
                 studentMicTrack = studentMicStream.getAudioTracks()[0];
+                studentMicTrack.enabled = true;
                 studentMicTrack.onended = async () => {
                     await stopStudentMicOnly();
                     const callBtn = document.getElementById('btn-student-call');
@@ -787,21 +791,26 @@
                         callBtn.textContent = '📞 Speak';
                         callBtn.classList.remove('on-call');
                     }
+                    ensureIosBackgroundAudioKeepAlive();
                     await ensureAdminAudioPlaying();
                 };
+                const micSource = LivekitClient.Track && LivekitClient.Track.Source
+                    ? LivekitClient.Track.Source.Microphone
+                    : undefined;
                 await room.localParticipant.publishTrack(studentMicTrack, {
                     name: 'student_mic',
+                    source: micSource,
                     dtx: false,
-                    red: true
+                    red: false
                 });
                 e.target.textContent = '🔴 Mute Mic';
                 e.target.classList.add('on-call');
                 await ensureAdminAudioPlaying();
-                // Keep the gesture-unlocked <audio> element alive; just resume playback if mobile OS briefly paused it during mic switch
                 setTimeout(ensureAdminAudioPlaying, 250);
                 setTimeout(ensureAdminAudioPlaying, 800);
             } else {
                 await stopStudentMicOnly();
+                ensureIosBackgroundAudioKeepAlive();
                 e.target.textContent = '📞 Speak';
                 e.target.classList.remove('on-call');
                 await ensureAdminAudioPlaying();
