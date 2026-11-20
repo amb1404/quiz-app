@@ -309,7 +309,7 @@
     }
 
     async function republishAdminActiveTracks() {
-        if (room.state !== 'connected' || isRepublishingTracks || adminReplacedByOtherDevice) return;
+        if (room.state !== 'connected' || isRepublishingTracks || adminReplacedByOtherDevice || isVideoToggling || isMicToggling) return;
         isRepublishingTracks = true;
         try {
             if (audioEnabled && currentMicTrack && currentMicTrack.readyState === 'live') {
@@ -406,14 +406,25 @@
         if (connectingPromise) return await connectingPromise;
 
         connectingPromise = (async () => {
-            const { adminKey } = getAdminCreds();
-            const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin&adminKey=${encodeURIComponent(adminKey)}`);
-            if (!res.ok) throw new Error("API Keys missing or unauthorized.");
-            const { token } = await res.json();
-            await room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token);
-            try { await room.startAudio(); } catch (e) {}
-            await republishAdminActiveTracks();
-            recoverActiveStudentAudioTracks();
+            try {
+                const { adminKey } = getAdminCreds();
+                if (!adminKey) throw new Error("Admin Secret Key missing. Please re-enter it.");
+                const res = await fetch(`/api/livekit/token?quizId=${encodeURIComponent(quizId)}&studentName=admin&adminKey=${encodeURIComponent(adminKey)}`);
+                if (!res.ok) throw new Error("API Keys missing or unauthorized.");
+                const { token } = await res.json();
+                await Promise.race([
+                    room.connect('wss://pioneers-prep-efmg740j.livekit.cloud:443', token),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("LiveKit connection timed out. Please try again.")), 10000))
+                ]);
+                try { await room.startAudio(); } catch (e) {}
+                if (!isVideoToggling && !isMicToggling) {
+                    await republishAdminActiveTracks();
+                }
+                recoverActiveStudentAudioTracks();
+            } catch (err) {
+                try { await room.disconnect(); } catch (e) {}
+                throw err;
+            }
         })();
 
         try {
@@ -457,7 +468,7 @@
 
     // Automatically connect Admin to LiveKit and verify active tracks stay published
     setInterval(() => {
-        if (adminReplacedByOtherDevice) return;
+        if (adminReplacedByOtherDevice || isVideoToggling || isMicToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         const controlPanel = document.getElementById('control-panel');
         if (adminKey && quizId && controlPanel && controlPanel.style.display !== 'none') {
@@ -610,13 +621,18 @@
         }).catch(() => {});
     }
 
-    // 1. Dedicated Camera Button Handler (Shows PIP & plays local preview FIRST, then publishes to LiveKit)
+    // 1. Dedicated Camera Button Handler (Shows PIP & plays local preview FIRST, then publishes cleanly without duplicate tracks)
     document.getElementById('btn-admin-video').addEventListener('click', async () => {
         if (isVideoToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
 
+        const btnVideo = document.getElementById('btn-admin-video');
         isVideoToggling = true;
+        if (btnVideo) {
+            btnVideo.disabled = true;
+            btnVideo.textContent = videoEnabled ? '📹 Stopping...' : '📹 Starting...';
+        }
         try {
             if (!videoEnabled) {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -630,51 +646,73 @@
                 if ('contentHint' in currentCamTrack) {
                     currentCamTrack.contentHint = 'motion';
                 }
-
-                // Make PIP container visible BEFORE attaching srcObject & calling play()
-                videoEnabled = true;
-                updateMediaButtonsUI();
+                currentCamTrack.onended = () => {
+                    if (videoEnabled) {
+                        currentCamTrack = null;
+                        videoEnabled = false;
+                        const sv = document.getElementById('admin-self-video');
+                        if (sv) sv.srcObject = null;
+                        updateMediaButtonsUI();
+                    }
+                };
 
                 const selfVideoEl = document.getElementById('admin-self-video');
+                const pipBox = document.getElementById('admin-pip-box');
+                if (pipBox) pipBox.style.display = 'flex';
                 if (selfVideoEl) {
                     selfVideoEl.srcObject = stream;
                     selfVideoEl.muted = true;
                     await selfVideoEl.play().catch(() => {});
                 }
 
-                // Connect & publish to LiveKit without blocking local self-view
-                try {
-                    await ensureRoomConnected(quizId);
-                    await room.localParticipant.publishTrack(currentCamTrack, {
-                        name: 'camera',
-                        simulcast: false,
-                        videoEncoding: {
-                            maxBitrate: 220_000,
-                            maxFramerate: 20
-                        }
-                    });
-                } catch (rtcErr) {
-                    console.warn("LiveKit publish notice:", rtcErr);
+                await ensureRoomConnected(quizId, true);
+                if (room.state !== 'connected') throw new Error("Live room connection is not ready.");
+
+                const staleCamPub = findPublishedTrack(room.localParticipant.videoTrackPublications, currentCamTrack, 'camera');
+                if (staleCamPub && staleCamPub.track) {
+                    try { await room.localParticipant.unpublishTrack(staleCamPub.track); } catch (e) {}
                 }
+                await room.localParticipant.publishTrack(currentCamTrack, {
+                    name: 'camera',
+                    simulcast: false,
+                    videoEncoding: {
+                        maxBitrate: 220_000,
+                        maxFramerate: 20
+                    }
+                });
+                videoEnabled = true;
             } else {
+                videoEnabled = false;
+                const camPub = findPublishedTrack(room.localParticipant.videoTrackPublications, currentCamTrack, 'camera');
+                try {
+                    if (room.state === 'connected') {
+                        if (camPub && camPub.track) {
+                            await room.localParticipant.unpublishTrack(camPub.track);
+                        } else if (currentCamTrack) {
+                            await room.localParticipant.unpublishTrack(currentCamTrack);
+                        }
+                    }
+                } catch (e) {}
                 if (currentCamTrack) {
-                    try {
-                        if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentCamTrack);
-                    } catch (e) {}
-                    currentCamTrack.stop();
+                    try { currentCamTrack.onended = null; currentCamTrack.stop(); } catch (e) {}
                     currentCamTrack = null;
                 }
                 const selfVideoEl = document.getElementById('admin-self-video');
                 if (selfVideoEl) selfVideoEl.srcObject = null;
-                videoEnabled = false;
-                updateMediaButtonsUI();
             }
         } catch (err) {
+            if (currentCamTrack) {
+                try { currentCamTrack.onended = null; currentCamTrack.stop(); } catch (e) {}
+                currentCamTrack = null;
+            }
+            const selfVideoEl = document.getElementById('admin-self-video');
+            if (selfVideoEl) selfVideoEl.srcObject = null;
             videoEnabled = false;
-            updateMediaButtonsUI();
             alert("Camera Error: " + err.message);
         } finally {
             isVideoToggling = false;
+            if (btnVideo) btnVideo.disabled = false;
+            updateMediaButtonsUI();
         }
     });
 
@@ -688,7 +726,12 @@
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
 
+        const btnAudio = document.getElementById('btn-admin-audio');
         isMicToggling = true;
+        if (btnAudio) {
+            btnAudio.disabled = true;
+            btnAudio.textContent = audioEnabled ? '🎙️ Muting...' : '🎙️ Starting...';
+        }
         try {
             if (micMuteTimeout) {
                 clearTimeout(micMuteTimeout);
@@ -697,6 +740,7 @@
 
             if (!audioEnabled) {
                 await ensureRoomConnected(quizId, true);
+                if (room.state !== 'connected') throw new Error("Live room connection is not ready.");
 
                 rawMicStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
@@ -717,6 +761,10 @@
                     }
                 };
 
+                const staleMicPub = findPublishedTrack(room.localParticipant.audioTrackPublications, currentMicTrack, 'mic');
+                if (staleMicPub && staleMicPub.track) {
+                    try { await room.localParticipant.unpublishTrack(staleMicPub.track); } catch (e) {}
+                }
                 await room.localParticipant.publishTrack(currentMicTrack, {
                     name: 'mic',
                     dtx: false,
@@ -745,13 +793,21 @@
                     rawMicStream = null;
                 }
             }
-            updateMediaButtonsUI();
         } catch (err) {
+            if (currentMicTrack) {
+                try { currentMicTrack.onended = null; currentMicTrack.stop(); } catch (e) {}
+                currentMicTrack = null;
+            }
+            if (rawMicStream) {
+                try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                rawMicStream = null;
+            }
             audioEnabled = false;
-            updateMediaButtonsUI();
             alert("Microphone Error: " + err.message);
         } finally {
             isMicToggling = false;
+            if (btnAudio) btnAudio.disabled = false;
+            updateMediaButtonsUI();
         }
     });
 
@@ -899,12 +955,18 @@
     }
     window.stopAdminBroadcastStream = stopAdminBroadcastStream;
 
-    // Immediately release LiveKit tracks on accidental tab closure so student feeds go blank without freezing
-    window.addEventListener('pagehide', () => {
+    // Immediately release hardware mic/cam/screen handles & LiveKit tracks on refresh or accidental tab closure
+    function releaseHardwareAndSocketOnUnload() {
+        if (currentCamTrack) { try { currentCamTrack.onended = null; currentCamTrack.stop(); } catch (e) {} currentCamTrack = null; }
+        if (currentMicTrack) { try { currentMicTrack.onended = null; currentMicTrack.stop(); } catch (e) {} currentMicTrack = null; }
+        if (rawMicStream) { try { rawMicStream.getTracks().forEach(t => t.stop()); } catch (e) {} rawMicStream = null; }
+        if (currentScreenTrack) { try { currentScreenTrack.onended = null; currentScreenTrack.stop(); } catch (e) {} currentScreenTrack = null; }
         if (!adminReplacedByOtherDevice && room.state !== 'disconnected') {
             try { room.disconnect(); } catch (e) {}
         }
-    });
+    }
+    window.addEventListener('pagehide', releaseHardwareAndSocketOnUnload);
+    window.addEventListener('beforeunload', releaseHardwareAndSocketOnUnload);
 
     document.getElementById('btn-admin-stop-stream').addEventListener('click', async () => {
         await stopAdminBroadcastStream(true);
@@ -1214,6 +1276,14 @@
                 if (typeof window.startDashboardSync === 'function') {
                     window.startDashboardSync();
                 }
+
+                // Immediately pre-connect LiveKit on refresh so Audio & Video buttons respond instantly
+                try {
+                    const savedRoom = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
+                    if (savedRoom.quizId) {
+                        ensureRoomConnected(savedRoom.quizId, true).catch(() => {});
+                    }
+                } catch (e) {}
 
                 await initAllJsonDropdown(saved.selectedAnalyticsJson || '');
 
