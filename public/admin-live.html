@@ -258,6 +258,7 @@
     let audioEnabled = false;
     let isVideoToggling = false;
     let isAudioToggling = false;
+    let isScreenToggling = false;
     let broadcastMode = 'question';
     let currentCamTrack = null;
     let currentMicTrack = null;
@@ -405,7 +406,7 @@
     }
 
     async function republishAdminActiveTracks() {
-        if (room.state !== 'connected' || isRepublishingTracks || adminReplacedByOtherDevice || isVideoToggling || isMicToggling) return;
+        if (room.state !== 'connected' || isRepublishingTracks || adminReplacedByOtherDevice || isVideoToggling || isMicToggling || isScreenToggling) return;
         isRepublishingTracks = true;
         try {
             if (audioEnabled && currentMicTrack && currentMicTrack.readyState === 'live') {
@@ -513,7 +514,7 @@
                     new Promise((_, reject) => setTimeout(() => reject(new Error("LiveKit connection timed out. Please try again.")), 10000))
                 ]);
                 try { await room.startAudio(); } catch (e) {}
-                if (!isVideoToggling && !isMicToggling) {
+                if (!isVideoToggling && !isMicToggling && !isScreenToggling) {
                     await republishAdminActiveTracks();
                 }
                 recoverActiveStudentAudioTracks();
@@ -564,7 +565,7 @@
 
     // Automatically connect Admin to LiveKit and verify active tracks stay published
     setInterval(() => {
-        if (adminReplacedByOtherDevice || isVideoToggling || isMicToggling) return;
+        if (adminReplacedByOtherDevice || isVideoToggling || isMicToggling || isScreenToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         const controlPanel = document.getElementById('control-panel');
         if (adminKey && quizId && controlPanel && controlPanel.style.display !== 'none') {
@@ -921,10 +922,15 @@
         }
     });
 
-    // 3. Dedicated Screen Share / PPT Helper
+    // 3. Dedicated Screen Share / PPT Helper (Race-free window switching across Firefox, Chrome & Edge)
     async function activatePptBroadcastMode(targetMode, forceNewWindow = false) {
+        if (isScreenToggling) return;
         const { adminKey, quizId } = getAdminCreds();
         if (!adminKey || !quizId) return alert("Please launch a room first.");
+
+        isScreenToggling = true;
+        const reselectBtn = document.getElementById('btn-reselect-ppt');
+        if (reselectBtn) reselectBtn.disabled = true;
 
         try {
             let newScreenStream = null;
@@ -941,26 +947,53 @@
                 });
             }
 
-            await ensureRoomConnected(quizId);
+            await ensureRoomConnected(quizId, true);
 
             if (newScreenStream) {
-                if (currentScreenTrack) {
-                    if (room.state === 'connected') await room.localParticipant.unpublishTrack(currentScreenTrack);
-                    currentScreenTrack.stop();
-                }
-                currentScreenTrack = newScreenStream.getVideoTracks()[0];
-                if ('contentHint' in currentScreenTrack) {
-                    currentScreenTrack.contentHint = 'detail';
-                }
-                await currentScreenTrack.applyConstraints({
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    frameRate: { ideal: 15, max: 15 }
-                }).catch(() => {});
+                const screenSource = LivekitClient.Track && LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined;
+                const oldTrack = currentScreenTrack;
+                let unpublishedOld = false;
 
-                await room.localParticipant.publishTrack(currentScreenTrack, {
+                // Detach old onended before stopping so it can NEVER kill the new window
+                if (oldTrack) {
+                    try { oldTrack.onended = null; } catch (e) {}
+                }
+
+                // Unpublish every existing screen publication cleanly
+                if (room.state === 'connected') {
+                    const existingScreenPubs = [];
+                    room.localParticipant.videoTrackPublications.forEach((pub) => {
+                        const isScr = pub.trackName === 'screen' ||
+                            (screenSource && pub.source === screenSource) ||
+                            (oldTrack && (pub.track === oldTrack || pub.track?.mediaStreamTrack === oldTrack));
+                        if (isScr && pub.track) existingScreenPubs.push(pub.track);
+                    });
+                    for (const pubTrack of existingScreenPubs) {
+                        try {
+                            await room.localParticipant.unpublishTrack(pubTrack);
+                            unpublishedOld = true;
+                        } catch (e) {}
+                    }
+                }
+                if (oldTrack) {
+                    try { oldTrack.stop(); } catch (e) {}
+                }
+                currentScreenTrack = null;
+
+                // Brief settle so LiveKit SFU flushes TrackUnpublished before publishing the new window SID
+                if (unpublishedOld) {
+                    await new Promise(r => setTimeout(r, 180));
+                }
+
+                const nextTrack = newScreenStream.getVideoTracks()[0];
+                currentScreenTrack = nextTrack;
+                if ('contentHint' in nextTrack) {
+                    nextTrack.contentHint = 'detail';
+                }
+
+                await room.localParticipant.publishTrack(nextTrack, {
                     name: 'screen',
-                    source: LivekitClient.Track.Source ? LivekitClient.Track.Source.ScreenShare : undefined,
+                    source: screenSource,
                     simulcast: false,
                     degradationPreference: 'maintain-resolution',
                     videoEncoding: {
@@ -973,16 +1006,21 @@
                     }
                 });
 
-                currentScreenTrack.onended = async () => {
+                nextTrack.onended = async () => {
+                    if (currentScreenTrack !== nextTrack) return;
                     try {
-                        if (room.state === 'connected' && currentScreenTrack) {
-                            await room.localParticipant.unpublishTrack(currentScreenTrack);
+                        if (room.state === 'connected') {
+                            const pub = findPublishedTrack(room.localParticipant.videoTrackPublications, nextTrack, 'screen');
+                            if (pub && pub.track) await room.localParticipant.unpublishTrack(pub.track);
+                            else await room.localParticipant.unpublishTrack(nextTrack);
                         }
                     } catch (e) {}
-                    currentScreenTrack = null;
-                    broadcastMode = 'question';
-                    updateModeConsoleUI();
-                    await syncModeToServer();
+                    if (currentScreenTrack === nextTrack) {
+                        currentScreenTrack = null;
+                        broadcastMode = 'question';
+                        updateModeConsoleUI();
+                        await syncModeToServer();
+                    }
                 };
             }
 
@@ -991,6 +1029,9 @@
             await syncModeToServer();
         } catch (err) {
             alert("Screen Share cancelled or failed: " + err.message);
+        } finally {
+            isScreenToggling = false;
+            if (reselectBtn) reselectBtn.disabled = false;
         }
     }
 

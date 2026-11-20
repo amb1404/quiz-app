@@ -127,6 +127,9 @@
         dynacast: false
     });
     let activeAudioEl = null;
+    let activeScreenTrack = null;
+    let activeScreenTrackSid = null;
+    let screenWatchdogTimer = null;
     let studentMicTrack = null;
     let studentMicStream = null;
     let isConnectingLiveKit = false;
@@ -220,10 +223,11 @@
                     if (typeof pub.setSubscribed === 'function' && pub.isSubscribed !== wantSub) {
                         pub.setSubscribed(wantSub);
                     }
-                    if (wantSub && pub.track) {
+                    const mst = pub.track && pub.track.mediaStreamTrack;
+                    if (wantSub && pub.track && (!mst || mst.readyState !== 'ended')) {
                         attachAdminTrackToDOM(pub.track, pub);
                     } else if (isScreen && !wantSub) {
-                        clearAdminTrackFromDOM('video', true, pub.track || null);
+                        clearAdminTrackFromDOM('video', true, pub.track || null, pub.trackSid || null);
                     }
                 }
             });
@@ -282,10 +286,22 @@
             if (isScreenTrack) {
                 const pptVideo = document.getElementById('student-ppt-video');
                 if (pptVideo) {
+                    const pubSid = publication.trackSid || track.sid || '';
+                    const isSameTrack = Boolean(activeScreenTrack === track && (!pubSid || activeScreenTrackSid === pubSid));
                     const livePptTracks = pptVideo.srcObject ? pptVideo.srcObject.getVideoTracks().filter(t => t.readyState === 'live') : [];
-                    const hasValidSrc = Boolean(pptVideo.srcObject && pptVideo.srcObject.active !== false && livePptTracks.length > 0);
-                    const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(pptVideo) && hasValidSrc;
-                    if (!alreadyAttached) {
+                    const hasMatchingTrack = Boolean(
+                        track.mediaStreamTrack &&
+                        livePptTracks.some(t => t === track.mediaStreamTrack || t.id === track.mediaStreamTrack.id)
+                    );
+                    const isActivelyRendering = hasMatchingTrack && !pptVideo.paused && pptVideo.readyState >= 2 && pptVideo.videoWidth > 0;
+
+                    if (!isSameTrack || !isActivelyRendering) {
+                        if (activeScreenTrack && activeScreenTrack !== track) {
+                            try { activeScreenTrack.detach(pptVideo); } catch (e) {}
+                        }
+                        activeScreenTrack = track;
+                        activeScreenTrackSid = pubSid || null;
+
                         try {
                             if (typeof publication.setVideoQuality === 'function' && LivekitClient.VideoQuality) {
                                 publication.setVideoQuality(LivekitClient.VideoQuality.HIGH);
@@ -294,12 +310,35 @@
                                 publication.setVideoDimensions({ width: 1920, height: 1080 });
                             }
                         } catch (e) {}
+
                         try { track.detach(pptVideo); } catch (e) {}
+                        pptVideo.srcObject = null;
                         track.attach(pptVideo);
+                        pptVideo.muted = true;
+                        pptVideo.playsInline = true;
+                        pptVideo.play().catch(() => {});
+
+                        if (screenWatchdogTimer) clearTimeout(screenWatchdogTimer);
+                        screenWatchdogTimer = setTimeout(() => {
+                            screenWatchdogTimer = null;
+                            if (activeScreenTrack !== track) return;
+                            const v = document.getElementById('student-ppt-video');
+                            if (!v || !track.mediaStreamTrack || track.mediaStreamTrack.readyState !== 'live') return;
+                            if (v.paused || v.readyState < 2 || v.videoWidth === 0) {
+                                try { track.detach(v); } catch (e) {}
+                                v.srcObject = new MediaStream([track.mediaStreamTrack]);
+                                v.muted = true;
+                                v.playsInline = true;
+                                v.play().catch(() => {});
+                            }
+                        }, 700);
                     }
+
                     pptVideo.muted = true;
-                    setPptPlaceholderVisible(false);
-                    if (pptVideo.paused || pptVideo.readyState < 2) {
+                    if (pptVideo.readyState >= 2 && pptVideo.videoWidth > 0) {
+                        setPptPlaceholderVisible(false);
+                    }
+                    if (pptVideo.paused) {
                         pptVideo.play().catch(() => {});
                     }
                 }
@@ -355,14 +394,26 @@
         if (!videoEl) return;
         try { videoEl.pause(); } catch (e) {}
         videoEl.srcObject = null;
-        try { videoEl.load(); } catch (e) {}
     }
 
-    function clearAdminTrackFromDOM(kind, isScreenTrack, track = null) {
+    function clearAdminTrackFromDOM(kind, isScreenTrack, track = null, trackSid = null) {
         if (kind === 'video') {
             if (isScreenTrack) {
-                JavaScript
-
+                // Ignore stale cleanup events from a previous PPT window once a newer window is active
+                if (trackSid && activeScreenTrackSid && trackSid !== activeScreenTrackSid) {
+                    if (track) { try { track.detach(); } catch (e) {} }
+                    return;
+                }
+                if (track && activeScreenTrack && track !== activeScreenTrack) {
+                    try { track.detach(); } catch (e) {}
+                    return;
+                }
+                if (screenWatchdogTimer) {
+                    clearTimeout(screenWatchdogTimer);
+                    screenWatchdogTimer = null;
+                }
+                activeScreenTrack = null;
+                activeScreenTrackSid = null;
                 const pptVid = document.getElementById('student-ppt-video');
                 if (pptVid) {
                     if (track) { try { track.detach(pptVid); } catch (e) {} }
@@ -474,9 +525,13 @@
             } catch (e) {}
         } else {
             try {
+                const isScreen = isScreenPublication(publication);
+                const wantSub = isScreen ? isPptVisibleMode() : true;
                 if (typeof publication.setSubscribed === 'function') {
-                    const wantSub = isScreenPublication(publication) ? isPptVisibleMode() : true;
                     publication.setSubscribed(wantSub);
+                }
+                if (wantSub && publication.track) {
+                    attachAdminTrackToDOM(publication.track, publication);
                 }
             } catch (e) {}
         }
@@ -484,9 +539,9 @@
 
     room.on(LivekitClient.RoomEvent.TrackUnpublished, (publication, participant) => {
         if (!isAdminParticipant(participant)) return;
-        const isScreenTrack = publication.trackName === 'screen' ||
-            (LivekitClient.Track && LivekitClient.Track.Source && publication.source === LivekitClient.Track.Source.ScreenShare);
-        clearAdminTrackFromDOM(publication.kind, isScreenTrack, publication.track || null);
+        const isScreenTrack = isScreenPublication(publication);
+        clearAdminTrackFromDOM(publication.kind, isScreenTrack, publication.track || null, publication.trackSid || null);
+        setTimeout(() => reattachAllAdminFeeds(true), 200);
     });
 
     room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
@@ -509,10 +564,9 @@
 
     room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
         if (!isAdminParticipant(participant)) return;
-        const isScreenTrack = publication.trackName === 'screen' ||
-            (LivekitClient.Track && LivekitClient.Track.Source && publication.source === LivekitClient.Track.Source.ScreenShare);
-        clearAdminTrackFromDOM(track.kind, isScreenTrack, track);
-        setTimeout(() => reattachAllAdminFeeds(false), 150);
+        const isScreenTrack = isScreenPublication(publication);
+        clearAdminTrackFromDOM(track.kind, isScreenTrack, track, publication.trackSid || null);
+        setTimeout(() => reattachAllAdminFeeds(true), 200);
     });
 
     room.on(LivekitClient.RoomEvent.Reconnected, async () => {
@@ -680,6 +734,12 @@
     };
 
     window.stopStudentLiveKit = function() {
+        if (screenWatchdogTimer) {
+            clearTimeout(screenWatchdogTimer);
+            screenWatchdogTimer = null;
+        }
+        activeScreenTrack = null;
+        activeScreenTrackSid = null;
         stopStudentMicOnly();
         stopIosBackgroundAudioKeepAlive();
         setAudioUnmuteHintsVisible(false);
