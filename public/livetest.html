@@ -76,7 +76,7 @@
                 </button>
             </div>
         </div>
-        <video id="student-ppt-video" autoplay playsinline muted></video>
+        <video id="student-ppt-video" autoplay playsinline muted disablepictureinpicture></video>
     </div>
 
     <div id="quiz-screen" class="live-container" style="display: none;">
@@ -94,7 +94,7 @@
             <span style="color: #34d399;">● LIVE HD</span>
         </div>
         <div id="student-video-stage">
-            <video id="student-remote-video" autoplay playsinline muted></video>
+            <video id="student-remote-video" autoplay playsinline muted disablepictureinpicture></video>
             <div id="student-video-placeholder">🎙️ Live Audio Broadcast</div>
             <button id="btn-unmute-hint" type="button">🔊 Tap to Enable Audio</button>
         </div>
@@ -423,6 +423,9 @@
     const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
     const presentationScreen = document.getElementById('presentation-screen');
     const pptVideoEl = document.getElementById('student-ppt-video');
+    const camVideoEl = document.getElementById('student-remote-video');
+    if (pptVideoEl) pptVideoEl.disablePictureInPicture = true;
+    if (camVideoEl) camVideoEl.disablePictureInPicture = true;
     if (fullscreenBtn && presentationScreen) {
         fullscreenBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {

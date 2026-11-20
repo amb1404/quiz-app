@@ -233,6 +233,33 @@ function getMyStudentName() {
 }
 window.getMyStudentName = getMyStudentName;
 
+const _isMobileBrowser = /Android|iPad|iPhone|iPod/i.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function isInPipOrMinimized() {
+    if (document.visibilityState === 'hidden' || document.hidden) return true;
+    if (document.pictureInPictureElement) return true;
+
+    const pptVid = document.getElementById('student-ppt-video');
+    const camVid = document.getElementById('student-remote-video');
+    if ((pptVid && pptVid.webkitPresentationMode === 'picture-in-picture') ||
+        (camVid && camVid.webkitPresentationMode === 'picture-in-picture')) {
+        return true;
+    }
+
+    // Fallback: catch Android OS Activity PiP where viewport shrinks to a floating box while visibilityState stays 'visible'
+    if (_isMobileBrowser && window.innerWidth > 0 && window.innerHeight > 0) {
+        const screenArea = (window.screen && window.screen.width && window.screen.height)
+            ? (window.screen.width * window.screen.height)
+            : 0;
+        const winArea = window.innerWidth * window.innerHeight;
+        const isTinyBox = (window.innerWidth <= 360 && window.innerHeight <= 260);
+        const isPipRatio = screenArea > 0 && (winArea / screenArea) < 0.28 && Math.min(window.innerWidth, window.innerHeight) < 280;
+        if (isTinyBox || isPipRatio) return true;
+    }
+    return false;
+}
+
 if (typeof io !== 'undefined') {
     socket = io();
 
@@ -242,7 +269,7 @@ if (typeof io !== 'undefined') {
             socket.emit("join-room", {
                 quizId: currentQuizId,
                 token: liveToken,
-                hidden: document.visibilityState === 'hidden'
+                hidden: isInPipOrMinimized()
             });
         }
     });
@@ -410,19 +437,31 @@ if (typeof io !== 'undefined') {
         }).catch(() => {});
     }
 
-    document.addEventListener("visibilitychange", () => {
+    let isCurrentlyAway = false;
+    function syncVisibilityOrPipState() {
         if (!testActive || !currentQuizId || !liveToken) return;
-        if (document.visibilityState === 'hidden' || document.hidden) {
+        const awayNow = isInPipOrMinimized();
+        if (awayNow && !isCurrentlyAway) {
+            isCurrentlyAway = true;
             handleTabHidden();
-        } else if (document.visibilityState === 'visible') {
+        } else if (!awayNow && isCurrentlyAway) {
+            isCurrentlyAway = false;
             handleTabVisible();
         }
-    });
+    }
 
-    window.addEventListener("pageshow", () => {
-        if (testActive && document.visibilityState === 'visible') {
-            handleTabVisible();
-        }
+    document.addEventListener("visibilitychange", syncVisibilityOrPipState);
+    document.addEventListener("fullscreenchange", syncVisibilityOrPipState);
+    window.addEventListener("pageshow", syncVisibilityOrPipState);
+    window.addEventListener("resize", syncVisibilityOrPipState);
+    window.addEventListener("focus", syncVisibilityOrPipState);
+
+    ['student-ppt-video', 'student-remote-video'].forEach((vidId) => {
+        const vid = document.getElementById(vidId);
+        if (!vid) return;
+        vid.addEventListener('enterpictureinpicture', syncVisibilityOrPipState);
+        vid.addEventListener('leavepictureinpicture', syncVisibilityOrPipState);
+        vid.addEventListener('webkitpresentationmodechanged', syncVisibilityOrPipState);
     });
 
     socket.on("room-state", (data) => {
@@ -511,8 +550,8 @@ function startHeartbeat() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     heartbeatTimer = setInterval(() => {
         if (testActive && currentQuizId && liveToken) {
-            // Never send a rejoin heartbeat while the tab is hidden/backgrounded
-            if (document.visibilityState === 'hidden') return;
+            // Never send a rejoin heartbeat while the tab is hidden/backgrounded or in OS PiP
+            if (isInPipOrMinimized()) return;
             if (socket) {
                 if (!socket.connected) socket.connect();
                 socket.emit("join-room", { quizId: currentQuizId, token: liveToken, hidden: false });
