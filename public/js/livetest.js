@@ -605,8 +605,130 @@ function xorDecipher(b64Str, key) {
 let _pdfRenderSeq = 0;
 let _pdfZoom = 1;
 let _pdfPinchBound = false;
+let _activePdfDoc = null;
+let _pdfPageEntries = [];
+let _pdfZoomTimer = null;
+let _pdfZoomRenderGen = 0;
 const _PDF_MIN_ZOOM = 1;
 const _PDF_MAX_ZOOM = 3;
+
+function computeSafePdfScale(baseWidth, baseHeight, desiredCssWidth, dpr) {
+    const rawScale = (desiredCssWidth / baseWidth) * dpr;
+    const maxByDim = Math.min(2400 / baseWidth, 3400 / baseHeight);
+    const maxByArea = Math.sqrt(6500000 / (baseWidth * baseHeight));
+    return Math.max(0.5, Math.min(rawScale, maxByDim, maxByArea));
+}
+
+function scheduleSharpPdfRerender(delayMs = 150) {
+    if (_pdfZoomTimer) {
+        clearTimeout(_pdfZoomTimer);
+        _pdfZoomTimer = null;
+    }
+    if (!_activePdfDoc || _pdfPageEntries.length === 0) return;
+    _pdfZoomTimer = setTimeout(() => {
+        _pdfZoomTimer = null;
+        rerenderVisiblePdfPagesSharp();
+    }, delayMs);
+}
+
+function downscalePdfEntryToBase(entry) {
+    if (!entry || !entry.canvas || !entry.canvas.parentNode) return;
+    const w = Math.max(1, Math.round(entry.baseWidth * entry.baseScale));
+    const h = Math.max(1, Math.round(entry.baseHeight * entry.baseScale));
+    const smallCanvas = document.createElement('canvas');
+    smallCanvas.width = w;
+    smallCanvas.height = h;
+    smallCanvas.style.cssText = entry.canvas.style.cssText;
+    smallCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    try {
+        const ctx = smallCanvas.getContext('2d');
+        ctx.drawImage(entry.canvas, 0, 0, w, h);
+        const oldCanvas = entry.canvas;
+        oldCanvas.replaceWith(smallCanvas);
+        oldCanvas.width = 0;
+        oldCanvas.height = 0;
+        entry.canvas = smallCanvas;
+        entry.renderedScale = entry.baseScale;
+    } catch (e) {}
+}
+
+async function rerenderVisiblePdfPagesSharp() {
+    const pdfViewer = document.getElementById('live-pdf-viewer');
+    if (!pdfViewer || !_activePdfDoc || _pdfPageEntries.length === 0) return;
+
+    const mySeq = _pdfRenderSeq;
+    const myGen = ++_pdfZoomRenderGen;
+    const viewerRect = pdfViewer.getBoundingClientRect();
+    const bufferPx = Math.max(300, viewerRect.height * 0.75);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const baseContainerW = Math.max(280, (pdfViewer.clientWidth || 600) - 24);
+    const desiredCssW = baseContainerW * _pdfZoom;
+
+    const visibleEntries = [];
+    const farHighResEntries = [];
+
+    for (const entry of _pdfPageEntries) {
+        if (!entry.canvas || !entry.canvas.parentNode) continue;
+        const r = entry.canvas.getBoundingClientRect();
+        const isVisible = r.bottom >= (viewerRect.top - bufferPx) && r.top <= (viewerRect.bottom + bufferPx);
+        if (isVisible) {
+            visibleEntries.push(entry);
+        } else if (entry.renderedScale > entry.baseScale * 1.25) {
+            farHighResEntries.push(entry);
+        }
+    }
+
+    // Reclaim mobile GPU memory from far-offscreen zoomed pages before allocating new high-res canvases
+    if (farHighResEntries.length > 4) {
+        for (const oldEntry of farHighResEntries) {
+            downscalePdfEntryToBase(oldEntry);
+        }
+    }
+
+    for (const entry of visibleEntries) {
+        if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen || !_activePdfDoc) return;
+
+        const targetScale = _pdfZoom <= 1.02
+            ? entry.baseScale
+            : computeSafePdfScale(entry.baseWidth, entry.baseHeight, desiredCssW, dpr);
+
+        if (Math.abs(entry.renderedScale - targetScale) / Math.max(targetScale, 0.01) < 0.12) {
+            continue;
+        }
+
+        if (_pdfZoom <= 1.02 && entry.renderedScale > entry.baseScale * 1.2) {
+            downscalePdfEntryToBase(entry);
+            continue;
+        }
+
+        try {
+            const page = await _activePdfDoc.getPage(entry.pageNum);
+            if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen) return;
+
+            const viewport = page.getViewport({ scale: targetScale });
+            const hiResCanvas = document.createElement('canvas');
+            hiResCanvas.width = Math.round(viewport.width);
+            hiResCanvas.height = Math.round(viewport.height);
+            hiResCanvas.style.cssText = entry.canvas.style.cssText;
+            hiResCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            const ctx = hiResCanvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            if (mySeq !== _pdfRenderSeq || myGen !== _pdfZoomRenderGen || !entry.canvas.parentNode) {
+                hiResCanvas.width = 0;
+                hiResCanvas.height = 0;
+                return;
+            }
+
+            const oldCanvas = entry.canvas;
+            oldCanvas.replaceWith(hiResCanvas);
+            oldCanvas.width = 0;
+            oldCanvas.height = 0;
+            entry.canvas = hiResCanvas;
+            entry.renderedScale = targetScale;
+        } catch (e) {}
+    }
+}
 
 function applyPdfZoom(nextZoom, anchorX = null, anchorY = null) {
     const pdfViewer = document.getElementById('live-pdf-viewer');
@@ -628,6 +750,7 @@ function applyPdfZoom(nextZoom, anchorX = null, anchorY = null) {
         const ratio = clamped / prevZoom;
         pdfViewer.scrollLeft = Math.max(0, (pdfViewer.scrollLeft + ax) * ratio - ax);
         pdfViewer.scrollTop = Math.max(0, (pdfViewer.scrollTop + ay) * ratio - ay);
+        scheduleSharpPdfRerender(160);
     }
 }
 
@@ -675,10 +798,19 @@ function bindPdfPinchZoom(pdfViewer) {
     }, { passive: false });
 
     const endPinch = (e) => {
-        if (!e.touches || e.touches.length < 2) pinchState = null;
+        if (pinchState && (!e.touches || e.touches.length < 2)) {
+            pinchState = null;
+            scheduleSharpPdfRerender(120);
+        }
     };
     pdfViewer.addEventListener('touchend', endPinch, { passive: true });
     pdfViewer.addEventListener('touchcancel', endPinch, { passive: true });
+
+    pdfViewer.addEventListener('scroll', () => {
+        if (_pdfZoom > 1.02 && _activePdfDoc) {
+            scheduleSharpPdfRerender(140);
+        }
+    }, { passive: true });
 
     pdfViewer.addEventListener('wheel', (e) => {
         if (!e.ctrlKey) return;
@@ -751,7 +883,24 @@ function ensurePdfViewerElements() {
 
 function clearLivePdfViewer() {
     _pdfRenderSeq++;
+    _pdfZoomRenderGen++;
     _pdfZoom = 1;
+    if (_pdfZoomTimer) {
+        clearTimeout(_pdfZoomTimer);
+        _pdfZoomTimer = null;
+    }
+    if (_activePdfDoc) {
+        try { _activePdfDoc.destroy(); } catch (e) {}
+        _activePdfDoc = null;
+    }
+    for (const entry of _pdfPageEntries) {
+        if (entry.canvas) {
+            entry.canvas.width = 0;
+            entry.canvas.height = 0;
+        }
+    }
+    _pdfPageEntries = [];
+
     const quizScreen = document.getElementById('quiz-screen');
     const pdfViewer = document.getElementById('live-pdf-viewer');
     const zoomBar = document.getElementById('live-pdf-zoom-bar');
@@ -771,6 +920,23 @@ function clearLivePdfViewer() {
 
 async function renderLivePdf(data) {
     const mySeq = ++_pdfRenderSeq;
+    _pdfZoomRenderGen++;
+    if (_pdfZoomTimer) {
+        clearTimeout(_pdfZoomTimer);
+        _pdfZoomTimer = null;
+    }
+    if (_activePdfDoc) {
+        try { _activePdfDoc.destroy(); } catch (e) {}
+        _activePdfDoc = null;
+    }
+    for (const entry of _pdfPageEntries) {
+        if (entry.canvas) {
+            entry.canvas.width = 0;
+            entry.canvas.height = 0;
+        }
+    }
+    _pdfPageEntries = [];
+
     const { quizScreen, pdfViewer, zoomBar, pdfPages, pdfStatus } = ensurePdfViewerElements();
     const statusEl = document.getElementById('live-status');
     const progEl = document.getElementById('live-progress');
@@ -822,35 +988,50 @@ async function renderLivePdf(data) {
             useSystemFonts: true
         });
         const pdfDoc = await loadingTask.promise;
-        if (mySeq !== _pdfRenderSeq) return;
+        if (mySeq !== _pdfRenderSeq) {
+            try { pdfDoc.destroy(); } catch (e) {}
+            return;
+        }
+        _activePdfDoc = pdfDoc;
 
         if (progEl) progEl.innerText = `${pdfDoc.numPages} Page${pdfDoc.numPages === 1 ? '' : 's'} (Pinch to Zoom)`;
         if (pdfStatus) pdfStatus.style.display = 'none';
 
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
         const rawWidth = (pdfViewer && pdfViewer.clientWidth > 120)
             ? (pdfViewer.clientWidth - 24)
             : Math.min((window.innerWidth || 600) - 48, 780);
         const targetWidth = Math.max(280, rawWidth);
-        const zoomSharpnessFactor = Math.min(Math.max(dpr * 1.5, 2.25), 3.5);
 
         for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
             if (mySeq !== _pdfRenderSeq) return;
             const page = await pdfDoc.getPage(pageNum);
             const baseViewport = page.getViewport({ scale: 1 });
-            const rawScale = (targetWidth / baseViewport.width) * zoomSharpnessFactor;
-            const scale = Math.min(rawScale, 1800 / baseViewport.width, 2600 / baseViewport.height);
-            const viewport = page.getViewport({ scale });
+            const baseScale = computeSafePdfScale(baseViewport.width, baseViewport.height, targetWidth, dpr);
+            const viewport = page.getViewport({ scale: baseScale });
 
             const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            canvas.width = Math.round(viewport.width);
+            canvas.height = Math.round(viewport.height);
             canvas.style.cssText = 'width:100%;height:auto;display:block;margin:0 auto 12px auto;border-radius:4px;background:#ffffff;box-shadow:0 2px 8px rgba(15,23,42,0.15);';
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             if (pdfPages) pdfPages.appendChild(canvas);
 
             const ctx = canvas.getContext('2d');
             await page.render({ canvasContext: ctx, viewport }).promise;
+
+            _pdfPageEntries.push({
+                pageNum,
+                canvas,
+                baseWidth: baseViewport.width,
+                baseHeight: baseViewport.height,
+                baseScale,
+                renderedScale: baseScale
+            });
+        }
+
+        if (_pdfZoom > 1.02) {
+            scheduleSharpPdfRerender(80);
         }
     } catch (err) {
         if (mySeq !== _pdfRenderSeq) return;
