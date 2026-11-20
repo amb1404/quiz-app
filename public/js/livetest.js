@@ -585,24 +585,23 @@ function xorDecipher(b64Str, key) {
 }
 
 let _pdfRenderSeq = 0;
-let _pdfWorkerBlobUrl = null;
 
-async function ensurePdfJsWorkerReady() {
-    if (typeof pdfjsLib === 'undefined') return false;
-    if (_pdfWorkerBlobUrl) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = _pdfWorkerBlobUrl;
-        return true;
+function ensurePdfViewerElements() {
+    const quizScreen = document.getElementById('quiz-screen');
+    let pdfViewer = document.getElementById('live-pdf-viewer');
+    if (!pdfViewer && quizScreen) {
+        pdfViewer = document.createElement('div');
+        pdfViewer.id = 'live-pdf-viewer';
+        pdfViewer.style.cssText = 'display:none;width:100%;max-height:75vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:8px;padding:10px;box-sizing:border-box;text-align:center;';
+        pdfViewer.innerHTML = '<div id="live-pdf-status" style="color:#475569;font-weight:bold;font-size:13px;padding:12px;">Loading PDF pages...</div><div id="live-pdf-pages"></div>';
+        quizScreen.appendChild(pdfViewer);
     }
-    try {
-        const res = await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js');
-        if (res.ok) {
-            const code = await res.text();
-            _pdfWorkerBlobUrl = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
-            pdfjsLib.GlobalWorkerOptions.workerSrc = _pdfWorkerBlobUrl;
-            return true;
-        }
-    } catch (e) {}
-    return false;
+    return {
+        quizScreen,
+        pdfViewer,
+        pdfPages: document.getElementById('live-pdf-pages'),
+        pdfStatus: document.getElementById('live-pdf-status')
+    };
 }
 
 function clearLivePdfViewer() {
@@ -621,10 +620,7 @@ function clearLivePdfViewer() {
 
 async function renderLivePdf(data) {
     const mySeq = ++_pdfRenderSeq;
-    const quizScreen = document.getElementById('quiz-screen');
-    const pdfViewer = document.getElementById('live-pdf-viewer');
-    const pdfPages = document.getElementById('live-pdf-pages');
-    const pdfStatus = document.getElementById('live-pdf-status');
+    const { quizScreen, pdfViewer, pdfPages, pdfStatus } = ensurePdfViewerElements();
     const statusEl = document.getElementById('live-status');
     const progEl = document.getElementById('live-progress');
     const qTextEl = document.getElementById('question-text');
@@ -649,17 +645,22 @@ async function renderLivePdf(data) {
         const res = await fetch(`/api/live/pdf?quizId=${encodeURIComponent(currentQuizId)}&v=${encodeURIComponent(data.pdfVersion || Date.now())}`, {
             headers: { 'Authorization': `Bearer ${liveToken}` }
         });
-        if (!res.ok) throw new Error('Could not load PDF');
+        if (!res.ok) {
+            const errTxt = await res.text().catch(() => '');
+            throw new Error(`HTTP ${res.status}${errTxt ? ': ' + errTxt : ''}`);
+        }
         const arrayBuf = await res.arrayBuffer();
         if (mySeq !== _pdfRenderSeq) return;
 
-        const workerReady = await ensurePdfJsWorkerReady();
-        if (mySeq !== _pdfRenderSeq) return;
-        if (typeof pdfjsLib === 'undefined') throw new Error('PDF viewer failed to load');
+        const pdfLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+        if (!pdfLib) throw new Error('PDF.js library did not load');
 
-        const loadingTask = pdfjsLib.getDocument({
+        // Uses in-memory pdfjsWorker loaded via nonced <script> tag — 100% CSP-safe on Chrome, Firefox, Android & iOS
+        const loadingTask = pdfLib.getDocument({
             data: new Uint8Array(arrayBuf),
-            disableWorker: !workerReady
+            disableWorker: true,
+            isEvalSupported: false,
+            useSystemFonts: true
         });
         const pdfDoc = await loadingTask.promise;
         if (mySeq !== _pdfRenderSeq) return;
@@ -668,7 +669,10 @@ async function renderLivePdf(data) {
         if (pdfStatus) pdfStatus.style.display = 'none';
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const targetWidth = Math.max(320, (pdfViewer ? pdfViewer.clientWidth - 24 : 600));
+        const rawWidth = (pdfViewer && pdfViewer.clientWidth > 120)
+            ? (pdfViewer.clientWidth - 24)
+            : Math.min((window.innerWidth || 600) - 48, 780);
+        const targetWidth = Math.max(280, rawWidth);
 
         for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
             if (mySeq !== _pdfRenderSeq) return;
@@ -680,6 +684,7 @@ async function renderLivePdf(data) {
             const canvas = document.createElement('canvas');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
+            canvas.style.cssText = 'width:100%;height:auto;display:block;margin:0 auto 12px auto;border-radius:4px;background:#ffffff;box-shadow:0 2px 8px rgba(15,23,42,0.15);';
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
             if (pdfPages) pdfPages.appendChild(canvas);
 
@@ -688,9 +693,10 @@ async function renderLivePdf(data) {
         }
     } catch (err) {
         if (mySeq !== _pdfRenderSeq) return;
+        lastRenderedKey = '';
         if (pdfStatus) {
             pdfStatus.style.display = 'block';
-            pdfStatus.innerText = 'Unable to load PDF. Please refresh or wait for Sir.';
+            pdfStatus.innerText = 'Unable to load PDF (' + (err && err.message ? err.message : 'unknown error') + ').';
         }
     }
 }
