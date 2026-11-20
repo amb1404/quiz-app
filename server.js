@@ -61,10 +61,12 @@ if (!process.env.TIMER_SECRET || !process.env.APPS_SCRIPT_SECRET) {
 }
 
 let razorpay = null;
-if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+const CLEAN_RAZORPAY_KEY_ID = (process.env.RAZORPAY_KEY_ID || '').trim();
+const CLEAN_RAZORPAY_KEY_SECRET = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+if (CLEAN_RAZORPAY_KEY_ID && CLEAN_RAZORPAY_KEY_SECRET) {
     razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET
+        key_id: CLEAN_RAZORPAY_KEY_ID,
+        key_secret: CLEAN_RAZORPAY_KEY_SECRET
     });
     console.log('[Finance] Razorpay SDK initialized successfully.');
 } else {
@@ -472,18 +474,18 @@ app.use((req, res, next) => {
 
     const cspPolicy = [
         "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://accounts.google.com https://apis.google.com`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
-        "font-src 'self' https://fonts.gstatic.com data:",
+        `script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com https://*.razorpay.com https://accounts.google.com https://apis.google.com`,
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://*.razorpay.com",
+        "font-src 'self' https://fonts.gstatic.com https://*.razorpay.com data:",
         "img-src 'self' data: blob: https://*.razorpay.com https://*.googleusercontent.com https://*.google.com https://*.gstatic.com",
         "media-src 'self' blob:",
         "worker-src 'self' blob:",
-        "connect-src 'self' wss: https://*.livekit.cloud wss://*.livekit.cloud https://cdn.jsdelivr.net https://api.razorpay.com https://lumberjack-cx.razorpay.com https://accounts.google.com https://*.google.com https://oauth2.googleapis.com https://www.googleapis.com",
-        "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com https://*.google.com",
+        "connect-src 'self' wss: https://*.livekit.cloud wss://*.livekit.cloud https://cdn.jsdelivr.net https://*.razorpay.com https://accounts.google.com https://*.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+        "frame-src 'self' https://*.razorpay.com https://accounts.google.com https://*.google.com",
         "object-src 'none'",
         "base-uri 'self'",
         "frame-ancestors 'none'",
-        "form-action 'self' https://accounts.google.com"
+        "form-action 'self' https://accounts.google.com https://*.razorpay.com"
     ].join('; ');
 
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
@@ -798,6 +800,87 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                     };
                 }
 
+                function ensureRazorpaySdkLoaded() {
+                    if (typeof window.Razorpay === 'function') return Promise.resolve(true);
+                    return new Promise(function(resolve) {
+                        var injectFresh = function() {
+                            var s = document.createElement('script');
+                            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                            s.setAttribute('nonce', '${nonce}');
+                            s.onload = function() { resolve(typeof window.Razorpay === 'function'); };
+                            s.onerror = function() { resolve(false); };
+                            document.head.appendChild(s);
+                        };
+                        var existing = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]');
+                        if (!existing) return injectFresh();
+                        var waited = 0;
+                        var timer = setInterval(function() {
+                            waited += 100;
+                            if (typeof window.Razorpay === 'function') {
+                                clearInterval(timer);
+                                resolve(true);
+                            } else if (waited >= 3000) {
+                                clearInterval(timer);
+                                injectFresh();
+                            }
+                        }, 100);
+                    });
+                }
+
+                function ensureRazorpaySdkLoaded() {
+                    if (typeof window.Razorpay === 'function') return Promise.resolve(true);
+                    return new Promise(function(resolve) {
+                        var injectFresh = function() {
+                            var s = document.createElement('script');
+                            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                            s.setAttribute('nonce', '${nonce}');
+                            s.onload = function() { resolve(typeof window.Razorpay === 'function'); };
+                            s.onerror = function() { resolve(false); };
+                            document.head.appendChild(s);
+                        };
+                        var existing = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]');
+                        if (!existing) return injectFresh();
+                        var waited = 0;
+                        var timer = setInterval(function() {
+                            waited += 100;
+                            if (typeof window.Razorpay === 'function') {
+                                clearInterval(timer);
+                                resolve(true);
+                            } else if (waited >= 3000) {
+                                clearInterval(timer);
+                                injectFresh();
+                            }
+                        }, 100);
+                    });
+                }
+
+                function ensureRazorpaySdkLoaded() {
+                    if (typeof window.Razorpay === 'function') return Promise.resolve(true);
+                    return new Promise(function(resolve) {
+                        var injectFresh = function() {
+                            var s = document.createElement('script');
+                            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                            s.setAttribute('nonce', '${nonce}');
+                            s.onload = function() { resolve(typeof window.Razorpay === 'function'); };
+                            s.onerror = function() { resolve(false); };
+                            document.head.appendChild(s);
+                        };
+                        var existing = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]');
+                        if (!existing) return injectFresh();
+                        var waited = 0;
+                        var timer = setInterval(function() {
+                            waited += 100;
+                            if (typeof window.Razorpay === 'function') {
+                                clearInterval(timer);
+                                resolve(true);
+                            } else if (waited >= 3000) {
+                                clearInterval(timer);
+                                injectFresh();
+                            }
+                        }, 100);
+                    });
+                }
+
                 // Clean Fetch Intercept (Preserves headers & auth without forcing unwanted screen replays)
                 var originalFetch = window.fetch;
                 if (originalFetch) {
@@ -819,6 +902,48 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
                             }
                         } catch (e) {}
                         var p = originalFetch.call(this, input, init);
+
+                        if (url.indexOf('/api/create-order') !== -1) {
+                            return Promise.all([p, ensureRazorpaySdkLoaded()]).then(function(results) {
+                                var response = results[0];
+                                var sdkReady = results[1];
+                                if (!sdkReady) {
+                                    return new Response(JSON.stringify({
+                                        success: false,
+                                        error: 'Payment gateway script was blocked or failed to load. Please disable ad-blocker / tracking prevention or try Chrome.'
+                                    }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+                                }
+                                return response;
+                            });
+                        }
+
+                        if (url.indexOf('/api/create-order') !== -1) {
+                            return Promise.all([p, ensureRazorpaySdkLoaded()]).then(function(results) {
+                                var response = results[0];
+                                var sdkReady = results[1];
+                                if (!sdkReady) {
+                                    return new Response(JSON.stringify({
+                                        success: false,
+                                        error: 'Payment gateway script was blocked or failed to load. Please disable ad-blocker / tracking prevention or try Chrome.'
+                                    }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+                                }
+                                return response;
+                            });
+                        }
+
+                        if (url.indexOf('/api/create-order') !== -1) {
+                            return Promise.all([p, ensureRazorpaySdkLoaded()]).then(function(results) {
+                                var response = results[0];
+                                var sdkReady = results[1];
+                                if (!sdkReady) {
+                                    return new Response(JSON.stringify({
+                                        success: false,
+                                        error: 'Payment gateway script was blocked or failed to load. Please disable ad-blocker / tracking prevention or try Chrome.'
+                                    }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+                                }
+                                return response;
+                            });
+                        }
 
                         if (url.indexOf('/api/start-quiz') !== -1 || (url.indexOf('/api/quiz/') !== -1 && url.indexOf('/question/') === -1)) {
                             return p.then(async function(response) {
@@ -2887,10 +3012,11 @@ app.post('/api/create-order', async (req, res) => {
             notes: { itemId: cleanId }
         });
         
-        res.json({ success: true, orderId: order.id, amount: order.amount, keyId: process.env.RAZORPAY_KEY_ID });
+        res.json({ success: true, orderId: order.id, amount: order.amount, keyId: CLEAN_RAZORPAY_KEY_ID });
     } catch (err) {
         console.error('Order creation error:', err);
-        res.status(500).json({ error: 'Order creation failed.' });
+        const rzpErr = err?.error?.description || err?.message || 'Order creation failed.';
+        res.status(500).json({ error: rzpErr });
     }
 });
 
