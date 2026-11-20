@@ -577,21 +577,16 @@
         }
     }, 3000);
 
-    const shouldMuteNow = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
-            const audioEl = document.createElement('audio');
-            audioEl.autoplay = true;
-            audioEl.playsInline = true;
-            audioEl.muted = shouldMuteNow;
-            audioEl.volume = shouldMuteNow ? 0 : 1.0;
-            if (typeof track.setVolume === 'function') track.setVolume(shouldMuteNow ? 0 : 1);
-            if (track.mediaStreamTrack) track.mediaStreamTrack.enabled = !shouldMuteNow;
-            track.attach(audioEl);
-            document.body.appendChild(audioEl);
-            activeStudentAudioEls.set(participant.identity, audioEl);
-
-            try { await room.startAudio(); } catch (e) {}
-            if (!shouldMuteNow) audioEl.play().catch(() => {});
-            refreshAdminCallerBadge();
+    // Unlock browser WebRTC audio playback on any Admin dashboard interaction (respecting speaker mute)
+    document.addEventListener('click', () => {
+        if (room.state === 'connected') {
+            try { room.startAudio(); } catch (e) {}
+        }
+        if (adminSpeakersManualMuted || adminSilencedByOtherTab) return;
+        activeStudentAudioEls.forEach((el) => {
+            if (el.paused) el.play().catch(() => {});
+        });
+    });
 
     // Listen for any individual student speaking in the room (100% isolated per student)
     room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
@@ -615,17 +610,20 @@
                 }
             }
 
+            const shouldMuteNow = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
             const audioEl = document.createElement('audio');
             audioEl.autoplay = true;
             audioEl.playsInline = true;
-            audioEl.muted = (adminSpeakersManualMuted || adminSilencedByOtherTab);
-            audioEl.volume = 1.0;
+            audioEl.muted = shouldMuteNow;
+            audioEl.volume = shouldMuteNow ? 0 : 1.0;
+            if (typeof track.setVolume === 'function') track.setVolume(shouldMuteNow ? 0 : 1);
+            if (track.mediaStreamTrack) track.mediaStreamTrack.enabled = !shouldMuteNow;
             track.attach(audioEl);
             document.body.appendChild(audioEl);
             activeStudentAudioEls.set(participant.identity, audioEl);
 
             try { await room.startAudio(); } catch (e) {}
-            audioEl.play().catch(() => {});
+            if (!shouldMuteNow) audioEl.play().catch(() => {});
             refreshAdminCallerBadge();
         }
     });
