@@ -5803,6 +5803,9 @@ io.on("connection", (socket) => {
         if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) return;
         const cleanId = path.basename(String(quizId || '')).trim();
         if (!cleanId) return;
+        for (const r of socket.rooms) {
+            if (r.startsWith('admin-') && r !== `admin-${cleanId}`) socket.leave(r);
+        }
         socket.join(`admin-${cleanId}`);
         const payload = await buildLiveStatePayload(cleanId);
         if (payload) socket.emit("room-state", payload);

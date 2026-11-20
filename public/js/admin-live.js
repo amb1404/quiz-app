@@ -44,6 +44,10 @@ function updateQuestionControlsUI() {
     }
 }
 
+function removeAllRejoinButtons() {
+    document.querySelectorAll('.rejoin-room-btn, #rejoin-room-btn').forEach(el => el.remove());
+}
+
 async function rejoinActiveRoom(targetRoomId, targetRoomName, btnEl) {
     adminKey = document.getElementById('admin-key').value.trim();
     if (!adminKey) {
@@ -70,6 +74,7 @@ async function rejoinActiveRoom(targetRoomId, targetRoomName, btnEl) {
             totalQuestions = data.totalQuestions || 0;
             currentIndex = data.currentIndex || 0;
 
+            document.title = `Admin - ${data.roomName}`;
             document.getElementById('quiz-id').value = quizId;
             document.getElementById('otp-display').innerText = `🟢 Active Room: ${data.roomName}`;
             document.getElementById('create-room-box').style.display = 'flex';
@@ -78,9 +83,12 @@ async function rejoinActiveRoom(targetRoomId, targetRoomName, btnEl) {
 
             const showBtn = document.getElementById('show-create-room-btn');
             if (showBtn) showBtn.style.display = 'none';
-            if (btnEl) btnEl.remove();
+            removeAllRejoinButtons();
 
             sessionStorage.setItem('live_admin_session', JSON.stringify({ quizId, activeQuizFile }));
+            if (typeof window.saveAdminPanelState === 'function') {
+                window.saveAdminPanelState({ adminKey });
+            }
 
             const startBtn = document.getElementById('start-btn');
             startBtn.innerText = "Room Active";
@@ -91,18 +99,21 @@ async function rejoinActiveRoom(targetRoomId, targetRoomName, btnEl) {
             await populateAdminQuizDropdown(activeQuizFile);
             updateQuestionControlsUI();
             startDashboardSync();
+            if (typeof window.ensureAdminLiveKitConnected === 'function') {
+                window.ensureAdminLiveKitConnected(quizId, true).catch(() => {});
+            }
         } else {
             alert(data.error || "Could not rejoin room.");
             if (btnEl) {
                 btnEl.disabled = false;
-                btnEl.innerText = `🔄 Rejoin Last Room: ${targetRoomName}`;
+                btnEl.innerText = `🔄 Rejoin Room: ${targetRoomName}`;
             }
         }
     } catch (e) {
         alert("Network error rejoining room.");
         if (btnEl) {
             btnEl.disabled = false;
-            btnEl.innerText = `🔄 Rejoin Last Room: ${targetRoomName}`;
+            btnEl.innerText = `🔄 Rejoin Room: ${targetRoomName}`;
         }
     }
 }
@@ -114,23 +125,26 @@ async function checkAndShowRejoinRoomButton() {
         if (!data.success || !Array.isArray(data.rooms) || data.rooms.length === 0) return;
 
         const sorted = [...data.rooms].sort((a, b) => (Number(b.lastSeen) || 0) - (Number(a.lastSeen) || 0));
-        const latestRoom = sorted[0];
-        if (!latestRoom || !latestRoom.id) return;
-
         const showBtn = document.getElementById('show-create-room-btn');
-        if (!showBtn || document.getElementById('rejoin-room-btn')) return;
+        if (!showBtn) return;
 
-        const rejoinBtn = document.createElement('button');
-        rejoinBtn.id = 'rejoin-room-btn';
-        rejoinBtn.type = 'button';
-        rejoinBtn.style.background = '#059669';
-        rejoinBtn.innerText = `🔄 Rejoin Last Room: ${latestRoom.name}`;
-        rejoinBtn.addEventListener('click', () => rejoinActiveRoom(latestRoom.id, latestRoom.name, rejoinBtn));
-        showBtn.insertAdjacentElement('afterend', rejoinBtn);
+        removeAllRejoinButtons();
+        let insertAnchor = showBtn;
+        sorted.forEach((activeRoom) => {
+            if (!activeRoom || !activeRoom.id) return;
+            const rejoinBtn = document.createElement('button');
+            rejoinBtn.className = 'rejoin-room-btn';
+            rejoinBtn.type = 'button';
+            rejoinBtn.style.background = '#059669';
+            rejoinBtn.innerText = `🔄 Rejoin Room: ${activeRoom.name}`;
+            rejoinBtn.addEventListener('click', () => rejoinActiveRoom(activeRoom.id, activeRoom.name, rejoinBtn));
+            insertAnchor.insertAdjacentElement('afterend', rejoinBtn);
+            insertAnchor = rejoinBtn;
+        });
     } catch (e) {}
 }
 
-// Restore active Room session on browser refresh, or offer 1-click Rejoin after browser close
+// Restore active Room session on browser refresh, or offer 1-click Rejoin for every active room
 window.addEventListener('DOMContentLoaded', async () => {
     await populateAdminQuizDropdown();
     updateQuestionControlsUI();
@@ -142,7 +156,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             quizId = parsed.quizId;
             activeQuizFile = parsed.activeQuizFile || "";
 
+            document.title = `Admin - ${quizId}`;
             document.getElementById('quiz-id').value = quizId;
+            document.getElementById('otp-display').innerText = `🟢 Active Room: ${quizId}`;
             document.getElementById('create-room-box').style.display = 'flex';
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
@@ -198,14 +214,18 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             totalQuestions = data.totalQuestions || 0;
             currentIndex = data.currentIndex || 0;
 
+            document.title = `Admin - ${data.roomName}`;
             document.getElementById('otp-display').innerText = `🟢 Active Room: ${data.roomName}`;
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('board-panel').style.display = 'block';
 
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'none';
-            document.getElementById('rejoin-room-btn')?.remove();
+            removeAllRejoinButtons();
 
             sessionStorage.setItem('live_admin_session', JSON.stringify({ quizId, activeQuizFile }));
+            if (typeof window.saveAdminPanelState === 'function') {
+                window.saveAdminPanelState({ adminKey });
+            }
 
             startBtn.innerText = "Room Active";
             startBtn.disabled = true;
@@ -215,6 +235,9 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             await populateAdminQuizDropdown(activeQuizFile);
             updateQuestionControlsUI();
             startDashboardSync();
+            if (typeof window.ensureAdminLiveKitConnected === 'function') {
+                window.ensureAdminLiveKitConnected(quizId, true).catch(() => {});
+            }
         } else {
             alert(data.error);
             startBtn.innerText = "🚀 Launch Room";
@@ -230,13 +253,19 @@ const adminQuizSelect = document.getElementById('admin-quiz-select');
 if (adminQuizSelect) {
     adminQuizSelect.addEventListener('change', async (e) => {
         const selectedFile = e.target.value;
-        if (!adminKey || !quizId) return;
+        const creds = getActiveAdminCreds();
+        if (!creds.adminKey || !creds.quizId) {
+            alert("Please enter your Admin Secret Key first.");
+            return;
+        }
+        adminKey = creds.adminKey;
+        quizId = creds.quizId;
 
         try {
             const res = await fetch('/api/live/admin/select-quiz', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey, quizId, questionFile: selectedFile })
+                body: JSON.stringify({ adminKey: creds.adminKey, quizId: creds.quizId, questionFile: selectedFile })
             });
             const data = await res.json();
             if (data.success) {
@@ -393,8 +422,9 @@ document.addEventListener('click', async (e) => {
             sessionStorage.removeItem('live_admin_session');
             document.getElementById('control-panel').style.display = 'none';
             document.getElementById('board-panel').style.display = 'none';
+            document.title = 'Admin - Live Dashboard';
             document.getElementById('create-room-box').style.display = 'none';
-            document.getElementById('rejoin-room-btn')?.remove();
+            removeAllRejoinButtons();
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'inline-block';
 
             const startBtn = document.getElementById('start-btn');
@@ -491,6 +521,9 @@ if (typeof io !== 'undefined') {
         const selectEl = document.getElementById('admin-quiz-select');
         if (selectEl && selectEl.value !== activeQuizFile) {
             selectEl.value = activeQuizFile;
+        }
+        if (data.broadcastMode && typeof window.syncAdminBroadcastModeFromServer === 'function') {
+            window.syncAdminBroadcastModeFromServer(data.broadcastMode);
         }
         updateQuestionControlsUI();
     });

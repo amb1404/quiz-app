@@ -159,16 +159,52 @@
         } catch (e) {}
     }
 
-    // Helper to keep Admin's voice playing even after mobile/desktop hardware mic switches
-    async function ensureAdminAudioPlaying() {
-        try { await room.startAudio(); } catch (e) {}
-        if (activeAudioEl) {
+    function getOrCreateAdminAudioEl() {
+        if (!activeAudioEl || !document.body.contains(activeAudioEl)) {
+            activeAudioEl = document.getElementById('student-admin-audio') || document.createElement('audio');
+            activeAudioEl.id = 'student-admin-audio';
+            activeAudioEl.autoplay = true;
+            activeAudioEl.playsInline = true;
+            activeAudioEl.style.display = 'none';
+            if (!document.body.contains(activeAudioEl)) {
+                document.body.appendChild(activeAudioEl);
+            }
+        }
+        return activeAudioEl;
+    }
+
+    const unlockStudentAudioOnce = () => {
+        const el = getOrCreateAdminAudioEl();
+        if (room.state === 'connected' && !room.canPlaybackAudio) {
+            try { room.startAudio(); } catch (e) {}
+        }
+        if (el && el.srcObject && el.paused) {
+            el.play().then(() => {
+                const hint = document.getElementById('btn-unmute-hint');
+                if (hint) hint.style.display = 'none';
+            }).catch(() => {});
+        }
+    };
+    document.addEventListener('click', unlockStudentAudioOnce, { passive: true });
+    document.addEventListener('touchstart', unlockStudentAudioOnce, { passive: true });
+
+    // Helper to keep Admin's voice playing without interrupting an already-playing stream every 5s
+    async function ensureAdminAudioPlaying(force = false) {
+        if (force || !room.canPlaybackAudio) {
+            try { await room.startAudio(); } catch (e) {}
+        }
+        if (activeAudioEl && activeAudioEl.srcObject) {
             activeAudioEl.muted = false;
             activeAudioEl.volume = 1.0;
-            activeAudioEl.play().catch(() => {
-                const hint = document.getElementById('btn-unmute-hint');
-                if (hint) hint.style.display = 'block';
-            });
+            if (force || activeAudioEl.paused) {
+                activeAudioEl.play().then(() => {
+                    const hint = document.getElementById('btn-unmute-hint');
+                    if (hint) hint.style.display = 'none';
+                }).catch(() => {
+                    const hint = document.getElementById('btn-unmute-hint');
+                    if (hint) hint.style.display = 'block';
+                });
+            }
         }
     }
 
@@ -236,21 +272,16 @@
             if (pipBox) pipBox.style.display = 'flex';
             document.body.classList.add('rtc-stream-active');
 
-            // Do not detach and recreate <audio> if this track is already attached
-            if (activeAudioEl && Array.isArray(track.attachedElements) && track.attachedElements.includes(activeAudioEl)) {
-                if (activeAudioEl.paused) ensureAdminAudioPlaying();
+            const audioEl = getOrCreateAdminAudioEl();
+            const liveAudioTracks = audioEl.srcObject ? audioEl.srcObject.getAudioTracks().filter(t => t.readyState === 'live') : [];
+            const alreadyAttached = Array.isArray(track.attachedElements) && track.attachedElements.includes(audioEl) && liveAudioTracks.length > 0;
+            if (alreadyAttached) {
+                if (audioEl.paused) ensureAdminAudioPlaying(true);
                 return;
             }
-            if (activeAudioEl) {
-                try { track.detach(activeAudioEl); activeAudioEl.remove(); } catch (e) {}
-            }
-            activeAudioEl = document.createElement('audio');
-            activeAudioEl.autoplay = true;
-            activeAudioEl.playsInline = true;
-            track.attach(activeAudioEl);
-            document.body.appendChild(activeAudioEl);
-
-            ensureAdminAudioPlaying();
+            try { audioEl.srcObject = null; } catch (e) {}
+            track.attach(audioEl);
+            ensureAdminAudioPlaying(true);
         }
     }
 
@@ -282,8 +313,7 @@
         } else if (kind === 'audio') {
             if (activeAudioEl) {
                 if (track) { try { track.detach(activeAudioEl); } catch (e) {} }
-                try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
-                activeAudioEl = null;
+                try { activeAudioEl.pause(); activeAudioEl.srcObject = null; } catch (e) {}
             }
         }
     }
@@ -350,7 +380,15 @@
 
     room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
         if (isAdminParticipant(participant)) {
-            clearAllAdminFeeds();
+            let anotherAdminPresent = false;
+            room.remoteParticipants.forEach((p) => {
+                if (p !== participant && isAdminParticipant(p)) anotherAdminPresent = true;
+            });
+            if (anotherAdminPresent) {
+                reattachAllAdminFeeds(false);
+            } else {
+                clearAllAdminFeeds();
+            }
         }
     });
 
@@ -426,7 +464,7 @@
 
     document.getElementById('btn-unmute-hint').addEventListener('click', async (e) => {
         e.target.style.display = 'none';
-        await ensureAdminAudioPlaying();
+        await ensureAdminAudioPlaying(true);
     });
 
     const fullscreenBtn = document.getElementById('btn-ppt-fullscreen');
@@ -564,8 +602,7 @@
         stopStudentMicOnly();
         try { room.disconnect(); } catch (e) {}
         if (activeAudioEl) {
-            try { activeAudioEl.pause(); activeAudioEl.srcObject = null; activeAudioEl.remove(); } catch (e) {}
-            activeAudioEl = null;
+            try { activeAudioEl.pause(); activeAudioEl.srcObject = null; } catch (e) {}
         }
         const remoteVid = document.getElementById('student-remote-video');
         if (remoteVid) {
