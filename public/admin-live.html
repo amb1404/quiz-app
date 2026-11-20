@@ -972,6 +972,29 @@
         await stopAdminBroadcastStream(true);
     });
 
+    // Keyboard Shortcuts: Ctrl+A (Toggle Mic) & Ctrl+D (Toggle Video) — mouse clicks remain unchanged
+    window.addEventListener('keydown', (e) => {
+        if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey || e.repeat) return;
+
+        const key = String(e.key || '').toLowerCase();
+        if (key !== 'a' && key !== 'd') return;
+
+        const activeEl = document.activeElement;
+        const isTypingField = activeEl && (
+            activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.isContentEditable
+        );
+        if (isTypingField) return;
+
+        e.preventDefault();
+        if (key === 'a') {
+            document.getElementById('btn-admin-audio')?.click();
+        } else if (key === 'd') {
+            document.getElementById('btn-admin-video')?.click();
+        }
+    });
+
     // Universal Mouse + Touch Draggable PIP Window (Works in Firefox, Chrome, Edge & Mobile)
     (function initAdminPipDrag() {
         const boxEl = document.getElementById('admin-pip-box');
