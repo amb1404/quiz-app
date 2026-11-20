@@ -584,6 +584,117 @@ function xorDecipher(b64Str, key) {
     return new TextDecoder().decode(buf);
 }
 
+let _pdfRenderSeq = 0;
+let _pdfWorkerBlobUrl = null;
+
+async function ensurePdfJsWorkerReady() {
+    if (typeof pdfjsLib === 'undefined') return false;
+    if (_pdfWorkerBlobUrl) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = _pdfWorkerBlobUrl;
+        return true;
+    }
+    try {
+        const res = await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js');
+        if (res.ok) {
+            const code = await res.text();
+            _pdfWorkerBlobUrl = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+            pdfjsLib.GlobalWorkerOptions.workerSrc = _pdfWorkerBlobUrl;
+            return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
+function clearLivePdfViewer() {
+    _pdfRenderSeq++;
+    const quizScreen = document.getElementById('quiz-screen');
+    const pdfViewer = document.getElementById('live-pdf-viewer');
+    const pdfPages = document.getElementById('live-pdf-pages');
+    const qTextEl = document.getElementById('question-text');
+    const optsBox = document.getElementById('options-container');
+    if (quizScreen) quizScreen.classList.remove('pdf-active');
+    if (pdfViewer) pdfViewer.style.display = 'none';
+    if (pdfPages) pdfPages.innerHTML = '';
+    if (qTextEl) qTextEl.style.display = '';
+    if (optsBox) optsBox.style.display = '';
+}
+
+async function renderLivePdf(data) {
+    const mySeq = ++_pdfRenderSeq;
+    const quizScreen = document.getElementById('quiz-screen');
+    const pdfViewer = document.getElementById('live-pdf-viewer');
+    const pdfPages = document.getElementById('live-pdf-pages');
+    const pdfStatus = document.getElementById('live-pdf-status');
+    const statusEl = document.getElementById('live-status');
+    const progEl = document.getElementById('live-progress');
+    const qTextEl = document.getElementById('question-text');
+    const optsBox = document.getElementById('options-container');
+
+    if (quizScreen) quizScreen.classList.add('pdf-active');
+    if (qTextEl) qTextEl.style.display = 'none';
+    if (optsBox) { optsBox.innerHTML = ''; optsBox.style.display = 'none'; }
+    if (statusEl) statusEl.innerText = '📄 Live PDF Questions';
+    if (progEl) progEl.innerText = 'Scroll Pages';
+    if (pdfViewer) {
+        pdfViewer.style.display = 'block';
+        pdfViewer.scrollTop = 0;
+    }
+    if (pdfPages) pdfPages.innerHTML = '';
+    if (pdfStatus) {
+        pdfStatus.style.display = 'block';
+        pdfStatus.innerText = 'Loading PDF pages...';
+    }
+
+    try {
+        const res = await fetch(`/api/live/pdf?quizId=${encodeURIComponent(currentQuizId)}&v=${encodeURIComponent(data.pdfVersion || Date.now())}`, {
+            headers: { 'Authorization': `Bearer ${liveToken}` }
+        });
+        if (!res.ok) throw new Error('Could not load PDF');
+        const arrayBuf = await res.arrayBuffer();
+        if (mySeq !== _pdfRenderSeq) return;
+
+        const workerReady = await ensurePdfJsWorkerReady();
+        if (mySeq !== _pdfRenderSeq) return;
+        if (typeof pdfjsLib === 'undefined') throw new Error('PDF viewer failed to load');
+
+        const loadingTask = pdfjsLib.getDocument({
+            data: new Uint8Array(arrayBuf),
+            disableWorker: !workerReady
+        });
+        const pdfDoc = await loadingTask.promise;
+        if (mySeq !== _pdfRenderSeq) return;
+
+        if (progEl) progEl.innerText = `${pdfDoc.numPages} Page${pdfDoc.numPages === 1 ? '' : 's'} (Scroll)`;
+        if (pdfStatus) pdfStatus.style.display = 'none';
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetWidth = Math.max(320, (pdfViewer ? pdfViewer.clientWidth - 24 : 600));
+
+        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            if (mySeq !== _pdfRenderSeq) return;
+            const page = await pdfDoc.getPage(pageNum);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const scale = (targetWidth / baseViewport.width) * dpr;
+            const viewport = page.getViewport({ scale });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            if (pdfPages) pdfPages.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+    } catch (err) {
+        if (mySeq !== _pdfRenderSeq) return;
+        if (pdfStatus) {
+            pdfStatus.style.display = 'block';
+            pdfStatus.innerText = 'Unable to load PDF. Please refresh or wait for Sir.';
+        }
+    }
+}
+
 function renderQuestion(data) {
     document.getElementById('live-status').innerText = "Live Broadcast";
     document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;

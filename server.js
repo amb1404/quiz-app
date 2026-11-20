@@ -4184,26 +4184,73 @@ function getLiveMockContent(rawId) {
     return JSON.parse(fs.readFileSync(matchedPath, 'utf8'));
 }
 
-// Automatically list all available Live Mock Question Sets for the Admin Dropdown
+function resolveLiveMockPdfPath(rawId) {
+    if (!rawId || typeof rawId !== 'string') return null;
+    const normalized = rawId.trim().replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!normalized.toLowerCase().endsWith('.pdf') || normalized.includes('..')) return null;
+    const liveDir = path.resolve(__dirname, 'livemock');
+    if (!fs.existsSync(liveDir)) return null;
+    const allPdfs = getAllPdfFiles(liveDir);
+    const exactMatch = allPdfs.find(fp => path.relative(liveDir, fp).replace(/\\/g, '/').toLowerCase() === normalized.toLowerCase());
+    if (exactMatch) return exactMatch;
+    const base = path.basename(normalized).toLowerCase();
+    return allPdfs.find(fp => path.basename(fp).toLowerCase() === base) || null;
+}
+
+// Automatically list all available Live Mock Question Sets (JSON + PDF) for the Admin Dropdown
 app.get('/api/live/list', (req, res) => {
     try {
         const liveDir = path.join(__dirname, 'livemock');
         if (!fs.existsSync(liveDir)) return res.json({ success: true, tests: [] });
 
         const allLiveFiles = getAllJsonFiles(liveDir);
-        const tests = allLiveFiles.map(filePath => {
+        const jsonTests = allLiveFiles.map(filePath => {
             const fileName = path.basename(filePath, '.json');
             try {
                 const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                return { id: fileName, title: content.title || fileName };
+                return { id: fileName, title: content.title || fileName, type: 'json' };
             } catch (err) {
-                return { id: fileName, title: fileName };
+                return { id: fileName, title: fileName, type: 'json' };
             }
         });
 
-        res.json({ success: true, tests });
+        const allLivePdfs = getAllPdfFiles(liveDir);
+        const pdfTests = allLivePdfs.map(filePath => {
+            const relId = path.relative(liveDir, filePath).replace(/\\/g, '/');
+            const cleanTitle = path.basename(filePath, '.pdf').replace(/[_-]+/g, ' ').trim();
+            return { id: relId, title: `📄 ${cleanTitle || relId}`, type: 'pdf' };
+        });
+
+        res.json({ success: true, tests: [...jsonTests, ...pdfTests] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to list live tests.' });
+    }
+});
+
+// Stream the active broadcast PDF exclusively to verified students inside that Live Room
+app.get('/api/live/pdf', async (req, res) => {
+    try {
+        const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
+        if (!liveCheck) return res.status(401).send('Unauthorized live session.');
+
+        const cleanId = liveCheck.quizId;
+        const stateStr = await stateStore.get(`live:state:${cleanId}`);
+        const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
+        if (!state || state.status !== 'active' || !state.activeQuizFile || !String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
+            return res.status(404).send('No PDF is currently being broadcast in this room.');
+        }
+
+        const pdfPath = resolveLiveMockPdfPath(state.activeQuizFile);
+        if (!pdfPath || !fs.existsSync(pdfPath)) {
+            return res.status(404).send('Broadcast PDF file not found.');
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.sendFile(pdfPath);
+    } catch (err) {
+        return res.status(500).send('Failed to stream broadcast PDF.');
     }
 });
 const LIVE_ROOMS_REDIS_KEY = 'live:active_rooms:registry';
@@ -4326,10 +4373,17 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
     if (!stateStr) return null;
     const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
+    const isPdfBroadcast = Boolean(
+        state.activeQuizFile &&
+        (state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf'))
+    );
+
     const out = {
         roomName: state.roomName || cleanId,
         status: state.status || 'active',
         activeQuizFile: state.activeQuizFile || '',
+        activeQuizType: isPdfBroadcast ? 'pdf' : (state.activeQuizFile ? 'json' : ''),
+        pdfVersion: state.questionStartTime || 0,
         currentIndex: Number(state.currentIndex) || 0,
         total: Number(state.totalQuestions) || 0,
         totalQuestions: Number(state.totalQuestions) || 0,
@@ -4342,7 +4396,7 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
         kicked: false
     };
 
-    if (out.activeQuizFile) {
+    if (out.activeQuizFile && !isPdfBroadcast) {
         const content = getLiveMockContent(out.activeQuizFile);
         if (content && Array.isArray(content.questions) && content.questions[out.currentIndex]) {
             const q = content.questions[out.currentIndex];
@@ -4561,6 +4615,7 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
 
         if (!questionFile || String(questionFile).trim() === '') {
             state.activeQuizFile = '';
+            state.activeQuizType = '';
             state.currentIndex = 0;
             state.totalQuestions = 0;
             state.title = state.roomName || cleanId;
@@ -4570,13 +4625,45 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
             return res.json({ success: true, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
         }
 
-        const cleanQuizFile = path.basename(String(questionFile)).trim().replace('.json', '');
+        const rawQuestionFile = String(questionFile).trim();
+        if (rawQuestionFile.toLowerCase().endsWith('.pdf')) {
+            const pdfPath = resolveLiveMockPdfPath(rawQuestionFile);
+            if (!pdfPath) {
+                return res.status(404).json({ error: 'Selected PDF file was not found in /livemock.' });
+            }
+            const liveDir = path.resolve(__dirname, 'livemock');
+            const relPdfId = path.relative(liveDir, pdfPath).replace(/\\/g, '/');
+            const pdfTitle = path.basename(pdfPath, '.pdf').replace(/[_-]+/g, ' ').trim();
+
+            state.activeQuizFile = relPdfId;
+            state.activeQuizType = 'pdf';
+            state.currentIndex = 0;
+            state.totalQuestions = 0;
+            state.title = `${state.roomName || cleanId} — ${pdfTitle}`;
+            state.questionStartTime = Date.now();
+
+            await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
+            await emitRoomStateToAll(cleanId);
+            await emitAdminBoard(cleanId);
+
+            return res.json({
+                success: true,
+                activeQuizFile: relPdfId,
+                activeQuizType: 'pdf',
+                title: state.title,
+                totalQuestions: 0,
+                currentIndex: 0
+            });
+        }
+
+        const cleanQuizFile = path.basename(rawQuestionFile).trim().replace('.json', '');
         const content = getLiveMockContent(cleanQuizFile);
         if (!content || !Array.isArray(content.questions) || content.questions.length === 0) {
             return res.status(404).json({ error: 'Selected question file has no questions or was not found.' });
         }
 
         state.activeQuizFile = cleanQuizFile;
+        state.activeQuizType = 'json';
         state.currentIndex = 0;
         state.totalQuestions = content.questions.length;
         state.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
@@ -5025,7 +5112,7 @@ app.get('/api/live/student/scorecard', async (req, res) => {
 
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        if (!state || !state.activeQuizFile) {
+        if (!state || !state.activeQuizFile || state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
             return res.status(400).json({ error: 'No question set was active in this room.' });
         }
 

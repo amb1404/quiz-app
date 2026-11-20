@@ -30,8 +30,9 @@ function updateQuestionControlsUI() {
     const nextBtn = document.getElementById('next-btn');
     const clearBtn = document.getElementById('clear-responses-btn');
 
+    const isPdfActive = Boolean(activeQuizFile && String(activeQuizFile).toLowerCase().endsWith('.pdf'));
     if (!activeQuizFile || totalQuestions === 0) {
-        if (qCounter) qCounter.innerText = "No Question Set Active";
+        if (qCounter) qCounter.innerText = isPdfActive ? "📄 PDF Broadcast Active (Students Can Scroll)" : "No Question Set Active";
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
         if (clearBtn) clearBtn.disabled = true;

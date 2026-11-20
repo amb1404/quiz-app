@@ -47,6 +47,9 @@
         body.rtc-both-active #presentation-screen { display: block !important; width: calc(60vw - 24px) !important; max-width: calc(60vw - 24px) !important; margin: 0 !important; }
         body.rtc-both-active #quiz-screen { display: block !important; width: calc(40vw - 28px) !important; max-width: calc(40vw - 28px) !important; margin-top: 175px !important; }
         @media (max-width: 960px) { body.rtc-both-active #presentation-screen { margin-top: 175px !important; width: 100% !important; max-width: 100% !important; } body.rtc-both-active #quiz-screen { margin-top: 12px !important; width: 100% !important; max-width: 100% !important; } }
+        #quiz-screen.pdf-active { max-width: 860px; padding: 18px; }
+        #live-pdf-viewer { display: none; width: 100%; max-height: 75vh; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; box-sizing: border-box; text-align: center; }
+        #live-pdf-pages canvas { width: 100% !important; height: auto !important; display: block; margin: 0 auto 12px auto; border-radius: 4px; background: #ffffff; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
         @media print { #student-pip-box { display: none !important; } }
     </style>
     <script src="/socket.io/socket.io.js"></script>
@@ -86,6 +89,10 @@
         </div>
         <h3 id="question-text" style="font-size: 20px; color: #1e293b; margin-bottom: 25px; text-align: left;"></h3>
         <div id="options-container" style="text-align: left;"></div>
+        <div id="live-pdf-viewer">
+            <div id="live-pdf-status" style="color: #475569; font-weight: bold; font-size: 13px; padding: 12px;">Loading PDF pages...</div>
+            <div id="live-pdf-pages"></div>
+        </div>
     </div>
 
     <div id="student-pip-box" class="no-print">
@@ -104,6 +111,7 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script src="/js/livetest.js"></script>
     <script>
     const room = new LivekitClient.Room({
