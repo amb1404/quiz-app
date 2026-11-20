@@ -511,6 +511,24 @@ if (typeof io !== 'undefined') {
 
         applyBroadcastModeUI(data.broadcastMode || 'question');
 
+        const isPdfMode = Boolean(
+            data.activeQuizFile &&
+            (data.activeQuizType === 'pdf' || String(data.activeQuizFile).toLowerCase().endsWith('.pdf'))
+        );
+
+        if (isPdfMode) {
+            const pdfStateKey = `PDF:${data.activeQuizFile}:${data.pdfVersion || ''}`;
+            if (pdfStateKey !== lastRenderedKey) {
+                lastRenderedKey = pdfStateKey;
+                currentActiveQuizFile = data.activeQuizFile;
+                localIndex = -1;
+                renderLivePdf(data);
+            }
+            return;
+        }
+
+        clearLivePdfViewer();
+
         if (!data.activeQuizFile || !data.payload || !data.key) {
             currentActiveQuizFile = "";
             localIndex = -1;
@@ -585,6 +603,91 @@ function xorDecipher(b64Str, key) {
 }
 
 let _pdfRenderSeq = 0;
+let _pdfZoom = 1;
+let _pdfPinchBound = false;
+const _PDF_MIN_ZOOM = 1;
+const _PDF_MAX_ZOOM = 3;
+
+function applyPdfZoom(nextZoom, anchorX = null, anchorY = null) {
+    const pdfViewer = document.getElementById('live-pdf-viewer');
+    const pdfPages = document.getElementById('live-pdf-pages');
+    const zoomResetBtn = document.getElementById('btn-pdf-zoom-reset');
+    const prevZoom = _pdfZoom;
+    const clamped = Math.max(_PDF_MIN_ZOOM, Math.min(_PDF_MAX_ZOOM, Math.round(nextZoom * 100) / 100));
+    _pdfZoom = clamped;
+
+    if (pdfPages) {
+        pdfPages.style.width = `${clamped * 100}%`;
+    }
+    if (zoomResetBtn) {
+        zoomResetBtn.textContent = `${Math.round(clamped * 100)}%`;
+    }
+    if (pdfViewer && prevZoom > 0 && clamped !== prevZoom) {
+        const ax = (anchorX !== null) ? anchorX : (pdfViewer.clientWidth / 2);
+        const ay = (anchorY !== null) ? anchorY : (pdfViewer.clientHeight / 2);
+        const ratio = clamped / prevZoom;
+        pdfViewer.scrollLeft = Math.max(0, (pdfViewer.scrollLeft + ax) * ratio - ax);
+        pdfViewer.scrollTop = Math.max(0, (pdfViewer.scrollTop + ay) * ratio - ay);
+    }
+}
+
+function bindPdfPinchZoom(pdfViewer) {
+    if (!pdfViewer || _pdfPinchBound) return;
+    _pdfPinchBound = true;
+
+    let pinchState = null;
+
+    const getTouchMetrics = (t0, t1, rect) => ({
+        dist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+        midX: ((t0.clientX + t1.clientX) / 2) - rect.left,
+        midY: ((t0.clientY + t1.clientY) / 2) - rect.top
+    });
+
+    pdfViewer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            const rect = pdfViewer.getBoundingClientRect();
+            const m = getTouchMetrics(e.touches[0], e.touches[1], rect);
+            if (m.dist > 10) {
+                pinchState = {
+                    startDist: m.dist,
+                    startZoom: _pdfZoom,
+                    contentX: (pdfViewer.scrollLeft + m.midX) / _pdfZoom,
+                    contentY: (pdfViewer.scrollTop + m.midY) / _pdfZoom
+                };
+            }
+        }
+    }, { passive: true });
+
+    pdfViewer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchState) {
+            e.preventDefault();
+            const rect = pdfViewer.getBoundingClientRect();
+            const m = getTouchMetrics(e.touches[0], e.touches[1], rect);
+            const nextZoom = Math.max(_PDF_MIN_ZOOM, Math.min(_PDF_MAX_ZOOM, pinchState.startZoom * (m.dist / pinchState.startDist)));
+            const pdfPages = document.getElementById('live-pdf-pages');
+            const zoomResetBtn = document.getElementById('btn-pdf-zoom-reset');
+            _pdfZoom = nextZoom;
+            if (pdfPages) pdfPages.style.width = `${nextZoom * 100}%`;
+            if (zoomResetBtn) zoomResetBtn.textContent = `${Math.round(nextZoom * 100)}%`;
+            pdfViewer.scrollLeft = Math.max(0, (pinchState.contentX * nextZoom) - m.midX);
+            pdfViewer.scrollTop = Math.max(0, (pinchState.contentY * nextZoom) - m.midY);
+        }
+    }, { passive: false });
+
+    const endPinch = (e) => {
+        if (!e.touches || e.touches.length < 2) pinchState = null;
+    };
+    pdfViewer.addEventListener('touchend', endPinch, { passive: true });
+    pdfViewer.addEventListener('touchcancel', endPinch, { passive: true });
+
+    pdfViewer.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        const rect = pdfViewer.getBoundingClientRect();
+        const step = e.deltaY < 0 ? 0.15 : -0.15;
+        applyPdfZoom(_pdfZoom + step, e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+}
 
 function ensurePdfViewerElements() {
     const quizScreen = document.getElementById('quiz-screen');
@@ -592,13 +695,55 @@ function ensurePdfViewerElements() {
     if (!pdfViewer && quizScreen) {
         pdfViewer = document.createElement('div');
         pdfViewer.id = 'live-pdf-viewer';
-        pdfViewer.style.cssText = 'display:none;width:100%;max-height:75vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:8px;padding:10px;box-sizing:border-box;text-align:center;';
+        pdfViewer.style.cssText = 'display:none;width:100%;max-height:75vh;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:8px;padding:10px;box-sizing:border-box;text-align:center;';
         pdfViewer.innerHTML = '<div id="live-pdf-status" style="color:#475569;font-weight:bold;font-size:13px;padding:12px;">Loading PDF pages...</div><div id="live-pdf-pages"></div>';
         quizScreen.appendChild(pdfViewer);
     }
+
+    if (pdfViewer) {
+        pdfViewer.style.overflow = 'auto';
+        pdfViewer.style.touchAction = 'pan-x pan-y';
+        bindPdfPinchZoom(pdfViewer);
+    }
+
+    let zoomBar = document.getElementById('live-pdf-zoom-bar');
+    if (!zoomBar && pdfViewer && pdfViewer.parentNode) {
+        zoomBar = document.createElement('div');
+        zoomBar.id = 'live-pdf-zoom-bar';
+        zoomBar.style.cssText = 'display:none;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:8px;';
+
+        const btnOut = document.createElement('button');
+        btnOut.type = 'button';
+        btnOut.textContent = '−';
+        btnOut.title = 'Zoom Out';
+        btnOut.style.cssText = 'padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#0f172a;font-weight:bold;font-size:15px;cursor:pointer;';
+        btnOut.addEventListener('click', () => applyPdfZoom(_pdfZoom - 0.25));
+
+        const btnReset = document.createElement('button');
+        btnReset.id = 'btn-pdf-zoom-reset';
+        btnReset.type = 'button';
+        btnReset.textContent = '100%';
+        btnReset.title = 'Reset Zoom';
+        btnReset.style.cssText = 'padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;color:#1e3a8a;font-weight:bold;font-size:12px;cursor:pointer;min-width:52px;';
+        btnReset.addEventListener('click', () => applyPdfZoom(1));
+
+        const btnIn = document.createElement('button');
+        btnIn.type = 'button';
+        btnIn.textContent = '+';
+        btnIn.title = 'Zoom In';
+        btnIn.style.cssText = 'padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#0f172a;font-weight:bold;font-size:15px;cursor:pointer;';
+        btnIn.addEventListener('click', () => applyPdfZoom(_pdfZoom + 0.25));
+
+        zoomBar.appendChild(btnOut);
+        zoomBar.appendChild(btnReset);
+        zoomBar.appendChild(btnIn);
+        pdfViewer.parentNode.insertBefore(zoomBar, pdfViewer);
+    }
+
     return {
         quizScreen,
         pdfViewer,
+        zoomBar,
         pdfPages: document.getElementById('live-pdf-pages'),
         pdfStatus: document.getElementById('live-pdf-status')
     };
@@ -606,21 +751,27 @@ function ensurePdfViewerElements() {
 
 function clearLivePdfViewer() {
     _pdfRenderSeq++;
+    _pdfZoom = 1;
     const quizScreen = document.getElementById('quiz-screen');
     const pdfViewer = document.getElementById('live-pdf-viewer');
+    const zoomBar = document.getElementById('live-pdf-zoom-bar');
     const pdfPages = document.getElementById('live-pdf-pages');
     const qTextEl = document.getElementById('question-text');
     const optsBox = document.getElementById('options-container');
     if (quizScreen) quizScreen.classList.remove('pdf-active');
+    if (zoomBar) zoomBar.style.display = 'none';
     if (pdfViewer) pdfViewer.style.display = 'none';
-    if (pdfPages) pdfPages.innerHTML = '';
+    if (pdfPages) {
+        pdfPages.style.width = '100%';
+        pdfPages.innerHTML = '';
+    }
     if (qTextEl) qTextEl.style.display = '';
     if (optsBox) optsBox.style.display = '';
 }
 
 async function renderLivePdf(data) {
     const mySeq = ++_pdfRenderSeq;
-    const { quizScreen, pdfViewer, pdfPages, pdfStatus } = ensurePdfViewerElements();
+    const { quizScreen, pdfViewer, zoomBar, pdfPages, pdfStatus } = ensurePdfViewerElements();
     const statusEl = document.getElementById('live-status');
     const progEl = document.getElementById('live-progress');
     const qTextEl = document.getElementById('question-text');
@@ -630,12 +781,18 @@ async function renderLivePdf(data) {
     if (qTextEl) qTextEl.style.display = 'none';
     if (optsBox) { optsBox.innerHTML = ''; optsBox.style.display = 'none'; }
     if (statusEl) statusEl.innerText = '📄 Live PDF Questions';
-    if (progEl) progEl.innerText = 'Scroll Pages';
+    if (progEl) progEl.innerText = 'Scroll / Pinch to Zoom';
+    if (zoomBar) zoomBar.style.display = 'flex';
+    applyPdfZoom(1);
     if (pdfViewer) {
         pdfViewer.style.display = 'block';
         pdfViewer.scrollTop = 0;
+        pdfViewer.scrollLeft = 0;
     }
-    if (pdfPages) pdfPages.innerHTML = '';
+    if (pdfPages) {
+        pdfPages.style.width = '100%';
+        pdfPages.innerHTML = '';
+    }
     if (pdfStatus) {
         pdfStatus.style.display = 'block';
         pdfStatus.innerText = 'Loading PDF pages...';
@@ -659,7 +816,6 @@ async function renderLivePdf(data) {
             pdfLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
         }
 
-        // Uses in-memory pdfjsWorker loaded via nonced <script> tag — 100% CSP-safe on Chrome, Firefox, Android & iOS
         const loadingTask = pdfLib.getDocument({
             data: new Uint8Array(arrayBuf),
             isEvalSupported: false,
@@ -668,7 +824,7 @@ async function renderLivePdf(data) {
         const pdfDoc = await loadingTask.promise;
         if (mySeq !== _pdfRenderSeq) return;
 
-        if (progEl) progEl.innerText = `${pdfDoc.numPages} Page${pdfDoc.numPages === 1 ? '' : 's'} (Scroll)`;
+        if (progEl) progEl.innerText = `${pdfDoc.numPages} Page${pdfDoc.numPages === 1 ? '' : 's'} (Pinch to Zoom)`;
         if (pdfStatus) pdfStatus.style.display = 'none';
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -676,12 +832,14 @@ async function renderLivePdf(data) {
             ? (pdfViewer.clientWidth - 24)
             : Math.min((window.innerWidth || 600) - 48, 780);
         const targetWidth = Math.max(280, rawWidth);
+        const zoomSharpnessFactor = Math.min(Math.max(dpr * 1.5, 2.25), 3.5);
 
         for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
             if (mySeq !== _pdfRenderSeq) return;
             const page = await pdfDoc.getPage(pageNum);
             const baseViewport = page.getViewport({ scale: 1 });
-            const scale = (targetWidth / baseViewport.width) * dpr;
+            const rawScale = (targetWidth / baseViewport.width) * zoomSharpnessFactor;
+            const scale = Math.min(rawScale, 1800 / baseViewport.width, 2600 / baseViewport.height);
             const viewport = page.getViewport({ scale });
 
             const canvas = document.createElement('canvas');
