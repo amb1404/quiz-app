@@ -42,74 +42,104 @@
     <link rel="stylesheet" href="/css/style.css">
 
     <style>
-        /* --- Page Intro --- */
-        .page-intro h1 {
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
-        .page-intro-lead {
-            max-width: 760px;
-            margin: 0 auto 20px auto;
-            color: #475569;
-            font-size: 15px;
-            line-height: 1.6;
-            text-align: center;
+        /* --- Wider Main Container for Full-Viewport Discoverability --- */
+        main.site-main {
+            max-width: 1360px !important;
+            width: 100%;
+            margin: 0 auto;
+            padding: 14px 20px 36px 20px !important;
+            box-sizing: border-box;
         }
 
-        /* --- Live Test Hero Banner --- */
+        /* --- Compact Page Intro --- */
+        .page-intro {
+            text-align: center;
+            margin-bottom: 12px !important;
+        }
+        .page-intro h1 {
+            margin: 0 0 4px 0 !important;
+            font-size: clamp(20px, 2.2vw, 26px);
+            line-height: 1.25;
+        }
+        .page-intro-lead {
+            max-width: 820px;
+            margin: 0 auto;
+            color: #475569;
+            font-size: 13.5px;
+            line-height: 1.45;
+        }
+
+        /* --- Compact Horizontal Live Test Hero Strip --- */
         @keyframes pulseGlow {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
-            70% { transform: scale(1.02); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
         }
         .live-hero-banner {
-            max-width: 820px;
-            margin: 10px auto 44px auto;
+            max-width: 1320px;
+            margin: 0 auto 16px auto;
             background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
-            padding: 26px 24px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-            border: 2px solid rgba(96, 165, 250, 0.4);
+            padding: 14px 24px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            text-align: left;
+            box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.25);
+            border: 1.5px solid rgba(96, 165, 250, 0.45);
+            box-sizing: border-box;
+        }
+        .live-hero-copy {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .live-hero-top {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 4px;
         }
         .live-hero-badge {
             display: inline-block;
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.22);
             color: #fca5a5;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            border: 1px solid rgba(239, 68, 68, 0.4);
+            letter-spacing: 0.9px;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            white-space: nowrap;
         }
         .live-hero-title {
             color: #ffffff;
-            margin: 0 0 10px 0;
-            font-size: 28px;
+            margin: 0;
+            font-size: 19px;
             font-weight: 800;
             line-height: 1.25;
         }
         .live-hero-desc {
             color: #cbd5e1;
-            margin: 0 auto 24px auto;
-            font-size: 16px;
-            max-width: 680px;
-            line-height: 1.55;
+            margin: 0;
+            font-size: 13.5px;
+            line-height: 1.4;
         }
         .live-hero-btn {
+            flex: 0 0 auto;
             display: inline-block;
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: #ffffff;
-            padding: 16px 38px;
-            border-radius: 10px;
+            padding: 12px 28px;
+            border-radius: 9px;
             font-weight: 800;
             text-decoration: none;
-            font-size: 19px;
-            letter-spacing: 0.4px;
-            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+            font-size: 16px;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
             animation: pulseGlow 2.5s infinite ease-in-out;
             transition: transform 0.2s, background 0.2s;
         }
@@ -118,39 +148,84 @@
             transform: translateY(-2px);
         }
 
-        /* --- Shared Dashboard Panel Headers & Subtitles --- */
-        .panel-heading {
-            text-align: center;
-            margin: 0 0 8px 0;
-            font-weight: 800;
+        /* --- Bento Home Dashboard Grid (Overrides style.css flex/width) --- */
+        #home-dashboard {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 16px !important;
+            align-items: stretch !important;
+            max-width: 1320px !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+            box-sizing: border-box !important;
         }
-        .panel-subtitle {
-            text-align: center;
-            color: #475569;
-            font-size: 14px;
-            line-height: 1.5;
-            max-width: 640px;
-            margin: 0 auto 20px auto;
-        }
-        .panel-mock {
-            border-top: 4px solid #2563eb;
-        }
-        .panel-notes {
-            background-color: rgba(236, 253, 245, 0.96);
-            border: 2px solid #34d399;
-        }
-        .panel-descriptive {
-            background-color: rgba(254, 252, 232, 0.98);
-            border: 2px solid #facc15;
+        #home-dashboard > .dashboard-panel {
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 16px 18px !important;
+            border-radius: 14px !important;
+            box-sizing: border-box !important;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* --- Quick-Filter Bar (Mock Tests) --- */
+        .panel-mock {
+            grid-column: 1 / -1 !important;
+            background-color: #ffffff !important;
+            border: 1.5px solid #dbeafe !important;
+            border-top: 4px solid #2563eb !important;
+        }
+        .panel-notes {
+            background-color: rgba(236, 253, 245, 0.96) !important;
+            border: 1.5px solid #34d399 !important;
+            border-top: 4px solid #059669 !important;
+        }
+        .panel-descriptive {
+            background-color: rgba(254, 252, 232, 0.98) !important;
+            border: 1.5px solid #facc15 !important;
+            border-top: 4px solid #ca8a04 !important;
+        }
+
+        /* --- Panel Top Headers --- */
+        .panel-header-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px 16px;
+            margin-bottom: 14px;
+        }
+        .panel-header-copy {
+            text-align: left;
+        }
+        .panel-heading {
+            margin: 0 0 2px 0 !important;
+            font-size: 19px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .panel-subtitle {
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.4;
+            margin: 0;
+        }
+        .panel-notes .panel-header-copy,
+        .panel-descriptive .panel-header-copy {
+            text-align: center;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        /* --- Quick-Filter Bar (Inline in Mock Tests Header) --- */
         .track-filter-bar {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-            margin: 0 0 22px 0;
+            justify-content: flex-end;
+            gap: 6px;
+            margin: 0;
         }
         .track-filter-bar button.track-filter-pill {
             --pill-accent: #1e3a8a;
@@ -158,13 +233,13 @@
             color: #334155;
             border: 1.5px solid #cbd5e1;
             border-radius: 999px;
-            padding: 6px 14px;
+            padding: 5px 12px;
             margin: 0;
             font-family: inherit;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.3px;
-            line-height: 1.3;
+            letter-spacing: 0.25px;
+            line-height: 1.25;
             cursor: pointer;
             transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
         }
@@ -184,16 +259,32 @@
             color: #ffffff;
         }
 
-        /* --- Track-Scoped Category Sections --- */
+        /* --- 4-Column Horizontal Mock Test Tracks --- */
+        .mock-tracks-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            align-items: stretch;
+        }
+        .mock-tracks-grid.is-filtered-single {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
         .mock-category-section {
             --track-accent: #1e3a8a;
             --track-divider: #bfdbfe;
             --track-tint: #eff6ff;
-            margin-bottom: 24px;
+            --track-surface: #f8fafc;
+            margin: 0;
+            padding: 12px 12px 14px 12px;
+            border-radius: 10px;
+            background-color: var(--track-surface);
+            border: 1px solid var(--track-divider);
+            border-top: 3px solid var(--track-accent);
             text-align: center;
-        }
-        .mock-category-section:last-of-type {
-            margin-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         }
         .mock-category-section.is-hidden-track {
             display: none !important;
@@ -201,83 +292,100 @@
         .mock-category-section[data-track="neet"] {
             --track-accent: #1d4ed8;
             --track-divider: #bfdbfe;
-            --track-tint: #eff6ff;
+            --track-tint: #dbeafe;
+            --track-surface: #f5f9ff;
         }
         .mock-category-section[data-track="wbchse"] {
             --track-accent: #047857;
             --track-divider: #a7f3d0;
-            --track-tint: #ecfdf5;
+            --track-tint: #d1fae5;
+            --track-surface: #f2fdf8;
         }
         .mock-category-section[data-track="isc-cbse"] {
             --track-accent: #4338ca;
             --track-divider: #c7d2fe;
-            --track-tint: #eef2ff;
+            --track-tint: #e0e7ff;
+            --track-surface: #f5f6ff;
         }
         .mock-category-section[data-track="icse-cbse"] {
             --track-accent: #b45309;
             --track-divider: #fde68a;
-            --track-tint: #fffbeb;
+            --track-tint: #fef3c7;
+            --track-surface: #fffcf0;
         }
 
         .mock-category-header {
-            font-size: 19px;
+            font-size: 15.5px;
             font-weight: 800;
             color: var(--track-accent);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.9px;
             margin: 0 0 4px 0;
             padding: 0;
             border-bottom: none;
         }
         .mock-category-desc {
             text-align: center;
-            color: #64748b;
-            font-size: 13px;
-            line-height: 1.45;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.38;
             margin: 0 0 10px 0;
+            flex: 1 0 auto;
         }
         .mock-category-divider {
-            border-bottom: 2px solid var(--track-divider);
-            margin-bottom: 14px;
+            border-bottom: 1.5px solid var(--track-divider);
+            margin-bottom: 10px;
             width: 100%;
         }
 
-        /* --- Equal-Height Card Grids (All 3 Panels) --- */
+        /* --- Equal-Height Card Grids Across All Panels --- */
         .mock-category-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            grid-auto-rows: 1fr;
-            align-items: stretch;
-            gap: 12px;
-        }
-        .panel-card-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             grid-auto-rows: 1fr;
             align-items: stretch;
-            gap: 12px;
+            gap: 8px;
+        }
+        .mock-category-grid .card-span-full {
+            grid-column: 1 / -1;
+        }
+        .mock-tracks-grid.is-filtered-single .mock-category-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+        .mock-tracks-grid.is-filtered-single .mock-category-grid .card-span-full {
+            grid-column: auto;
+        }
+
+        .panel-card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-auto-rows: 1fr;
+            align-items: stretch;
+            gap: 10px;
+            margin-top: auto;
         }
 
         .mock-category-grid .card,
         .panel-card-grid .card {
             margin: 0 !important;
-            padding: 14px 10px !important;
-            font-size: 14px !important;
-            line-height: 1.3;
+            padding: 10px 8px !important;
+            font-size: 13.5px !important;
+            line-height: 1.25;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
-            width: 100%;
+            gap: 2px;
+            width: 100% !important;
             height: 100%;
-            min-height: 62px;
-            box-sizing: border-box;
+            min-height: 52px;
+            box-sizing: border-box !important;
             text-align: center;
+            background-color: #ffffff;
             transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
         }
         .mock-category-grid .card {
-            border-left: 3.5px solid var(--track-accent);
+            border-left: 3px solid var(--track-accent);
         }
         .mock-category-grid .card:hover {
             background-color: var(--track-tint);
@@ -285,7 +393,7 @@
             color: var(--track-accent);
         }
         .panel-notes .panel-card-grid .card {
-            border-left: 3.5px solid #059669;
+            border-left: 3px solid #059669;
         }
         .panel-notes .panel-card-grid .card:hover {
             background-color: #d1fae5;
@@ -293,61 +401,68 @@
             color: #065f46;
         }
         .panel-descriptive .panel-card-grid .card {
-            border-left: 3.5px solid #ca8a04;
+            border-left: 3px solid #ca8a04;
         }
 
         .card-title {
             font-weight: 700;
-            font-size: 14.5px;
+            font-size: 13.5px;
             display: block;
         }
         .card-meta {
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 500;
             color: #64748b;
             display: block;
-            line-height: 1.25;
+            line-height: 1.2;
         }
 
-        /* --- SEO Informational & Platform Highlights --- */
+        /* --- SEO Informational & Platform Highlights (Full-Width Below Fold) --- */
+        #home-dashboard > .seo-info-section {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin-top: 12px !important;
+            box-sizing: border-box !important;
+        }
         .seo-section-heading {
             margin: 0 0 8px 0;
             color: #1e3a8a;
             text-align: center;
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 800;
         }
         .seo-section-lead {
             text-align: center;
             color: #475569;
-            font-size: 14.5px;
+            font-size: 14px;
             line-height: 1.6;
-            max-width: 740px;
-            margin: 0 auto 22px auto;
+            max-width: 760px;
+            margin: 0 auto 20px auto;
         }
         .platform-pillars {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin-top: 22px;
+            gap: 14px;
+            margin-top: 18px;
         }
         .pillar-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
-            padding: 16px 18px;
+            padding: 14px 16px;
         }
         .pillar-box h4 {
             margin: 0 0 6px 0;
             color: #0f172a;
-            font-size: 15px;
+            font-size: 14.5px;
             font-weight: 700;
         }
         .pillar-box p {
             margin: 0;
             color: #475569;
-            font-size: 13.5px;
-            line-height: 1.55;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         /* --- Global Login Modal --- */
@@ -408,31 +523,54 @@
             cursor: pointer;
         }
 
-        @media (max-width: 600px) {
-            .live-hero-banner {
-                padding: 22px 16px;
-                margin-bottom: 32px;
+        /* --- Responsive Breakpoints --- */
+        @media (max-width: 1180px) {
+            .panel-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
-            .live-hero-title {
-                font-size: 22px;
+        }
+        @media (max-width: 1024px) {
+            .mock-tracks-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
-            .live-hero-desc {
-                font-size: 14.5px;
+            .panel-header-row {
+                flex-direction: column;
+                align-items: center;
             }
-            .live-hero-btn {
-                padding: 14px 30px;
-                font-size: 17px;
+            .panel-header-copy {
+                text-align: center;
             }
             .track-filter-bar {
-                gap: 6px;
-                margin-bottom: 18px;
+                justify-content: center;
+            }
+        }
+        @media (max-width: 767px) {
+            main.site-main {
+                padding: 12px 14px 28px 14px !important;
+            }
+            .live-hero-banner {
+                flex-direction: column;
+                text-align: center;
+                padding: 18px 16px;
+                gap: 14px;
+            }
+            .live-hero-top {
+                justify-content: center;
+            }
+            .live-hero-btn {
+                width: 100%;
+                max-width: 240px;
+                text-align: center;
+            }
+            #home-dashboard {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+            .mock-tracks-grid {
+                grid-template-columns: minmax(0, 1fr);
             }
             .track-filter-bar button.track-filter-pill {
-                font-size: 12px;
-                padding: 5px 11px;
-            }
-            .mock-category-header {
-                font-size: 17px;
+                font-size: 11.5px;
+                padding: 5px 10px;
             }
         }
 
@@ -451,149 +589,157 @@
         <section class="page-intro">
             <h1>Pioneers Prep — Online Mock Tests &amp; Study Portal</h1>
             <p class="page-intro-lead">
-                Structured science assessments, concise study notes, and board-aligned descriptive papers by Aniruddha Banerjee for NEET aspirants and Class IX–XII students across ICSE, ISC, CBSE, and WBCHSE curricula.
+                Structured science assessments, concise study notes, and board-aligned descriptive papers by Aniruddha Banerjee for NEET, ICSE, ISC, CBSE, and WBCHSE students.
             </p>
         </section>
 
-        <!-- High-Visibility Live Test Hero Banner -->
+        <!-- Compact Horizontal Live Test Hero Banner -->
         <section class="live-hero-banner" aria-labelledby="live-hero-heading">
-            <div class="live-hero-badge">Live Session</div>
-            <h2 id="live-hero-heading" class="live-hero-title">Real-Time Interactive Examinations</h2>
-            <p class="live-hero-desc">
-                Join securely synced portals featuring live tests, instant leaderboards, anti-cheat validation, and precise speed tracking with in-depth question-by-question analysis.
-            </p>
+            <div class="live-hero-copy">
+                <div class="live-hero-top">
+                    <span class="live-hero-badge">Live Session</span>
+                    <h2 id="live-hero-heading" class="live-hero-title">Real-Time Interactive Examinations</h2>
+                </div>
+                <p class="live-hero-desc">
+                    Join securely synced portals featuring live tests, instant leaderboards, anti-cheat validation, and precise speed tracking with in-depth analysis.
+                </p>
+            </div>
             <a href="/live-room" class="live-hero-btn">Join Room</a>
         </section>
 
         <div id="home-dashboard">
-            <!-- 1. Mock Tests Panel -->
+            <!-- 1. Mock Tests Panel (Full-Width 4-Track Row) -->
             <section id="mock-tests-panel" class="dashboard-panel panel-mock" aria-labelledby="mock-tests-heading">
-                <h2 id="mock-tests-heading" class="panel-heading" style="color: #1d4ed8;">Mock Tests</h2>
-                <p class="panel-subtitle">
-                    Timed online assessments with automated scoring, accuracy breakdowns, and detailed post-test review. Filter by your exam track or jump straight to your class below.
-                </p>
+                <div class="panel-header-row">
+                    <div class="panel-header-copy">
+                        <h2 id="mock-tests-heading" class="panel-heading" style="color: #1d4ed8;">Mock Tests</h2>
+                        <p class="panel-subtitle">Timed assessments with automated scoring and post-test analytics—select a track or filter below.</p>
+                    </div>
 
-                <div class="track-filter-bar" id="mock-track-filters" role="group" aria-label="Filter mock tests by exam track">
-                    <button type="button" class="track-filter-pill is-active" data-filter="all" aria-pressed="true">All Tracks</button>
-                    <button type="button" class="track-filter-pill" data-filter="neet" aria-pressed="false">NEET</button>
-                    <button type="button" class="track-filter-pill" data-filter="wbchse" aria-pressed="false">WBCHSE</button>
-                    <button type="button" class="track-filter-pill" data-filter="isc-cbse" aria-pressed="false">ISC / CBSE</button>
-                    <button type="button" class="track-filter-pill" data-filter="icse-cbse" aria-pressed="false">ICSE / CBSE</button>
-                </div>
-
-                <!-- NEET Section -->
-                <div class="mock-category-section" data-track="neet">
-                    <div class="mock-category-header">NEET</div>
-                    <p class="mock-category-desc">Basic, advanced, and full-syllabus medical entrance mocks built for speed, accuracy, and negative-marking discipline.</p>
-                    <div class="mock-category-divider"></div>
-                    <div class="mock-category-grid">
-                        <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">
-                            <span class="card-title">Class XI</span>
-                            <span class="card-meta">Basic &amp; Advanced</span>
-                        </a>
-                        <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">
-                            <span class="card-title">Class XII</span>
-                            <span class="card-meta">Basic &amp; Advanced</span>
-                        </a>
-                        <a href="/test-portal.html?class=NEET-FULL" class="card" data-action="clear-session">
-                            <span class="card-title">Full Length</span>
-                            <span class="card-meta">Complete Syllabus</span>
-                        </a>
+                    <div class="track-filter-bar" id="mock-track-filters" role="group" aria-label="Filter mock tests by exam track">
+                        <button type="button" class="track-filter-pill is-active" data-filter="all" aria-pressed="true">All Tracks</button>
+                        <button type="button" class="track-filter-pill" data-filter="neet" aria-pressed="false">NEET</button>
+                        <button type="button" class="track-filter-pill" data-filter="wbchse" aria-pressed="false">WBCHSE</button>
+                        <button type="button" class="track-filter-pill" data-filter="isc-cbse" aria-pressed="false">ISC / CBSE</button>
+                        <button type="button" class="track-filter-pill" data-filter="icse-cbse" aria-pressed="false">ICSE / CBSE</button>
                     </div>
                 </div>
 
-                <!-- WBCHSE Section -->
-                <div class="mock-category-section" data-track="wbchse">
-                    <div class="mock-category-header">WBCHSE</div>
-                    <p class="mock-category-desc">Semester-wise higher secondary tests aligned with West Bengal Council exam patterns and marking schemes.</p>
-                    <div class="mock-category-divider"></div>
-                    <div class="mock-category-grid">
-                        <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">
-                            <span class="card-title">Class XI</span>
-                            <span class="card-meta">Semester-Wise</span>
-                        </a>
-                        <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">
-                            <span class="card-title">Class XII</span>
-                            <span class="card-meta">Semester-Wise</span>
-                        </a>
+                <div class="mock-tracks-grid" id="mock-tracks-grid">
+                    <!-- NEET Section -->
+                    <div class="mock-category-section" data-track="neet">
+                        <div class="mock-category-header">NEET</div>
+                        <p class="mock-category-desc">Basic, advanced, and full-syllabus medical entrance mocks with speed &amp; accuracy analytics.</p>
+                        <div class="mock-category-divider"></div>
+                        <div class="mock-category-grid">
+                            <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">
+                                <span class="card-title">Class XI</span>
+                                <span class="card-meta">Basic &amp; Adv.</span>
+                            </a>
+                            <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">
+                                <span class="card-title">Class XII</span>
+                                <span class="card-meta">Basic &amp; Adv.</span>
+                            </a>
+                            <a href="/test-portal.html?class=NEET-FULL" class="card card-span-full" data-action="clear-session">
+                                <span class="card-title">Full Length</span>
+                                <span class="card-meta">Complete NEET Syllabus</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
 
-                <!-- ISC/CBSE Section -->
-                <div class="mock-category-section" data-track="isc-cbse">
-                    <div class="mock-category-header">ISC / CBSE</div>
-                    <p class="mock-category-desc">Focused topic-wise Biology assessments for Class XI and XII board students targeting conceptual clarity.</p>
-                    <div class="mock-category-divider"></div>
-                    <div class="mock-category-grid">
-                        <a href="/test-portal.html?class=ISC%20XI" class="card" data-action="clear-session">
-                            <span class="card-title">Class XI</span>
-                            <span class="card-meta">Topic-Wise Tests</span>
-                        </a>
-                        <a href="/test-portal.html?class=ISC%20XII" class="card" data-action="clear-session">
-                            <span class="card-title">Class XII</span>
-                            <span class="card-meta">Topic-Wise Tests</span>
-                        </a>
+                    <!-- WBCHSE Section -->
+                    <div class="mock-category-section" data-track="wbchse">
+                        <div class="mock-category-header">WBCHSE</div>
+                        <p class="mock-category-desc">Semester-wise higher secondary tests aligned with West Bengal Council marking patterns.</p>
+                        <div class="mock-category-divider"></div>
+                        <div class="mock-category-grid">
+                            <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">
+                                <span class="card-title">Class XI</span>
+                                <span class="card-meta">Semester-Wise</span>
+                            </a>
+                            <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">
+                                <span class="card-title">Class XII</span>
+                                <span class="card-meta">Semester-Wise</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
 
-                <!-- ICSE/CBSE Section -->
-                <div class="mock-category-section" data-track="icse-cbse">
-                    <div class="mock-category-header">ICSE / CBSE</div>
-                    <p class="mock-category-desc">Subject-wise and chapter-wise foundation tests covering Physics, Chemistry, and Biology for Classes IX and X.</p>
-                    <div class="mock-category-divider"></div>
-                    <div class="mock-category-grid">
-                        <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">
-                            <span class="card-title">Class IX</span>
-                            <span class="card-meta">Subject &amp; Chapter</span>
-                        </a>
-                        <a href="/test-portal.html?class=X" class="card" data-action="clear-session">
-                            <span class="card-title">Class X</span>
-                            <span class="card-meta">Subject &amp; Chapter</span>
-                        </a>
+                    <!-- ISC/CBSE Section -->
+                    <div class="mock-category-section" data-track="isc-cbse">
+                        <div class="mock-category-header">ISC / CBSE</div>
+                        <p class="mock-category-desc">Focused topic-wise Biology assessments for Class XI and XII board exam preparation.</p>
+                        <div class="mock-category-divider"></div>
+                        <div class="mock-category-grid">
+                            <a href="/test-portal.html?class=ISC%20XI" class="card" data-action="clear-session">
+                                <span class="card-title">Class XI</span>
+                                <span class="card-meta">Topic-Wise</span>
+                            </a>
+                            <a href="/test-portal.html?class=ISC%20XII" class="card" data-action="clear-session">
+                                <span class="card-title">Class XII</span>
+                                <span class="card-meta">Topic-Wise</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ICSE/CBSE Section -->
+                    <div class="mock-category-section" data-track="icse-cbse">
+                        <div class="mock-category-header">ICSE / CBSE</div>
+                        <p class="mock-category-desc">Subject-wise and chapter-wise foundation tests in Physics, Chemistry, and Biology.</p>
+                        <div class="mock-category-divider"></div>
+                        <div class="mock-category-grid">
+                            <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">
+                                <span class="card-title">Class IX</span>
+                                <span class="card-meta">Chapter-Wise</span>
+                            </a>
+                            <a href="/test-portal.html?class=X" class="card" data-action="clear-session">
+                                <span class="card-title">Class X</span>
+                                <span class="card-meta">Chapter-Wise</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- 2. Study Notes Panel -->
+            <!-- 2. Study Notes Panel (Left Half, Row 2) -->
             <section id="study-notes-panel" class="dashboard-panel panel-notes" aria-labelledby="study-notes-heading">
-                <h2 id="study-notes-heading" class="panel-heading" style="color: #047857;">Study Notes</h2>
-                <p class="panel-subtitle">
-                    Concise, exam-oriented chapter notes with labeled concepts, key formulas, and high-yield summaries tailored for fast revision.
-                </p>
+                <div class="panel-header-copy">
+                    <h2 id="study-notes-heading" class="panel-heading" style="color: #047857;">Study Notes</h2>
+                    <p class="panel-subtitle">Exam-oriented chapter notes, labeled diagrams, and high-yield summaries for fast revision.</p>
+                </div>
                 <div class="panel-card-grid">
                     <a href="/notes.html?class=IX" class="card" data-action="clear-session">
                         <span class="card-title">Class IX</span>
-                        <span class="card-meta">ICSE &amp; CBSE Science</span>
+                        <span class="card-meta">ICSE &amp; CBSE</span>
                     </a>
                     <a href="/notes.html?class=X" class="card" data-action="clear-session">
                         <span class="card-title">Class X</span>
-                        <span class="card-meta">ICSE &amp; CBSE Science</span>
+                        <span class="card-meta">ICSE &amp; CBSE</span>
                     </a>
                     <a href="/notes.html?class=XI" class="card" data-action="clear-session">
                         <span class="card-title">Class XI</span>
-                        <span class="card-meta">ISC, CBSE &amp; WBCHSE</span>
+                        <span class="card-meta">ISC / CBSE / WB</span>
                     </a>
                     <a href="/notes.html?class=XII" class="card" data-action="clear-session">
                         <span class="card-title">Class XII</span>
-                        <span class="card-meta">ISC, CBSE &amp; WBCHSE</span>
+                        <span class="card-meta">ISC / CBSE / WB</span>
                     </a>
                 </div>
             </section>
 
-            <!-- 3. Descriptive Questions Panel -->
+            <!-- 3. Descriptive Questions Panel (Right Half, Row 2) -->
             <section id="descriptive-panel" class="dashboard-panel panel-descriptive" aria-labelledby="descriptive-heading">
-                <h2 id="descriptive-heading" class="panel-heading" style="color: #a16207;">Descriptive Questions</h2>
-                <p class="panel-subtitle">
-                    Downloadable subjective worksheets and board-pattern question papers designed to sharpen structured answer writing and diagram presentation.
-                </p>
+                <div class="panel-header-copy">
+                    <h2 id="descriptive-heading" class="panel-heading" style="color: #a16207;">Descriptive Questions</h2>
+                    <p class="panel-subtitle">Downloadable subjective worksheets and board-pattern papers for structured answer writing.</p>
+                </div>
                 <div class="panel-card-grid">
                     <a href="/descriptive.html?class=IX" class="card card-yellow" data-action="clear-session">
                         <span class="card-title">Class IX</span>
-                        <span class="card-meta">Chapter Worksheets</span>
+                        <span class="card-meta">Worksheets</span>
                     </a>
                     <a href="/descriptive.html?class=X" class="card card-yellow" data-action="clear-session">
                         <span class="card-title">Class X</span>
-                        <span class="card-meta">Board Pattern Papers</span>
+                        <span class="card-meta">Board Papers</span>
                     </a>
                     <a href="/descriptive.html?class=XI" class="card card-yellow" data-action="clear-session">
                         <span class="card-title">Class XI</span>
@@ -601,7 +747,7 @@
                     </a>
                     <a href="/descriptive.html?class=XII" class="card card-yellow" data-action="clear-session">
                         <span class="card-title">Class XII</span>
-                        <span class="card-meta">Board &amp; Semester Sets</span>
+                        <span class="card-meta">Board &amp; Sem.</span>
                     </a>
                 </div>
             </section>
@@ -686,9 +832,10 @@
             /* --- 1. Mock Tests Quick-Filter Bar --- */
             const TRACK_STORAGE_KEY = 'pp_mock_track_filter';
             const filterBar = document.getElementById('mock-track-filters');
-            if (filterBar) {
+            const tracksGrid = document.getElementById('mock-tracks-grid');
+            if (filterBar && tracksGrid) {
                 const pills = Array.from(filterBar.querySelectorAll('.track-filter-pill'));
-                const sections = Array.from(document.querySelectorAll('.mock-category-section[data-track]'));
+                const sections = Array.from(tracksGrid.querySelectorAll('.mock-category-section[data-track]'));
 
                 const applyTrackFilter = (selectedTrack) => {
                     const validTrack = pills.some((pill) => pill.dataset.filter === selectedTrack)
@@ -705,6 +852,8 @@
                         const isVisible = validTrack === 'all' || section.dataset.track === validTrack;
                         section.classList.toggle('is-hidden-track', !isVisible);
                     });
+
+                    tracksGrid.classList.toggle('is-filtered-single', validTrack !== 'all');
 
                     try {
                         localStorage.setItem(TRACK_STORAGE_KEY, validTrack);
