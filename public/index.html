@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pioneers Prep by Aniruddha Banerjee</title>
-    <meta name="description" content="Pioneers Prep: Premium mock tests & notes for NEET, ICSE/CBSE (IX-X), ISC/CBSE (XI-XII) & WBCHSE (XI-XII).">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pioneers Prep by Aniruddha Banerjee — Online Mock Tests &amp; Study Portal</title>
+    <meta name="description" content="Pioneers Prep by Aniruddha Banerjee: Chapter-wise &amp; full-length mock tests, structured study notes, and descriptive question papers for NEET, ICSE/CBSE (IX–X), ISC/CBSE (XI–XII), and WBCHSE (XI–XII).">
     <meta name="author" content="Aniruddha Banerjee">
-    <meta name="keywords" content="Pioneers Prep, PioneersPrep, pioneersprep, PioneersPrep, pioneer prep, Pioneer prep, pioneerprep, PIONEERSPREP, Aniruddha Banerjee, NEET Biology Mock Test, ICSE Physics Notes, ICSE Chemistry Notes, WBCHSE Biology, Online Mock Tests, Study Notes, Berhampore">
+    <meta name="keywords" content="Pioneers Prep, PioneersPrep, Aniruddha Banerjee, NEET Biology Mock Test, ICSE Physics Notes, ICSE Chemistry Notes, ISC Biology, CBSE Science Mock Tests, WBCHSE Biology, Online Mock Tests, Descriptive Worksheets, Study Notes, Berhampore">
     <link rel="canonical" href="https://pioneersprep.in/">
 
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Pioneers Prep by Aniruddha Banerjee - Online Mock Tests & Study Notes">
-    <meta property="og:description" content="Pioneers Prep by Aniruddha Banerjee offers chapter-wise mock tests, descriptive worksheets, and study notes for NEET, ICSE (Class 9-10), and WBCHSE.">
+    <meta property="og:title" content="Pioneers Prep by Aniruddha Banerjee — Online Mock Tests &amp; Study Notes">
+    <meta property="og:description" content="Chapter-wise &amp; full-length online mock tests, descriptive question papers, and structured science study notes for NEET, ICSE/CBSE (Class IX–X), ISC/CBSE (Class XI–XII), and WBCHSE (Class XI–XII).">
     <meta property="og:url" content="https://pioneersprep.in/">
     <meta property="og:site_name" content="Pioneers Prep">
 
@@ -20,194 +20,627 @@
         "@context": "https://schema.org",
         "@type": "EducationalOrganization",
         "name": "Pioneers Prep",
-        "url": "https://pioneersprep.in",
+        "url": "https://pioneersprep.in/",
         "founder": {
             "@type": "Person",
             "name": "Aniruddha Banerjee",
             "jobTitle": "Educator (Biology, Physics & Chemistry)"
         },
-        "description": "Pioneers Prep by Aniruddha Banerjee offers chapter-wise online mock tests, descriptive question papers, and study notes for NEET, ICSE Class IX & X, and WBCHSE Class XI & XII."
+        "description": "Pioneers Prep by Aniruddha Banerjee offers chapter-wise and full-length online mock tests, downloadable descriptive question papers, and structured study notes for NEET, ICSE and CBSE Class IX–X, ISC and CBSE Class XI–XII, and WBCHSE Class XI–XII.",
+        "knowsAbout": [
+            "NEET Preparation",
+            "ICSE Science",
+            "ISC Biology",
+            "CBSE Science",
+            "WBCHSE Biology",
+            "Physics",
+            "Chemistry",
+            "Biology"
+        ]
     }
     </script>
     <link rel="stylesheet" href="/css/style.css">
+
+    <style>
+        /* --- Page Intro --- */
+        .page-intro h1 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .page-intro-lead {
+            max-width: 760px;
+            margin: 0 auto 20px auto;
+            color: #475569;
+            font-size: 15px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        /* --- Live Test Hero Banner --- */
+        @keyframes pulseGlow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .live-hero-banner {
+            max-width: 820px;
+            margin: 10px auto 44px auto;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
+            padding: 26px 24px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(96, 165, 250, 0.4);
+        }
+        .live-hero-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+        .live-hero-title {
+            color: #ffffff;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.25;
+        }
+        .live-hero-desc {
+            color: #cbd5e1;
+            margin: 0 auto 24px auto;
+            font-size: 16px;
+            max-width: 680px;
+            line-height: 1.55;
+        }
+        .live-hero-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #ffffff;
+            padding: 16px 38px;
+            border-radius: 10px;
+            font-weight: 800;
+            text-decoration: none;
+            font-size: 19px;
+            letter-spacing: 0.4px;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+            animation: pulseGlow 2.5s infinite ease-in-out;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .live-hero-btn:hover {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            transform: translateY(-2px);
+        }
+
+        /* --- Shared Dashboard Panel Headers & Subtitles --- */
+        .panel-heading {
+            text-align: center;
+            margin: 0 0 8px 0;
+            font-weight: 800;
+        }
+        .panel-subtitle {
+            text-align: center;
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 640px;
+            margin: 0 auto 20px auto;
+        }
+        .panel-mock {
+            border-top: 4px solid #2563eb;
+        }
+        .panel-notes {
+            background-color: rgba(236, 253, 245, 0.96);
+            border: 2px solid #34d399;
+        }
+        .panel-descriptive {
+            background-color: rgba(254, 252, 232, 0.98);
+            border: 2px solid #facc15;
+        }
+
+        /* --- Quick-Filter Bar (Mock Tests) --- */
+        .track-filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 0 0 22px 0;
+        }
+        .track-filter-bar button.track-filter-pill {
+            --pill-accent: #1e3a8a;
+            background-color: #ffffff;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 999px;
+            padding: 6px 14px;
+            margin: 0;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.3;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+        .track-filter-bar button.track-filter-pill[data-filter="neet"]      { --pill-accent: #1d4ed8; }
+        .track-filter-bar button.track-filter-pill[data-filter="wbchse"]    { --pill-accent: #047857; }
+        .track-filter-bar button.track-filter-pill[data-filter="isc-cbse"]  { --pill-accent: #4338ca; }
+        .track-filter-bar button.track-filter-pill[data-filter="icse-cbse"] { --pill-accent: #b45309; }
+
+        .track-filter-bar button.track-filter-pill:hover {
+            border-color: var(--pill-accent);
+            color: var(--pill-accent);
+            background-color: #f8fafc;
+        }
+        .track-filter-bar button.track-filter-pill.is-active {
+            background-color: var(--pill-accent);
+            border-color: var(--pill-accent);
+            color: #ffffff;
+        }
+
+        /* --- Track-Scoped Category Sections --- */
+        .mock-category-section {
+            --track-accent: #1e3a8a;
+            --track-divider: #bfdbfe;
+            --track-tint: #eff6ff;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .mock-category-section:last-of-type {
+            margin-bottom: 0;
+        }
+        .mock-category-section.is-hidden-track {
+            display: none !important;
+        }
+        .mock-category-section[data-track="neet"] {
+            --track-accent: #1d4ed8;
+            --track-divider: #bfdbfe;
+            --track-tint: #eff6ff;
+        }
+        .mock-category-section[data-track="wbchse"] {
+            --track-accent: #047857;
+            --track-divider: #a7f3d0;
+            --track-tint: #ecfdf5;
+        }
+        .mock-category-section[data-track="isc-cbse"] {
+            --track-accent: #4338ca;
+            --track-divider: #c7d2fe;
+            --track-tint: #eef2ff;
+        }
+        .mock-category-section[data-track="icse-cbse"] {
+            --track-accent: #b45309;
+            --track-divider: #fde68a;
+            --track-tint: #fffbeb;
+        }
+
+        .mock-category-header {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--track-accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 4px 0;
+            padding: 0;
+            border-bottom: none;
+        }
+        .mock-category-desc {
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+            margin: 0 0 10px 0;
+        }
+        .mock-category-divider {
+            border-bottom: 2px solid var(--track-divider);
+            margin-bottom: 14px;
+            width: 100%;
+        }
+
+        /* --- Equal-Height Card Grids (All 3 Panels) --- */
+        .mock-category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-auto-rows: 1fr;
+            align-items: stretch;
+            gap: 12px;
+        }
+        .panel-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-auto-rows: 1fr;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .mock-category-grid .card,
+        .panel-card-grid .card {
+            margin: 0 !important;
+            padding: 14px 10px !important;
+            font-size: 14px !important;
+            line-height: 1.3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            width: 100%;
+            height: 100%;
+            min-height: 62px;
+            box-sizing: border-box;
+            text-align: center;
+            transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        }
+        .mock-category-grid .card {
+            border-left: 3.5px solid var(--track-accent);
+        }
+        .mock-category-grid .card:hover {
+            background-color: var(--track-tint);
+            border-color: var(--track-accent);
+            color: var(--track-accent);
+        }
+        .panel-notes .panel-card-grid .card {
+            border-left: 3.5px solid #059669;
+        }
+        .panel-notes .panel-card-grid .card:hover {
+            background-color: #d1fae5;
+            border-color: #047857;
+            color: #065f46;
+        }
+        .panel-descriptive .panel-card-grid .card {
+            border-left: 3.5px solid #ca8a04;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 14.5px;
+            display: block;
+        }
+        .card-meta {
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #64748b;
+            display: block;
+            line-height: 1.25;
+        }
+
+        /* --- SEO Informational & Platform Highlights --- */
+        .seo-section-heading {
+            margin: 0 0 8px 0;
+            color: #1e3a8a;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 800;
+        }
+        .seo-section-lead {
+            text-align: center;
+            color: #475569;
+            font-size: 14.5px;
+            line-height: 1.6;
+            max-width: 740px;
+            margin: 0 auto 22px auto;
+        }
+        .platform-pillars {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 22px;
+        }
+        .pillar-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px 18px;
+        }
+        .pillar-box h4 {
+            margin: 0 0 6px 0;
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .pillar-box p {
+            margin: 0;
+            color: #475569;
+            font-size: 13.5px;
+            line-height: 1.55;
+        }
+
+        /* --- Global Login Modal --- */
+        .login-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.92);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .login-modal-card {
+            background: #ffffff;
+            padding: 36px 28px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+            position: relative;
+            box-sizing: border-box;
+        }
+        .login-close-btn {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+            line-height: 1;
+            padding: 4px 8px;
+        }
+        .login-modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            outline: none;
+            font-size: 15px;
+        }
+        .login-modal-input:focus {
+            border-color: #2563eb;
+        }
+        .login-primary-btn {
+            width: 100%;
+            padding: 14px;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .live-hero-banner {
+                padding: 22px 16px;
+                margin-bottom: 32px;
+            }
+            .live-hero-title {
+                font-size: 22px;
+            }
+            .live-hero-desc {
+                font-size: 14.5px;
+            }
+            .live-hero-btn {
+                padding: 14px 30px;
+                font-size: 17px;
+            }
+            .track-filter-bar {
+                gap: 6px;
+                margin-bottom: 18px;
+            }
+            .track-filter-bar button.track-filter-pill {
+                font-size: 12px;
+                padding: 5px 11px;
+            }
+            .mock-category-header {
+                font-size: 17px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .live-hero-btn {
+                animation: none;
+                transition: none;
+            }
+        }
+    </style>
 </head>
 <body>
     <header id="site-header" class="site-header"></header>
 
     <main class="site-main">
         <section class="page-intro">
-            <h1 style="margin-top: 0px; margin-bottom: 15px;">Pioneers Prep — Online Mock Tests & Study Portal</h1>
+            <h1>Pioneers Prep — Online Mock Tests &amp; Study Portal</h1>
+            <p class="page-intro-lead">
+                Structured science assessments, concise study notes, and board-aligned descriptive papers by Aniruddha Banerjee for NEET aspirants and Class IX–XII students across ICSE, ISC, CBSE, and WBCHSE curricula.
+            </p>
         </section>
 
-        <!-- High-Visibility Striking Live Test Hero Banner -->
-        <style>
-            @keyframes pulseGlow {
-                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
-                70% { transform: scale(1.02); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
-                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-            }
-            .live-hero-banner {
-                max-width: 800px;
-                margin: 10px auto 50px auto; /* 10px top pulls it up, 50px bottom creates the gap */
-                background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
-                padding: 25px 20px; /* Reduced padding to make the box smaller */
-                border-radius: 16px;
-                text-align: center;
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-                border: 2px solid rgba(96, 165, 250, 0.4);
-            }
-            .live-hero-btn {
-                display: inline-block;
-                background: linear-gradient(135deg, #f59e0b, #d97706);
-                color: #ffffff;
-                padding: 18px 40px;
-                border-radius: 10px;
-                font-weight: 800;
-                text-decoration: none;
-                font-size: 20px;
-                letter-spacing: 0.5px;
-                box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
-                animation: pulseGlow 2.5s infinite ease-in-out;
-                transition: transform 0.2s, background 0.2s;
-            }
-            .live-hero-btn:hover {
-                background: linear-gradient(135deg, #fbbf24, #f59e0b);
-                transform: translateY(-2px);
-            }
-        </style>
-
-        <div class="live-hero-banner">
-            <div style="display: inline-block; background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; border: 1px solid rgba(239, 68, 68, 0.4);">
-                Live Session
-            </div>
-            <h2 style="color: #ffffff; margin: 0 0 10px 0; font-size: 28px; font-weight: 800;">Real-Time Interactive Examinations</h2>
-            <p style="color: #cbd5e1; margin: 0 0 25px 0; font-size: 16px; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5;">
-                Join securely synced portals featuring live tests,instant leaderboards, anti-cheat validation, and precise speed tracking with in-depth analysis.
+        <!-- High-Visibility Live Test Hero Banner -->
+        <section class="live-hero-banner" aria-labelledby="live-hero-heading">
+            <div class="live-hero-badge">Live Session</div>
+            <h2 id="live-hero-heading" class="live-hero-title">Real-Time Interactive Examinations</h2>
+            <p class="live-hero-desc">
+                Join securely synced portals featuring live tests, instant leaderboards, anti-cheat validation, and precise speed tracking with in-depth question-by-question analysis.
             </p>
-            <a href="/live-room" class="live-hero-btn">
-                Join Room
-            </a>
-        </div>
+            <a href="/live-room" class="live-hero-btn">Join Room</a>
+        </section>
 
         <div id="home-dashboard">
-            <!-- 1. Mock Tests Panel (Grouped Grid Redesign) -->
-            <div class="dashboard-panel">
-                <style>
-                  .mock-category-section {
-                    margin-bottom: 24px;
-                    text-align: center;
-                  }
-                  .mock-category-header {
-                    font-size: 20px;
-                    font-weight: 800;
-                    color: #1e3a8a;
-                    text-transform: uppercase;
-                    letter-spacing: 1.2px;
-                    margin-bottom: 12px;
-                    padding-bottom: 6px;
-                    border-bottom: 2px solid #bfdbfe;
-                  }
-                  .mock-category-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-                    gap: 12px;
-                  }
-                  .mock-category-grid .card {
-                    margin: 0 !important;
-                    padding: 14px 10px !important;
-                    font-size: 14px !important;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 100%;
-                    box-sizing: border-box;
-                    text-align: center;
-                  }
-                </style>
+            <!-- 1. Mock Tests Panel -->
+            <section id="mock-tests-panel" class="dashboard-panel panel-mock" aria-labelledby="mock-tests-heading">
+                <h2 id="mock-tests-heading" class="panel-heading" style="color: #1d4ed8;">Mock Tests</h2>
+                <p class="panel-subtitle">
+                    Timed online assessments with automated scoring, accuracy breakdowns, and detailed post-test review. Filter by your exam track or jump straight to your class below.
+                </p>
 
-                <h2 style="text-align: center; color: #4285f4; margin-top: 0; margin-bottom: 20px;">Mock Tests</h2>
-                <p style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 20px;">Access premium mock tests for NEET, ICSE/ISC/CBSE, and WBCHSE with automated scoring and detailed analysis.</p>
+                <div class="track-filter-bar" id="mock-track-filters" role="group" aria-label="Filter mock tests by exam track">
+                    <button type="button" class="track-filter-pill is-active" data-filter="all" aria-pressed="true">All Tracks</button>
+                    <button type="button" class="track-filter-pill" data-filter="neet" aria-pressed="false">NEET</button>
+                    <button type="button" class="track-filter-pill" data-filter="wbchse" aria-pressed="false">WBCHSE</button>
+                    <button type="button" class="track-filter-pill" data-filter="isc-cbse" aria-pressed="false">ISC / CBSE</button>
+                    <button type="button" class="track-filter-pill" data-filter="icse-cbse" aria-pressed="false">ICSE / CBSE</button>
+                </div>
 
                 <!-- NEET Section -->
-                <div class="mock-category-section">
-                  <div class="mock-category-header" style="border-bottom: none; margin-bottom: 2px;">NEET</div>
-                  <p style="text-align: center; color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 8px;">Attempt Basic and Advanced tests and compare your performance with dedicated analytics.</p>
-                  <div style="border-bottom: 2px solid #bfdbfe; margin-bottom: 12px; width: 100%;"></div>
-                  <div class="mock-category-grid">
-                    <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">Class XI</a>
-                    <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">Class XII</a>
-                    <a href="/test-portal.html?class=NEET-FULL" class="card" data-action="clear-session">Full Length</a>
-                  </div>
+                <div class="mock-category-section" data-track="neet">
+                    <div class="mock-category-header">NEET</div>
+                    <p class="mock-category-desc">Basic, advanced, and full-syllabus medical entrance mocks built for speed, accuracy, and negative-marking discipline.</p>
+                    <div class="mock-category-divider"></div>
+                    <div class="mock-category-grid">
+                        <a href="/test-portal.html?class=XI" class="card" data-action="clear-session">
+                            <span class="card-title">Class XI</span>
+                            <span class="card-meta">Basic &amp; Advanced</span>
+                        </a>
+                        <a href="/test-portal.html?class=XII" class="card" data-action="clear-session">
+                            <span class="card-title">Class XII</span>
+                            <span class="card-meta">Basic &amp; Advanced</span>
+                        </a>
+                        <a href="/test-portal.html?class=NEET-FULL" class="card" data-action="clear-session">
+                            <span class="card-title">Full Length</span>
+                            <span class="card-meta">Complete Syllabus</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- WBCHSE Section -->
-                <div class="mock-category-section">
-                  <div class="mock-category-header" style="border-bottom: none; margin-bottom: 2px;">WBCHSE</div>
-                  <p style="text-align: center; color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 8px;">Attempt Semester-wise tests and compare your performance with dedicated analytics.</p>
-                  <div style="border-bottom: 2px solid #bfdbfe; margin-bottom: 12px; width: 100%;"></div>
-                  <div class="mock-category-grid">
-                    <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">Class XI</a>
-                    <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">Class XII</a>
-                  </div>
+                <div class="mock-category-section" data-track="wbchse">
+                    <div class="mock-category-header">WBCHSE</div>
+                    <p class="mock-category-desc">Semester-wise higher secondary tests aligned with West Bengal Council exam patterns and marking schemes.</p>
+                    <div class="mock-category-divider"></div>
+                    <div class="mock-category-grid">
+                        <a href="/test-portal.html?class=WB%20XI" class="card" data-action="clear-session">
+                            <span class="card-title">Class XI</span>
+                            <span class="card-meta">Semester-Wise</span>
+                        </a>
+                        <a href="/test-portal.html?class=WB%20XII" class="card" data-action="clear-session">
+                            <span class="card-title">Class XII</span>
+                            <span class="card-meta">Semester-Wise</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- ISC/CBSE Section -->
-                <div class="mock-category-section">
-                  <div class="mock-category-header" style="border-bottom: none; margin-bottom: 2px;">ISC/CBSE</div>
-                  <p style="text-align: center; color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 8px;">Attempt topic-wise tests and compare your performance with dedicated analytics.</p>
-                  <div style="border-bottom: 2px solid #bfdbfe; margin-bottom: 12px; width: 100%;"></div>
-                  <div class="mock-category-grid">
-                    <a href="/test-portal.html?class=ISC%20XI" class="card" data-action="clear-session">Class XI</a>
-                    <a href="/test-portal.html?class=ISC%20XII" class="card" data-action="clear-session">Class XII</a>
-                  </div>
+                <div class="mock-category-section" data-track="isc-cbse">
+                    <div class="mock-category-header">ISC / CBSE</div>
+                    <p class="mock-category-desc">Focused topic-wise Biology assessments for Class XI and XII board students targeting conceptual clarity.</p>
+                    <div class="mock-category-divider"></div>
+                    <div class="mock-category-grid">
+                        <a href="/test-portal.html?class=ISC%20XI" class="card" data-action="clear-session">
+                            <span class="card-title">Class XI</span>
+                            <span class="card-meta">Topic-Wise Tests</span>
+                        </a>
+                        <a href="/test-portal.html?class=ISC%20XII" class="card" data-action="clear-session">
+                            <span class="card-title">Class XII</span>
+                            <span class="card-meta">Topic-Wise Tests</span>
+                        </a>
+                    </div>
                 </div>
 
-                <!-- Foundation Section -->
-                <div class="mock-category-section" style="margin-bottom: 0;">
-                  <div class="mock-category-header" style="border-bottom: none; margin-bottom: 2px;">ICSE/CBSE</div>
-                  <p style="text-align: center; color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 8px;">Attempt Subject-wise and chapter-wise tests and compare your performance with dedicated analytics.</p>
-                  <div style="border-bottom: 2px solid #bfdbfe; margin-bottom: 12px; width: 100%;"></div>
-                  <div class="mock-category-grid">
-                    <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">Class IX</a>
-                    <a href="/test-portal.html?class=X" class="card" data-action="clear-session">Class X</a>
-                  </div>
+                <!-- ICSE/CBSE Section -->
+                <div class="mock-category-section" data-track="icse-cbse">
+                    <div class="mock-category-header">ICSE / CBSE</div>
+                    <p class="mock-category-desc">Subject-wise and chapter-wise foundation tests covering Physics, Chemistry, and Biology for Classes IX and X.</p>
+                    <div class="mock-category-divider"></div>
+                    <div class="mock-category-grid">
+                        <a href="/test-portal.html?class=IX" class="card" data-action="clear-session">
+                            <span class="card-title">Class IX</span>
+                            <span class="card-meta">Subject &amp; Chapter</span>
+                        </a>
+                        <a href="/test-portal.html?class=X" class="card" data-action="clear-session">
+                            <span class="card-title">Class X</span>
+                            <span class="card-meta">Subject &amp; Chapter</span>
+                        </a>
+                    </div>
                 </div>
-            </div>
+            </section>
 
             <!-- 2. Study Notes Panel -->
-            <div class="dashboard-panel">
-                <h2 style="text-align: center; color: #10b981; margin-top: 0;">Study Notes</h2>
-                <a href="/notes.html?class=IX" class="card" data-action="clear-session">Class IX</a>
-                <a href="/notes.html?class=X" class="card" data-action="clear-session">Class X</a>
-                <a href="/notes.html?class=XI" class="card" data-action="clear-session">Class XI</a>
-                <a href="/notes.html?class=XII" class="card" data-action="clear-session">Class XII</a>
-            </div>
+            <section id="study-notes-panel" class="dashboard-panel panel-notes" aria-labelledby="study-notes-heading">
+                <h2 id="study-notes-heading" class="panel-heading" style="color: #047857;">Study Notes</h2>
+                <p class="panel-subtitle">
+                    Concise, exam-oriented chapter notes with labeled concepts, key formulas, and high-yield summaries tailored for fast revision.
+                </p>
+                <div class="panel-card-grid">
+                    <a href="/notes.html?class=IX" class="card" data-action="clear-session">
+                        <span class="card-title">Class IX</span>
+                        <span class="card-meta">ICSE &amp; CBSE Science</span>
+                    </a>
+                    <a href="/notes.html?class=X" class="card" data-action="clear-session">
+                        <span class="card-title">Class X</span>
+                        <span class="card-meta">ICSE &amp; CBSE Science</span>
+                    </a>
+                    <a href="/notes.html?class=XI" class="card" data-action="clear-session">
+                        <span class="card-title">Class XI</span>
+                        <span class="card-meta">ISC, CBSE &amp; WBCHSE</span>
+                    </a>
+                    <a href="/notes.html?class=XII" class="card" data-action="clear-session">
+                        <span class="card-title">Class XII</span>
+                        <span class="card-meta">ISC, CBSE &amp; WBCHSE</span>
+                    </a>
+                </div>
+            </section>
 
             <!-- 3. Descriptive Questions Panel -->
-            <div class="dashboard-panel" style="background-color: rgba(254, 252, 232, 0.98); border: 2px solid #facc15;">
-                <h2 style="text-align: center; color: #ca8a04; margin-top: 0;">Descriptive Questions</h2>
-                <a href="/descriptive.html?class=IX" class="card card-yellow" data-action="clear-session">Class IX</a>
-                <a href="/descriptive.html?class=X" class="card card-yellow" data-action="clear-session">Class X</a>
-                <a href="/descriptive.html?class=XI" class="card card-yellow" data-action="clear-session">Class XI</a>
-                <a href="/descriptive.html?class=XII" class="card card-yellow" data-action="clear-session">Class XII</a>
-            </div>
+            <section id="descriptive-panel" class="dashboard-panel panel-descriptive" aria-labelledby="descriptive-heading">
+                <h2 id="descriptive-heading" class="panel-heading" style="color: #a16207;">Descriptive Questions</h2>
+                <p class="panel-subtitle">
+                    Downloadable subjective worksheets and board-pattern question papers designed to sharpen structured answer writing and diagram presentation.
+                </p>
+                <div class="panel-card-grid">
+                    <a href="/descriptive.html?class=IX" class="card card-yellow" data-action="clear-session">
+                        <span class="card-title">Class IX</span>
+                        <span class="card-meta">Chapter Worksheets</span>
+                    </a>
+                    <a href="/descriptive.html?class=X" class="card card-yellow" data-action="clear-session">
+                        <span class="card-title">Class X</span>
+                        <span class="card-meta">Board Pattern Papers</span>
+                    </a>
+                    <a href="/descriptive.html?class=XI" class="card card-yellow" data-action="clear-session">
+                        <span class="card-title">Class XI</span>
+                        <span class="card-meta">Subjective Sets</span>
+                    </a>
+                    <a href="/descriptive.html?class=XII" class="card card-yellow" data-action="clear-session">
+                        <span class="card-title">Class XII</span>
+                        <span class="card-meta">Board &amp; Semester Sets</span>
+                    </a>
+                </div>
+            </section>
 
-            <!-- SEO Informational Overview Card Grid -->
-            <section class="seo-info-section">
-                <h2 style="margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px;">Comprehensive Science Preparation by Aniruddha Banerjee</h2>
+            <!-- SEO Informational Overview & Platform Methodology -->
+            <section class="seo-info-section" aria-labelledby="seo-overview-heading">
+                <h2 id="seo-overview-heading" class="seo-section-heading">Comprehensive Science Preparation by Aniruddha Banerjee</h2>
+                <p class="seo-section-lead">
+                    Pioneers Prep brings classroom rigor online for students in Berhampore and across India—combining conceptual teaching in Biology, Physics, and Chemistry with disciplined testing and measurable progress tracking.
+                </p>
+
                 <div class="seo-grid">
                     <article class="seo-card">
                         <h3>NEET</h3>
-                        <p>Access topic wise and full length mock tests with automated scorecard and detailed question by question analysis, designed with care to keep you one step ahead in the all India NEET examination.</p>
+                        <p>Access topic-wise, basic-to-advanced, and full-length mock tests with automated scorecards and detailed question-by-question analysis, carefully curated to build exam temperament and keep you ahead in the All-India NEET examination.</p>
                     </article>
                     <article class="seo-card">
-                        <h3>ICSE, ISC and CBSE</h3>
-                        <p>Structured chapter notes, worksheets, and conceptual assessments with automated score and detailed analysis, Downloadable descriptive question papers covering Physics, Chemistry, and Biology for ICSE & CBSE Class X, and Biology for ISC and CBSE Class XI & XII.</p>
+                        <h3>ICSE, ISC &amp; CBSE</h3>
+                        <p>Structured chapter notes, conceptual mock assessments with automated scoring, and downloadable descriptive question papers covering Physics, Chemistry, and Biology for ICSE &amp; CBSE Classes IX–X, and Biology for ISC &amp; CBSE Classes XI–XII.</p>
                     </article>
                     <article class="seo-card">
                         <h3>WBCHSE</h3>
-                        <p>Semester wise premium mock tests with automated scorecard and detailed question by question analysis, authentic study notes for WBCHSE XI and XII students.</p>
+                        <p>Semester-wise mock tests with automated scorecards, question-by-question performance analysis, and authentic study notes built specifically for WBCHSE Class XI and XII science students.</p>
                     </article>
+                </div>
+
+                <div class="platform-pillars">
+                    <div class="pillar-box">
+                        <h4>Automated Scorecards &amp; Analytics</h4>
+                        <p>Every submitted mock test generates immediate scoring, accuracy metrics, and itemized answer review so students can pinpoint weak chapters immediately.</p>
+                    </div>
+                    <div class="pillar-box">
+                        <h4>Board &amp; Competitive Alignment</h4>
+                        <p>Question banks and subjective worksheets follow current NCERT, CISCE, and WBCHSE semester blueprints rather than generic recycled questionnaires.</p>
+                    </div>
+                    <div class="pillar-box">
+                        <h4>Proctored Live Exam Rooms</h4>
+                        <p>Scheduled live sessions pair synchronized exam timers with anti-cheat validation and instant leaderboards to simulate real test-day pressure.</p>
+                    </div>
                 </div>
             </section>
         </div>
@@ -215,44 +648,88 @@
 
     <footer id="site-footer" class="site-footer"></footer>
     <script src="/js/main.js"></script>
+
     <!-- Global Sign-In 2-Step Modal -->
-    <div id="global-login-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: white; padding: 40px 30px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); position: relative;">
-            <button id="close-login-btn" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1;">&times;</button>
-            <h2 style="margin-top: 0; color: #1e3a8a; text-align: center;">Student Sign In</h2>
+    <div id="global-login-modal" class="login-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" style="display: none;">
+        <div class="login-modal-card">
+            <button id="close-login-btn" class="login-close-btn" type="button" aria-label="Close sign in dialog">&times;</button>
+            <h2 id="login-modal-title" style="margin-top: 0; color: #1e3a8a; text-align: center;">Student Sign In</h2>
 
             <!-- STEP 1: Email First (Name fields only appear for first-time registration) -->
             <div id="login-step-1">
                 <p id="login-step-1-desc" style="text-align: center; color: #64748b; font-size: 14px; margin-bottom: 20px;">Enter your email address to receive a one-time login code.</p>
-                <input type="email" id="global-email" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 18px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: lowercase; font-weight: normal; outline: none;">
+                <input type="email" id="global-email" class="login-modal-input" placeholder="Email Address" autocomplete="email" style="margin-bottom: 18px; text-transform: lowercase; font-weight: normal;">
 
                 <div id="new-user-name-fields" style="display: none;">
-                    <p style="color: #2563eb; font-size: 13px; font-weight: bold; margin: 0 0 10px 0; text-align: center;">First-time sign in: Enter your full name (permanent)</p>
-                    <input type="text" id="global-fname" placeholder="First Name" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;">
-                    <input type="text" id="global-lname" placeholder="Last Name" style="width: 100%; padding: 12px; margin-bottom: 18px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; outline: none;">
+                    <p style="color: #2563eb; font-size: 13px; font-weight: 700; margin: 0 0 10px 0; text-align: center;">First-time sign in: Enter your full name (permanent)</p>
+                    <input type="text" id="global-fname" class="login-modal-input" placeholder="First Name" autocomplete="given-name" style="margin-bottom: 15px; text-transform: uppercase; font-weight: 700;">
+                    <input type="text" id="global-lname" class="login-modal-input" placeholder="Last Name" autocomplete="family-name" style="margin-bottom: 18px; text-transform: uppercase; font-weight: 700;">
                 </div>
 
-                <button id="btn-send-otp" style="width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Continue & Send OTP</button>
+                <button id="btn-send-otp" type="button" class="login-primary-btn" style="background: #2563eb;">Continue &amp; Send OTP</button>
             </div>
 
             <!-- STEP 2: OTP Verification -->
             <div id="login-step-2" style="display: none;">
-                <p id="otp-welcome-banner" style="text-align: center; color: #1e3a8a; font-weight: bold; font-size: 14px; margin-bottom: 6px;"></p>
-                <p style="text-align: center; color: #10b981; font-weight: bold; font-size: 13px; margin-top: 0; margin-bottom: 15px;">OTP sent to your email inbox!</p>
-                <input type="number" id="global-otp" placeholder="Enter 6-digit OTP" style="width: 100%; padding: 12px; margin-bottom: 25px; border: 2px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-weight: bold; outline: none; text-align: center; letter-spacing: 2px;">
+                <p id="otp-welcome-banner" style="text-align: center; color: #1e3a8a; font-weight: 700; font-size: 14px; margin-bottom: 6px;"></p>
+                <p style="text-align: center; color: #10b981; font-weight: 700; font-size: 13px; margin-top: 0; margin-bottom: 15px;">OTP sent to your email inbox!</p>
+                <input type="text" id="global-otp" class="login-modal-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="Enter 6-digit OTP" style="margin-bottom: 24px; font-weight: 700; text-align: center; letter-spacing: 4px;">
 
-                <button id="btn-verify-otp" style="width: 100%; padding: 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer;">Verify & Sign In</button>
-                <button id="btn-change-email" style="width: 100%; padding: 10px; background: none; color: #64748b; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline;">Change Email</button>
+                <button id="btn-verify-otp" type="button" class="login-primary-btn" style="background: #10b981;">Verify &amp; Sign In</button>
+                <button id="btn-change-email" type="button" style="width: 100%; padding: 10px; background: none; color: #64748b; border: none; margin-top: 10px; cursor: pointer; text-decoration: underline;">Change Email</button>
             </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            /* --- 1. Mock Tests Quick-Filter Bar --- */
+            const TRACK_STORAGE_KEY = 'pp_mock_track_filter';
+            const filterBar = document.getElementById('mock-track-filters');
+            if (filterBar) {
+                const pills = Array.from(filterBar.querySelectorAll('.track-filter-pill'));
+                const sections = Array.from(document.querySelectorAll('.mock-category-section[data-track]'));
+
+                const applyTrackFilter = (selectedTrack) => {
+                    const validTrack = pills.some((pill) => pill.dataset.filter === selectedTrack)
+                        ? selectedTrack
+                        : 'all';
+
+                    pills.forEach((pill) => {
+                        const isActive = pill.dataset.filter === validTrack;
+                        pill.classList.toggle('is-active', isActive);
+                        pill.setAttribute('aria-pressed', String(isActive));
+                    });
+
+                    sections.forEach((section) => {
+                        const isVisible = validTrack === 'all' || section.dataset.track === validTrack;
+                        section.classList.toggle('is-hidden-track', !isVisible);
+                    });
+
+                    try {
+                        localStorage.setItem(TRACK_STORAGE_KEY, validTrack);
+                    } catch (_) {}
+                };
+
+                filterBar.addEventListener('click', (event) => {
+                    const pill = event.target.closest('.track-filter-pill');
+                    if (!pill) return;
+                    applyTrackFilter(pill.dataset.filter);
+                });
+
+                let savedTrack = 'all';
+                try {
+                    savedTrack = localStorage.getItem(TRACK_STORAGE_KEY) || 'all';
+                } catch (_) {}
+                applyTrackFilter(savedTrack);
+            }
+
+            /* --- 2. Global 2-Step Sign-In Modal --- */
             const token = localStorage.getItem('pp_id_token');
             const fName = localStorage.getItem('pp_fname');
             const lName = localStorage.getItem('pp_lname');
 
+            const loginModal = document.getElementById('global-login-modal');
             const signinBtn = document.getElementById('nav-signin-btn');
             const logoutBtn = document.getElementById('nav-logout-btn');
             const closeBtn = document.getElementById('close-login-btn');
@@ -260,6 +737,7 @@
             const verifyOtpBtn = document.getElementById('btn-verify-otp');
             const changeEmailBtn = document.getElementById('btn-change-email');
             const emailInput = document.getElementById('global-email');
+            const otpInput = document.getElementById('global-otp');
             const nameFieldsBox = document.getElementById('new-user-name-fields');
 
             if (token && fName && lName) {
@@ -268,7 +746,7 @@
                 if (signinBtn) signinBtn.style.display = 'block';
                 if (sessionStorage.getItem('force_login_open') === 'true') {
                     sessionStorage.removeItem('force_login_open');
-                    document.getElementById('global-login-modal').style.display = 'flex';
+                    loginModal.style.display = 'flex';
                 }
             }
 
@@ -282,22 +760,42 @@
                 });
             }
 
-            if (signinBtn) signinBtn.addEventListener('click', () => {
-                resetLoginStep();
-                document.getElementById('global-login-modal').style.display = 'flex';
+            if (otpInput) {
+                otpInput.addEventListener('input', () => {
+                    otpInput.value = otpInput.value.replace(/\D/g, '').slice(0, 6);
+                });
+            }
+
+            if (signinBtn) {
+                signinBtn.addEventListener('click', () => {
+                    resetLoginStep();
+                    loginModal.style.display = 'flex';
+                });
+            }
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    loginModal.style.display = 'none';
+                });
+            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && loginModal && loginModal.style.display === 'flex') {
+                    loginModal.style.display = 'none';
+                }
             });
-            if (closeBtn) closeBtn.addEventListener('click', () => document.getElementById('global-login-modal').style.display = 'none');
             if (changeEmailBtn) changeEmailBtn.addEventListener('click', resetLoginStep);
-            if (logoutBtn) logoutBtn.addEventListener('click', async () => {
-                try {
-                    await fetch('/api/logout', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('pp_id_token') || ''}` }
-                    });
-                } catch (e) {}
-                localStorage.clear();
-                window.location.reload();
-            });
+
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    try {
+                        await fetch('/api/logout', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('pp_id_token') || ''}` }
+                        });
+                    } catch (e) {}
+                    ['pp_id_token', 'pp_fname', 'pp_lname', 'pp_email'].forEach((key) => localStorage.removeItem(key));
+                    window.location.reload();
+                });
+            }
 
             // Step 1: Request OTP (Email-first check)
             if (sendOtpBtn) {
@@ -312,12 +810,12 @@
                         return alert('Please enter both your First Name and Last Name to register.');
                     }
 
-                    sendOtpBtn.innerText = 'Checking...'; 
+                    sendOtpBtn.innerText = 'Checking...';
                     sendOtpBtn.disabled = true;
 
                     try {
                         const res = await fetch('/api/send-otp', {
-                            method: 'POST', 
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ email, firstName: fname, lastName: lname })
                         });
@@ -337,14 +835,14 @@
                             document.getElementById('login-step-1').style.display = 'none';
                             document.getElementById('login-step-2').style.display = 'block';
                             document.getElementById('global-otp').focus();
-                        } else { 
-                            alert(data.error || 'Failed to send OTP.'); 
+                        } else {
+                            alert(data.error || 'Failed to send OTP.');
                         }
-                    } catch (err) { 
-                        alert('Network error. Please try again.'); 
-                    } finally { 
-                        sendOtpBtn.innerText = 'Continue & Send OTP'; 
-                        sendOtpBtn.disabled = false; 
+                    } catch (err) {
+                        alert('Network error. Please try again.');
+                    } finally {
+                        sendOtpBtn.innerText = 'Continue & Send OTP';
+                        sendOtpBtn.disabled = false;
                     }
                 });
             }
@@ -357,12 +855,12 @@
 
                     if (!otp) return alert('Enter the OTP sent to your email.');
 
-                    verifyOtpBtn.innerText = 'Verifying...'; 
+                    verifyOtpBtn.innerText = 'Verifying...';
                     verifyOtpBtn.disabled = true;
 
                     try {
                         const res = await fetch('/api/verify-otp', {
-                            method: 'POST', 
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ email, otp })
                         });
@@ -374,16 +872,16 @@
                             localStorage.setItem('pp_lname', data.lastName);
                             localStorage.setItem('pp_email', data.email);
 
-                            document.getElementById('global-login-modal').style.display = 'none';
+                            loginModal.style.display = 'none';
                             showProfileBadge(data.firstName, data.lastName);
-                        } else { 
-                            alert(data.error || 'Invalid OTP.'); 
+                        } else {
+                            alert(data.error || 'Invalid OTP.');
                         }
-                    } catch (err) { 
-                        alert('Network error. Please try again.'); 
-                    } finally { 
-                        verifyOtpBtn.innerText = 'Verify & Sign In'; 
-                        verifyOtpBtn.disabled = false; 
+                    } catch (err) {
+                        alert('Network error. Please try again.');
+                    } finally {
+                        verifyOtpBtn.innerText = 'Verify & Sign In';
+                        verifyOtpBtn.disabled = false;
                     }
                 });
             }
