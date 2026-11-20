@@ -315,16 +315,38 @@
     }
 
     function applyAdminIncomingAudioMuteState() {
-        const shouldMute = adminSpeakersManualMuted || adminSilencedByOtherTab;
+        const shouldMute = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
         const spkBtn = document.getElementById('btn-admin-speakers');
         if (spkBtn) {
-            spkBtn.textContent = adminSpeakersManualMuted ? '🔇 Students Audio: OFF' : '🔊 Students Audio: ON';
+            spkBtn.textContent = adminSpeakersManualMuted ? '🔇 Hear Students: OFF' : '🔊 Hear Students: ON';
             spkBtn.classList.toggle('active-mic', !adminSpeakersManualMuted);
         }
         activeStudentAudioEls.forEach((el) => {
             el.muted = shouldMute;
-            if (!shouldMute && el.paused) el.play().catch(() => {});
+            el.volume = shouldMute ? 0 : 1.0;
+            if (shouldMute) {
+                try { el.pause(); } catch (e) {}
+            } else {
+                el.play().catch(() => {});
+            }
         });
+        try {
+            if (room && room.state === 'connected') {
+                room.remoteParticipants.forEach((participant) => {
+                    if (/^admin(_|$)/i.test(String(participant.identity || '').trim())) return;
+                    participant.audioTrackPublications.forEach((pub) => {
+                        if (pub.track) {
+                            if (typeof pub.track.setVolume === 'function') {
+                                pub.track.setVolume(shouldMute ? 0 : 1);
+                            }
+                            if (pub.track.mediaStreamTrack) {
+                                pub.track.mediaStreamTrack.enabled = !shouldMute;
+                            }
+                        }
+                    });
+                });
+            }
+        } catch (e) {}
         refreshAdminCallerBadge();
     }
 
@@ -359,7 +381,11 @@
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') notifyThisAdminTabFocused();
     });
-    document.getElementById('btn-admin-speakers')?.addEventListener('click', () => {
+    document.addEventListener('click', (e) => {
+        const spkBtn = e.target && e.target.closest ? e.target.closest('#btn-admin-speakers') : null;
+        if (!spkBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
         adminSpeakersManualMuted = !adminSpeakersManualMuted;
         applyAdminIncomingAudioMuteState();
     });
@@ -551,15 +577,21 @@
         }
     }, 3000);
 
-    // Unlock browser WebRTC audio playback on any Admin dashboard interaction
-    document.addEventListener('click', () => {
-        if (room.state === 'connected') {
-            try { room.startAudio(); } catch (e) {}
-        }
-        activeStudentAudioEls.forEach((el) => {
-            if (el.paused) el.play().catch(() => {});
-        });
-    });
+    const shouldMuteNow = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            audioEl.playsInline = true;
+            audioEl.muted = shouldMuteNow;
+            audioEl.volume = shouldMuteNow ? 0 : 1.0;
+            if (typeof track.setVolume === 'function') track.setVolume(shouldMuteNow ? 0 : 1);
+            if (track.mediaStreamTrack) track.mediaStreamTrack.enabled = !shouldMuteNow;
+            track.attach(audioEl);
+            document.body.appendChild(audioEl);
+            activeStudentAudioEls.set(participant.identity, audioEl);
+
+            try { await room.startAudio(); } catch (e) {}
+            if (!shouldMuteNow) audioEl.play().catch(() => {});
+            refreshAdminCallerBadge();
 
     // Listen for any individual student speaking in the room (100% isolated per student)
     room.on(LivekitClient.RoomEvent.TrackSubscribed, async (track, publication, participant) => {
