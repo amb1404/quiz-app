@@ -1,0 +1,256 @@
+{
+  "title": "Class 8 ICSE Physics - Spherical Mirrors (Analytical MCQs)",
+  "category": "icse",
+  "classLevel": "viii",
+  "subject": "physics",
+  "unit": "Light Energy",
+  "chapter": "Spherical Mirrors",
+  "topic": "Analytical MCQs on Spherical Mirrors",
+  "duration": 1200,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 0,
+  "questions": [
+    {
+      "type": "mcq",
+      "question": "A ray of light traveling toward a convex mirror is directed straight toward its center of curvature (C). After striking the reflecting surface, what path does the reflected ray follow?",
+      "options": [
+        "It reflects parallel to the principal axis.",
+        "It passes through the principal focus (F).",
+        "It retraces its original path back along the same line.",
+        "It reflects at an angle of 45° to the principal axis."
+      ],
+      "answer": 2,
+      "explanation": "Any line directed toward C acts as a normal to the spherical mirror (∠i = 0°), so ∠r = 0° and the ray retraces its path."
+    },
+    {
+      "type": "mcq",
+      "question": "A concave mirror has a radius of curvature of 30 cm. If a small candle is placed 12 cm in front of its pole, what are the characteristics of the image formed?",
+      "options": [
+        "Real, inverted, and magnified in front of the mirror.",
+        "Virtual, erect, and magnified behind the mirror.",
+        "Real, inverted, and diminished in front of the mirror.",
+        "Virtual, erect, and diminished behind the mirror."
+      ],
+      "answer": 1,
+      "explanation": "Since f = R/2 = 15 cm, the candle at 12 cm lies between P and F, producing a virtual, erect, magnified image behind the mirror."
+    },
+    {
+      "type": "mcq",
+      "question": "An object is positioned just inside the principal focus (F) of a concave mirror and is then slowly moved closer to the pole (P). How does the image change during this motion?",
+      "options": [
+        "It stays virtual, moves toward the pole, and shrinks in size.",
+        "It stays virtual, moves away from the pole, and grows larger.",
+        "It turns real, moves toward C, and shrinks in size.",
+        "It stays virtual and remains at the same distance behind the mirror."
+      ],
+      "answer": 0,
+      "explanation": "Inside F, moving an object toward P draws its virtual image from far behind the mirror closer to P while decreasing its magnification toward 1."
+    },
+    {
+      "type": "mcq",
+      "question": "A student holds a pen very close to three unmarked mirrors (X, Y, and Z) and slowly moves it backward. Mirror X always shows a smaller upright image; Mirror Y shows a same-size upright image at all distances; Mirror Z initially shows an enlarged upright image that eventually turns upside down. What are mirrors X, Y, and Z respectively?",
+      "options": [
+        "Concave, plane, and convex",
+        "Convex, concave, and plane",
+        "Plane, convex, and concave",
+        "Convex, plane, and concave"
+      ],
+      "answer": 3,
+      "explanation": "Convex mirrors always form diminished erect images; plane mirrors always form same-size erect images; concave mirrors form magnified erect images inside F and inverted real images beyond F."
+    },
+    {
+      "type": "mcq",
+      "question": "A concave mirror forms a bright, sharp, inverted image of a lit candle on a white screen. If the bottom half of the mirror's reflecting surface is completely covered with opaque black paper, what appears on the screen?",
+      "options": [
+        "Only the upper half of the candle's image.",
+        "Only the lower half of the candle's image.",
+        "A complete inverted image with reduced brightness.",
+        "No image forms because symmetry is broken."
+      ],
+      "answer": 2,
+      "explanation": "Rays from every part of the candle still reflect off the uncovered upper half to form the complete image, though fewer rays reach the screen, reducing brightness."
+    },
+    {
+      "type": "mcq",
+      "question": "A concave mirror has a focal length of 20 cm in air. If the entire mirror is completely immersed in a tank of clear water, what happens to its focal length?",
+      "options": [
+        "It increases because light slows down in water.",
+        "It decreases to half its value in air.",
+        "It becomes zero due to refraction.",
+        "It remains exactly 20 cm."
+      ],
+      "answer": 3,
+      "explanation": "Reflection depends strictly on mirror geometry (f = R/2) and the laws of reflection, not on the surrounding medium."
+    },
+    {
+      "type": "mcq",
+      "question": "When a glowing bulb is placed 30 cm in front of a concave mirror, a sharp, diminished image forms on a screen placed 15 cm from the mirror. If the bulb is moved to 15 cm in front of the mirror, where will the new sharp image form and how will its size compare to the bulb?",
+      "options": [
+        "At 30 cm in front of the mirror, magnified.",
+        "At 30 cm behind the mirror, magnified.",
+        "At 15 cm in front of the mirror, same size.",
+        "At 7.5 cm in front of the mirror, diminished."
+      ],
+      "answer": 0,
+      "explanation": "By the principle of reversibility of light, swapping the object to the previous image position (15 cm) shifts the new image to the previous object position (30 cm), now magnified."
+    },
+    {
+      "type": "mcq",
+      "question": "Side-view mirrors on vehicles carry the warning \"Objects in mirror are closer than they appear.\" Which optical property of a convex mirror directly creates this illusion?",
+      "options": [
+        "The image formed is laterally inverted.",
+        "The image formed is always diminished in size.",
+        "The image formed is always inverted.",
+        "The mirror reflects only light from distant objects."
+      ],
+      "answer": 1,
+      "explanation": "Our brain associates smaller apparent size with greater distance; because a convex mirror always diminishes the image, approaching vehicles appear farther away."
+    },
+    {
+      "type": "mcq",
+      "question": "A circular concave mirror of focal length 16 cm is cut horizontally along its principal axis into two identical semicircular pieces. What is the focal length of each semicircular piece?",
+      "options": [
+        "8 cm",
+        "32 cm",
+        "16 cm",
+        "4 cm"
+      ],
+      "answer": 2,
+      "explanation": "Cutting a mirror does not change the radius of curvature (R) of the sphere from which it was made, so f = R/2 remains 16 cm."
+    },
+    {
+      "type": "mcq",
+      "question": "A car approaches a stationary convex vigilance mirror in a parking lot, moving continuously from a large distance right up to the mirror's surface. How does the car's image move and change in size?",
+      "options": [
+        "It moves from P toward F while shrinking in size.",
+        "It moves from F toward P while increasing in size.",
+        "It moves from F toward C while increasing in size.",
+        "It stays fixed at F while increasing in size."
+      ],
+      "answer": 1,
+      "explanation": "As an object moves from infinity toward the pole of a convex mirror, its virtual image shifts from F toward P and grows from point-sized toward full size."
+    },
+    {
+      "type": "mcq",
+      "question": "A person uses a concave shaving mirror of focal length 20 cm to view their face. Initially, their face is 15 cm from the mirror, and then they step back to 30 cm from the mirror. How does the image of their face change?",
+      "options": [
+        "It remains virtual and erect, but becomes diminished.",
+        "It changes from real and inverted to virtual and erect.",
+        "It changes from virtual and erect to real and inverted, becoming diminished.",
+        "It changes from virtual and erect to real and inverted, remaining magnified."
+      ],
+      "answer": 3,
+      "explanation": "With f = 20 cm and C = 40 cm, moving from 15 cm (between P and F) to 30 cm (between F and C) switches the image from virtual/erect to real/inverted, with both positions producing a magnified image."
+    },
+    {
+      "type": "mcq",
+      "question": "A ray of light strikes the pole (P) of a concave mirror making an angle of 35° with the principal axis. What is the angle between the incident ray and the reflected ray?",
+      "options": [
+        "35°",
+        "55°",
+        "70°",
+        "110°"
+      ],
+      "answer": 2,
+      "explanation": "At pole P, the principal axis is the normal, so ∠i = 35° and ∠r = 35°; the angle between the two rays is 35° + 35° = 70°."
+    },
+    {
+      "type": "mcq",
+      "question": "Two curved pieces, M₁ and M₂, are cut from the same hollow glass sphere of diameter 40 cm. Piece M₁ is silvered on its outer bulging surface, while piece M₂ is silvered on its inner hollow surface. What are the types and focal lengths of M₁ and M₂?",
+      "options": [
+        "M₁ is concave with f = 10 cm; M₂ is convex with f = 10 cm.",
+        "M₁ is convex with f = 10 cm; M₂ is concave with f = 10 cm.",
+        "M₁ is concave with f = 20 cm; M₂ is convex with f = 20 cm.",
+        "M₁ is convex with f = 20 cm; M₂ is concave with f = 20 cm."
+      ],
+      "answer": 0,
+      "explanation": "Diameter = 40 cm → R = 20 cm → f = 10 cm. Silvering the outer surface makes the inner surface reflective (concave, M₁); silvering the inner surface makes the outer surface reflective (convex, M₂)."
+    },
+    {
+      "type": "mcq",
+      "question": "In a car headlight, a small bulb is placed at the principal focus (F) of a concave reflector to produce a strong parallel beam of light. If a jolt shifts the bulb slightly closer to the pole (P) than F, what happens to the reflected beam?",
+      "options": [
+        "It converges sharply to a bright point directly ahead of the car.",
+        "It becomes a diverging beam spreading outward from the mirror.",
+        "It remains parallel but shifts downward.",
+        "No light is reflected out of the headlight."
+      ],
+      "answer": 1,
+      "explanation": "Placing a light source between P and F causes reflected rays to diverge outward as if originating from a virtual image behind the mirror."
+    },
+    {
+      "type": "mcq",
+      "question": "A student places a lit candle in front of a concave mirror and obtains a sharp, inverted image of the exact same size on a screen at 24 cm from the mirror. If the candle is shifted 6 cm closer to the mirror, how must the screen be adjusted to catch a sharp image again?",
+      "options": [
+        "Moved closer to the mirror to capture a diminished image.",
+        "Kept at 24 cm because the focal length has not changed.",
+        "Moved away from the mirror to capture a magnified image.",
+        "Removed completely because the image is now virtual."
+      ],
+      "answer": 2,
+      "explanation": "Same-size inverted image means C = 24 cm (f = 12 cm). Shifting 6 cm closer puts the candle at 18 cm (between F and C), pushing the magnified real image beyond C."
+    },
+    {
+      "type": "mcq",
+      "question": "A student uses a concave mirror to ignite a sheet of paper using parallel rays of sunlight. By mistake, the student holds the paper at the center of curvature (C) instead of the principal focus (F). What will the student observe on the paper?",
+      "options": [
+        "The paper ignites twice as fast because C = 2f.",
+        "A sharp, bright pinpoint of light identical to the one at F.",
+        "Complete darkness because no reflected rays reach C.",
+        "A spread-out, dim circular patch of light that fails to ignite."
+      ],
+      "answer": 3,
+      "explanation": "Parallel sun rays converge sharply at F and then cross over and spread out by the time they reach C, creating a dim circular patch instead of a hot focus."
+    },
+    {
+      "type": "mcq",
+      "question": "An optical setup uses a single spherical mirror that forms an erect image half the height of an object placed 20 cm in front of it. What can be concluded about the mirror and the image?",
+      "options": [
+        "It is a concave mirror forming a virtual image behind the mirror.",
+        "It is a convex mirror forming a virtual image between P and F.",
+        "It is a concave mirror forming a real image between F and C.",
+        "It is a convex mirror forming a real image at F."
+      ],
+      "answer": 1,
+      "explanation": "Only a convex mirror forms an erect, diminished image, and it always lies virtually between P and F."
+    },
+    {
+      "type": "mcq",
+      "question": "Although a concave mirror can produce diminished images of distant vehicles, it is unsuitable as a rear-view mirror in cars. Which outcome occurs for vehicles traveling far behind the car?",
+      "options": [
+        "They appear upside down in the mirror.",
+        "They appear larger than their actual size.",
+        "They cannot be seen at all beyond the focal point.",
+        "They appear upright but shifted to the wrong lane."
+      ],
+      "answer": 0,
+      "explanation": "Distant objects (beyond C) in a concave mirror produce real, inverted images, making trailing traffic appear upside down."
+    },
+    {
+      "type": "mcq",
+      "question": "What optical action makes a convex reflector more effective than a concave reflector for illuminating a wide stretch of road beneath a street lamp?",
+      "options": [
+        "It absorbs stray light and intensifies the central beam.",
+        "It converges light rays to a single focus on the pavement.",
+        "It diverges incident light rays over a wider angle.",
+        "It forms a real magnified image of the lamp on the road."
+      ],
+      "answer": 2,
+      "explanation": "A convex mirror acts as a diverging mirror, spreading light rays outward across a wider stretch of road."
+    },
+    {
+      "type": "mcq",
+      "question": "A student has a concave mirror of focal length 15 cm and wants to project a real, diminished image of a glowing arrow onto a white screen. Which combination of object distance and screen distance will work?",
+      "options": [
+        "Object at 10 cm; screen at 20 cm.",
+        "Object at 20 cm; screen beyond 30 cm.",
+        "Object at 30 cm; screen at 30 cm.",
+        "Object at 40 cm; screen between 15 cm and 30 cm."
+      ],
+      "answer": 3,
+      "explanation": "With f = 15 cm and C = 30 cm, a real, diminished image requires the object to be beyond C (> 30 cm), forming the image between F and C (15 cm to 30 cm)."
+    }
+  ]
+}
