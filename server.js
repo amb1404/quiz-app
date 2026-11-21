@@ -4801,6 +4801,8 @@ app.post('/api/live/admin/end', async (req, res) => {
         if (stateStr) {
             const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
             if (state.status !== 'ended') {
+                const markerKey = `live:archived_marker:${cleanId}:${state.questionStartTime || 0}`;
+                await stateStore.set(markerKey, '1', 60 * 60 * 24);
                 await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: false });
             }
             state.status = 'ended';
@@ -5770,13 +5772,43 @@ app.post('/api/admin/quiz-attempts', async (req, res) => {
     }
 });
 
-// 5. List all permanently archived Live Room student performance reports
+// 5. List all permanently archived Live Room student performance reports (auto-rescues ended rooms still in Redis)
 app.post('/api/admin/live-reports/list', async (req, res) => {
     try {
         const { adminKey } = req.body;
         if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
+
+        // Auto-recover any recently ended live rooms still within their 8-hour Redis TTL
+        try {
+            const boardKeys = new Set();
+            if (stateStore.fallbackMap) {
+                for (const k of stateStore.fallbackMap.keys()) {
+                    if (k.startsWith('live:board:')) boardKeys.add(k);
+                }
+            }
+            try {
+                const redisKeys = await stateStore.execCommand(['KEYS', 'live:board:*']);
+                if (Array.isArray(redisKeys)) redisKeys.forEach(k => boardKeys.add(k));
+            } catch {}
+
+            for (const bKey of boardKeys) {
+                const cleanId = bKey.replace(/^live:board:/, '');
+                const rawState = await stateStore.get(`live:state:${cleanId}`);
+                if (!rawState) continue;
+                const st = typeof rawState === 'string' ? JSON.parse(rawState) : rawState;
+                if (!st || st.status !== 'ended' || !st.activeQuizFile || st.activeQuizType === 'pdf' || String(st.activeQuizFile).toLowerCase().endsWith('.pdf')) {
+                    continue;
+                }
+                const markerKey = `live:archived_marker:${cleanId}:${st.questionStartTime || 0}`;
+                const claimed = await stateStore.setNx(markerKey, '1', 60 * 60 * 24);
+                if (claimed) {
+                    await archiveLiveRoomReports(cleanId, st, { onlyIfAnswersExist: false });
+                }
+            }
+        } catch {}
+
         const reports = await getPermanentLiveReportsIndex();
         res.json({ success: true, reports });
     } catch (err) {
