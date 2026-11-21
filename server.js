@@ -4654,6 +4654,17 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
 
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
 
+        const nextRawFile = String(questionFile || '').trim();
+        const prevActiveFile = String(state.activeQuizFile || '').trim();
+        if (
+            prevActiveFile &&
+            !prevActiveFile.toLowerCase().endsWith('.pdf') &&
+            state.activeQuizType !== 'pdf' &&
+            prevActiveFile !== nextRawFile.replace(/\.json$/i, '')
+        ) {
+            await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: true });
+        }
+
         if (!questionFile || String(questionFile).trim() === '') {
             state.activeQuizFile = '';
             state.activeQuizType = '';
@@ -4789,6 +4800,9 @@ app.post('/api/live/admin/end', async (req, res) => {
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (stateStr) {
             const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+            if (state.status !== 'ended') {
+                await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: false });
+            }
             state.status = 'ended';
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
         }
@@ -5142,6 +5156,210 @@ app.post('/api/live/student/submit', async (req, res) => {
         res.status(500).json({ error: 'Failed to submit answer.' });
     }
 });
+const LIVE_REPORTS_INDEX_KEY = 'live:reports:index:v1';
+const LIVE_REPORTS_FILE_PATH = path.join(__dirname, 'live_reports_db.json');
+let liveReportsWriteQueue = Promise.resolve();
+
+function buildLiveStudentScorecard(realQuestions, studentAnswers) {
+    let correct = 0;
+    let incorrect = 0;
+    let skipped = 0;
+    const breakdown = [];
+
+    realQuestions.forEach((q, idx) => {
+        const ansObj = studentAnswers ? studentAnswers[idx] : undefined;
+        const attempted = ansObj !== undefined && ansObj !== null;
+        const studentOptIdx = attempted ? Number(ansObj.answer) : null;
+
+        let status = 'Skipped';
+        let selectedText = 'Skipped';
+        const correctText = q.options?.[q.answer] !== undefined ? q.options[q.answer] : 'N/A';
+
+        if (attempted) {
+            if (studentOptIdx === q.answer) {
+                correct++;
+                status = 'Correct';
+            } else {
+                incorrect++;
+                status = 'Incorrect';
+            }
+            selectedText = q.options?.[studentOptIdx] !== undefined ? q.options[studentOptIdx] : 'Unknown';
+        } else {
+            skipped++;
+        }
+
+        let rawExp = q.explanation || q.Explanation || q.exp || q.solution || q.Solution || q.rationale || q.reason || q.details || q.desc || q.note || '';
+        if (!rawExp && q && typeof q === 'object') {
+            const expKey = Object.keys(q).find(k => /^(exp|sol|rat|reas|desc|note)/i.test(k.trim()));
+            if (expKey) rawExp = q[expKey];
+        }
+
+        breakdown.push({
+            qNum: idx + 1,
+            question: q.question || 'N/A',
+            selectedText,
+            correctText,
+            status,
+            explanation: String(rawExp || '').trim()
+        });
+    });
+
+    return {
+        scorecard: {
+            correct,
+            incorrect,
+            skipped,
+            total: realQuestions.length
+        },
+        breakdown
+    };
+}
+
+async function getPermanentLiveReportsIndex() {
+    const mergedMap = new Map();
+    try {
+        const rawRedis = await stateStore.get(LIVE_REPORTS_INDEX_KEY);
+        if (rawRedis) {
+            const arr = typeof rawRedis === 'string' ? JSON.parse(rawRedis) : rawRedis;
+            if (Array.isArray(arr)) {
+                arr.forEach(item => { if (item && item.reportId) mergedMap.set(item.reportId, item); });
+            }
+        }
+    } catch {}
+
+    try {
+        if (fs.existsSync(LIVE_REPORTS_FILE_PATH)) {
+            const db = JSON.parse(await fs.promises.readFile(LIVE_REPORTS_FILE_PATH, 'utf8')) || {};
+            if (Array.isArray(db.index)) {
+                db.index.forEach(item => {
+                    if (item && item.reportId && !mergedMap.has(item.reportId)) {
+                        mergedMap.set(item.reportId, item);
+                    }
+                });
+            }
+        }
+    } catch {}
+
+    return Array.from(mergedMap.values()).sort((a, b) => new Date(b.endedAt || 0) - new Date(a.endedAt || 0));
+}
+
+async function getPermanentLiveReportDetail(reportId) {
+    const cleanReportId = String(reportId || '').trim();
+    if (!cleanReportId) return null;
+
+    try {
+        const raw = await stateStore.get(`live:report:v1:${cleanReportId}`);
+        if (raw) return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {}
+
+    try {
+        if (fs.existsSync(LIVE_REPORTS_FILE_PATH)) {
+            const db = JSON.parse(await fs.promises.readFile(LIVE_REPORTS_FILE_PATH, 'utf8')) || {};
+            if (db.reports && db.reports[cleanReportId]) {
+                return db.reports[cleanReportId];
+            }
+        }
+    } catch {}
+
+    return null;
+}
+
+function archiveLiveRoomReports(cleanId, state, options = {}) {
+    liveReportsWriteQueue = liveReportsWriteQueue.then(async () => {
+        try {
+            if (!state || !state.activeQuizFile || state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
+                return;
+            }
+            const content = getLiveMockContent(state.activeQuizFile);
+            const realQuestions = content?.questions || [];
+            if (realQuestions.length === 0) return;
+
+            const rawBoard = await stateStore.get(`live:board:${cleanId}`);
+            const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
+            const studentEntries = Object.entries(board).filter(([_, info]) => {
+                if (!info) return false;
+                const hasAnswers = info.answers && Object.keys(info.answers).length > 0;
+                if (options.onlyIfAnswersExist) return hasAnswers;
+                return !info.kicked || hasAnswers;
+            });
+            if (studentEntries.length === 0) return;
+
+            const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+            const endedAtMs = Date.now();
+            const endedAtIso = new Date(endedAtMs).toISOString();
+            const sessionId = `ls_${endedAtMs}_${crypto.randomBytes(3).toString('hex')}`;
+            const roomName = state.roomName || cleanId;
+            const quizTitle = content?.title || state.activeQuizFile;
+
+            const newSummaries = [];
+            const newFullReports = {};
+
+            for (const [studentName, studentRecord] of studentEntries) {
+                const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, studentRecord.answers || {});
+                const percentage = scorecard.total > 0
+                    ? Number(((scorecard.correct / scorecard.total) * 100).toFixed(1))
+                    : 0.0;
+                const reportId = `lr_${endedAtMs}_${crypto.randomBytes(4).toString('hex')}`;
+
+                const fullReport = {
+                    reportId,
+                    sessionId,
+                    roomName,
+                    quizId: cleanId,
+                    quizFile: state.activeQuizFile,
+                    quizTitle,
+                    studentName,
+                    email: studentRecord.email || '',
+                    percentage,
+                    endedAt: endedAtIso,
+                    scorecard,
+                    breakdown
+                };
+
+                await stateStore.set(`live:report:v1:${reportId}`, fullReport, tenYearsSec);
+                newFullReports[reportId] = fullReport;
+                newSummaries.push({
+                    reportId,
+                    sessionId,
+                    roomName,
+                    quizId: cleanId,
+                    quizFile: state.activeQuizFile,
+                    quizTitle,
+                    studentName,
+                    email: studentRecord.email || '',
+                    correct: scorecard.correct,
+                    incorrect: scorecard.incorrect,
+                    skipped: scorecard.skipped,
+                    total: scorecard.total,
+                    percentage,
+                    endedAt: endedAtIso
+                });
+            }
+
+            const existingIndex = await getPermanentLiveReportsIndex();
+            const updatedIndex = [...newSummaries, ...existingIndex].slice(0, 5000);
+            await stateStore.set(LIVE_REPORTS_INDEX_KEY, updatedIndex, tenYearsSec);
+
+            try {
+                let localDb = { index: [], reports: {} };
+                if (fs.existsSync(LIVE_REPORTS_FILE_PATH)) {
+                    const parsed = JSON.parse(await fs.promises.readFile(LIVE_REPORTS_FILE_PATH, 'utf8'));
+                    if (parsed && typeof parsed === 'object') {
+                        localDb.index = Array.isArray(parsed.index) ? parsed.index : [];
+                        localDb.reports = (parsed.reports && typeof parsed.reports === 'object') ? parsed.reports : {};
+                    }
+                }
+                localDb.index = updatedIndex;
+                Object.assign(localDb.reports, newFullReports);
+                await fs.promises.writeFile(LIVE_REPORTS_FILE_PATH, JSON.stringify(localDb, null, 2), { mode: 0o600 });
+            } catch {}
+        } catch (err) {
+            console.error('Failed to archive live room reports:', err);
+        }
+    });
+    return liveReportsWriteQueue;
+}
+
 // Student Live Room Scorecard & Breakdown Generator
 app.get('/api/live/student/scorecard', async (req, res) => {
     try {
@@ -5163,59 +5381,11 @@ app.get('/api/live/student/scorecard', async (req, res) => {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
         const studentRecord = board[studentName] || { answers: {} };
-        const studentAnswers = studentRecord.answers || {};
-
-        let correct = 0;
-        let incorrect = 0;
-        let skipped = 0;
-        const breakdown = [];
-
-        realQuestions.forEach((q, idx) => {
-            const ansObj = studentAnswers[idx];
-            const attempted = ansObj !== undefined && ansObj !== null;
-            const studentOptIdx = attempted ? Number(ansObj.answer) : null;
-
-            let status = 'Skipped';
-            let selectedText = 'Skipped';
-            const correctText = q.options?.[q.answer] !== undefined ? q.options[q.answer] : 'N/A';
-
-            if (attempted) {
-                if (studentOptIdx === q.answer) {
-                    correct++;
-                    status = 'Correct';
-                } else {
-                    incorrect++;
-                    status = 'Incorrect';
-                }
-                selectedText = q.options?.[studentOptIdx] !== undefined ? q.options[studentOptIdx] : 'Unknown';
-            } else {
-                skipped++;
-            }
-
-            let rawExp = q.explanation || q.Explanation || q.exp || q.solution || q.Solution || q.rationale || q.reason || q.details || q.desc || q.note || '';
-        if (!rawExp && q && typeof q === 'object') {
-            const expKey = Object.keys(q).find(k => /^(exp|sol|rat|reas|desc|note)/i.test(k.trim()));
-            if (expKey) rawExp = q[expKey];
-        }
-
-        breakdown.push({
-            qNum: idx + 1,
-            question: q.question || 'N/A',
-            selectedText,
-            correctText,
-            status,
-            explanation: String(rawExp || '').trim()
-        });
-        });
+        const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, studentRecord.answers || {});
 
         res.json({
             success: true,
-            scorecard: {
-                correct,
-                incorrect,
-                skipped,
-                total: realQuestions.length
-            },
+            scorecard,
             breakdown
         });
     } catch (err) {
@@ -5599,6 +5769,38 @@ app.post('/api/admin/quiz-attempts', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch test attempts.' });
     }
 });
+
+// 5. List all permanently archived Live Room student performance reports
+app.post('/api/admin/live-reports/list', async (req, res) => {
+    try {
+        const { adminKey } = req.body;
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+        const reports = await getPermanentLiveReportsIndex();
+        res.json({ success: true, reports });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load live test reports.' });
+    }
+});
+
+// 6. Fetch full scorecard & breakdown for a single archived Live Room student report
+app.post('/api/admin/live-reports/detail', async (req, res) => {
+    try {
+        const { adminKey, reportId } = req.body;
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+        const report = await getPermanentLiveReportDetail(reportId);
+        if (!report) {
+            return res.status(404).json({ error: 'Archived live test report not found.' });
+        }
+        res.json({ success: true, report });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load report details.' });
+    }
+});
+
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
