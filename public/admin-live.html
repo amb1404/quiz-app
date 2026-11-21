@@ -1687,6 +1687,7 @@
                     <td style="padding: 10px; border-bottom: 1px solid #334155; display: flex; gap: 8px; flex-wrap: wrap;">
                         <button type="button" style="background:#3b82f6; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;" data-action="live-report-view" data-report-id="${escReportHtml(r.reportId)}">👁️ View</button>
                         <button type="button" style="background:#059669; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;" data-action="live-report-pdf" data-report-id="${escReportHtml(r.reportId)}">📄 Save PDF</button>
+                        <button type="button" style="background:#dc2626; border: none; border-radius: 4px; color: white; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer;" data-action="live-report-delete" data-report-id="${escReportHtml(r.reportId)}" data-student="${escReportHtml(r.studentName)}" data-quiz="${escReportHtml(r.quizTitle || r.quizFile || '')}">🗑️ Remove</button>
                     </td>
                 </tr>
             `;
@@ -1878,6 +1879,73 @@
         }
     }
 
+    async function deleteAdminLiveReport(reportId, studentName, quizTitle, btnEl) {
+        const adminKey = getSavedAdminKey();
+        if (!adminKey) return alert('Please enter your Admin Secret Key first.');
+
+        const label = `${studentName || 'this student'}${quizTitle ? ` (${quizTitle})` : ''}`;
+        if (!confirm(`Permanently delete the archived live test report for ${label}? This cannot be undone.`)) {
+            return;
+        }
+
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.textContent = 'Removing...';
+        }
+
+        try {
+            const res = await fetch('/api/admin/live-reports/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminKey, reportId })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(data.error || 'Failed to delete live test report.');
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.textContent = '🗑️ Remove';
+                }
+                return;
+            }
+
+            cachedLiveReportsList = cachedLiveReportsList.filter(r => r.reportId !== reportId);
+
+            const filterEl = document.getElementById('admin-live-report-session-filter');
+            const searchEl = document.getElementById('admin-live-report-search');
+            if (filterEl) {
+                const prevVal = filterEl.value;
+                const seenSessions = new Map();
+                cachedLiveReportsList.forEach((r) => {
+                    if (r.sessionId && !seenSessions.has(r.sessionId)) {
+                        const dt = r.endedAt ? new Date(r.endedAt).toLocaleString('en-IN') : '';
+                        seenSessions.set(r.sessionId, `${r.roomName || r.quizId} — ${r.quizTitle || r.quizFile} (${dt})`);
+                    }
+                });
+                filterEl.innerHTML = '<option value="">-- All Live Test Sessions --</option>';
+                seenSessions.forEach((optLabel, sId) => {
+                    const opt = document.createElement('option');
+                    opt.value = sId;
+                    opt.textContent = optLabel;
+                    if (sId === prevVal) opt.selected = true;
+                    filterEl.appendChild(opt);
+                });
+                filterEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
+            }
+            if (searchEl) {
+                searchEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
+            }
+
+            renderPermanentLiveReportsTable();
+        } catch (e) {
+            alert('Network error deleting report.');
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.textContent = '🗑️ Remove';
+            }
+        }
+    }
+
     document.getElementById('btn-load-live-reports')?.addEventListener('click', loadPermanentLiveReports);
     document.getElementById('admin-live-report-session-filter')?.addEventListener('change', renderPermanentLiveReportsTable);
     document.getElementById('admin-live-report-search')?.addEventListener('input', renderPermanentLiveReportsTable);
@@ -1893,6 +1961,14 @@
         if (pdfBtn) {
             const rId = pdfBtn.getAttribute('data-report-id');
             if (rId) openAdminLiveReportPdf(rId, true);
+            return;
+        }
+        const delBtn = e.target.closest('button[data-action="live-report-delete"]');
+        if (delBtn) {
+            const rId = delBtn.getAttribute('data-report-id');
+            const sName = delBtn.getAttribute('data-student') || '';
+            const qTitle = delBtn.getAttribute('data-quiz') || '';
+            if (rId) deleteAdminLiveReport(rId, sName, qTitle, delBtn);
             return;
         }
         const modalEl = document.getElementById('admin-live-pdf-modal');

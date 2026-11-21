@@ -5833,6 +5833,57 @@ app.post('/api/admin/live-reports/detail', async (req, res) => {
     }
 });
 
+function deletePermanentLiveReport(reportId) {
+    const cleanReportId = String(reportId || '').trim();
+    if (!cleanReportId) return Promise.resolve(false);
+
+    let deleted = false;
+    const run = liveReportsWriteQueue.then(async () => {
+        const tenYearsSec = 60 * 60 * 24 * 365 * 10;
+        await stateStore.del(`live:report:v1:${cleanReportId}`);
+
+        const existingIndex = await getPermanentLiveReportsIndex();
+        const updatedIndex = existingIndex.filter(item => item && item.reportId !== cleanReportId);
+        await stateStore.set(LIVE_REPORTS_INDEX_KEY, updatedIndex, tenYearsSec);
+
+        try {
+            if (fs.existsSync(LIVE_REPORTS_FILE_PATH)) {
+                const parsed = JSON.parse(await fs.promises.readFile(LIVE_REPORTS_FILE_PATH, 'utf8'));
+                if (parsed && typeof parsed === 'object') {
+                    parsed.index = updatedIndex;
+                    if (parsed.reports && typeof parsed.reports === 'object') {
+                        delete parsed.reports[cleanReportId];
+                    }
+                    await fs.promises.writeFile(LIVE_REPORTS_FILE_PATH, JSON.stringify(parsed, null, 2), { mode: 0o600 });
+                }
+            }
+        } catch {}
+
+        deleted = true;
+    });
+
+    liveReportsWriteQueue = run.catch(() => {});
+    return run.then(() => deleted);
+}
+
+// 7. Permanently delete a single student's archived Live Room performance report
+app.post('/api/admin/live-reports/delete', async (req, res) => {
+    try {
+        const { adminKey, reportId } = req.body;
+        if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
+            return res.status(403).json({ error: 'Unauthorized Admin Key' });
+        }
+        const cleanReportId = String(reportId || '').trim();
+        if (!cleanReportId) {
+            return res.status(400).json({ error: 'Missing report ID.' });
+        }
+        await deletePermanentLiveReport(cleanReportId);
+        res.json({ success: true, reportId: cleanReportId });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete live test report.' });
+    }
+});
+
 app.get(/.*/, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found.' });
 
