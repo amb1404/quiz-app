@@ -303,8 +303,8 @@
         <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">All student live test reports are archived automatically when a live room test ends. Preview or save any student's scorecard as a PDF in the exact student format.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px;">
             <button id="btn-load-live-reports" type="button" style="background: #059669; color: #fff;">Load / Refresh Live Reports</button>
-            <select id="admin-live-report-session-filter" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 260px; cursor: pointer; display: none;">
-                <option value="">-- All Live Test Sessions --</option>
+            <select id="admin-live-report-session-filter" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 280px; cursor: pointer; display: none;">
+                <option value="">-- All Live Sessions &amp; Attempted Mock Tests --</option>
             </select>
             <input type="text" id="admin-live-report-search" placeholder="Filter by student name or email..." style="flex: 1; min-width: 220px; background: #0f172a; color: #fff; border: 1px solid #475569; display: none;">
         </div>
@@ -1694,6 +1694,70 @@
         }).join('');
     }
 
+    function rebuildLiveReportSessionFilter() {
+        const filterEl = document.getElementById('admin-live-report-session-filter');
+        const searchEl = document.getElementById('admin-live-report-search');
+        if (filterEl) {
+            const prevVal = filterEl.value;
+            const liveSessions = new Map();
+            const quizTests = new Map();
+
+            cachedLiveReportsList.forEach((r) => {
+                if (!r.sessionId) return;
+                if (r.sourceType === 'quiz' || String(r.sessionId).startsWith('quiz::')) {
+                    const entry = quizTests.get(r.sessionId) || { title: r.quizTitle || r.quizFile, count: 0 };
+                    entry.count += 1;
+                    quizTests.set(r.sessionId, entry);
+                } else {
+                    const entry = liveSessions.get(r.sessionId) || {
+                        roomName: r.roomName || r.quizId,
+                        quizTitle: r.quizTitle || r.quizFile,
+                        endedAt: r.endedAt || '',
+                        count: 0
+                    };
+                    entry.count += 1;
+                    liveSessions.set(r.sessionId, entry);
+                }
+            });
+
+            filterEl.innerHTML = '<option value="">-- All Live Sessions & Attempted Mock Tests --</option>';
+
+            if (liveSessions.size > 0) {
+                const liveGroup = document.createElement('optgroup');
+                liveGroup.label = 'Live Room Tests';
+                liveSessions.forEach((info, sId) => {
+                    const dt = info.endedAt ? new Date(info.endedAt).toLocaleString('en-IN') : '';
+                    const opt = document.createElement('option');
+                    opt.value = sId;
+                    opt.textContent = `🟢 ${info.roomName} — ${info.quizTitle}${dt ? ` (${dt})` : ''} [${info.count}]`;
+                    if (sId === prevVal) opt.selected = true;
+                    liveGroup.appendChild(opt);
+                });
+                filterEl.appendChild(liveGroup);
+            }
+
+            if (quizTests.size > 0) {
+                const quizGroup = document.createElement('optgroup');
+                quizGroup.label = 'Mock Tests (/quizzes — Attempted)';
+                Array.from(quizTests.entries())
+                    .sort((a, b) => a[1].title.localeCompare(b[1].title))
+                    .forEach(([sId, info]) => {
+                        const opt = document.createElement('option');
+                        opt.value = sId;
+                        opt.textContent = `📝 ${info.title} (${info.count} student${info.count === 1 ? '' : 's'})`;
+                        if (sId === prevVal) opt.selected = true;
+                        quizGroup.appendChild(opt);
+                    });
+                filterEl.appendChild(quizGroup);
+            }
+
+            filterEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
+        }
+        if (searchEl) {
+            searchEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
+        }
+    }
+
     async function loadPermanentLiveReports() {
         const adminKey = getSavedAdminKey();
         if (!adminKey) return alert('Please enter your Admin Secret Key at the top first.');
@@ -1702,11 +1766,9 @@
 
         const tableEl = document.getElementById('live-reports-table');
         const tbody = document.getElementById('live-reports-tbody');
-        const filterEl = document.getElementById('admin-live-report-session-filter');
-        const searchEl = document.getElementById('admin-live-report-search');
 
         if (tableEl) tableEl.style.display = 'table';
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#94a3b8;">Loading archived live test reports...</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#94a3b8;">Loading archived live &amp; mock test reports...</td></tr>';
 
         try {
             const res = await fetch('/api/admin/live-reports/list', {
@@ -1721,30 +1783,7 @@
             }
 
             cachedLiveReportsList = data.reports;
-
-            if (filterEl) {
-                const prevVal = filterEl.value;
-                const seenSessions = new Map();
-                cachedLiveReportsList.forEach((r) => {
-                    if (r.sessionId && !seenSessions.has(r.sessionId)) {
-                        const dt = r.endedAt ? new Date(r.endedAt).toLocaleString('en-IN') : '';
-                        seenSessions.set(r.sessionId, `${r.roomName || r.quizId} — ${r.quizTitle || r.quizFile} (${dt})`);
-                    }
-                });
-                filterEl.innerHTML = '<option value="">-- All Live Test Sessions --</option>';
-                seenSessions.forEach((label, sId) => {
-                    const opt = document.createElement('option');
-                    opt.value = sId;
-                    opt.textContent = label;
-                    if (sId === prevVal) opt.selected = true;
-                    filterEl.appendChild(opt);
-                });
-                filterEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
-            }
-            if (searchEl) {
-                searchEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
-            }
-
+            rebuildLiveReportSessionFilter();
             renderPermanentLiveReportsTable();
         } catch (e) {
             if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 12px; color:#f87171;">Network error.</td></tr>';
@@ -1770,11 +1809,16 @@
         const breakdown = Array.isArray(report.breakdown) ? report.breakdown : [];
         const percentage = scorecard.total > 0 ? ((scorecard.correct / scorecard.total) * 100).toFixed(1) : '0.0';
         const dateText = report.endedAt ? new Date(report.endedAt).toLocaleString('en-IN') : '';
+        const isMockQuiz = report.sourceType === 'quiz' || String(report.reportId || '').startsWith('qa_');
+        const reportHeaderTitle = isMockQuiz ? 'Pioneers Prep - Mock Test Report' : 'Pioneers Prep - Live Mock Report';
+        const contextLabel = isMockQuiz
+            ? `Mock Test • ${escReportHtml(report.quizTitle || report.quizFile)}${dateText ? ' • ' + escReportHtml(dateText) : ''}`
+            : `Room: ${escReportHtml(report.roomName || report.quizId)} • ${escReportHtml(report.quizTitle || report.quizFile)}${dateText ? ' • ' + escReportHtml(dateText) : ''}`;
 
         let html = `
             <div style="max-width: 900px; margin: 0 auto; font-family: sans-serif; background: #fff; color: #0f172a;">
                 <div class="print-only-header" style="display: none; text-align: center; margin-bottom: 25px;">
-                    <h1 style="color: #1e3a8a; margin: 0;">Pioneers Prep - Live Mock Report</h1>
+                    <h1 style="color: #1e3a8a; margin: 0;">${reportHeaderTitle}</h1>
                     <p style="color: #64748b; margin-top: 5px;">Candidate Performance Breakdown</p>
                 </div>
 
@@ -1788,7 +1832,7 @@
 
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 26px; text-align: center; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                     <div style="font-size: 14px; font-weight: 700; color: #1e3a8a; margin-bottom: 4px;">${escReportHtml(report.studentName)}${report.email ? ' • ' + escReportHtml(report.email) : ''}</div>
-                    <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Room: ${escReportHtml(report.roomName || report.quizId)} • ${escReportHtml(report.quizTitle || report.quizFile)}${dateText ? ' • ' + escReportHtml(dateText) : ''}</div>
+                    <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">${contextLabel}</div>
                     <h2 style="margin: 0 0 10px 0; color: #334155;">Final Scorecard</h2>
                     <h1 style="font-size: 54px; margin: 0; color: #2563eb; line-height: 1;">${percentage}%</h1>
                     <p style="font-size: 18px; font-weight: 600; color: #0f172a; margin-top: 8px;">${scorecard.correct} / ${scorecard.total} Correct</p>
@@ -1813,9 +1857,17 @@
                         </tr>
         `;
 
+        if (breakdown.length === 0) {
+            html += `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td colspan="5" style="padding: 16px; text-align: center; color: #64748b;">Per-question answer breakdown was not stored for this older submission.</td>
+                </tr>
+            `;
+        }
+
         breakdown.forEach((item) => {
-            const statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : '#eab308');
-            const statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : '#fef9c3');
+            const statusColor = item.status === 'Correct' ? '#10b981' : (item.status === 'Incorrect' ? '#ef4444' : (item.status === 'Needs Review' ? '#2563eb' : '#eab308'));
+            const statusBg = item.status === 'Correct' ? '#dcfce7' : (item.status === 'Incorrect' ? '#fee2e2' : (item.status === 'Needs Review' ? '#dbeafe' : '#fef9c3'));
             const selColor = item.status === 'Correct' ? '#15803d' : (item.status === 'Incorrect' ? '#991b1b' : '#64748b');
             const expText = String(item.explanation || '').trim();
 
@@ -1910,32 +1962,7 @@
             }
 
             cachedLiveReportsList = cachedLiveReportsList.filter(r => r.reportId !== reportId);
-
-            const filterEl = document.getElementById('admin-live-report-session-filter');
-            const searchEl = document.getElementById('admin-live-report-search');
-            if (filterEl) {
-                const prevVal = filterEl.value;
-                const seenSessions = new Map();
-                cachedLiveReportsList.forEach((r) => {
-                    if (r.sessionId && !seenSessions.has(r.sessionId)) {
-                        const dt = r.endedAt ? new Date(r.endedAt).toLocaleString('en-IN') : '';
-                        seenSessions.set(r.sessionId, `${r.roomName || r.quizId} — ${r.quizTitle || r.quizFile} (${dt})`);
-                    }
-                });
-                filterEl.innerHTML = '<option value="">-- All Live Test Sessions --</option>';
-                seenSessions.forEach((optLabel, sId) => {
-                    const opt = document.createElement('option');
-                    opt.value = sId;
-                    opt.textContent = optLabel;
-                    if (sId === prevVal) opt.selected = true;
-                    filterEl.appendChild(opt);
-                });
-                filterEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
-            }
-            if (searchEl) {
-                searchEl.style.display = cachedLiveReportsList.length > 0 ? 'inline-block' : 'none';
-            }
-
+            rebuildLiveReportSessionFilter();
             renderPermanentLiveReportsTable();
         } catch (e) {
             alert('Network error deleting report.');

@@ -5772,7 +5772,383 @@ app.post('/api/admin/quiz-attempts', async (req, res) => {
     }
 });
 
-// 5. List all permanently archived Live Room student performance reports (auto-rescues ended rooms still in Redis)
+function getQuizzesFolderCatalog() {
+    const quizzesDir = path.join(__dirname, 'quizzes');
+    const byId = new Map();
+    const byTitle = new Map();
+    if (!fs.existsSync(quizzesDir)) return { byId, byTitle };
+
+    const files = getAllJsonFiles(quizzesDir);
+    for (const filePath of files) {
+        try {
+            const fileBase = path.basename(filePath, '.json');
+            const normId = fileBase.trim().toLowerCase();
+            const content = getCachedQuizContent(filePath);
+            const title = (content && content.title) ? String(content.title).trim() : fileBase;
+            const total = Array.isArray(content?.questions) ? content.questions.length : 0;
+            const meta = { id: fileBase, normId, title, filePath, total };
+            byId.set(normId, meta);
+            byTitle.set(title.toLowerCase(), meta);
+        } catch {}
+    }
+    return { byId, byTitle };
+}
+
+function encodeQuizAttemptReportId(email, quizId) {
+    return 'qa_' + Buffer.from(JSON.stringify({ e: String(email).trim().toLowerCase(), q: String(quizId).trim() }), 'utf8').toString('base64url');
+}
+
+function decodeQuizAttemptReportId(reportId) {
+    try {
+        if (!reportId || !String(reportId).startsWith('qa_')) return null;
+        const parsed = JSON.parse(Buffer.from(String(reportId).slice(3), 'base64url').toString('utf8'));
+        if (parsed && parsed.e && parsed.q) {
+            return { email: String(parsed.e).trim().toLowerCase(), quizId: String(parsed.q).trim() };
+        }
+    } catch {}
+    return null;
+}
+
+async function getStudentEmailNameMap() {
+    const map = new Map();
+    const setName = (email, fName, lName) => {
+        const clean = String(email || '').trim().toLowerCase();
+        if (!clean || !clean.includes('@')) return;
+        const full = `${String(fName || '').trim()} ${String(lName || '').trim()}`.replace(/\s+\.$/, '').trim();
+        if (full && full.toUpperCase() !== 'STUDENT' && !map.has(clean)) {
+            map.set(clean, full);
+        }
+    };
+
+    try {
+        const profileKeys = new Set();
+        if (stateStore.fallbackMap) {
+            for (const k of stateStore.fallbackMap.keys()) {
+                if (k.startsWith('user:profile:')) profileKeys.add(k);
+            }
+        }
+        try {
+            const rKeys = await stateStore.execCommand(['KEYS', 'user:profile:*']);
+            if (Array.isArray(rKeys)) rKeys.forEach(k => profileKeys.add(k));
+        } catch {}
+        for (const k of profileKeys) {
+            const raw = await stateStore.get(k);
+            if (!raw) continue;
+            const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (p && p.email) setName(p.email, p.firstName, p.lastName);
+        }
+    } catch {}
+
+    try {
+        if (fs.existsSync(USERS_FILE_PATH)) {
+            const localUsers = JSON.parse(await fs.promises.readFile(USERS_FILE_PATH, 'utf8')) || {};
+            Object.values(localUsers).forEach(p => {
+                if (p && p.email) setName(p.email, p.firstName, p.lastName);
+            });
+        }
+    } catch {}
+
+    try {
+        const history = await getHistoricalSubmissions();
+        for (let i = history.length - 1; i >= 0; i--) {
+            const s = history[i];
+            if (s && s.email) setName(s.email, s.firstName, s.lastName);
+        }
+    } catch {}
+
+    return map;
+}
+
+async function getQuizFolderAttemptReports() {
+    const { byId, byTitle } = getQuizzesFolderCatalog();
+    if (byId.size === 0) return [];
+
+    const nameMap = await getStudentEmailNameMap();
+    const deduped = new Map(); // `${email}::${normQuizId}` -> summary
+
+    const resolveQuizMeta = (rawQuizId, rawTitle = '') => {
+        const normId = path.basename(String(rawQuizId || '')).trim().replace(/\.json$/i, '').toLowerCase();
+        if (normId && byId.has(normId)) return byId.get(normId);
+        const normTitle = String(rawTitle || '').trim().toLowerCase();
+        if (normTitle && byTitle.has(normTitle)) return byTitle.get(normTitle);
+        if (normTitle) {
+            for (const [tKey, meta] of byTitle.entries()) {
+                if (normTitle.endsWith(tKey)) return meta;
+            }
+        }
+        return null;
+    };
+
+    const addEntry = (email, rawQuizId, att, fallbackName = '') => {
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail || !cleanEmail.includes('@')) return;
+        const meta = resolveQuizMeta(rawQuizId || att.quizId, att.chapterTitle || '');
+        if (!meta) return; // Strictly include only tests from the /quizzes folder
+
+        const key = `${cleanEmail}::${meta.normId}`;
+        if (deduped.has(key)) return;
+
+        const storedQuizId = path.basename(String(att.quizId || rawQuizId || meta.id)).trim().replace(/\.json$/i, '');
+        const total = Number(att.total) || meta.total || 0;
+        const correct = Number(att.correct !== undefined ? att.correct : att.score) || 0;
+        const attempted = att.attempted !== undefined ? Number(att.attempted) : correct;
+        const incorrect = Number(att.incorrect !== undefined ? att.incorrect : Math.max(0, attempted - correct));
+        const skipped = Number(att.skipped !== undefined ? att.skipped : Math.max(0, total - attempted));
+        const percentage = total > 0 ? Number(((correct / total) * 100).toFixed(1)) : 0.0;
+        const studentName = nameMap.get(cleanEmail) || fallbackName || cleanEmail.split('@')[0].toUpperCase();
+
+        deduped.set(key, {
+            reportId: encodeQuizAttemptReportId(cleanEmail, storedQuizId),
+            sessionId: `quiz::${meta.normId}`,
+            sourceType: 'quiz',
+            roomName: 'Mock Test (/quizzes)',
+            quizId: storedQuizId,
+            quizFile: meta.id,
+            quizTitle: meta.title,
+            studentName,
+            email: cleanEmail,
+            correct,
+            incorrect,
+            skipped,
+            total,
+            percentage,
+            endedAt: att.timestamp || ''
+        });
+    };
+
+    // 1. Scan Redis attempt:v1:* (authoritative permanent store)
+    try {
+        const attKeys = new Set();
+        if (stateStore.fallbackMap) {
+            for (const k of stateStore.fallbackMap.keys()) {
+                if (k.startsWith('attempt:v1:')) attKeys.add(k);
+            }
+        }
+        try {
+            const rKeys = await stateStore.execCommand(['KEYS', 'attempt:v1:*']);
+            if (Array.isArray(rKeys)) rKeys.forEach(k => attKeys.add(k));
+        } catch {}
+
+        for (const k of attKeys) {
+            const rest = k.replace(/^attempt:v1:/i, '');
+            const idx = rest.indexOf(':');
+            if (idx === -1) continue;
+            const email = rest.slice(0, idx);
+            const qId = rest.slice(idx + 1);
+            const raw = await stateStore.get(k);
+            if (!raw) continue;
+            const att = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (att) addEntry(email, qId, att);
+        }
+    } catch {}
+
+    // 2. Scan local attempts_db.json
+    try {
+        if (fs.existsSync(ATTEMPTS_FILE_PATH)) {
+            const db = JSON.parse(await fs.promises.readFile(ATTEMPTS_FILE_PATH, 'utf8')) || {};
+            for (const [compoundKey, att] of Object.entries(db)) {
+                const splitIdx = compoundKey.indexOf('__');
+                if (splitIdx === -1) continue;
+                const email = compoundKey.slice(0, splitIdx);
+                const qId = compoundKey.slice(splitIdx + 2);
+                if (att) addEntry(email, qId, att);
+            }
+        }
+    } catch {}
+
+    // 3. Fallback: scan historical submissions for older attempts without an attempt:v1:* record
+    try {
+        const history = await getHistoricalSubmissions();
+        for (let i = history.length - 1; i >= 0; i--) {
+            const s = history[i];
+            if (!s || !s.email) continue;
+            const fName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
+            addEntry(s.email, s.quizId || '', s, fName);
+        }
+    } catch {}
+
+    return Array.from(deduped.values());
+}
+
+async function getQuizFolderAttemptDetail(reportId) {
+    const decoded = decodeQuizAttemptReportId(reportId);
+    if (!decoded) return null;
+
+    const { byId, byTitle } = getQuizzesFolderCatalog();
+    const normId = path.basename(decoded.quizId).trim().replace(/\.json$/i, '').toLowerCase();
+    const meta = byId.get(normId);
+    if (!meta) return null;
+
+    const content = getCachedQuizContent(meta.filePath);
+    const realQuestions = Array.isArray(content?.questions) ? content.questions : [];
+    const nameMap = await getStudentEmailNameMap();
+
+    let savedAttempt = await getPermanentStudentAttempt(decoded.email, decoded.quizId);
+    if (!savedAttempt && decoded.quizId !== meta.id) {
+        savedAttempt = await getPermanentStudentAttempt(decoded.email, meta.id);
+    }
+
+    if (savedAttempt) {
+        const breakdown = buildDetailedQuizBreakdownList(
+            realQuestions,
+            savedAttempt.userAnswers || {},
+            savedAttempt.seedKey || '',
+            savedAttempt.quizId || decoded.quizId
+        );
+        const total = realQuestions.length || Number(savedAttempt.total) || 0;
+        const correct = Number(savedAttempt.correct !== undefined ? savedAttempt.correct : savedAttempt.score) || 0;
+        const attempted = savedAttempt.attempted !== undefined ? Number(savedAttempt.attempted) : correct;
+        const incorrect = Number(savedAttempt.incorrect !== undefined ? savedAttempt.incorrect : Math.max(0, attempted - correct));
+        const skipped = Number(savedAttempt.skipped !== undefined ? savedAttempt.skipped : Math.max(0, total - attempted));
+        return {
+            reportId,
+            sessionId: `quiz::${meta.normId}`,
+            sourceType: 'quiz',
+            roomName: 'Mock Test (/quizzes)',
+            quizId: meta.id,
+            quizFile: meta.id,
+            quizTitle: meta.title,
+            studentName: nameMap.get(decoded.email) || decoded.email.split('@')[0].toUpperCase(),
+            email: decoded.email,
+            percentage: total > 0 ? Number(((correct / total) * 100).toFixed(1)) : 0.0,
+            endedAt: savedAttempt.timestamp || '',
+            scorecard: { correct, incorrect, skipped, total },
+            breakdown
+        };
+    }
+
+    // Fallback to historical submission record (legacy attempts before per-answer storage)
+    const history = await getHistoricalSubmissions();
+    for (let i = history.length - 1; i >= 0; i--) {
+        const s = history[i];
+        if (!s || String(s.email || '').trim().toLowerCase() !== decoded.email) continue;
+        const sId = path.basename(String(s.quizId || '')).trim().replace(/\.json$/i, '').toLowerCase();
+        const sTitle = String(s.chapterTitle || '').trim().toLowerCase();
+        const isMatch = (sId && sId === meta.normId) || (sTitle && (sTitle === meta.title.toLowerCase() || sTitle.endsWith(meta.title.toLowerCase()) || byTitle.get(sTitle)?.normId === meta.normId));
+        if (!isMatch) continue;
+
+        const total = Number(s.total) || realQuestions.length || 0;
+        const correct = Number(s.correct !== undefined ? s.correct : s.score) || 0;
+        const attempted = s.attempted !== undefined ? Number(s.attempted) : correct;
+        const incorrect = Number(s.incorrect !== undefined ? s.incorrect : Math.max(0, attempted - correct));
+        const skipped = Number(s.skipped !== undefined ? s.skipped : Math.max(0, total - attempted));
+        const fullName = nameMap.get(decoded.email) || `${s.firstName || ''} ${s.lastName || ''}`.trim() || decoded.email.split('@')[0].toUpperCase();
+
+        return {
+            reportId,
+            sessionId: `quiz::${meta.normId}`,
+            sourceType: 'quiz',
+            roomName: 'Mock Test (/quizzes)',
+            quizId: meta.id,
+            quizFile: meta.id,
+            quizTitle: meta.title,
+            studentName: fullName,
+            email: decoded.email,
+            percentage: total > 0 ? Number(((correct / total) * 100).toFixed(1)) : 0.0,
+            endedAt: s.timestamp || '',
+            scorecard: { correct, incorrect, skipped, total },
+            breakdown: []
+        };
+    }
+
+    return null;
+}
+
+async function deleteQuizFolderAttempt(reportId) {
+    const decoded = decodeQuizAttemptReportId(reportId);
+    if (!decoded) return false;
+
+    const cleanEmail = decoded.email;
+    const normTargetId = path.basename(decoded.quizId).trim().replace(/\.json$/i, '').toLowerCase();
+    const { byId } = getQuizzesFolderCatalog();
+    const meta = byId.get(normTargetId);
+    const normTargetTitle = meta ? meta.title.toLowerCase() : '';
+
+    // 1. Delete matching Redis & fallbackMap attempt:v1:<email>:<quizId> keys
+    const prefix = `attempt:v1:${cleanEmail}:`;
+    const candidateKeys = new Set([`${prefix}${decoded.quizId}`]);
+    if (meta) candidateKeys.add(`${prefix}${meta.id}`);
+    if (stateStore.fallbackMap) {
+        for (const k of stateStore.fallbackMap.keys()) {
+            if (k.startsWith(prefix)) candidateKeys.add(k);
+        }
+    }
+    try {
+        const rKeys = await stateStore.execCommand(['KEYS', `${prefix}*`]);
+        if (Array.isArray(rKeys)) rKeys.forEach(k => candidateKeys.add(k));
+    } catch {}
+
+    for (const k of candidateKeys) {
+        const qPart = path.basename(k.slice(prefix.length)).trim().replace(/\.json$/i, '').toLowerCase();
+        if (qPart === normTargetId) {
+            await stateStore.del(k);
+        }
+    }
+
+    // 2. Delete from local attempts_db.json
+    try {
+        if (fs.existsSync(ATTEMPTS_FILE_PATH)) {
+            const db = JSON.parse(await fs.promises.readFile(ATTEMPTS_FILE_PATH, 'utf8')) || {};
+            let changed = false;
+            for (const k of Object.keys(db)) {
+                const splitIdx = k.indexOf('__');
+                if (splitIdx === -1) continue;
+                const em = k.slice(0, splitIdx).trim().toLowerCase();
+                const qPart = path.basename(k.slice(splitIdx + 2)).trim().replace(/\.json$/i, '').toLowerCase();
+                if (em === cleanEmail && qPart === normTargetId) {
+                    delete db[k];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                await fs.promises.writeFile(ATTEMPTS_FILE_PATH, JSON.stringify(db, null, 2), { mode: 0o600 });
+            }
+        }
+    } catch {}
+
+    // 3. Filter this specific quiz attempt out of submissions.json & Redis global history
+    const matchesTargetSubmission = (s) => {
+        if (!s || String(s.email || '').trim().toLowerCase() !== cleanEmail) return false;
+        const sId = path.basename(String(s.quizId || '')).trim().replace(/\.json$/i, '').toLowerCase();
+        if (sId && sId === normTargetId) return true;
+        if (!sId && normTargetTitle && s.chapterTitle) {
+            const st = String(s.chapterTitle).trim().toLowerCase();
+            return st === normTargetTitle || st.endsWith(normTargetTitle);
+        }
+        return false;
+    };
+
+    try {
+        const subFile = path.join(__dirname, 'submissions.json');
+        if (fs.existsSync(subFile)) {
+            const subs = JSON.parse(await fs.promises.readFile(subFile, 'utf8')) || [];
+            if (Array.isArray(subs)) {
+                const filtered = subs.filter(s => !matchesTargetSubmission(s));
+                if (filtered.length !== subs.length) {
+                    await fs.promises.writeFile(subFile, JSON.stringify(filtered, null, 2), { mode: 0o600 });
+                }
+            }
+        }
+    } catch {}
+
+    try {
+        const rawRedis = await stateStore.get(SUBMISSIONS_REDIS_KEY);
+        if (rawRedis) {
+            const parsed = typeof rawRedis === 'string' ? JSON.parse(rawRedis) : rawRedis;
+            if (Array.isArray(parsed)) {
+                const filtered = parsed.filter(s => !matchesTargetSubmission(s));
+                if (filtered.length !== parsed.length) {
+                    await stateStore.set(SUBMISSIONS_REDIS_KEY, filtered, 60 * 60 * 24 * 365 * 10);
+                }
+            }
+        }
+    } catch {}
+
+    historicalSubmissionsRamCache = { data: null, expiresAt: 0 };
+    return true;
+}
+
+// 5. List all permanently archived Live Room reports + attempted /quizzes test reports
 app.post('/api/admin/live-reports/list', async (req, res) => {
     try {
         const { adminKey } = req.body;
@@ -5809,23 +6185,33 @@ app.post('/api/admin/live-reports/list', async (req, res) => {
             }
         } catch {}
 
-        const reports = await getPermanentLiveReportsIndex();
+        const liveReports = (await getPermanentLiveReportsIndex()).map(r => ({
+            ...r,
+            sourceType: r.sourceType || 'live'
+        }));
+        const quizReports = await getQuizFolderAttemptReports();
+        const reports = [...liveReports, ...quizReports].sort(
+            (a, b) => new Date(b.endedAt || 0) - new Date(a.endedAt || 0)
+        );
         res.json({ success: true, reports });
     } catch (err) {
         res.status(500).json({ error: 'Failed to load live test reports.' });
     }
 });
 
-// 6. Fetch full scorecard & breakdown for a single archived Live Room student report
+// 6. Fetch full scorecard & breakdown for a single archived Live Room or /quizzes student report
 app.post('/api/admin/live-reports/detail', async (req, res) => {
     try {
         const { adminKey, reportId } = req.body;
         if (!APPS_SECRET || !safeCompareStrings(adminKey, APPS_SECRET)) {
             return res.status(403).json({ error: 'Unauthorized Admin Key' });
         }
-        const report = await getPermanentLiveReportDetail(reportId);
+        const cleanReportId = String(reportId || '').trim();
+        const report = cleanReportId.startsWith('qa_')
+            ? await getQuizFolderAttemptDetail(cleanReportId)
+            : await getPermanentLiveReportDetail(cleanReportId);
         if (!report) {
-            return res.status(404).json({ error: 'Archived live test report not found.' });
+            return res.status(404).json({ error: 'Archived test report not found.' });
         }
         res.json({ success: true, report });
     } catch (err) {
@@ -5866,7 +6252,7 @@ function deletePermanentLiveReport(reportId) {
     return run.then(() => deleted);
 }
 
-// 7. Permanently delete a single student's archived Live Room performance report
+// 7. Permanently delete a single student's archived Live Room or /quizzes performance report
 app.post('/api/admin/live-reports/delete', async (req, res) => {
     try {
         const { adminKey, reportId } = req.body;
@@ -5877,10 +6263,14 @@ app.post('/api/admin/live-reports/delete', async (req, res) => {
         if (!cleanReportId) {
             return res.status(400).json({ error: 'Missing report ID.' });
         }
-        await deletePermanentLiveReport(cleanReportId);
+        if (cleanReportId.startsWith('qa_')) {
+            await deleteQuizFolderAttempt(cleanReportId);
+        } else {
+            await deletePermanentLiveReport(cleanReportId);
+        }
         res.json({ success: true, reportId: cleanReportId });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to delete live test report.' });
+        res.status(500).json({ error: 'Failed to delete test report.' });
     }
 });
 
