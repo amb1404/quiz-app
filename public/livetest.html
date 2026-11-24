@@ -692,13 +692,21 @@
     }, 5000);
 
     async function stopStudentMicOnly() {
-        if (studentMicTrack) {
-            try {
-                if (room.state === 'connected') {
-                    await room.localParticipant.unpublishTrack(studentMicTrack);
+        try {
+            if (room && room.state === 'connected' && room.localParticipant) {
+                const pubs = Array.from(room.localParticipant.audioTrackPublications.values());
+                for (const pub of pubs) {
+                    if (pub && pub.track) {
+                        try { await room.localParticipant.unpublishTrack(pub.track, true); } catch (e) {}
+                    }
                 }
-            } catch (e) {}
-            try { studentMicTrack.stop(); } catch (e) {}
+                if (studentMicTrack) {
+                    try { await room.localParticipant.unpublishTrack(studentMicTrack, true); } catch (e) {}
+                }
+            }
+        } catch (e) {}
+        if (studentMicTrack) {
+            try { studentMicTrack.onended = null; studentMicTrack.stop(); } catch (e) {}
             studentMicTrack = null;
         }
         if (studentMicStream) {
