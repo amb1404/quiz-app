@@ -256,42 +256,65 @@
             border-color: #10b981;
         }
 
-        /* Compact Question Control Row + Right-Stacked Close/Clear Actions */
+        /* Dual Simultaneous Screen 1 & Screen 2 Question Deck */
         #control-panel {
-            padding: 10px 14px;
+            padding: 10px 12px;
         }
         .control-panel-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 14px;
-            align-items: center;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: stretch;
         }
-        .control-left-stack {
+        .screen-control-card {
+            background: #0f172a;
+            border: 1px solid #293548;
+            border-radius: 8px;
+            padding: 9px 11px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             min-width: 0;
         }
+        .screen-card-tag {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: #93c5fd;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .screen-card-tag.screen-2-tag { color: #c4b5fd; }
         .control-quiz-select-row {
             display: flex;
-            flex-wrap: wrap;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            min-width: 0;
+        }
+        .control-quiz-select-row select {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            font-weight: 600;
+            cursor: pointer;
         }
         .control-row-nav {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         .control-right-actions {
             display: flex;
             flex-direction: column;
+            justify-content: center;
             gap: 7px;
             align-items: stretch;
-            padding-left: 14px;
+            padding-left: 10px;
             border-left: 1px solid #243044;
-            min-width: 175px;
+            min-width: 150px;
         }
         .control-right-actions button {
             justify-content: center;
@@ -299,18 +322,29 @@
         }
         #dash-title {
             margin: 0;
-            font-size: 13px;
+            font-size: 12.5px;
             color: #e2e8f0;
         }
         #dash-title:empty { display: none; }
-        #q-counter {
-            padding: 4px 11px;
+        #q-counter,
+        #q-counter-2 {
+            padding: 4px 9px;
             border-radius: 6px;
-            background: #0b1120;
+            background: #162033;
             border: 1px solid #334155;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 700;
             color: #e2e8f0;
+        }
+        @media (max-width: 1120px) {
+            .control-panel-grid { grid-template-columns: 1fr; }
+            .control-right-actions {
+                flex-direction: row;
+                border-left: none;
+                border-top: 1px solid #243044;
+                padding-left: 0;
+                padding-top: 8px;
+            }
         }
 
         /* High-Visibility Sticky Student Roster + Live Green Mic-ON Dot */
@@ -656,27 +690,49 @@
                     </div>
                 </div>
 
-                <!-- Compact Question Set + Navigation + Stacked Close/Clear Actions -->
+                <!-- Dual Simultaneous Question/PDF Deck (Screen 1 & Screen 2) -->
                 <div class="panel" id="control-panel" style="display: none;">
                     <div class="control-panel-grid">
-                        <div class="control-left-stack">
+                        <!-- SCREEN 1 -->
+                        <div class="screen-control-card">
+                            <div class="screen-card-tag">
+                                <span>🖥️ SCREEN 1</span>
+                                <h3 id="dash-title"></h3>
+                            </div>
                             <div class="control-quiz-select-row">
-                                <label for="admin-quiz-select" style="font-weight: 700; font-size: 12px; color: #93c5fd;">📚 Question Set (/livemock):</label>
-                                <select id="admin-quiz-select" style="min-width: 260px; flex: 1; max-width: 440px; font-weight: 600; cursor: pointer;">
+                                <select id="admin-quiz-select" aria-label="Screen 1 Question Set">
                                     <option value="">-- None (Lecture / PPT Only) --</option>
                                 </select>
                             </div>
-                            <h3 id="dash-title"></h3>
                             <div id="question-nav-controls" class="control-row-nav">
-                                <button id="prev-btn">◀ Previous Question</button>
+                                <button id="prev-btn" type="button">◀ Prev</button>
                                 <span id="q-counter">No Question Set Active</span>
-                                <button id="next-btn">Next Question ▶</button>
+                                <button id="next-btn" type="button">Next ▶</button>
+                                <button id="clear-responses-btn" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear S1</button>
                             </div>
                         </div>
 
+                        <!-- SCREEN 2 -->
+                        <div class="screen-control-card">
+                            <div class="screen-card-tag screen-2-tag">
+                                <span>🖥️ SCREEN 2 (Simultaneous)</span>
+                            </div>
+                            <div class="control-quiz-select-row">
+                                <select id="admin-quiz-select-2" aria-label="Screen 2 Question Set">
+                                    <option value="">-- None (Off — Hidden from Students) --</option>
+                                </select>
+                            </div>
+                            <div id="question-nav-controls-2" class="control-row-nav">
+                                <button id="prev-btn-2" type="button">◀ Prev</button>
+                                <span id="q-counter-2">Screen 2 Inactive</span>
+                                <button id="next-btn-2" type="button">Next ▶</button>
+                                <button id="clear-responses-btn-2" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear S2</button>
+                            </div>
+                        </div>
+
+                        <!-- Room Action -->
                         <div class="control-right-actions">
-                            <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);">🛑 Close Room Now</button>
-                            <button id="clear-responses-btn" style="background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear Current Responses</button>
+                            <button id="end-test-btn" type="button" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);">🛑 Close Room Now</button>
                         </div>
                     </div>
                 </div>

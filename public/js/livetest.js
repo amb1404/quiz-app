@@ -190,6 +190,135 @@ async function joinLiveRoom(selectedRoomId, btnEl) {
 
 let socket = null;
 let lastRenderedKey = "";
+let activeStudentScreen = (sessionStorage.getItem('live_student_screen') === '2') ? 2 : 1;
+let userPickedScreenManually = false;
+let latestRoomStateData = null;
+
+function getSelectedScreenSlice(data, screenNum) {
+    if (!data) return null;
+    if (screenNum === 2 && data.screen2) {
+        return {
+            screen: 2,
+            activeQuizFile: data.screen2.activeQuizFile || '',
+            activeQuizType: data.screen2.activeQuizType || '',
+            pdfVersion: data.screen2.pdfVersion || 0,
+            currentIndex: Number(data.screen2.currentIndex) || 0,
+            total: Number(data.screen2.total) || 0,
+            payload: data.screen2.payload || null,
+            key: data.screen2.key || null,
+            savedAnswer: data.screen2.savedAnswer !== undefined ? data.screen2.savedAnswer : null,
+            forceRefresh: Boolean(data.screen2.forceRefresh)
+        };
+    }
+    return {
+        screen: 1,
+        activeQuizFile: data.activeQuizFile || '',
+        activeQuizType: data.activeQuizType || '',
+        pdfVersion: data.pdfVersion || 0,
+        currentIndex: Number(data.currentIndex) || 0,
+        total: Number(data.total) || 0,
+        payload: data.payload || null,
+        key: data.key || null,
+        savedAnswer: data.savedAnswer !== undefined ? data.savedAnswer : null,
+        forceRefresh: Boolean(data.forceRefresh)
+    };
+}
+
+function updateStudentScreenSwitcherUI(data) {
+    const switcher = document.getElementById('student-screen-switcher');
+    const btn1 = document.getElementById('btn-student-screen-1');
+    const btn2 = document.getElementById('btn-student-screen-2');
+    const hasS1 = Boolean(data && data.activeQuizFile);
+    const hasS2 = Boolean(data && data.screen2 && data.screen2.activeQuizFile);
+
+    if (!hasS2) {
+        if (switcher) switcher.style.display = 'none';
+        if (activeStudentScreen !== 1) {
+            activeStudentScreen = 1;
+            try { sessionStorage.setItem('live_student_screen', '1'); } catch (e) {}
+        }
+        return;
+    }
+
+    if (!hasS1 && !userPickedScreenManually && activeStudentScreen === 1) {
+        activeStudentScreen = 2;
+    }
+
+    if (switcher) switcher.style.display = 'flex';
+    if (btn1) {
+        const isPdf1 = hasS1 && (data.activeQuizType === 'pdf' || String(data.activeQuizFile).toLowerCase().endsWith('.pdf'));
+        btn1.textContent = hasS1 ? (isPdf1 ? '📄 Screen 1 (PDF)' : '📝 Screen 1 (Quiz)') : '📺 Screen 1';
+        btn1.classList.toggle('active', activeStudentScreen === 1);
+    }
+    if (btn2) {
+        const isPdf2 = hasS2 && (data.screen2.activeQuizType === 'pdf' || String(data.screen2.activeQuizFile).toLowerCase().endsWith('.pdf'));
+        btn2.textContent = isPdf2 ? '📄 Screen 2 (PDF)' : '📝 Screen 2 (Quiz)';
+        btn2.classList.toggle('active', activeStudentScreen === 2);
+    }
+}
+
+function renderActiveStudentScreen(data) {
+    if (!data) return;
+    updateStudentScreenSwitcherUI(data);
+    const slice = getSelectedScreenSlice(data, activeStudentScreen);
+    if (!slice) return;
+
+    const screenTag = `S${slice.screen}`;
+    const isPdfMode = Boolean(
+        slice.activeQuizFile &&
+        (slice.activeQuizType === 'pdf' || String(slice.activeQuizFile).toLowerCase().endsWith('.pdf'))
+    );
+
+    if (isPdfMode) {
+        const pdfStateKey = `${screenTag}:PDF:${slice.activeQuizFile}:${slice.pdfVersion || ''}`;
+        if (pdfStateKey !== lastRenderedKey) {
+            lastRenderedKey = pdfStateKey;
+            currentActiveQuizFile = slice.activeQuizFile;
+            localIndex = -1;
+            renderLivePdf(slice);
+        }
+        return;
+    }
+
+    clearLivePdfViewer();
+
+    if (!slice.activeQuizFile || !slice.payload || !slice.key) {
+        currentActiveQuizFile = "";
+        localIndex = -1;
+        lastRenderedKey = `${screenTag}:EMPTY`;
+        const statusEl = document.getElementById('live-status');
+        const progEl = document.getElementById('live-progress');
+        const qTextEl = document.getElementById('question-text');
+        const optsBox = document.getElementById('options-container');
+        if (statusEl) statusEl.innerText = "🟢 Live Session Active";
+        if (progEl) progEl.innerText = "Lecture Mode";
+        if (qTextEl) qTextEl.innerText = "Waiting for Sir to broadcast a question...";
+        if (optsBox) optsBox.innerHTML = "";
+        return;
+    }
+
+    const stateKey = `${screenTag}:${slice.activeQuizFile}:${slice.currentIndex}:${slice.forceRefresh ? Date.now() : ''}`;
+    if (stateKey !== lastRenderedKey) {
+        lastRenderedKey = stateKey;
+        currentActiveQuizFile = slice.activeQuizFile;
+        localIndex = slice.currentIndex;
+        renderQuestion(slice);
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const btn1 = e.target && e.target.closest ? e.target.closest('#btn-student-screen-1') : null;
+    const btn2 = e.target && e.target.closest ? e.target.closest('#btn-student-screen-2') : null;
+    if (!btn1 && !btn2) return;
+    const nextScreen = btn2 ? 2 : 1;
+    if (nextScreen === activeStudentScreen) return;
+    activeStudentScreen = nextScreen;
+    userPickedScreenManually = true;
+    try { sessionStorage.setItem('live_student_screen', String(nextScreen)); } catch (err) {}
+    if (latestRoomStateData) {
+        renderActiveStudentScreen(latestRoomStateData);
+    }
+});
 
 function applyBroadcastModeUI(mode) {
     window.currentBroadcastMode = (mode === 'presentation' || mode === 'both') ? mode : 'question';
@@ -489,8 +618,12 @@ if (typeof io !== 'undefined') {
             const presScreen = document.getElementById('presentation-screen');
             if (presScreen) presScreen.style.display = 'none';
 
+            const switcherEl = document.getElementById('student-screen-switcher');
+            if (switcherEl) switcherEl.style.display = 'none';
+            sessionStorage.removeItem('live_student_screen');
+
             // Fetch full breakdown scorecard from server before clearing session UI
-            fetch(`/api/live/student/scorecard?quizId=${encodeURIComponent(currentQuizId)}`, {
+            fetch(`/api/live/student/scorecard?quizId=${encodeURIComponent(currentQuizId)}&screen=${activeStudentScreen}`, {
                 headers: { 'Authorization': `Bearer ${liveToken}` }
             })
             .then(res => res.json())
@@ -510,48 +643,9 @@ if (typeof io !== 'undefined') {
             return;
         }
 
+        latestRoomStateData = data;
         applyBroadcastModeUI(data.broadcastMode || 'question');
-
-        const isPdfMode = Boolean(
-            data.activeQuizFile &&
-            (data.activeQuizType === 'pdf' || String(data.activeQuizFile).toLowerCase().endsWith('.pdf'))
-        );
-
-        if (isPdfMode) {
-            const pdfStateKey = `PDF:${data.activeQuizFile}:${data.pdfVersion || ''}`;
-            if (pdfStateKey !== lastRenderedKey) {
-                lastRenderedKey = pdfStateKey;
-                currentActiveQuizFile = data.activeQuizFile;
-                localIndex = -1;
-                renderLivePdf(data);
-            }
-            return;
-        }
-
-        clearLivePdfViewer();
-
-        if (!data.activeQuizFile || !data.payload || !data.key) {
-            currentActiveQuizFile = "";
-            localIndex = -1;
-            lastRenderedKey = "";
-            const statusEl = document.getElementById('live-status');
-            const progEl = document.getElementById('live-progress');
-            const qTextEl = document.getElementById('question-text');
-            const optsBox = document.getElementById('options-container');
-            if (statusEl) statusEl.innerText = "🟢 Live Session Active";
-            if (progEl) progEl.innerText = "Lecture Mode";
-            if (qTextEl) qTextEl.innerText = "Waiting for Sir to broadcast a question...";
-            if (optsBox) optsBox.innerHTML = "";
-            return;
-        }
-
-        const stateKey = `${data.activeQuizFile}:${data.currentIndex}:${data.forceRefresh ? Date.now() : ''}`;
-        if (stateKey !== lastRenderedKey) {
-            lastRenderedKey = stateKey;
-            currentActiveQuizFile = data.activeQuizFile;
-            localIndex = data.currentIndex;
-            renderQuestion(data);
-        }
+        renderActiveStudentScreen(data);
     });
 }
 
@@ -997,7 +1091,8 @@ async function renderLivePdf(data) {
     }
 
     try {
-        const res = await fetch(`/api/live/pdf?quizId=${encodeURIComponent(currentQuizId)}&v=${encodeURIComponent(data.pdfVersion || Date.now())}`, {
+        const targetScreen = data && data.screen === 2 ? 2 : 1;
+        const res = await fetch(`/api/live/pdf?quizId=${encodeURIComponent(currentQuizId)}&screen=${targetScreen}&v=${encodeURIComponent(data.pdfVersion || Date.now())}`, {
             headers: { 'Authorization': `Bearer ${liveToken}` }
         });
         if (!res.ok) {
@@ -1076,11 +1171,14 @@ async function renderLivePdf(data) {
 }
 
 function renderQuestion(data) {
-    document.getElementById('live-status').innerText = "Live Broadcast";
-    document.getElementById('live-progress').innerText = `Q: ${localIndex + 1}/${data.total}`;
+    const targetScreen = data && data.screen === 2 ? 2 : 1;
+    const targetIndex = Number(data.currentIndex) || 0;
+
+    document.getElementById('live-status').innerText = targetScreen === 2 ? "Live Broadcast • Screen 2" : "Live Broadcast";
+    document.getElementById('live-progress').innerText = `Q: ${targetIndex + 1}/${data.total}`;
 
     const q = JSON.parse(xorDecipher(data.payload, data.key));
-    document.getElementById('question-text').innerText = `Q${localIndex + 1}. ${q.question}`;
+    document.getElementById('question-text').innerText = `Q${targetIndex + 1}. ${q.question}`;
 
     const optsBox = document.getElementById('options-container');
     optsBox.innerHTML = '';
@@ -1107,10 +1205,18 @@ function renderQuestion(data) {
             });
             btn.classList.add('selected');
 
+            if (latestRoomStateData) {
+                if (targetScreen === 2 && latestRoomStateData.screen2) {
+                    latestRoomStateData.screen2.savedAnswer = idx;
+                } else if (targetScreen === 1) {
+                    latestRoomStateData.savedAnswer = idx;
+                }
+            }
+
             fetch('/api/live/student/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${liveToken}` },
-                body: JSON.stringify({ index: localIndex, answer: idx })
+                body: JSON.stringify({ index: targetIndex, answer: idx, screen: targetScreen })
             }).then(r => {
                 if (r.status === 409) {
                     testActive = false;
@@ -1122,6 +1228,13 @@ function renderQuestion(data) {
                     throw new Error('Submit failed');
                 }
             }).catch(() => {
+                if (latestRoomStateData) {
+                    if (targetScreen === 2 && latestRoomStateData.screen2) {
+                        latestRoomStateData.screen2.savedAnswer = null;
+                    } else if (targetScreen === 1) {
+                        latestRoomStateData.savedAnswer = null;
+                    }
+                }
                 btn.classList.remove('selected');
                 document.querySelectorAll('.opt-btn').forEach(b => {
                     b.disabled = false;

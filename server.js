@@ -4247,13 +4247,17 @@ app.get('/api/live/pdf', async (req, res) => {
         if (!liveCheck) return res.status(401).send('Unauthorized live session.');
 
         const cleanId = liveCheck.quizId;
+        const screenNum = Number(req.query.screen) === 2 ? 2 : 1;
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        if (!state || state.status !== 'active' || !state.activeQuizFile || !String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
-            return res.status(404).send('No PDF is currently being broadcast in this room.');
+        const activeFile = screenNum === 2
+            ? (state && state.screen2 ? state.screen2.activeQuizFile : '')
+            : (state ? state.activeQuizFile : '');
+        if (!state || state.status !== 'active' || !activeFile || !String(activeFile).toLowerCase().endsWith('.pdf')) {
+            return res.status(404).send('No PDF is currently being broadcast on this screen.');
         }
 
-        const pdfPath = resolveLiveMockPdfPath(state.activeQuizFile);
+        const pdfPath = resolveLiveMockPdfPath(activeFile);
         if (!pdfPath || !fs.existsSync(pdfPath)) {
             return res.status(404).send('Broadcast PDF file not found.');
         }
@@ -4381,40 +4385,34 @@ function verifyLiveRoomToken(liveToken) {
     return null;
 }
 
-async function buildLiveStatePayload(cleanId, studentName = null) {
-    const stateStr = await stateStore.get(`live:state:${cleanId}`);
-    if (!stateStr) return null;
-    const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
-
-    const isPdfBroadcast = Boolean(
-        state.activeQuizFile &&
-        (state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf'))
+function buildSingleScreenPayload(cleanId, roomName, screenSlot, screenNum) {
+    const slot = screenSlot || {};
+    const activeQuizFile = slot.activeQuizFile || '';
+    const isPdf = Boolean(
+        activeQuizFile &&
+        (slot.activeQuizType === 'pdf' || String(activeQuizFile).toLowerCase().endsWith('.pdf'))
     );
-
+    const currentIndex = Number(slot.currentIndex) || 0;
     const out = {
-        roomName: state.roomName || cleanId,
-        status: state.status || 'active',
-        activeQuizFile: state.activeQuizFile || '',
-        activeQuizType: isPdfBroadcast ? 'pdf' : (state.activeQuizFile ? 'json' : ''),
-        pdfVersion: state.questionStartTime || 0,
-        currentIndex: Number(state.currentIndex) || 0,
-        total: Number(state.totalQuestions) || 0,
-        totalQuestions: Number(state.totalQuestions) || 0,
-        broadcastMode: state.broadcastMode || 'question',
-        title: state.title || state.roomName || cleanId,
+        screen: screenNum,
+        activeQuizFile,
+        activeQuizType: isPdf ? 'pdf' : (activeQuizFile ? 'json' : ''),
+        pdfVersion: slot.questionStartTime || 0,
+        currentIndex,
+        total: Number(slot.totalQuestions) || 0,
+        totalQuestions: Number(slot.totalQuestions) || 0,
+        title: slot.title || roomName || cleanId,
         payload: null,
         key: null,
-        savedAnswer: null,
-        muted: false,
-        kicked: false
+        savedAnswer: null
     };
 
-    if (out.activeQuizFile && !isPdfBroadcast) {
-        const content = getLiveMockContent(out.activeQuizFile);
-        if (content && Array.isArray(content.questions) && content.questions[out.currentIndex]) {
-            const q = content.questions[out.currentIndex];
+    if (activeQuizFile && !isPdf) {
+        const content = getLiveMockContent(activeQuizFile);
+        if (content && Array.isArray(content.questions) && content.questions[currentIndex]) {
+            const q = content.questions[currentIndex];
             const key = crypto.createHmac('sha256', SECRET)
-                .update(`${cleanId}:${out.activeQuizFile}:${out.currentIndex}`)
+                .update(`${cleanId}:s${screenNum}:${activeQuizFile}:${currentIndex}`)
                 .digest('hex')
                 .slice(0, 16);
             const sanitized = {
@@ -4428,6 +4426,35 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
             out.totalQuestions = content.questions.length;
         }
     }
+    return out;
+}
+
+async function buildLiveStatePayload(cleanId, studentName = null) {
+    const stateStr = await stateStore.get(`live:state:${cleanId}`);
+    if (!stateStr) return null;
+    const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+
+    const s1 = buildSingleScreenPayload(cleanId, state.roomName || cleanId, state, 1);
+    const s2 = buildSingleScreenPayload(cleanId, state.roomName || cleanId, state.screen2 || {}, 2);
+
+    const out = {
+        roomName: state.roomName || cleanId,
+        status: state.status || 'active',
+        activeQuizFile: s1.activeQuizFile,
+        activeQuizType: s1.activeQuizType,
+        pdfVersion: s1.pdfVersion,
+        currentIndex: s1.currentIndex,
+        total: s1.total,
+        totalQuestions: s1.totalQuestions,
+        broadcastMode: state.broadcastMode || 'question',
+        title: s1.title,
+        payload: s1.payload,
+        key: s1.key,
+        savedAnswer: null,
+        screen2: s2,
+        muted: false,
+        kicked: false
+    };
 
     if (studentName) {
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
@@ -4439,6 +4466,9 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
             if (studentRecord.answers && studentRecord.answers[out.currentIndex] !== undefined) {
                 out.savedAnswer = studentRecord.answers[out.currentIndex].answer;
             }
+            if (studentRecord.answers2 && studentRecord.answers2[s2.currentIndex] !== undefined) {
+                out.screen2.savedAnswer = studentRecord.answers2[s2.currentIndex].answer;
+            }
         }
     }
 
@@ -4448,7 +4478,8 @@ async function buildLiveStatePayload(cleanId, studentName = null) {
 async function emitRoomStateToAll(cleanId, forceRefresh = false) {
     const basePayload = await buildLiveStatePayload(cleanId);
     if (!basePayload) return;
-    if (forceRefresh) basePayload.forceRefresh = true;
+    if (forceRefresh === true || forceRefresh === 1) basePayload.forceRefresh = true;
+    if (forceRefresh === true || forceRefresh === 2) basePayload.screen2.forceRefresh = true;
 
     io.to(`admin-${cleanId}`).emit('room-state', basePayload);
 
@@ -4467,7 +4498,13 @@ async function emitRoomStateToAll(cleanId, forceRefresh = false) {
                 kicked: rec ? Boolean(rec.kicked) : false,
                 savedAnswer: (rec && rec.answers && rec.answers[basePayload.currentIndex] !== undefined)
                     ? rec.answers[basePayload.currentIndex].answer
-                    : null
+                    : null,
+                screen2: {
+                    ...basePayload.screen2,
+                    savedAnswer: (rec && rec.answers2 && rec.answers2[basePayload.screen2.currentIndex] !== undefined)
+                        ? rec.answers2[basePayload.screen2.currentIndex].answer
+                        : null
+                }
             });
         }
     }
@@ -4479,11 +4516,17 @@ async function flushAdminBoardNow(cleanId) {
     const rawBoard = await stateStore.get(`live:board:${cleanId}`);
     const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
     const payload = await buildLiveStatePayload(cleanId);
+    const s2 = payload && payload.screen2 ? payload.screen2 : {};
     io.to(`admin-${cleanId}`).emit('admin-board', {
         board,
         currentIndex: payload ? payload.currentIndex : 0,
         activeQuizFile: payload ? payload.activeQuizFile : '',
-        totalQuestions: payload ? payload.totalQuestions : 0
+        activeQuizType: payload ? payload.activeQuizType : '',
+        totalQuestions: payload ? payload.totalQuestions : 0,
+        screen2CurrentIndex: Number(s2.currentIndex) || 0,
+        screen2ActiveQuizFile: s2.activeQuizFile || '',
+        screen2ActiveQuizType: s2.activeQuizType || '',
+        screen2TotalQuestions: Number(s2.totalQuestions) || 0
     });
 }
 
@@ -4545,7 +4588,8 @@ app.post('/api/live/admin/start', async (req, res) => {
                 roomName: existingState.roomName || rawRoomName,
                 activeQuizFile: existingState.activeQuizFile || '',
                 totalQuestions: Number(existingState.totalQuestions) || 0,
-                currentIndex: Number(existingState.currentIndex) || 0
+                currentIndex: Number(existingState.currentIndex) || 0,
+                screen2: existingState.screen2 || { activeQuizFile: '', totalQuestions: 0, currentIndex: 0 }
             });
         }
 
@@ -4635,51 +4679,56 @@ app.post('/api/live/admin/resume', async (req, res) => {
             roomName: state.roomName || cleanId,
             activeQuizFile: state.activeQuizFile || '',
             totalQuestions: Number(state.totalQuestions) || 0,
-            currentIndex: Number(state.currentIndex) || 0
+            currentIndex: Number(state.currentIndex) || 0,
+            screen2: state.screen2 || { activeQuizFile: '', totalQuestions: 0, currentIndex: 0 }
         });
     } catch (err) {
         res.status(500).json({ error: 'Failed to rejoin room.' });
     }
 });
 
-// Step 2: Admin Selects or Switches Question Set from /livemock Dropdown
+// Step 2: Admin Selects or Switches Question Set from /livemock Dropdown (Screen 1 or Screen 2)
 app.post('/api/live/admin/select-quiz', async (req, res) => {
     try {
-        const { adminKey, quizId, questionFile } = req.body;
+        const { adminKey, quizId, questionFile, screen } = req.body;
         if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized Admin' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
+        const screenNum = Number(screen) === 2 ? 2 : 1;
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (!stateStr) return res.status(400).json({ error: 'Room is not active.' });
 
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
+        if (screenNum === 2 && !state.screen2) {
+            state.screen2 = { activeQuizFile: '', activeQuizType: '', currentIndex: 0, totalQuestions: 0, title: '', questionStartTime: 0 };
+        }
+        const targetSlot = screenNum === 2 ? state.screen2 : state;
 
         const nextRawFile = String(questionFile || '').trim();
-        const prevActiveFile = String(state.activeQuizFile || '').trim();
+        const prevActiveFile = String(targetSlot.activeQuizFile || '').trim();
         if (
             prevActiveFile &&
             !prevActiveFile.toLowerCase().endsWith('.pdf') &&
-            state.activeQuizType !== 'pdf' &&
+            targetSlot.activeQuizType !== 'pdf' &&
             prevActiveFile !== nextRawFile.replace(/\.json$/i, '')
         ) {
-            await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: true });
+            await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: true, screen: screenNum });
         }
 
-        if (!questionFile || String(questionFile).trim() === '') {
-            state.activeQuizFile = '';
-            state.activeQuizType = '';
-            state.currentIndex = 0;
-            state.totalQuestions = 0;
-            state.title = state.roomName || cleanId;
+        if (!nextRawFile) {
+            targetSlot.activeQuizFile = '';
+            targetSlot.activeQuizType = '';
+            targetSlot.currentIndex = 0;
+            targetSlot.totalQuestions = 0;
+            targetSlot.title = state.roomName || cleanId;
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
             await emitRoomStateToAll(cleanId);
             await emitAdminBoard(cleanId);
-            return res.json({ success: true, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
+            return res.json({ success: true, screen: screenNum, activeQuizFile: '', totalQuestions: 0, currentIndex: 0 });
         }
 
-        const rawQuestionFile = String(questionFile).trim();
-        if (rawQuestionFile.toLowerCase().endsWith('.pdf')) {
-            const pdfPath = resolveLiveMockPdfPath(rawQuestionFile);
+        if (nextRawFile.toLowerCase().endsWith('.pdf')) {
+            const pdfPath = resolveLiveMockPdfPath(nextRawFile);
             if (!pdfPath) {
                 return res.status(404).json({ error: 'Selected PDF file was not found in /livemock.' });
             }
@@ -4687,12 +4736,12 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
             const relPdfId = path.relative(liveDir, pdfPath).replace(/\\/g, '/');
             const pdfTitle = path.basename(pdfPath, '.pdf').replace(/[_-]+/g, ' ').trim();
 
-            state.activeQuizFile = relPdfId;
-            state.activeQuizType = 'pdf';
-            state.currentIndex = 0;
-            state.totalQuestions = 0;
-            state.title = `${state.roomName || cleanId} — ${pdfTitle}`;
-            state.questionStartTime = Date.now();
+            targetSlot.activeQuizFile = relPdfId;
+            targetSlot.activeQuizType = 'pdf';
+            targetSlot.currentIndex = 0;
+            targetSlot.totalQuestions = 0;
+            targetSlot.title = `${state.roomName || cleanId} — ${pdfTitle}`;
+            targetSlot.questionStartTime = Date.now();
 
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
             await emitRoomStateToAll(cleanId);
@@ -4700,26 +4749,27 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
 
             return res.json({
                 success: true,
+                screen: screenNum,
                 activeQuizFile: relPdfId,
                 activeQuizType: 'pdf',
-                title: state.title,
+                title: targetSlot.title,
                 totalQuestions: 0,
                 currentIndex: 0
             });
         }
 
-        const cleanQuizFile = path.basename(rawQuestionFile).trim().replace('.json', '');
+        const cleanQuizFile = path.basename(nextRawFile).trim().replace('.json', '');
         const content = getLiveMockContent(cleanQuizFile);
         if (!content || !Array.isArray(content.questions) || content.questions.length === 0) {
             return res.status(404).json({ error: 'Selected question file has no questions or was not found.' });
         }
 
-        state.activeQuizFile = cleanQuizFile;
-        state.activeQuizType = 'json';
-        state.currentIndex = 0;
-        state.totalQuestions = content.questions.length;
-        state.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
-        state.questionStartTime = Date.now();
+        targetSlot.activeQuizFile = cleanQuizFile;
+        targetSlot.activeQuizType = 'json';
+        targetSlot.currentIndex = 0;
+        targetSlot.totalQuestions = content.questions.length;
+        targetSlot.title = `${state.roomName || cleanId} — ${content.title || cleanQuizFile}`;
+        targetSlot.questionStartTime = Date.now();
 
         await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
         await emitRoomStateToAll(cleanId);
@@ -4727,9 +4777,10 @@ app.post('/api/live/admin/select-quiz', async (req, res) => {
 
         res.json({
             success: true,
+            screen: screenNum,
             activeQuizFile: cleanQuizFile,
-            title: state.title,
-            totalQuestions: state.totalQuestions,
+            title: targetSlot.title,
+            totalQuestions: targetSlot.totalQuestions,
             currentIndex: 0
         });
     } catch (err) {
@@ -4758,33 +4809,37 @@ app.post('/api/live/rtc/admin/mode', async (req, res) => {
     }
 });
 
-// Admin: Clear Current Question Responses
+// Admin: Clear Current Question Responses (Screen 1 or Screen 2)
 app.post('/api/live/admin/clear-question', async (req, res) => {
     try {
-        const { adminKey, quizId } = req.body;
+        const { adminKey, quizId, screen } = req.body;
         if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId || '')).trim();
+        const screenNum = Number(screen) === 2 ? 2 : 1;
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
-        const idx = Number(state.currentIndex) || 0;
+        const targetSlot = screenNum === 2 ? (state.screen2 || {}) : state;
+        const idx = Number(targetSlot.currentIndex) || 0;
+        const ansField = screenNum === 2 ? 'answers2' : 'answers';
 
-        state.questionStartTime = Date.now();
+        targetSlot.questionStartTime = Date.now();
+        if (screenNum === 2) state.screen2 = targetSlot;
         await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
 
         await updateBoardSecurely(cleanId, (board) => {
             Object.keys(board).forEach(student => {
-                if (board[student] && board[student].answers) {
-                    delete board[student].answers[idx];
+                if (board[student] && board[student][ansField]) {
+                    delete board[student][ansField][idx];
                 }
             });
             return board;
         });
 
-        await emitRoomStateToAll(cleanId, true);
+        await emitRoomStateToAll(cleanId, screenNum);
         await emitAdminBoard(cleanId);
-        res.json({ success: true });
+        res.json({ success: true, screen: screenNum });
     } catch (err) {
         res.status(500).json({ error: 'Failed to clear responses.' });
     }
@@ -4803,7 +4858,10 @@ app.post('/api/live/admin/end', async (req, res) => {
             if (state.status !== 'ended') {
                 const markerKey = `live:archived_marker:${cleanId}:${state.questionStartTime || 0}`;
                 await stateStore.set(markerKey, '1', 60 * 60 * 24);
-                await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: false });
+                await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: false, screen: 1 });
+                if (state.screen2 && state.screen2.activeQuizFile) {
+                    await archiveLiveRoomReports(cleanId, state, { onlyIfAnswersExist: true, screen: 2 });
+                }
             }
             state.status = 'ended';
             await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
@@ -4842,25 +4900,27 @@ app.post('/api/live/admin/end', async (req, res) => {
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to end room.' }); }
 });
-// Admin: Change Question Index
+// Admin: Change Question Index (Screen 1 or Screen 2)
 app.post('/api/live/admin/set-index', async (req, res) => {
     try {
-        const { adminKey, quizId, index } = req.body;
+        const { adminKey, quizId, index, screen } = req.body;
         if (!safeCompareStrings(adminKey, APPS_SECRET)) return res.status(403).json({ error: 'Unauthorized' });
 
         const cleanId = path.basename(String(quizId)).trim();
+        const screenNum = Number(screen) === 2 ? 2 : 1;
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         if (!stateStr) return res.status(400).json({ error: 'Room not active.' });
 
         const state = typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr;
-        state.currentIndex = parseInt(index, 10);
-        state.questionStartTime = Date.now();
+        const targetSlot = screenNum === 2 ? (state.screen2 || (state.screen2 = {})) : state;
+        targetSlot.currentIndex = parseInt(index, 10);
+        targetSlot.questionStartTime = Date.now();
         await stateStore.set(`live:state:${cleanId}`, state, 60 * 60 * 8);
 
         await emitRoomStateToAll(cleanId);
         await emitAdminBoard(cleanId);
 
-        res.json({ success: true, currentIndex: state.currentIndex });
+        res.json({ success: true, screen: screenNum, currentIndex: targetSlot.currentIndex });
     } catch (err) { res.status(500).json({ error: 'Failed to update index.' }); }
 });
 
@@ -5094,28 +5154,30 @@ app.post('/api/live/student/leave', async (req, res) => {
     }
 });
 
-// Student Submit Answer in Live Room
+// Student Submit Answer in Live Room (Screen 1 or Screen 2)
 app.post('/api/live/student/submit', async (req, res) => {
     try {
         const liveCheck = verifyLiveRoomToken(extractAuthToken(req));
         if (!liveCheck) return res.status(401).json({ error: 'Unauthorized live session.' });
 
-        const { index, answer } = req.body;
+        const { index, answer, screen } = req.body;
+        const screenNum = Number(screen) === 2 ? 2 : 1;
         const cleanId = liveCheck.quizId;
         const studentName = liveCheck.studentName;
 
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        if (!state || state.status !== 'active' || Number(index) !== Number(state.currentIndex)) {
+        const targetSlot = screenNum === 2 ? (state && state.screen2 ? state.screen2 : null) : state;
+        if (!state || state.status !== 'active' || !targetSlot || Number(index) !== Number(targetSlot.currentIndex)) {
             return res.status(400).json({ error: 'Question is no longer active for submission.' });
         }
-        const qStart = state.questionStartTime ? state.questionStartTime : Date.now() - 2000;
+        const qStart = targetSlot.questionStartTime ? targetSlot.questionStartTime : Date.now() - 2000;
         const timeSec = Math.max(0.1, ((Date.now() - qStart) / 1000)).toFixed(1);
 
         let isCorrect = null;
         let optionLabel = `Option ${Number(answer) + 1}`;
-        if (state && state.activeQuizFile) {
-            const content = getLiveMockContent(state.activeQuizFile);
+        if (targetSlot.activeQuizFile) {
+            const content = getLiveMockContent(targetSlot.activeQuizFile);
             const q = content?.questions?.[index];
             if (q) {
                 isCorrect = (Number(answer) === Number(q.answer));
@@ -5125,6 +5187,7 @@ app.post('/api/live/student/submit', async (req, res) => {
             }
         }
 
+        const ansField = screenNum === 2 ? 'answers2' : 'answers';
         let sessionReplaced = false;
         await updateBoardSecurely(cleanId, (board) => {
             if (board[studentName]?.activeSessionId && liveCheck.sessionId && board[studentName].activeSessionId !== liveCheck.sessionId) {
@@ -5132,12 +5195,12 @@ app.post('/api/live/student/submit', async (req, res) => {
                 return board;
             }
             if (!board[studentName]) {
-                board[studentName] = { joinedAt: Date.now(), answers: {}, muted: false, kicked: false };
+                board[studentName] = { joinedAt: Date.now(), answers: {}, answers2: {}, muted: false, kicked: false };
             }
             if (board[studentName].kicked) return board;
-            board[studentName].answers = board[studentName].answers || {};
-            if (board[studentName].answers[index] === undefined) {
-                board[studentName].answers[index] = {
+            board[studentName][ansField] = board[studentName][ansField] || {};
+            if (board[studentName][ansField][index] === undefined) {
+                board[studentName][ansField][index] = {
                     answer: Number(answer),
                     optionLabel,
                     isCorrect,
@@ -5153,7 +5216,7 @@ app.post('/api/live/student/submit', async (req, res) => {
         }
 
         await emitAdminBoard(cleanId);
-        res.json({ success: true });
+        res.json({ success: true, screen: screenNum });
     } catch (err) {
         res.status(500).json({ error: 'Failed to submit answer.' });
     }
@@ -5269,10 +5332,13 @@ async function getPermanentLiveReportDetail(reportId) {
 function archiveLiveRoomReports(cleanId, state, options = {}) {
     liveReportsWriteQueue = liveReportsWriteQueue.then(async () => {
         try {
-            if (!state || !state.activeQuizFile || state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
+            const screenNum = Number(options.screen) === 2 ? 2 : 1;
+            const slot = screenNum === 2 ? (state && state.screen2 ? state.screen2 : null) : state;
+            const ansField = screenNum === 2 ? 'answers2' : 'answers';
+            if (!slot || !slot.activeQuizFile || slot.activeQuizType === 'pdf' || String(slot.activeQuizFile).toLowerCase().endsWith('.pdf')) {
                 return;
             }
-            const content = getLiveMockContent(state.activeQuizFile);
+            const content = getLiveMockContent(slot.activeQuizFile);
             const realQuestions = content?.questions || [];
             if (realQuestions.length === 0) return;
 
@@ -5280,7 +5346,8 @@ function archiveLiveRoomReports(cleanId, state, options = {}) {
             const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
             const studentEntries = Object.entries(board).filter(([_, info]) => {
                 if (!info) return false;
-                const hasAnswers = info.answers && Object.keys(info.answers).length > 0;
+                const ansMap = info[ansField];
+                const hasAnswers = ansMap && Object.keys(ansMap).length > 0;
                 if (options.onlyIfAnswersExist) return hasAnswers;
                 return !info.kicked || hasAnswers;
             });
@@ -5290,14 +5357,15 @@ function archiveLiveRoomReports(cleanId, state, options = {}) {
             const endedAtMs = Date.now();
             const endedAtIso = new Date(endedAtMs).toISOString();
             const sessionId = `ls_${endedAtMs}_${crypto.randomBytes(3).toString('hex')}`;
-            const roomName = state.roomName || cleanId;
-            const quizTitle = content?.title || state.activeQuizFile;
+            const baseRoomName = (state && state.roomName) || cleanId;
+            const roomName = screenNum === 2 ? `${baseRoomName} (Screen 2)` : baseRoomName;
+            const quizTitle = content?.title || slot.activeQuizFile;
 
             const newSummaries = [];
             const newFullReports = {};
 
             for (const [studentName, studentRecord] of studentEntries) {
-                const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, studentRecord.answers || {});
+                const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, studentRecord[ansField] || {});
                 const percentage = scorecard.total > 0
                     ? Number(((scorecard.correct / scorecard.total) * 100).toFixed(1))
                     : 0.0;
@@ -5308,7 +5376,7 @@ function archiveLiveRoomReports(cleanId, state, options = {}) {
                     sessionId,
                     roomName,
                     quizId: cleanId,
-                    quizFile: state.activeQuizFile,
+                    quizFile: slot.activeQuizFile,
                     quizTitle,
                     studentName,
                     email: studentRecord.email || '',
@@ -5325,7 +5393,7 @@ function archiveLiveRoomReports(cleanId, state, options = {}) {
                     sessionId,
                     roomName,
                     quizId: cleanId,
-                    quizFile: state.activeQuizFile,
+                    quizFile: slot.activeQuizFile,
                     quizTitle,
                     studentName,
                     email: studentRecord.email || '',
@@ -5373,17 +5441,26 @@ app.get('/api/live/student/scorecard', async (req, res) => {
 
         const stateStr = await stateStore.get(`live:state:${cleanId}`);
         const state = stateStr ? (typeof stateStr === 'string' ? JSON.parse(stateStr) : stateStr) : null;
-        if (!state || !state.activeQuizFile || state.activeQuizType === 'pdf' || String(state.activeQuizFile).toLowerCase().endsWith('.pdf')) {
+        const isJsonSlot = (slot) => Boolean(slot && slot.activeQuizFile && slot.activeQuizType !== 'pdf' && !String(slot.activeQuizFile).toLowerCase().endsWith('.pdf'));
+
+        const reqScreen = Number(req.query.screen) === 2 ? 2 : 1;
+        let useScreen = reqScreen;
+        if (useScreen === 2 && !isJsonSlot(state && state.screen2)) useScreen = 1;
+        if (useScreen === 1 && !isJsonSlot(state) && isJsonSlot(state && state.screen2)) useScreen = 2;
+
+        const activeSlot = useScreen === 2 ? (state && state.screen2) : state;
+        if (!isJsonSlot(activeSlot)) {
             return res.status(400).json({ error: 'No question set was active in this room.' });
         }
 
-        const content = getLiveMockContent(state.activeQuizFile);
+        const content = getLiveMockContent(activeSlot.activeQuizFile);
         const realQuestions = content?.questions || [];
 
         const rawBoard = await stateStore.get(`live:board:${cleanId}`);
         const board = rawBoard ? (typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard) : {};
-        const studentRecord = board[studentName] || { answers: {} };
-        const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, studentRecord.answers || {});
+        const studentRecord = board[studentName] || { answers: {}, answers2: {} };
+        const ansMap = useScreen === 2 ? (studentRecord.answers2 || {}) : (studentRecord.answers || {});
+        const { scorecard, breakdown } = buildLiveStudentScorecard(realQuestions, ansMap);
 
         res.json({
             success: true,

@@ -3,22 +3,38 @@ let quizId = ""; // Holds the active Room Name
 let activeQuizFile = "";
 let currentIndex = 0;
 let totalQuestions = 0;
+let activeQuizFile2 = "";
+let currentIndex2 = 0;
+let totalQuestions2 = 0;
 let dashInterval;
 
-async function populateAdminQuizDropdown(selectedFile = "") {
+async function populateAdminQuizDropdown(selectedFile = "", selectedFile2 = "") {
     const selectEl = document.getElementById('admin-quiz-select');
-    if (!selectEl) return;
+    const selectEl2 = document.getElementById('admin-quiz-select-2');
+    if (!selectEl && !selectEl2) return;
     try {
         const res = await fetch('/api/live/list');
         const data = await res.json();
-        selectEl.innerHTML = '<option value="">-- None (Lecture / PPT Only) --</option>';
-        if (data.success && Array.isArray(data.tests)) {
-            data.tests.forEach(test => {
+        const tests = (data.success && Array.isArray(data.tests)) ? data.tests : [];
+
+        if (selectEl) {
+            selectEl.innerHTML = '<option value="">-- None (Lecture / PPT Only) --</option>';
+            tests.forEach(test => {
                 const opt = document.createElement('option');
                 opt.value = test.id;
                 opt.textContent = `${test.title} (${test.id})`;
                 if (test.id === selectedFile) opt.selected = true;
                 selectEl.appendChild(opt);
+            });
+        }
+        if (selectEl2) {
+            selectEl2.innerHTML = '<option value="">-- None (Off — Hidden from Students) --</option>';
+            tests.forEach(test => {
+                const opt = document.createElement('option');
+                opt.value = test.id;
+                opt.textContent = `${test.title} (${test.id})`;
+                if (test.id === selectedFile2) opt.selected = true;
+                selectEl2.appendChild(opt);
             });
         }
     } catch (e) {}
@@ -32,7 +48,7 @@ function updateQuestionControlsUI() {
 
     const isPdfActive = Boolean(activeQuizFile && String(activeQuizFile).toLowerCase().endsWith('.pdf'));
     if (!activeQuizFile || totalQuestions === 0) {
-        if (qCounter) qCounter.innerText = isPdfActive ? "📄 PDF Broadcast Active (Students Can Scroll)" : "No Question Set Active";
+        if (qCounter) qCounter.innerText = isPdfActive ? "📄 PDF Active" : "No Question Set Active";
         if (prevBtn) prevBtn.disabled = true;
         if (nextBtn) nextBtn.disabled = true;
         if (clearBtn) clearBtn.disabled = true;
@@ -41,6 +57,24 @@ function updateQuestionControlsUI() {
         if (prevBtn) prevBtn.disabled = (currentIndex <= 0);
         if (nextBtn) nextBtn.disabled = (currentIndex + 1 >= totalQuestions);
         if (clearBtn) clearBtn.disabled = false;
+    }
+
+    const qCounter2 = document.getElementById('q-counter-2');
+    const prevBtn2 = document.getElementById('prev-btn-2');
+    const nextBtn2 = document.getElementById('next-btn-2');
+    const clearBtn2 = document.getElementById('clear-responses-btn-2');
+
+    const isPdfActive2 = Boolean(activeQuizFile2 && String(activeQuizFile2).toLowerCase().endsWith('.pdf'));
+    if (!activeQuizFile2 || totalQuestions2 === 0) {
+        if (qCounter2) qCounter2.innerText = isPdfActive2 ? "📄 PDF Active" : "Screen 2 Inactive";
+        if (prevBtn2) prevBtn2.disabled = true;
+        if (nextBtn2) nextBtn2.disabled = true;
+        if (clearBtn2) clearBtn2.disabled = true;
+    } else {
+        if (qCounter2) qCounter2.innerText = `Q: ${currentIndex2 + 1} / ${totalQuestions2}`;
+        if (prevBtn2) prevBtn2.disabled = (currentIndex2 <= 0);
+        if (nextBtn2) nextBtn2.disabled = (currentIndex2 + 1 >= totalQuestions2);
+        if (clearBtn2) clearBtn2.disabled = false;
     }
 }
 
@@ -248,43 +282,58 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     }
 });
 
-// Step 2: Selecting a Question File from /livemock Dropdown starts broadcasting questions immediately
-const adminQuizSelect = document.getElementById('admin-quiz-select');
-if (adminQuizSelect) {
-    adminQuizSelect.addEventListener('change', async (e) => {
-        const selectedFile = e.target.value;
-        const creds = getActiveAdminCreds();
-        if (!creds.adminKey || !creds.quizId) {
-            alert("Please enter your Admin Secret Key first.");
-            return;
-        }
-        adminKey = creds.adminKey;
-        quizId = creds.quizId;
+// Step 2: Selecting a Question File from /livemock Dropdown (Screen 1 or Screen 2)
+async function handleScreenQuizSelect(selectedFile, screenNum) {
+    const creds = getActiveAdminCreds();
+    if (!creds.adminKey || !creds.quizId) {
+        alert("Please enter your Admin Secret Key first.");
+        return;
+    }
+    adminKey = creds.adminKey;
+    quizId = creds.quizId;
 
-        try {
-            const res = await fetch('/api/live/admin/select-quiz', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminKey: creds.adminKey, quizId: creds.quizId, questionFile: selectedFile })
-            });
-            const data = await res.json();
-            if (data.success) {
+    try {
+        const res = await fetch('/api/live/admin/select-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminKey: creds.adminKey,
+                quizId: creds.quizId,
+                questionFile: selectedFile,
+                screen: screenNum
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
+            if (screenNum === 2) {
+                activeQuizFile2 = data.activeQuizFile || "";
+                totalQuestions2 = data.totalQuestions || 0;
+                currentIndex2 = data.currentIndex || 0;
+                saved.activeQuizFile2 = activeQuizFile2;
+            } else {
                 activeQuizFile = data.activeQuizFile || "";
                 totalQuestions = data.totalQuestions || 0;
                 currentIndex = data.currentIndex || 0;
-
-                const saved = JSON.parse(sessionStorage.getItem('live_admin_session') || '{}');
                 saved.activeQuizFile = activeQuizFile;
-                sessionStorage.setItem('live_admin_session', JSON.stringify(saved));
-
-                updateQuestionControlsUI();
-            } else {
-                alert(data.error || "Failed to load question set.");
             }
-        } catch (err) {
-            alert("Error switching question set.");
+            sessionStorage.setItem('live_admin_session', JSON.stringify(saved));
+            updateQuestionControlsUI();
+        } else {
+            alert(data.error || "Failed to load question set.");
         }
-    });
+    } catch (err) {
+        alert("Error switching question set.");
+    }
+}
+
+const adminQuizSelect = document.getElementById('admin-quiz-select');
+if (adminQuizSelect) {
+    adminQuizSelect.addEventListener('change', (e) => handleScreenQuizSelect(e.target.value, 1));
+}
+const adminQuizSelect2 = document.getElementById('admin-quiz-select-2');
+if (adminQuizSelect2) {
+    adminQuizSelect2.addEventListener('change', (e) => handleScreenQuizSelect(e.target.value, 2));
 }
 
 // Persistent state tracker so the 2-second table redraw never wipes button confirmations
@@ -308,7 +357,7 @@ function getActiveAdminCreds() {
 // End Room, Clear Responses & Student Moderation Delegation
 document.addEventListener('click', async (e) => {
     const endBtn = e.target.closest('#end-test-btn');
-    const clearBtn = e.target.closest('#clear-responses-btn');
+    const clearBtn = e.target.closest('#clear-responses-btn, #clear-responses-btn-2');
     const modBtn = e.target.closest('.btn-student-moderate');
 
     if (!endBtn && !clearBtn && !modBtn) return;
@@ -443,16 +492,19 @@ document.addEventListener('click', async (e) => {
         }
     }
 
-    // 3. Clear Current Question Responses
+    // 3. Clear Current Question Responses (Screen 1 or Screen 2)
     if (clearBtn) {
+        const screenNum = clearBtn.id === 'clear-responses-btn-2' ? 2 : 1;
+        const defaultLabel = screenNum === 2 ? '🧹 Clear S2' : '🧹 Clear S1';
         if (clearBtn.dataset.confirm !== "true") {
-            const originalText = clearBtn.innerText;
-            clearBtn.innerText = "Click Again to WIPE RESPONSES";
+            clearBtn.innerText = `Click Again (S${screenNum})`;
             clearBtn.style.background = "#ca8a04";
+            clearBtn.style.color = "#0f172a";
             clearBtn.dataset.confirm = "true";
             setTimeout(() => {
-                clearBtn.innerText = originalText;
-                clearBtn.style.background = "#eab308";
+                clearBtn.innerText = defaultLabel;
+                clearBtn.style.background = "#334155";
+                clearBtn.style.color = "#f8fafc";
                 clearBtn.dataset.confirm = "false";
             }, 3000);
             return;
@@ -463,15 +515,17 @@ document.addEventListener('click', async (e) => {
             const res = await fetch('/api/live/admin/clear-question', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(creds)
+                body: JSON.stringify({ ...creds, screen: screenNum })
             });
             const data = await res.json();
-            clearBtn.innerText = data.success ? "Responses Cleared!" : "Failed to Clear";
+            clearBtn.innerText = data.success ? "Cleared!" : "Failed";
             clearBtn.style.background = data.success ? "#16a34a" : "#dc2626";
+            clearBtn.style.color = "#ffffff";
             fetchAndRenderDashboard();
             setTimeout(() => {
-                clearBtn.innerText = "Clear Current Question Responses";
-                clearBtn.style.background = "#eab308";
+                clearBtn.innerText = defaultLabel;
+                clearBtn.style.background = "#334155";
+                clearBtn.style.color = "#f8fafc";
                 clearBtn.dataset.confirm = "false";
             }, 2000);
         } catch (err) {
@@ -480,25 +534,34 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-async function setQuestionIndex(newIndex) {
-    if (!activeQuizFile || newIndex < 0 || (totalQuestions > 0 && newIndex >= totalQuestions)) return;
-    document.getElementById('prev-btn').disabled = true;
-    document.getElementById('next-btn').disabled = true;
+async function setQuestionIndex(newIndex, screenNum = 1) {
+    const isS2 = screenNum === 2;
+    const file = isS2 ? activeQuizFile2 : activeQuizFile;
+    const total = isS2 ? totalQuestions2 : totalQuestions;
+    if (!file || newIndex < 0 || (total > 0 && newIndex >= total)) return;
+
+    const pBtn = document.getElementById(isS2 ? 'prev-btn-2' : 'prev-btn');
+    const nBtn = document.getElementById(isS2 ? 'next-btn-2' : 'next-btn');
+    if (pBtn) pBtn.disabled = true;
+    if (nBtn) nBtn.disabled = true;
 
     const creds = getActiveAdminCreds();
     await fetch('/api/live/admin/set-index', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminKey: creds.adminKey, quizId: creds.quizId, index: newIndex })
+        body: JSON.stringify({ adminKey: creds.adminKey, quizId: creds.quizId, index: newIndex, screen: screenNum })
     });
 
-    currentIndex = newIndex;
+    if (isS2) currentIndex2 = newIndex;
+    else currentIndex = newIndex;
     updateQuestionControlsUI();
     fetchAndRenderDashboard();
 }
 
-document.getElementById('prev-btn').addEventListener('click', () => setQuestionIndex(currentIndex - 1));
-document.getElementById('next-btn').addEventListener('click', () => setQuestionIndex(currentIndex + 1));
+document.getElementById('prev-btn')?.addEventListener('click', () => setQuestionIndex(currentIndex - 1, 1));
+document.getElementById('next-btn')?.addEventListener('click', () => setQuestionIndex(currentIndex + 1, 1));
+document.getElementById('prev-btn-2')?.addEventListener('click', () => setQuestionIndex(currentIndex2 - 1, 2));
+document.getElementById('next-btn-2')?.addEventListener('click', () => setQuestionIndex(currentIndex2 + 1, 2));
 
 // --- BULLETPROOF SOCKET INITIALIZATION & LIVE ROSTER RENDERER ---
 let socket;
@@ -522,6 +585,16 @@ if (typeof io !== 'undefined') {
         if (selectEl && selectEl.value !== activeQuizFile) {
             selectEl.value = activeQuizFile;
         }
+
+        const s2 = data.screen2 || {};
+        activeQuizFile2 = s2.activeQuizFile || "";
+        currentIndex2 = Number(s2.currentIndex) || 0;
+        totalQuestions2 = Number(s2.totalQuestions) || 0;
+        const selectEl2 = document.getElementById('admin-quiz-select-2');
+        if (selectEl2 && selectEl2.value !== activeQuizFile2) {
+            selectEl2.value = activeQuizFile2;
+        }
+
         if (data.broadcastMode && typeof window.syncAdminBroadcastModeFromServer === 'function') {
             window.syncAdminBroadcastModeFromServer(data.broadcastMode);
         }
@@ -535,6 +608,10 @@ if (typeof io !== 'undefined') {
         if (!tbody) return;
 
         const qIdx = Number(data.currentIndex) || 0;
+        const qIdx2 = Number(data.screen2CurrentIndex) || 0;
+        const s1HasJson = Boolean(data.activeQuizFile && data.activeQuizType !== 'pdf' && Number(data.totalQuestions) > 0);
+        const s2HasJson = Boolean(data.screen2ActiveQuizFile && data.screen2ActiveQuizType !== 'pdf' && Number(data.screen2TotalQuestions) > 0);
+
         Object.entries(data.board).forEach(([sName, info]) => {
             if ((info.kicked || info.disconnected || info.muted) && typeof window.cutStudentAudioImmediately === 'function') {
                 window.cutStudentAudioImmediately(sName);
@@ -554,17 +631,42 @@ if (typeof io !== 'undefined') {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
 
-        tbody.innerHTML = entries.map(([studentName, info]) => {
-            const ansObj = info.answers ? info.answers[qIdx] : null;
-            let statusHtml = '<span style="color: #94a3b8;">⏳ Thinking / Listening...</span>';
-            let speedHtml = '-';
+        const formatAnsBadge = (ansObj, prefix = '') => {
+            if (!ansObj) {
+                return {
+                    status: `${prefix}<span style="color: #94a3b8;">⏳ Thinking / Listening...</span>`,
+                    speed: prefix ? `${prefix}-` : '-'
+                };
+            }
+            const badgeColor = ansObj.isCorrect === true ? '#10b981' : (ansObj.isCorrect === false ? '#ef4444' : '#3b82f6');
+            const icon = ansObj.isCorrect === true ? '✅' : (ansObj.isCorrect === false ? '❌' : '☑️');
+            const safeOptionText = escHtml(ansObj.optionLabel || ('Option ' + (ansObj.answer + 1)));
+            return {
+                status: `${prefix}<span style="color: ${badgeColor}; font-weight: bold;">${icon} ${safeOptionText}</span>`,
+                speed: `${prefix}<span class="time-badge">${escHtml(ansObj.timeSec)}s</span>`
+            };
+        };
 
-            if (ansObj) {
-                const badgeColor = ansObj.isCorrect === true ? '#10b981' : (ansObj.isCorrect === false ? '#ef4444' : '#3b82f6');
-                const icon = ansObj.isCorrect === true ? '✅' : (ansObj.isCorrect === false ? '❌' : '☑️');
-                const safeOptionText = escHtml(ansObj.optionLabel || ('Option ' + (ansObj.answer + 1)));
-                statusHtml = `<span style="color: ${badgeColor}; font-weight: bold;">${icon} ${safeOptionText}</span>`;
-                speedHtml = `<span class="time-badge">${escHtml(ansObj.timeSec)}s</span>`;
+        tbody.innerHTML = entries.map(([studentName, info]) => {
+            const ans1 = info.answers ? info.answers[qIdx] : null;
+            const ans2 = info.answers2 ? info.answers2[qIdx2] : null;
+
+            let statusHtml;
+            let speedHtml;
+
+            if (s1HasJson && s2HasJson) {
+                const r1 = formatAnsBadge(ans1, '<span style="color:#93c5fd;font-weight:700;font-size:11px;margin-right:4px;">S1:</span>');
+                const r2 = formatAnsBadge(ans2, '<span style="color:#c4b5fd;font-weight:700;font-size:11px;margin-right:4px;">S2:</span>');
+                statusHtml = `<div style="display:flex;flex-direction:column;gap:3px;"><div>${r1.status}</div><div>${r2.status}</div></div>`;
+                speedHtml = `<div style="display:flex;flex-direction:column;gap:3px;"><div>${r1.speed}</div><div>${r2.speed}</div></div>`;
+            } else if (!s1HasJson && s2HasJson) {
+                const r2 = formatAnsBadge(ans2);
+                statusHtml = r2.status;
+                speedHtml = r2.speed;
+            } else {
+                const r1 = formatAnsBadge(ans1);
+                statusHtml = r1.status;
+                speedHtml = r1.speed;
             }
 
             const isMuted = info.muted === true;

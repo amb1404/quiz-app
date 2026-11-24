@@ -53,7 +53,10 @@
         #quiz-screen.pdf-active { max-width: 860px; padding: 18px; }
         #live-pdf-viewer { display: none; width: 100%; max-height: 75vh; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; box-sizing: border-box; text-align: center; }
         #live-pdf-pages canvas { width: 100% !important; height: auto !important; display: block; margin: 0 auto 12px auto; border-radius: 4px; background: #ffffff; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
-        @media print { #student-pip-box { display: none !important; } }
+        #student-screen-switcher { display: none; gap: 8px; margin-bottom: 14px; background: #f1f5f9; padding: 5px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        .screen-switch-btn { flex: 1; padding: 8px 10px; border: 1px solid transparent; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; background: transparent; color: #475569; transition: 0.15s; }
+        .screen-switch-btn.active { background: #2563eb; color: #ffffff; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); }
+        @media print { #student-pip-box, #student-screen-switcher { display: none !important; } }
     </style>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
@@ -90,6 +93,10 @@
     </div>
 
     <div id="quiz-screen" class="live-container" style="display: none;">
+        <div id="student-screen-switcher" class="no-print">
+            <button id="btn-student-screen-1" type="button" class="screen-switch-btn active">📺 Screen 1</button>
+            <button id="btn-student-screen-2" type="button" class="screen-switch-btn">📺 Screen 2</button>
+        </div>
         <div style="display: flex; justify-content: space-between; color: #64748b; margin-bottom: 20px; font-weight: bold;">
             <span id="live-status">Waiting for Admin...</span>
             <span id="live-progress">Q: -/-</span>
