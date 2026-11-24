@@ -10,17 +10,84 @@
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
             background: #0b1120;
             color: #f1f5f9;
-            padding: 14px 18px 28px;
             margin: 0;
+            padding: 0;
             font-size: 13px;
             line-height: 1.45;
+            min-height: 100vh;
         }
+
+        /* Two-Column Sidebar + Main Workspace Frame */
+        .app-layout-frame {
+            display: grid;
+            grid-template-columns: 205px minmax(0, 1fr);
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Left Admin Navigation Sidebar */
+        .admin-sidebar {
+            background: #131c2e;
+            border-right: 1px solid #243044;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-divider {
+            height: 1px;
+            background: #243044;
+            margin: 4px 2px;
+        }
+        .sidebar-nav-btn {
+            width: 100%;
+            justify-content: flex-start;
+            text-align: left;
+            white-space: normal;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.45px;
+            text-transform: uppercase;
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .sidebar-nav-btn:hover:not(:disabled) {
+            background: #283548;
+            color: #ffffff;
+            border-color: #475569;
+        }
+        .sidebar-nav-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #60a5fa;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3);
+        }
+        .sidebar-nav-btn.live-home-btn {
+            background: rgba(16, 185, 129, 0.14);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+        .sidebar-nav-btn.live-home-btn.active {
+            background: #059669;
+            color: #ffffff;
+            border-color: #34d399;
+        }
+
+        /* Right Main Workspace */
         .dashboard-shell {
-            max-width: 1380px;
-            margin: 0 auto;
+            padding: 14px 18px 28px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            min-width: 0;
         }
 
         /* Compact Top Header & Room Bar */
@@ -121,7 +188,15 @@
             cursor: not-allowed;
         }
 
-        /* Compact Live Broadcast Console (Media + Screen Mode stacked cleanly) */
+        /* Live View Wrapper & Sidebar Panel Toggling */
+        #live-room-view {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .view-hidden { display: none !important; }
+
+        /* Compact Live Broadcast Console */
         .broadcast-deck {
             background: #162033;
             border: 1px solid #293548;
@@ -141,9 +216,7 @@
             align-items: center;
             gap: 8px;
         }
-        #admin-stream-console {
-            border-bottom: 1px solid #243044;
-        }
+        #admin-stream-console { border-bottom: 1px solid #243044; }
         .console-label {
             font-size: 11.5px;
             font-weight: 700;
@@ -183,19 +256,27 @@
             border-color: #10b981;
         }
 
-        /* Compact Active Question Bar */
+        /* Compact Question Control Row + Right-Stacked Close/Clear Actions */
         #control-panel {
             padding: 10px 14px;
         }
-        .control-row-top {
+        .control-panel-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+        }
+        .control-left-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+        .control-quiz-select-row {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding-bottom: 9px;
-            margin-bottom: 9px;
-            border-bottom: 1px solid #243044;
+            gap: 8px;
         }
         .control-row-nav {
             display: flex;
@@ -203,9 +284,22 @@
             align-items: center;
             gap: 8px;
         }
+        .control-right-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            align-items: stretch;
+            padding-left: 14px;
+            border-left: 1px solid #243044;
+            min-width: 175px;
+        }
+        .control-right-actions button {
+            justify-content: center;
+            width: 100%;
+        }
         #dash-title {
-            margin: 0 0 8px 0;
-            font-size: 13.5px;
+            margin: 0;
+            font-size: 13px;
             color: #e2e8f0;
         }
         #dash-title:empty { display: none; }
@@ -214,12 +308,12 @@
             border-radius: 6px;
             background: #0b1120;
             border: 1px solid #334155;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
             color: #e2e8f0;
         }
 
-        /* Convenient, High-Visibility Student Roster */
+        /* High-Visibility Sticky Student Roster + Live Green Mic-ON Dot */
         #board-panel {
             padding: 12px 14px;
             border-color: #334155;
@@ -250,13 +344,31 @@
             border: 1px solid rgba(96, 165, 250, 0.35);
         }
         .roster-table-wrap {
-            max-height: 46vh;
-            min-height: 110px;
+            max-height: 52vh;
+            min-height: 140px;
             overflow-y: auto;
             overflow-x: auto;
             border: 1px solid #243044;
             border-radius: 8px;
             background: #0f172a;
+        }
+        .student-mic-dot {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #22c55e;
+            margin-left: 10px;
+            vertical-align: middle;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25), 0 0 8px rgba(34, 197, 94, 0.85);
+            animation: micDotPulse 1.6s infinite ease-in-out;
+        }
+        @keyframes micDotPulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25), 0 0 6px rgba(34, 197, 94, 0.75); }
+            50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.35), 0 0 12px rgba(34, 197, 94, 0.95); }
+        }
+        #board-body tr.student-is-speaking {
+            background: rgba(34, 197, 94, 0.08) !important;
         }
 
         /* Unified Polished Tables */
@@ -281,7 +393,7 @@
             border-bottom: 1px solid #334155 !important;
         }
         tbody td {
-            padding: 7px 12px !important;
+            padding: 8px 12px !important;
             text-align: left;
             border-bottom: 1px solid #1e293b !important;
             vertical-align: middle;
@@ -305,61 +417,35 @@
             border-radius: 5px !important;
         }
 
-        /* Organized Admin Tools Tab Bar */
-        .admin-tools-section {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 4px;
-        }
-        .tools-tab-bar {
+        /* Sidebar Tool Panels */
+        .tool-panel-header {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 6px;
-            background: #162033;
-            border: 1px solid #293548;
-            border-radius: 10px;
-            padding: 7px 10px;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
         }
-        .tools-tab-label {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.45px;
-            color: #94a3b8;
-            margin-right: 4px;
-            padding-left: 4px;
-        }
-        .tool-tab-btn {
-            background: #0f172a;
-            color: #cbd5e1;
-            border: 1px solid #334155;
-            padding: 5px 11px;
-            font-size: 12px;
-            border-radius: 6px;
-        }
-        .tool-tab-btn.active {
-            background: #2563eb;
-            color: #ffffff;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.25);
-        }
-        .tool-panel.tool-hidden { display: none !important; }
         .tool-panel h3 {
-            margin: 0 0 4px 0;
-            font-size: 14px;
+            margin: 0;
+            font-size: 14.5px;
         }
         .tool-desc {
             font-size: 12px;
             color: #94a3b8;
-            margin: 0 0 10px 0;
+            margin: 0 0 12px 0;
         }
         .tool-table-wrap {
             overflow-x: auto;
-            max-height: 46vh;
+            max-height: 62vh;
             overflow-y: auto;
             border-radius: 8px;
+        }
+        .btn-back-to-live {
+            background: #334155;
+            color: #e2e8f0;
+            font-size: 11.5px;
+            padding: 4px 10px;
         }
 
         /* Subtle Dark Scrollbars */
@@ -368,7 +454,7 @@
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* Draggable Self-View PIP (starts bottom-right so it never blocks top status badges) */
+        /* Draggable Self-View PIP */
         #admin-pip-box {
             position: fixed;
             bottom: 18px;
@@ -436,8 +522,31 @@
             padding: 24px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
         }
-        @media (max-width: 768px) {
-            body { padding: 10px; }
+
+        /* Responsive Stacking for Tablets & Phones */
+        @media (max-width: 900px) {
+            .app-layout-frame { grid-template-columns: 1fr; }
+            .admin-sidebar {
+                position: static;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                border-right: none;
+                border-bottom: 1px solid #243044;
+                padding: 10px 12px;
+                gap: 6px;
+            }
+            .sidebar-divider { display: none; }
+            .sidebar-nav-btn { width: auto; padding: 7px 11px; }
+            .dashboard-shell { padding: 10px 12px 24px; }
+            .control-panel-grid { grid-template-columns: 1fr; }
+            .control-right-actions {
+                flex-direction: row;
+                border-left: none;
+                border-top: 1px solid #243044;
+                padding-left: 0;
+                padding-top: 8px;
+            }
             .room-controls-row { justify-content: flex-start; }
             #admin-caller-badge, #admin-mode-badge { margin-left: 0; }
         }
@@ -495,102 +604,113 @@
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
-    <div class="dashboard-shell">
-        <!-- 1. Compact Top Command & Room Setup Bar -->
-        <div class="top-header-bar">
-            <div class="brand-heading">
-                <h2>Live Mock Control Center</h2>
-                <span id="otp-display"></span>
-            </div>
-            <div class="room-controls-row">
-                <input type="password" id="admin-key" autocomplete="new-password" data-lpignore="true" readonly placeholder="Admin Secret Key" style="width: 190px;">
-                <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
-                <div id="create-room-box" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <input type="text" id="quiz-id" placeholder="Room Name (e.g. Physics-X)" style="width: 190px;">
-                    <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
+    <div class="app-layout-frame">
+        <!-- Left Navigation Sidebar -->
+        <aside class="admin-sidebar" role="navigation" aria-label="Admin Consoles">
+            <button type="button" class="sidebar-nav-btn live-home-btn active" data-tool-tab="live">🎥 Live Room</button>
+            <div class="sidebar-divider"></div>
+            <button type="button" class="sidebar-nav-btn" data-tool-tab="reports">PDF Reports Archive</button>
+            <button type="button" class="sidebar-nav-btn" data-tool-tab="users">Registered Accounts</button>
+            <button type="button" class="sidebar-nav-btn" data-tool-tab="analytics">Quiz Analytics</button>
+            <button type="button" class="sidebar-nav-btn" data-tool-tab="leak">Leak Detector</button>
+        </aside>
+
+        <!-- Main Right Workspace -->
+        <main class="dashboard-shell">
+            <!-- 1. Always-Visible Top Command & Room Setup Bar -->
+            <div class="top-header-bar">
+                <div class="brand-heading">
+                    <h2>Live Mock Control Center</h2>
+                    <span id="otp-display"></span>
+                </div>
+                <div class="room-controls-row">
+                    <input type="password" id="admin-key" autocomplete="new-password" data-lpignore="true" readonly placeholder="Admin Secret Key" style="width: 190px;">
+                    <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
+                    <div id="create-room-box" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <input type="text" id="quiz-id" placeholder="Room Name (e.g. Physics-X)" style="width: 185px;">
+                        <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 2. Unified Compact Media & Screen Broadcast Deck -->
-        <div class="broadcast-deck">
-            <div id="admin-stream-console">
-                <span class="console-label" style="color: #93c5fd;">🎥 Video &amp; Voice</span>
-                <button id="btn-admin-video" class="stream-btn" type="button" title="Toggle Camera (Ctrl+D)">📹 Video: OFF</button>
-                <button id="btn-admin-audio" class="stream-btn" type="button" title="Toggle Microphone (Ctrl+A)">🎙️ Audio: OFF</button>
-                <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Hear Students: ON</button>
-                <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
-                <span id="admin-caller-badge">🎧 No active student calls</span>
-            </div>
+            <!-- 2. Live Classroom View (Default Active View) -->
+            <div id="live-room-view">
+                <!-- Unified Compact Media & Screen Broadcast Deck -->
+                <div class="broadcast-deck">
+                    <div id="admin-stream-console">
+                        <span class="console-label" style="color: #93c5fd;">🎥 Video &amp; Voice</span>
+                        <button id="btn-admin-video" class="stream-btn" type="button" title="Toggle Camera (Ctrl+D)">📹 Video: OFF</button>
+                        <button id="btn-admin-audio" class="stream-btn" type="button" title="Toggle Microphone (Ctrl+A)">🎙️ Audio: OFF</button>
+                        <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Hear Students: ON</button>
+                        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
+                        <span id="admin-caller-badge">🎧 No active student calls</span>
+                    </div>
 
-            <div id="admin-broadcast-mode-console">
-                <span class="console-label" style="color: #c4b5fd;">📺 Student Screen</span>
-                <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Question Card</button>
-                <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Presentation (PPT)</button>
-                <button id="btn-mode-both" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">⚡ PPT + Question</button>
-                <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
-                <span id="admin-mode-badge" style="color: #60a5fa;">📌 Showing: Question Card</span>
-            </div>
-        </div>
-
-        <!-- 3. Active Question / PDF Broadcast Bar -->
-        <div class="panel" id="control-panel" style="display: none;">
-            <div class="control-row-top">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <label for="admin-quiz-select" style="font-weight: 700; font-size: 12px; color: #93c5fd;">📚 Question Set (/livemock):</label>
-                    <select id="admin-quiz-select" style="min-width: 260px; font-weight: 600; cursor: pointer;">
-                        <option value="">-- None (Lecture / PPT Only) --</option>
-                    </select>
+                    <div id="admin-broadcast-mode-console">
+                        <span class="console-label" style="color: #c4b5fd;">📺 Student Screen</span>
+                        <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Question Card</button>
+                        <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Presentation (PPT)</button>
+                        <button id="btn-mode-both" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">⚡ PPT + Question</button>
+                        <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
+                        <span id="admin-mode-badge" style="color: #60a5fa;">📌 Showing: Question Card</span>
+                    </div>
                 </div>
-                <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);">🛑 Close Room Now</button>
+
+                <!-- Compact Question Set + Navigation + Stacked Close/Clear Actions -->
+                <div class="panel" id="control-panel" style="display: none;">
+                    <div class="control-panel-grid">
+                        <div class="control-left-stack">
+                            <div class="control-quiz-select-row">
+                                <label for="admin-quiz-select" style="font-weight: 700; font-size: 12px; color: #93c5fd;">📚 Question Set (/livemock):</label>
+                                <select id="admin-quiz-select" style="min-width: 260px; flex: 1; max-width: 440px; font-weight: 600; cursor: pointer;">
+                                    <option value="">-- None (Lecture / PPT Only) --</option>
+                                </select>
+                            </div>
+                            <h3 id="dash-title"></h3>
+                            <div id="question-nav-controls" class="control-row-nav">
+                                <button id="prev-btn">◀ Previous Question</button>
+                                <span id="q-counter">No Question Set Active</span>
+                                <button id="next-btn">Next Question ▶</button>
+                            </div>
+                        </div>
+
+                        <div class="control-right-actions">
+                            <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);">🛑 Close Room Now</button>
+                            <button id="clear-responses-btn" style="background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear Current Responses</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- High-Visibility Sticky Student Roster (Green Dot = Student Mic ON) -->
+                <div class="panel" id="board-panel" style="display: none;">
+                    <div class="roster-header-bar">
+                        <h3>👥 Live Room Roster &amp; Student Submissions</h3>
+                        <span id="roster-count-badge">0 Online</span>
+                    </div>
+                    <div class="roster-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 34%;">Student Name</th>
+                                    <th style="width: 32%;">Status / Selected Option</th>
+                                    <th style="width: 12%;">Speed</th>
+                                    <th style="width: 22%;">Admin Controls</th>
+                                </tr>
+                            </thead>
+                            <tbody id="board-body"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
-            <h3 id="dash-title"></h3>
-            <div id="question-nav-controls" class="control-row-nav">
-                <button id="prev-btn">◀ Previous Question</button>
-                <span id="q-counter">No Question Set Active</span>
-                <button id="next-btn">Next Question ▶</button>
-                <button id="clear-responses-btn" style="margin-left: auto; background: #eab308; color: #0f172a; border: none;">
-                    🧹 Clear Current Responses
-                </button>
-            </div>
-        </div>
+            <!-- 3. Sidebar Tool Consoles (All Preserved & 100% Functional) -->
 
-        <!-- 4. High-Visibility Sticky Student Roster -->
-        <div class="panel" id="board-panel" style="display: none;">
-            <div class="roster-header-bar">
-                <h3>👥 Live Room Roster &amp; Student Submissions</h3>
-                <span id="roster-count-badge">0 Online</span>
-            </div>
-            <div class="roster-table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 32%;">Student Name</th>
-                            <th style="width: 34%;">Status / Selected Option</th>
-                            <th style="width: 12%;">Speed</th>
-                            <th style="width: 22%;">Admin Controls</th>
-                        </tr>
-                    </thead>
-                    <tbody id="board-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 5. Organized Admin Management & Archive Consoles (Nothing Removed) -->
-        <div class="admin-tools-section">
-            <div class="tools-tab-bar" role="tablist" aria-label="Admin Consoles">
-                <span class="tools-tab-label">Admin Tools:</span>
-                <button type="button" class="tool-tab-btn active" data-tool-tab="reports">📄 PDF Reports Archive</button>
-                <button type="button" class="tool-tab-btn" data-tool-tab="users">👥 Registered Accounts</button>
-                <button type="button" class="tool-tab-btn" data-tool-tab="analytics">📊 Quiz Analytics</button>
-                <button type="button" class="tool-tab-btn" data-tool-tab="leak">🔍 Leak Decoder</button>
-                <button type="button" class="tool-tab-btn" data-tool-tab="all" style="margin-left: auto;">⊞ Show All</button>
-            </div>
-
-            <!-- Panel 3: Permanent Live Room & Mock Test PDF Archive -->
-            <div class="panel tool-panel" data-tool-panel="reports">
-                <h3 style="color: #34d399;">📄 Live Room &amp; Mock Performance Reports (Permanent PDF Archive)</h3>
+            <!-- Panel: Permanent Live Room & Mock Test PDF Archive -->
+            <div class="panel tool-panel view-hidden" data-tool-panel="reports">
+                <div class="tool-panel-header">
+                    <h3 style="color: #34d399;">📄 Live Room &amp; Mock Performance Reports (Permanent PDF Archive)</h3>
+                    <button type="button" class="btn-back-to-live" data-tool-tab="live">&larr; Back to Live Room</button>
+                </div>
                 <p class="tool-desc">All student live test reports are archived automatically when a live room test ends, alongside attempted mock tests from /quizzes. Preview, save as PDF, or remove reports.</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
                     <button id="btn-load-live-reports" type="button" style="background: #059669;">🔄 Load / Refresh Reports</button>
@@ -615,9 +735,12 @@
                 </div>
             </div>
 
-            <!-- Panel 1: Registered Accounts & History Cleaner -->
-            <div class="panel tool-panel tool-hidden" data-tool-panel="users">
-                <h3 style="color: #93c5fd;">👥 Registered Accounts &amp; Data Management</h3>
+            <!-- Panel: Registered Accounts & History Cleaner -->
+            <div class="panel tool-panel view-hidden" data-tool-panel="users">
+                <div class="tool-panel-header">
+                    <h3 style="color: #93c5fd;">👥 Registered Accounts &amp; Data Management</h3>
+                    <button type="button" class="btn-back-to-live" data-tool-tab="live">&larr; Back to Live Room</button>
+                </div>
                 <p class="tool-desc">View all student accounts and targetedly clear their test history, purchase history, or deregister accounts.</p>
                 <button id="btn-load-users" type="button" style="background: #2563eb; margin-bottom: 10px;">Load Registered Accounts</button>
                 <div class="tool-table-wrap">
@@ -636,9 +759,12 @@
                 </div>
             </div>
 
-            <!-- Panel 2: Cross-Folder JSON Quiz Analytics -->
-            <div class="panel tool-panel tool-hidden" data-tool-panel="analytics">
-                <h3 style="color: #c4b5fd;">📊 Cross-Folder Quiz Analytics &amp; Attempts</h3>
+            <!-- Panel: Cross-Folder JSON Quiz Analytics -->
+            <div class="panel tool-panel view-hidden" data-tool-panel="analytics">
+                <div class="tool-panel-header">
+                    <h3 style="color: #c4b5fd;">📊 Cross-Folder Quiz Analytics &amp; Attempts</h3>
+                    <button type="button" class="btn-back-to-live" data-tool-tab="live">&larr; Back to Live Room</button>
+                </div>
                 <p class="tool-desc">Select any JSON test file across all folders to view who attempted it, their score, and the date.</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
                     <select id="admin-all-json-select" style="min-width: 300px; font-weight: 600; cursor: pointer;">
@@ -661,9 +787,12 @@
                 </div>
             </div>
 
-            <!-- Panel 4: Forensic Question Leak Decoder -->
-            <div class="panel tool-panel tool-hidden" data-tool-panel="leak">
-                <h3 style="color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
+            <!-- Panel: Forensic Question Leak Decoder -->
+            <div class="panel tool-panel view-hidden" data-tool-panel="leak">
+                <div class="tool-panel-header">
+                    <h3 style="color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
+                    <button type="button" class="btn-back-to-live" data-tool-tab="live">&larr; Back to Live Room</button>
+                </div>
                 <p class="tool-desc">Enter your Admin Secret Key at the top first, then paste any copied/leaked question text below to extract its invisible 32-bit zero-width student signature.</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
                     <input type="text" id="leak-sample-input" placeholder="Paste leaked question text here..." style="flex: 1; min-width: 240px;">
@@ -671,7 +800,7 @@
                 </div>
                 <div id="leak-status-msg" style="margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #34d399;"></div>
             </div>
-        </div>
+        </main>
     </div>
 
     <div id="admin-live-pdf-modal">
@@ -739,7 +868,59 @@
 
     const studentAudioSignalState = new Map(); // identity -> 'live' | 'silent' | 'connecting'
 
+    function syncRosterMicIndicators() {
+        const tbody = document.getElementById('board-body');
+        if (!tbody) return;
+
+        const speakingNames = new Set();
+        for (const rawId of activeStudentAudioEls.keys()) {
+            const clean = String(rawId || '').replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+            if (clean) speakingNames.add(clean);
+        }
+        try {
+            if (room && room.state === 'connected') {
+                room.remoteParticipants.forEach((participant) => {
+                    const rawId = String(participant.identity || '').trim();
+                    if (!rawId || /^admin(_|$)/i.test(rawId)) return;
+                    let hasLiveMic = false;
+                    participant.audioTrackPublications.forEach((pub) => {
+                        if (pub && pub.kind === 'audio' && !pub.isMuted && (pub.track || pub.isSubscribed)) {
+                            hasLiveMic = true;
+                        }
+                    });
+                    if (hasLiveMic) {
+                        const clean = rawId.replace(/_[a-z0-9]{4}$/i, '').trim().toLowerCase();
+                        if (clean) speakingNames.add(clean);
+                    }
+                });
+            }
+        } catch (e) {}
+
+        tbody.querySelectorAll('tr').forEach((row) => {
+            if (row.querySelector('td[colspan]')) return;
+            const firstTd = row.querySelector('td');
+            if (!firstTd) return;
+            const modBtn = row.querySelector('.btn-student-moderate');
+            const studentKey = String(
+                (modBtn && modBtn.getAttribute('data-student')) || firstTd.textContent || ''
+            ).trim().toLowerCase();
+            const isMicOn = Boolean(studentKey && speakingNames.has(studentKey));
+
+            row.classList.toggle('student-is-speaking', isMicOn);
+            let dot = firstTd.querySelector('.student-mic-dot');
+            if (isMicOn && !dot) {
+                dot = document.createElement('span');
+                dot.className = 'student-mic-dot';
+                dot.title = 'Student Mic ON';
+                firstTd.appendChild(dot);
+            } else if (!isMicOn && dot) {
+                dot.remove();
+            }
+        });
+    }
+
     function refreshAdminCallerBadge() {
+        syncRosterMicIndicators();
         const badge = document.getElementById('admin-caller-badge');
         if (!badge) return;
         badge.style.cursor = 'default';
@@ -1646,13 +1827,7 @@
                 activeStudentAudioEls.delete(identity);
             }
         }
-        if (activeStudentAudioEls.size === 0) {
-            const badge = document.getElementById('admin-caller-badge');
-            if (badge) {
-                badge.textContent = '🎧 No active student calls';
-                badge.classList.remove('calling');
-            }
-        }
+        refreshAdminCallerBadge();
     };
 
     async function stopAdminBroadcastStream(syncServer = true) {
@@ -1671,11 +1846,7 @@
             try { el.pause(); el.remove(); } catch (e) {}
         }
         activeStudentAudioEls.clear();
-        const badge = document.getElementById('admin-caller-badge');
-        if (badge) {
-            badge.textContent = '🎧 No active student calls';
-            badge.classList.remove('calling');
-        }
+        refreshAdminCallerBadge();
 
         videoEnabled = false;
         audioEnabled = false;
@@ -2360,39 +2531,58 @@
         }
     });
 
-    // --- Organized Admin Tools Tab Switcher & Live Roster Counter ---
+    // --- Left Sidebar View Switcher & Live Roster Counter + Green Mic-ON Dots ---
+    let activeAdminSidebarView = 'live';
+
     function setActiveAdminToolTab(tabName) {
-        const validTabs = ['reports', 'users', 'analytics', 'leak', 'all'];
-        const chosen = validTabs.includes(tabName) ? tabName : 'reports';
-        document.querySelectorAll('.tool-tab-btn').forEach((btn) => {
+        const validTabs = ['live', 'reports', 'users', 'analytics', 'leak'];
+        const chosen = validTabs.includes(tabName) ? tabName : 'live';
+        activeAdminSidebarView = chosen;
+
+        document.querySelectorAll('.sidebar-nav-btn').forEach((btn) => {
             btn.classList.toggle('active', btn.getAttribute('data-tool-tab') === chosen);
         });
+
+        const liveView = document.getElementById('live-room-view');
+        if (liveView) {
+            liveView.classList.toggle('view-hidden', chosen !== 'live');
+        }
+
         document.querySelectorAll('.tool-panel').forEach((panel) => {
             const pName = panel.getAttribute('data-tool-panel');
-            panel.classList.toggle('tool-hidden', chosen !== 'all' && pName !== chosen);
+            panel.classList.toggle('view-hidden', pName !== chosen);
         });
+
         try { sessionStorage.setItem('pp_admin_tools_tab', chosen); } catch (e) {}
     }
 
     document.addEventListener('click', (e) => {
-        const tabBtn = e.target.closest('.tool-tab-btn');
-        if (!tabBtn) return;
-        const tName = tabBtn.getAttribute('data-tool-tab');
-        if (tName) setActiveAdminToolTab(tName);
+        const navBtn = e.target.closest('[data-tool-tab]');
+        if (!navBtn) return;
+        const targetTab = navBtn.getAttribute('data-tool-tab');
+        if (!targetTab) return;
+        // Clicking the currently open sidebar tool toggles smoothly back to Live Room
+        if (navBtn.classList.contains('sidebar-nav-btn') && targetTab !== 'live' && activeAdminSidebarView === targetTab) {
+            setActiveAdminToolTab('live');
+        } else {
+            setActiveAdminToolTab(targetTab);
+        }
     });
 
     try {
         const savedTab = sessionStorage.getItem('pp_admin_tools_tab');
-        if (savedTab) setActiveAdminToolTab(savedTab);
-    } catch (e) {}
+        setActiveAdminToolTab(savedTab || 'live');
+    } catch (e) {
+        setActiveAdminToolTab('live');
+    }
 
-    // Live Online / Answered badge updater for the Student Roster (zero changes needed in admin-live.js)
+    // Live Online / Answered counter + automatic Green Mic-ON dot sync whenever roster redraws
     (function initRosterCountObserver() {
         const tbody = document.getElementById('board-body');
         const badge = document.getElementById('roster-count-badge');
         if (!tbody || !badge) return;
 
-        const updateCount = () => {
+        const updateCountAndDots = () => {
             const rows = Array.from(tbody.querySelectorAll('tr'));
             if (rows.length === 0 || rows.some(r => r.querySelector('td[colspan]'))) {
                 badge.textContent = '0 Online';
@@ -2405,10 +2595,11 @@
             badge.textContent = answered > 0
                 ? `${rows.length} Online • ${answered} Answered`
                 : `${rows.length} Online`;
+            syncRosterMicIndicators();
         };
 
-        new MutationObserver(updateCount).observe(tbody, { childList: true });
-        updateCount();
+        new MutationObserver(updateCountAndDots).observe(tbody, { childList: true });
+        updateCountAndDots();
     })();
 
     // Unlock #admin-key on user interaction (readonly on load blocks browser password manager autofill)
