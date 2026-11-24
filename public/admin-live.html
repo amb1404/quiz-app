@@ -5,61 +5,376 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Live Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #0f172a; color: white; padding: 20px; margin: 0; }
-        .panel { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        input { padding: 10px; margin-right: 10px; border-radius: 4px; border: none; }
-        button { padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #64748b; cursor: not-allowed; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-        .time-badge { background: #059669; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
+            background: #0b1120;
+            color: #f1f5f9;
+            padding: 14px 18px 28px;
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .dashboard-shell {
+            max-width: 1380px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-        #admin-stream-console {
-            background: #1e293b;
+        /* Compact Top Header & Room Bar */
+        .top-header-bar {
+            background: linear-gradient(135deg, #162033 0%, #1e293b 100%);
             border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 14px 20px;
-            margin-bottom: 20px;
+            border-radius: 10px;
+            padding: 10px 14px;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+        .brand-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-heading h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #f8fafc;
+            white-space: nowrap;
+        }
+        .room-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+        #otp-display {
+            color: #34d399;
+            font-weight: 700;
+            font-size: 12.5px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            padding: 4px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        #otp-display:empty { display: none; }
+
+        /* Base Polished Compact Controls */
+        .panel {
+            background: #162033;
+            border: 1px solid #293548;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+        }
+        input, select {
+            padding: 6px 10px;
+            margin: 0;
+            border-radius: 6px;
+            border: 1px solid #3b4c66;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 12.5px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        input:focus, select:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+        input::placeholder { color: #64748b; }
+        button {
+            padding: 6px 12px;
+            background: #2563eb;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            font-family: inherit;
+            line-height: 1.3;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: filter 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+            white-space: nowrap;
+        }
+        button:hover:not(:disabled) { filter: brightness(1.1); }
+        button:active:not(:disabled) { transform: translateY(1px); }
+        button:disabled {
+            background: #475569 !important;
+            color: #cbd5e1 !important;
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        /* Compact Live Broadcast Console (Media + Screen Mode stacked cleanly) */
+        .broadcast-deck {
+            background: #162033;
+            border: 1px solid #293548;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+        }
+        #admin-stream-console,
+        #admin-broadcast-mode-console {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 9px 14px;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        #admin-stream-console {
+            border-bottom: 1px solid #243044;
+        }
+        .console-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.45px;
+            min-width: 118px;
         }
         .stream-btn {
-            padding: 10px 16px;
+            padding: 6px 11px;
             border-radius: 6px;
-            border: none;
-            font-weight: bold;
-            font-size: 13px;
+            border: 1px solid transparent;
+            font-weight: 600;
+            font-size: 12px;
             cursor: pointer;
-            color: white;
-            background: #475569;
+            color: #f8fafc;
+            background: #334155;
         }
-        .stream-btn.active-cam { background: #2563eb; }
-        .stream-btn.active-mic { background: #10b981; }
-        .stream-btn.stop-btn { background: #dc2626; }
-        #admin-caller-badge {
+        .stream-btn.active-cam { background: #2563eb; border-color: #60a5fa; }
+        .stream-btn.active-mic { background: #059669; border-color: #34d399; }
+        .stream-btn.stop-btn { background: #dc2626; border-color: #f87171; }
+
+        #admin-caller-badge,
+        #admin-mode-badge {
             margin-left: auto;
-            font-size: 13px;
-            font-weight: bold;
-            padding: 6px 14px;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 4px 11px;
             border-radius: 20px;
-            background: #0f172a;
+            background: #0b1120;
             color: #94a3b8;
             border: 1px solid #334155;
+            white-space: nowrap;
         }
         #admin-caller-badge.calling {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.16);
             color: #34d399;
             border-color: #10b981;
         }
 
+        /* Compact Active Question Bar */
+        #control-panel {
+            padding: 10px 14px;
+        }
+        .control-row-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding-bottom: 9px;
+            margin-bottom: 9px;
+            border-bottom: 1px solid #243044;
+        }
+        .control-row-nav {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        #dash-title {
+            margin: 0 0 8px 0;
+            font-size: 13.5px;
+            color: #e2e8f0;
+        }
+        #dash-title:empty { display: none; }
+        #q-counter {
+            padding: 4px 11px;
+            border-radius: 6px;
+            background: #0b1120;
+            border: 1px solid #334155;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        /* Convenient, High-Visibility Student Roster */
+        #board-panel {
+            padding: 12px 14px;
+            border-color: #334155;
+        }
+        .roster-header-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .roster-header-bar h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #roster-count-badge {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(59, 130, 246, 0.16);
+            color: #93c5fd;
+            border: 1px solid rgba(96, 165, 250, 0.35);
+        }
+        .roster-table-wrap {
+            max-height: 46vh;
+            min-height: 110px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #243044;
+            border-radius: 8px;
+            background: #0f172a;
+        }
+
+        /* Unified Polished Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+            font-size: 12.5px;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #1e293b;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.45px;
+            padding: 8px 12px !important;
+            text-align: left;
+            border-bottom: 1px solid #334155 !important;
+        }
+        tbody td {
+            padding: 7px 12px !important;
+            text-align: left;
+            border-bottom: 1px solid #1e293b !important;
+            vertical-align: middle;
+        }
+        tbody tr:nth-child(even) { background: rgba(30, 41, 59, 0.35); }
+        tbody tr:hover { background: rgba(59, 130, 246, 0.1); }
+        .time-badge {
+            background: rgba(5, 150, 105, 0.22);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        #board-body .btn-student-moderate,
+        #users-tbody button,
+        #live-reports-tbody button {
+            padding: 4px 9px !important;
+            font-size: 11px !important;
+            border-radius: 5px !important;
+        }
+
+        /* Organized Admin Tools Tab Bar */
+        .admin-tools-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .tools-tab-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            background: #162033;
+            border: 1px solid #293548;
+            border-radius: 10px;
+            padding: 7px 10px;
+        }
+        .tools-tab-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.45px;
+            color: #94a3b8;
+            margin-right: 4px;
+            padding-left: 4px;
+        }
+        .tool-tab-btn {
+            background: #0f172a;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 5px 11px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+        .tool-tab-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.25);
+        }
+        .tool-panel.tool-hidden { display: none !important; }
+        .tool-panel h3 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+        }
+        .tool-desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin: 0 0 10px 0;
+        }
+        .tool-table-wrap {
+            overflow-x: auto;
+            max-height: 46vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+
+        /* Subtle Dark Scrollbars */
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Draggable Self-View PIP (starts bottom-right so it never blocks top status badges) */
         #admin-pip-box {
             position: fixed;
-            top: 20px;
-            right: 25px;
-            width: 240px;
-            height: 165px;
+            bottom: 18px;
+            right: 20px;
+            width: 224px;
+            height: 152px;
             background: #0f172a;
             border: 2px solid #3b82f6;
             border-radius: 10px;
@@ -74,14 +389,14 @@
         }
         #admin-pip-box:active { cursor: grabbing; }
         #admin-pip-header {
-            flex: 0 0 28px;
-            height: 28px;
+            flex: 0 0 26px;
+            height: 26px;
             box-sizing: border-box;
             background: rgba(15, 23, 42, 0.95);
             color: #cbd5e1;
             font-size: 11px;
             font-weight: bold;
-            padding: 6px 10px;
+            padding: 5px 10px;
             cursor: grab;
             display: flex;
             justify-content: space-between;
@@ -93,13 +408,15 @@
             width: 100%;
             flex: 1 1 auto;
             min-height: 0;
-            height: calc(100% - 28px);
+            height: calc(100% - 26px);
             display: block;
             object-fit: cover;
             background: #000;
             transform: scaleX(-1);
             pointer-events: none;
         }
+
+        /* Live Report PDF Modal & Print Styles (100% unchanged format) */
         #admin-live-pdf-modal {
             display: none;
             position: fixed;
@@ -118,6 +435,11 @@
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .room-controls-row { justify-content: flex-start; }
+            #admin-caller-badge, #admin-mode-badge { margin-left: 0; }
         }
         @media print {
             body.printing-live-report {
@@ -173,154 +495,182 @@
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
-    <h2>Live Mock Control Center</h2>
-    
-    <div class="panel" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
-        <input type="password" id="admin-key" autocomplete="new-password" data-lpignore="true" readonly placeholder="Enter Admin Secret Key" style="min-width: 220px;">
-        <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
-
-        <div id="create-room-box" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <input type="text" id="quiz-id" placeholder="Type Room Name (e.g. Physics-X)" style="min-width: 220px;">
-            <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
-        </div>
-        <span id="otp-display" style="margin-left: 10px; color: #34d399; font-weight: bold; font-size: 16px;"></span>
-    </div>
-
-    <div id="admin-stream-console">
-        <strong style="font-size: 14px; color: #93c5fd;">🎥 Live Video & HD Voice Console:</strong>
-        <button id="btn-admin-video" class="stream-btn" type="button">📹 Video: OFF</button>
-        <button id="btn-admin-audio" class="stream-btn" type="button">🎙️ Audio: OFF</button>
-        <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Students Audio: ON</button>
-        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
-        <span id="admin-caller-badge">🎧 No active student calls</span>
-    </div>
-
-    <div id="admin-broadcast-mode-console" style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
-        <strong style="font-size: 14px; color: #c4b5fd;">📺 Student Main Screen:</strong>
-        <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Broadcast: Question Card</button>
-        <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Broadcast: Presentation (PPT)</button>
-        <button id="btn-mode-both" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">⚡ Cast PPT + Question Together</button>
-        <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
-        <span id="admin-mode-badge" style="margin-left: auto; font-size: 13px; font-weight: bold; padding: 6px 14px; border-radius: 20px; background: #0f172a; color: #60a5fa; border: 1px solid #334155;">📌 Showing: Question Card</span>
-    </div>
-
-    <div class="panel" id="control-panel" style="display: none;">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #334155;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <label for="admin-quiz-select" style="font-weight: bold; color: #93c5fd;">📚 Broadcast Question Set (/livemock):</label>
-                <select id="admin-quiz-select" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 260px; cursor: pointer;">
-                    <option value="">-- None (Lecture / PPT Only) --</option>
-                </select>
+    <div class="dashboard-shell">
+        <!-- 1. Compact Top Command & Room Setup Bar -->
+        <div class="top-header-bar">
+            <div class="brand-heading">
+                <h2>Live Mock Control Center</h2>
+                <span id="otp-display"></span>
             </div>
-            <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);">🛑 Close Room Now</button>
+            <div class="room-controls-row">
+                <input type="password" id="admin-key" autocomplete="new-password" data-lpignore="true" readonly placeholder="Admin Secret Key" style="width: 190px;">
+                <button id="show-create-room-btn" type="button" style="background: #2563eb;">➕ Create Room</button>
+                <div id="create-room-box" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <input type="text" id="quiz-id" placeholder="Room Name (e.g. Physics-X)" style="width: 190px;">
+                    <button id="start-btn" type="button" style="background: #10b981;">🚀 Launch Room</button>
+                </div>
+            </div>
         </div>
 
-        <h3 id="dash-title" style="margin-top: 0; color: #e2e8f0;"></h3>
-        <div id="question-nav-controls" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
-            <button id="prev-btn">Previous Question</button>
-            <span id="q-counter" style="margin: 0 15px; font-size: 18px; font-weight: bold;">No Question Set Active</span>
-            <button id="next-btn">Next Question</button>
-            <button id="clear-responses-btn" style="background: #eab308; color: black; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                Clear Current Question Responses
-            </button>
-        </div>
-    </div>
+        <!-- 2. Unified Compact Media & Screen Broadcast Deck -->
+        <div class="broadcast-deck">
+            <div id="admin-stream-console">
+                <span class="console-label" style="color: #93c5fd;">🎥 Video &amp; Voice</span>
+                <button id="btn-admin-video" class="stream-btn" type="button" title="Toggle Camera (Ctrl+D)">📹 Video: OFF</button>
+                <button id="btn-admin-audio" class="stream-btn" type="button" title="Toggle Microphone (Ctrl+A)">🎙️ Audio: OFF</button>
+                <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Hear Students: ON</button>
+                <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
+                <span id="admin-caller-badge">🎧 No active student calls</span>
+            </div>
 
-    <div class="panel" id="board-panel" style="display: none;">
-        <h3>Live Room Roster & Student Submissions</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Student Name</th>
-                    <th>Status / Selected Option</th>
-                    <th>Speed (Time)</th>
-                    <th>Admin Controls</th>
-                </tr>
-            </thead>
-            <tbody id="board-body"></tbody>
-        </table>
-    </div>
+            <div id="admin-broadcast-mode-console">
+                <span class="console-label" style="color: #c4b5fd;">📺 Student Screen</span>
+                <button id="btn-mode-question" class="stream-btn" type="button" style="background: #2563eb; border: 2px solid #60a5fa;">📝 Question Card</button>
+                <button id="btn-mode-ppt" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">🖥️ Presentation (PPT)</button>
+                <button id="btn-mode-both" class="stream-btn" type="button" style="background: #475569; border: 2px solid transparent;">⚡ PPT + Question</button>
+                <button id="btn-reselect-ppt" class="stream-btn" type="button" style="background: #7c3aed; display: none;">🔄 Change PPT Window</button>
+                <span id="admin-mode-badge" style="color: #60a5fa;">📌 Showing: Question Card</span>
+            </div>
+        </div>
 
-    <div class="panel" style="border: 1px solid #334155;">
-        <h3 style="margin-top: 0; color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">Enter your Admin Secret Key at the top first, then paste any copied/leaked question text below to extract its invisible 32-bit zero-width student signature.</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <input type="text" id="leak-sample-input" placeholder="Paste leaked question text here..." style="flex: 1; min-width: 260px; background: #0f172a; color: #fff; border: 1px solid #475569;">
-            <button id="btn-decode-leak" type="button" style="background: #2563eb; color: #fff;">Identify Leaker</button>
-        </div>
-        <div id="leak-status-msg" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #34d399;"></div>
-    </div>
+        <!-- 3. Active Question / PDF Broadcast Bar -->
+        <div class="panel" id="control-panel" style="display: none;">
+            <div class="control-row-top">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <label for="admin-quiz-select" style="font-weight: 700; font-size: 12px; color: #93c5fd;">📚 Question Set (/livemock):</label>
+                    <select id="admin-quiz-select" style="min-width: 260px; font-weight: 600; cursor: pointer;">
+                        <option value="">-- None (Lecture / PPT Only) --</option>
+                    </select>
+                </div>
+                <button id="end-test-btn" style="background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.35);">🛑 Close Room Now</button>
+            </div>
 
-    <!-- Panel 1: Registered Accounts & History Cleaner -->
-    <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
-        <h3 style="margin-top: 0; color: #93c5fd;">👥 Registered Accounts & Data Management</h3>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">View all student accounts and targetedly clear their test history or purchase history.</p>
-        <button id="btn-load-users" type="button" style="background: #2563eb; color: #fff; margin-bottom: 12px;">Load Registered Accounts</button>
-        <div style="overflow-x: auto;">
-            <table id="users-table" style="display: none; width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Email</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Name</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Test Attempts</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Purchases</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="users-tbody"></tbody>
-            </table>
+            <h3 id="dash-title"></h3>
+            <div id="question-nav-controls" class="control-row-nav">
+                <button id="prev-btn">◀ Previous Question</button>
+                <span id="q-counter">No Question Set Active</span>
+                <button id="next-btn">Next Question ▶</button>
+                <button id="clear-responses-btn" style="margin-left: auto; background: #eab308; color: #0f172a; border: none;">
+                    🧹 Clear Current Responses
+                </button>
+            </div>
         </div>
-    </div>
 
-    <!-- Panel 2: Cross-Folder JSON Quiz Analytics -->
-    <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
-        <h3 style="margin-top: 0; color: #c4b5fd;">📊 Cross-Folder Quiz Analytics & Attempts</h3>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">Select any JSON test file across all folders to view who attempted it, their score, and the date.</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px;">
-            <select id="admin-all-json-select" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 320px; cursor: pointer;">
-                <option value="">-- Select a JSON Test File --</option>
-            </select>
-            <button id="btn-load-quiz-attempts" type="button" style="background: #059669; color: #fff;">View Attempts</button>
+        <!-- 4. High-Visibility Sticky Student Roster -->
+        <div class="panel" id="board-panel" style="display: none;">
+            <div class="roster-header-bar">
+                <h3>👥 Live Room Roster &amp; Student Submissions</h3>
+                <span id="roster-count-badge">0 Online</span>
+            </div>
+            <div class="roster-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 32%;">Student Name</th>
+                            <th style="width: 34%;">Status / Selected Option</th>
+                            <th style="width: 12%;">Speed</th>
+                            <th style="width: 22%;">Admin Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody id="board-body"></tbody>
+                </table>
+            </div>
         </div>
-        <div style="overflow-x: auto;">
-            <table id="quiz-attempts-table" style="display: none; width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Email</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Name</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Score Achieved</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Attempt Date</th>
-                    </tr>
-                </thead>
-                <tbody id="quiz-attempts-tbody"></tbody>
-            </table>
-        </div>
-    </div>
 
-    <!-- Panel 3: Permanent Live Room Test Performance PDF Archive -->
-    <div class="panel" style="border: 1px solid #334155; margin-top: 25px;">
-        <h3 style="margin-top: 0; color: #34d399;">📄 Live Room Performance Reports (Permanent PDF Archive)</h3>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 0;">All student live test reports are archived automatically when a live room test ends. Preview or save any student's scorecard as a PDF in the exact student format.</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px;">
-            <button id="btn-load-live-reports" type="button" style="background: #059669; color: #fff;">Load / Refresh Live Reports</button>
-            <select id="admin-live-report-session-filter" style="padding: 10px 14px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; font-weight: bold; min-width: 280px; cursor: pointer; display: none;">
-                <option value="">-- All Live Sessions &amp; Attempted Mock Tests --</option>
-            </select>
-            <input type="text" id="admin-live-report-search" placeholder="Filter by student name or email..." style="flex: 1; min-width: 220px; background: #0f172a; color: #fff; border: 1px solid #475569; display: none;">
-        </div>
-        <div style="overflow-x: auto;">
-            <table id="live-reports-table" style="display: none; width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Date &amp; Room</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Test Name</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Student Name</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Score</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: left;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="live-reports-tbody"></tbody>
-            </table>
+        <!-- 5. Organized Admin Management & Archive Consoles (Nothing Removed) -->
+        <div class="admin-tools-section">
+            <div class="tools-tab-bar" role="tablist" aria-label="Admin Consoles">
+                <span class="tools-tab-label">Admin Tools:</span>
+                <button type="button" class="tool-tab-btn active" data-tool-tab="reports">📄 PDF Reports Archive</button>
+                <button type="button" class="tool-tab-btn" data-tool-tab="users">👥 Registered Accounts</button>
+                <button type="button" class="tool-tab-btn" data-tool-tab="analytics">📊 Quiz Analytics</button>
+                <button type="button" class="tool-tab-btn" data-tool-tab="leak">🔍 Leak Decoder</button>
+                <button type="button" class="tool-tab-btn" data-tool-tab="all" style="margin-left: auto;">⊞ Show All</button>
+            </div>
+
+            <!-- Panel 3: Permanent Live Room & Mock Test PDF Archive -->
+            <div class="panel tool-panel" data-tool-panel="reports">
+                <h3 style="color: #34d399;">📄 Live Room &amp; Mock Performance Reports (Permanent PDF Archive)</h3>
+                <p class="tool-desc">All student live test reports are archived automatically when a live room test ends, alongside attempted mock tests from /quizzes. Preview, save as PDF, or remove reports.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                    <button id="btn-load-live-reports" type="button" style="background: #059669;">🔄 Load / Refresh Reports</button>
+                    <select id="admin-live-report-session-filter" style="min-width: 260px; font-weight: 600; cursor: pointer; display: none;">
+                        <option value="">-- All Live Sessions &amp; Attempted Mock Tests --</option>
+                    </select>
+                    <input type="text" id="admin-live-report-search" placeholder="Filter by student name or email..." style="flex: 1; min-width: 200px; display: none;">
+                </div>
+                <div class="tool-table-wrap">
+                    <table id="live-reports-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Date &amp; Room</th>
+                                <th>Test Name</th>
+                                <th>Student Name</th>
+                                <th>Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-reports-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel 1: Registered Accounts & History Cleaner -->
+            <div class="panel tool-panel tool-hidden" data-tool-panel="users">
+                <h3 style="color: #93c5fd;">👥 Registered Accounts &amp; Data Management</h3>
+                <p class="tool-desc">View all student accounts and targetedly clear their test history, purchase history, or deregister accounts.</p>
+                <button id="btn-load-users" type="button" style="background: #2563eb; margin-bottom: 10px;">Load Registered Accounts</button>
+                <div class="tool-table-wrap">
+                    <table id="users-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Student Email</th>
+                                <th>Name</th>
+                                <th>Test Attempts</th>
+                                <th>Purchases</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel 2: Cross-Folder JSON Quiz Analytics -->
+            <div class="panel tool-panel tool-hidden" data-tool-panel="analytics">
+                <h3 style="color: #c4b5fd;">📊 Cross-Folder Quiz Analytics &amp; Attempts</h3>
+                <p class="tool-desc">Select any JSON test file across all folders to view who attempted it, their score, and the date.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                    <select id="admin-all-json-select" style="min-width: 300px; font-weight: 600; cursor: pointer;">
+                        <option value="">-- Select a JSON Test File --</option>
+                    </select>
+                    <button id="btn-load-quiz-attempts" type="button" style="background: #059669;">View Attempts</button>
+                </div>
+                <div class="tool-table-wrap">
+                    <table id="quiz-attempts-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Student Email</th>
+                                <th>Student Name</th>
+                                <th>Score Achieved</th>
+                                <th>Attempt Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quiz-attempts-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel 4: Forensic Question Leak Decoder -->
+            <div class="panel tool-panel tool-hidden" data-tool-panel="leak">
+                <h3 style="color: #93c5fd;">🔍 Forensic Question Leak Decoder</h3>
+                <p class="tool-desc">Enter your Admin Secret Key at the top first, then paste any copied/leaked question text below to extract its invisible 32-bit zero-width student signature.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                    <input type="text" id="leak-sample-input" placeholder="Paste leaked question text here..." style="flex: 1; min-width: 240px;">
+                    <button id="btn-decode-leak" type="button" style="background: #2563eb;">Identify Leaker</button>
+                </div>
+                <div id="leak-status-msg" style="margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #34d399;"></div>
+            </div>
         </div>
     </div>
 
@@ -2009,6 +2359,57 @@
             closeAdminLivePdfModal();
         }
     });
+
+    // --- Organized Admin Tools Tab Switcher & Live Roster Counter ---
+    function setActiveAdminToolTab(tabName) {
+        const validTabs = ['reports', 'users', 'analytics', 'leak', 'all'];
+        const chosen = validTabs.includes(tabName) ? tabName : 'reports';
+        document.querySelectorAll('.tool-tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.getAttribute('data-tool-tab') === chosen);
+        });
+        document.querySelectorAll('.tool-panel').forEach((panel) => {
+            const pName = panel.getAttribute('data-tool-panel');
+            panel.classList.toggle('tool-hidden', chosen !== 'all' && pName !== chosen);
+        });
+        try { sessionStorage.setItem('pp_admin_tools_tab', chosen); } catch (e) {}
+    }
+
+    document.addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('.tool-tab-btn');
+        if (!tabBtn) return;
+        const tName = tabBtn.getAttribute('data-tool-tab');
+        if (tName) setActiveAdminToolTab(tName);
+    });
+
+    try {
+        const savedTab = sessionStorage.getItem('pp_admin_tools_tab');
+        if (savedTab) setActiveAdminToolTab(savedTab);
+    } catch (e) {}
+
+    // Live Online / Answered badge updater for the Student Roster (zero changes needed in admin-live.js)
+    (function initRosterCountObserver() {
+        const tbody = document.getElementById('board-body');
+        const badge = document.getElementById('roster-count-badge');
+        if (!tbody || !badge) return;
+
+        const updateCount = () => {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            if (rows.length === 0 || rows.some(r => r.querySelector('td[colspan]'))) {
+                badge.textContent = '0 Online';
+                return;
+            }
+            let answered = 0;
+            rows.forEach((r) => {
+                if (r.querySelector('.time-badge')) answered++;
+            });
+            badge.textContent = answered > 0
+                ? `${rows.length} Online • ${answered} Answered`
+                : `${rows.length} Online`;
+        };
+
+        new MutationObserver(updateCount).observe(tbody, { childList: true });
+        updateCount();
+    })();
 
     // Unlock #admin-key on user interaction (readonly on load blocks browser password manager autofill)
     const adminKeyInputEl = document.getElementById('admin-key');
