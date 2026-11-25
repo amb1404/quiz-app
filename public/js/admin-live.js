@@ -671,7 +671,7 @@ if (typeof io !== 'undefined') {
 
             const isMuted = info.muted === true;
             const muteAction = isMuted ? 'unmute' : 'mute';
-            const muteLabel = isMuted ? '🔇 Unmute' : '🎙️ Mute';
+            const muteLabel = isMuted ? 'Unmute' : ' Mute';
             const muteBg = isMuted ? '#64748b' : '#f59e0b';
             const safeStudent = escHtml(studentName);
 
