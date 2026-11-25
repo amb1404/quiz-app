@@ -274,11 +274,11 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             }
         } else {
             alert(data.error);
-            startBtn.innerText = "🚀 Launch Room";
+            startBtn.innerText = "Launch Room";
         }
     } catch (e) {
         alert("Network error creating room.");
-        startBtn.innerText = "🚀 Launch Room";
+        startBtn.innerText = "Launch Room";
     }
 });
 
@@ -477,7 +477,7 @@ document.addEventListener('click', async (e) => {
             if (showCreateRoomBtn) showCreateRoomBtn.style.display = 'inline-block';
 
             const startBtn = document.getElementById('start-btn');
-            startBtn.innerText = "🚀 Launch Room";
+            startBtn.innerText = "Launch Room";
             startBtn.disabled = false;
             startBtn.style.opacity = '1';
             startBtn.style.cursor = 'pointer';
