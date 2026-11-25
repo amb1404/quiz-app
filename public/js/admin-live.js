@@ -495,7 +495,7 @@ document.addEventListener('click', async (e) => {
     // 3. Clear Current Question Responses (Screen 1 or Screen 2)
     if (clearBtn) {
         const screenNum = clearBtn.id === 'clear-responses-btn-2' ? 2 : 1;
-        const defaultLabel = screenNum === 2 ? '🧹 Clear S2' : '🧹 Clear S1';
+        const defaultLabel = screenNum === 2 ? 'Clear S2' : 'Clear S1';
         if (clearBtn.dataset.confirm !== "true") {
             clearBtn.innerText = `Click Again (S${screenNum})`;
             clearBtn.style.background = "#ca8a04";
