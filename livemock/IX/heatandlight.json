@@ -1,0 +1,406 @@
+{
+  "title": "Heat and Energy & Reflection of Light - High-Yield Exam Set",
+  "category": "icse",
+  "classLevel": "ix",
+  "subject": "Physics",
+  "unit": "",
+  "chapter": "Heat and Energy & Reflection of Light",
+  "topic": "Complete Syllabus Mixed Assessment (MCQ + Short Answer)",
+  "duration": 2700,
+  "isAvailable": true,
+  "isPremium": false,
+  "isUltra": false,
+  "price": 49,
+  "questions": [
+    {
+      "id": "Q1",
+      "type": "mcq",
+      "question": "Two bodies A and B are brought in thermal contact. Body A has a greater total heat content than body B, but body B is at a higher temperature than body A. Which of the following correctly describes the flow of heat?",
+      "marks": 1,
+      "options": [
+        "Heat flows from A to B because A contains more heat energy.",
+        "Heat flows from B to A because temperature determines the direction of heat flow.",
+        "No heat flows because both bodies already possess heat energy.",
+        "Heat flows equally in both directions until both have the same mass."
+      ],
+      "answer": 1,
+      "explanation": "Temperature is the thermal state of a body that determines the direction of flow of heat when two bodies are placed in contact. Heat always flows spontaneously from a body at higher temperature (B) to a body at lower temperature (A), irrespective of their total heat contents.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q2",
+      "type": "mcq",
+      "question": "When a fixed mass of water is heated steadily from 0°C to 10°C, how do its volume and density change?",
+      "marks": 1,
+      "options": [
+        "Volume continuously increases and density continuously decreases.",
+        "Volume decreases from 0°C to 4°C and then increases; density reaches a maximum of 1000 kg m^-3 at 4°C.",
+        "Volume increases from 0°C to 4°C and then decreases; density reaches a minimum at 4°C.",
+        "Both volume and density remain constant between 0°C and 4°C."
+      ],
+      "answer": 1,
+      "explanation": "Due to the anomalous expansion of water, heating water from 0°C to 4°C causes it to contract (volume decreases, density increases). At 4°C, water has minimum volume and maximum density (1000 kg m^-3 or 1 g cm^-3). Above 4°C, it expands normally.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q3",
+      "type": "mcq",
+      "question": "In Hope's experiment demonstrating the anomalous expansion of water, a freezing mixture is placed in the trough around the middle of a tall metallic cylinder filled with water at 12°C. What do the lower thermometer (T1) and upper thermometer (T2) eventually record?",
+      "marks": 1,
+      "options": [
+        "T1 falls to 0°C first while T2 stays steady at 4°C.",
+        "Both T1 and T2 fall together simultaneously to 0°C.",
+        "T1 falls rapidly to 4°C and becomes steady, while T2 later drops to 0°C.",
+        "T1 stays at 12°C while T2 falls directly to 4°C."
+      ],
+      "answer": 2,
+      "explanation": "As water in the middle cools to 4°C, it becomes densest and sinks to the bottom, causing the lower thermometer (T1) to drop quickly to 4°C and remain steady there. Water cooled below 4°C becomes lighter and rises to the top, causing the upper thermometer (T2) to drop to 0°C as ice forms at the surface.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q4",
+      "type": "mcq",
+      "question": "In an ecosystem food chain, why does the amount of usable energy progressively decrease from one trophic level to the next?",
+      "marks": 1,
+      "options": [
+        "Producers fail to absorb solar radiation.",
+        "Energy is destroyed during biological digestion, violating the First Law of Thermodynamics.",
+        "A large fraction of energy is degraded and dissipated as heat to the surroundings at each step, obeying the Second Law of Thermodynamics.",
+        "Consumers reflect 90% of chemical energy back into the atmosphere as light."
+      ],
+      "answer": 2,
+      "explanation": "According to the Second Law of Thermodynamics, whenever energy is transferred from one trophic level to the next, a major portion is lost to the surroundings as degraded heat energy (metabolic respiration), leaving only about 10% for the next level.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q5",
+      "type": "mcq",
+      "question": "Which of the following pairs consists exclusively of renewable sources of energy?",
+      "marks": 1,
+      "options": [
+        "Coal and Geothermal energy",
+        "Nuclear fuel (Uranium) and Wind energy",
+        "Biomass and Ocean Thermal Energy",
+        "Natural gas and Hydroelectric energy"
+      ],
+      "answer": 2,
+      "explanation": "Biomass and Ocean Thermal Energy (along with solar, wind, hydro, tidal, and geothermal) are renewable because they are continuously replenished by nature. Coal, natural gas, and uranium (nuclear fuel) are non-renewable.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q6",
+      "type": "mcq",
+      "question": "Identify the correct sequence of energy transformations taking place in a hydroelectric power plant:",
+      "marks": 1,
+      "options": [
+        "Kinetic energy of water -> Potential energy -> Electrical energy",
+        "Potential energy of stored water -> Kinetic energy of falling water -> Rotational kinetic energy of turbine -> Electrical energy",
+        "Chemical energy -> Thermal energy -> Electrical energy",
+        "Nuclear energy -> Potential energy -> Electrical energy"
+      ],
+      "answer": 1,
+      "explanation": "Water stored behind a dam possesses gravitational potential energy. When released, it converts into kinetic energy of flowing water, which rotates the turbine blades (mechanical/rotational kinetic energy), driving the generator to produce electrical energy.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q7",
+      "type": "mcq",
+      "question": "Which of the following atmospheric gases does NOT contribute to the greenhouse effect?",
+      "marks": 1,
+      "options": [
+        "Carbon dioxide (CO2)",
+        "Methane (CH4)",
+        "Chlorofluorocarbons (CFCs)",
+        "Nitrogen (N2)"
+      ],
+      "answer": 3,
+      "explanation": "Carbon dioxide, water vapour, methane, nitrous oxide, and CFCs are major greenhouse gases because they absorb long-wavelength infrared radiation. Diatomic nitrogen (N2) and oxygen (O2) are transparent to infrared radiation and are not greenhouse gases.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q8",
+      "type": "mcq",
+      "question": "The Earth's atmosphere warms up due to the greenhouse effect primarily because greenhouse gases:",
+      "marks": 1,
+      "options": [
+        "Block all visible sunlight from reaching the Earth's surface.",
+        "Allow short-wavelength solar radiation to pass through to the Earth, but trap long-wavelength infrared radiation re-radiated by the Earth's surface.",
+        "Reflect ultraviolet rays downward onto the oceans.",
+        "Generate heat internally through nuclear fission."
+      ],
+      "answer": 1,
+      "explanation": "Greenhouse gases are transparent to incoming short-wavelength visible and near-infrared solar radiation, allowing the Earth to warm up. However, they absorb and trap the outgoing long-wavelength infrared (heat) radiation emitted by the warmed Earth.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q9",
+      "type": "descriptive",
+      "question": "State two key differences between heat and temperature. Express a temperature of 37°C on the Kelvin scale, and state the relationship between 1 calorie and 1 joule.",
+      "marks": 3,
+      "model_answer": "Differences: (1) Heat is a form of energy (internal thermal energy in transit), whereas temperature is a physical quantity that measures the degree of hotness or coldness of a body and determines the direction of heat flow. (2) The SI unit of heat is joule (J), whereas the SI unit of temperature is kelvin (K). Conversion: T(K) = t(°C) + 273 = 37 + 273 = 310 K. Unit relation: 1 calorie = 4.186 J (approximately 4.2 J).",
+      "marking_scheme": [
+        "1 mark for two accurate points of distinction between heat and temperature.",
+        "1 mark for converting 37°C to 310 K.",
+        "1 mark for stating 1 cal = 4.186 J (or 4.2 J)."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q10",
+      "type": "descriptive",
+      "question": "Explain how the anomalous expansion of water helps preserve aquatic life in frozen ponds and lakes during severe winter. Mention the approximate temperature of water just below the ice layer and at the bottom of the pond.",
+      "marks": 3,
+      "model_answer": "When atmospheric temperature drops below 4°C, surface water cools down to 4°C, becomes densest, and sinks to the bottom. Once the entire pond reaches 4°C, further cooling lowers the surface water temperature from 4°C to 0°C. Because water expands on cooling below 4°C, this colder water becomes lighter (less dense) and stays at the top instead of sinking, eventually freezing into a layer of ice at 0°C. Since ice is a poor conductor of heat, it prevents heat from escaping from the water underneath. Consequently, water just below the ice remains at 0°C while water at the bottom stays at 4°C, enabling fish and aquatic organisms to survive.",
+      "marking_scheme": [
+        "1.5 marks for explaining convection stopping below 4°C and lighter colder water staying at the surface to form an insulating ice layer.",
+        "1.5 marks for correctly stating temperatures: 0°C just below the ice and 4°C at the bottom of the pond."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q11",
+      "type": "descriptive",
+      "question": "Draw/describe the nature of the volume-temperature graph of water from 0°C to 10°C. Also explain why water pipes often burst in cold countries during severe winter nights.",
+      "marks": 3,
+      "model_answer": "Volume-Temperature Graph: Starting from 0°C, the curve slopes downward showing a decrease in volume until it reaches a minimum trough at 4°C (for 1 g of water, minimum volume is 1.0000 cm^3). Beyond 4°C up to 10°C, the curve slopes upward showing normal thermal expansion. Bursting of Pipes: When the temperature falls below 4°C and drops to 0°C, water inside the pipes expands anomalously and expands even further upon freezing into ice (about 9% increase in volume). Because the rigid metal pipe cannot accommodate this expansion, the ice exerts tremendous outward pressure, causing the pipe to burst.",
+      "marking_scheme": [
+        "1.5 marks for accurately describing/sketching the V-T curve with minimum volume at 4°C.",
+        "1.5 marks for explaining anomalous expansion below 4°C and expansion on freezing exerting pressure on pipes."
+      ],
+      "diagram_required": true
+    },
+    {
+      "id": "Q12",
+      "type": "descriptive",
+      "question": "Explain how the flow of energy in a food chain obeys both the First Law and the Second Law of Thermodynamics. Why is the flow of energy in an ecosystem always unidirectional?",
+      "marks": 3,
+      "model_answer": "First Law of Thermodynamics: Energy can neither be created nor destroyed; green plants (producers) only transform solar light energy into chemical energy of food, which is then converted into mechanical and thermal energy by consumers, keeping total energy conserved. Second Law of Thermodynamics: During every energy transfer from one trophic level to the next, a substantial portion of energy is degraded into unusable heat energy lost to the surroundings (respiration), so no transfer is 100% efficient. Unidirectional Flow: Energy captured by autotrophs cannot revert back to the sun, and energy lost as heat to the environment cannot be reused by plants for photosynthesis; hence, energy flows strictly in one direction from sun -> producers -> consumers.",
+      "marking_scheme": [
+        "1 mark for explaining adherence to the First Law (conservation/transformation).",
+        "1 mark for explaining adherence to the Second Law (degradation/heat loss).",
+        "1 mark for explaining why energy flow is unidirectional."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q13",
+      "type": "descriptive",
+      "question": "What is a solar cell? State the material commonly used to manufacture it, mention the energy conversion involved, and give two advantages and one limitation of solar energy.",
+      "marks": 3,
+      "model_answer": "A solar cell is an electrical device that converts solar (light) energy directly into electrical energy. Material: Semiconductors such as silicon or gallium. Advantages: (1) It is a clean, non-polluting, and renewable source of energy; (2) Solar panels require very little maintenance and have no moving parts, making them ideal for remote areas and satellites. Limitation: Solar energy is unavailable at night or on cloudy days, and the initial installation cost of solar panels and storage batteries is high.",
+      "marking_scheme": [
+        "1 mark for definition, energy conversion (solar/light to electrical), and material (silicon/gallium).",
+        "1 mark for two valid advantages.",
+        "1 mark for one valid limitation."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q14",
+      "type": "descriptive",
+      "question": "Define global warming. State two major adverse impacts of global warming on the Earth's environment and suggest two practical measures to minimize it.",
+      "marks": 3,
+      "model_answer": "Definition: Global warming is the gradual increase in the average effective temperature of the Earth's surface and lower atmosphere due to an increased concentration of greenhouse gases (such as CO2 and methane). Impacts: (1) Melting of polar ice caps and glaciers leading to a rise in sea levels and coastal flooding; (2) Changes in global climate patterns causing erratic rainfall, droughts, and reduced agricultural yields. Measures to minimize: (1) Switching from fossil fuels to renewable energy sources (solar, wind, hydro); (2) Massive afforestation/reforestation and adopting energy-efficient technologies and public transport.",
+      "marking_scheme": [
+        "1 mark for accurate definition of global warming.",
+        "1 mark for two valid environmental impacts.",
+        "1 mark for two practical preventive measures."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q15",
+      "type": "mcq",
+      "question": "A ray of light strikes a plane mirror at a glancing angle of 30° (angle made with the reflecting surface of the mirror). What is the angle between the incident ray and the reflected ray?",
+      "marks": 1,
+      "options": [
+        "30°",
+        "60°",
+        "120°",
+        "150°"
+      ],
+      "answer": 2,
+      "explanation": "The glancing angle (g) with the mirror surface is 30°. Therefore, the angle of incidence i = 90° - 30° = 60°. By the law of reflection, angle of reflection r = i = 60°. The angle between the incident ray and reflected ray is i + r = 60° + 60° = 120°.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q16",
+      "type": "mcq",
+      "question": "A ray of light is incident normally (perpendicularly) on a plane mirror. What are the values of the angle of reflection and the angle of deviation respectively?",
+      "marks": 1,
+      "options": [
+        "90° and 0°",
+        "0° and 180°",
+        "0° and 90°",
+        "90° and 180°"
+      ],
+      "answer": 1,
+      "explanation": "For normal incidence, the incident ray coincides with the normal, so angle of incidence i = 0° and angle of reflection r = 0°. The ray retraces its path back along the normal, undergoing a deviation of δ = 180° - (i + r) = 180°.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q17",
+      "type": "mcq",
+      "question": "A boy stands 5 m in front of a large plane mirror. If he walks 2 m towards the mirror, what will be the new distance between the boy and his image?",
+      "marks": 1,
+      "options": [
+        "3 m",
+        "6 m",
+        "7 m",
+        "8 m"
+      ],
+      "answer": 1,
+      "explanation": "After walking 2 m towards the mirror, the boy's new distance from the mirror is 5 m - 2 m = 3 m. Since the image in a plane mirror is formed as far behind the mirror as the object is in front of it, the image is 3 m behind the mirror. Total distance between boy and image = 3 m + 3 m = 6 m.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q18",
+      "type": "mcq",
+      "question": "Two plane mirrors are inclined to each other at an angle of 72°. How many images are formed when an object is placed symmetrically on the angle bisector between the two mirrors?",
+      "marks": 1,
+      "options": [
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "answer": 1,
+      "explanation": "Calculate n = 360° / θ = 360° / 72° = 5 (an odd integer). When n is odd and the object is placed symmetrically on the bisector of the angle, the number of images formed is n - 1 = 5 - 1 = 4. (If placed asymmetrically, it would be 5).",
+      "diagram_required": false
+    },
+    {
+      "id": "Q19",
+      "type": "mcq",
+      "question": "A concave mirror has a radius of curvature of 24 cm. A ray of light incident parallel to its principal axis will, after reflection, pass through a point on the principal axis at what distance from the pole?",
+      "marks": 1,
+      "options": [
+        "24 cm",
+        "48 cm",
+        "12 cm",
+        "6 cm"
+      ],
+      "answer": 2,
+      "explanation": "A ray parallel to the principal axis passes through the principal focus (F) after reflection. The focal length f = R / 2 = 24 cm / 2 = 12 cm from the pole.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q20",
+      "type": "mcq",
+      "question": "To use a concave mirror as a shaving mirror or a dentist's mirror, where must the object be positioned relative to the mirror?",
+      "marks": 1,
+      "options": [
+        "At the centre of curvature (C)",
+        "Beyond the centre of curvature (C)",
+        "Between the centre of curvature (C) and the principal focus (F)",
+        "Between the pole (P) and the principal focus (F)"
+      ],
+      "answer": 3,
+      "explanation": "When an object is placed between the pole (P) and the principal focus (F) of a concave mirror, it forms a virtual, upright (erect), and magnified image behind the mirror, which is required for shaving and dental inspection.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q21",
+      "type": "mcq",
+      "question": "Why is a convex mirror universally preferred over a plane mirror as a rear-view (driver's) mirror in automobiles?",
+      "marks": 1,
+      "options": [
+        "It forms a real and magnified image of approaching vehicles.",
+        "It always forms an erect, diminished image and provides a much wider field of view.",
+        "It eliminates lateral inversion completely.",
+        "It focuses parallel rays of headlights onto a single point."
+      ],
+      "answer": 1,
+      "explanation": "A convex mirror diverges light rays and always produces an upright (erect) and diminished virtual image between P and F regardless of the object's distance, giving the driver a much wider field of view of the traffic behind.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q22",
+      "type": "mcq",
+      "question": "A spherical mirror produces an image with a linear magnification of m = -1. Which of the following correctly identifies the mirror and the position of the object?",
+      "marks": 1,
+      "options": [
+        "Convex mirror; object at infinity",
+        "Concave mirror; object at the principal focus (F)",
+        "Concave mirror; object at the centre of curvature (C)",
+        "Plane mirror; object at any distance"
+      ],
+      "answer": 2,
+      "explanation": "The negative sign of magnification (m = -1) indicates a real and inverted image (which only a concave mirror can form), and the magnitude |m| = 1 indicates the image is the exact same size as the object. This happens exclusively when the object is placed at the centre of curvature (C) of a concave mirror.",
+      "diagram_required": false
+    },
+    {
+      "id": "Q23",
+      "type": "descriptive",
+      "question": "Distinguish between regular reflection and irregular (diffused) reflection. Does irregular reflection violate the laws of reflection? Give a reason for your answer.",
+      "marks": 3,
+      "model_answer": "Distinction: Regular reflection occurs from a smooth, polished surface (like a plane mirror) where a parallel beam of light remains parallel after reflection in a definite direction. Irregular (diffused) reflection occurs from a rough or uneven surface (like paper or a wall) where a parallel beam is reflected in different directions. Compliance with laws: No, irregular reflection strictly obeys the laws of reflection at every individual point of incidence. The reflected rays scatter in different directions solely because the normals drawn at different points on the uneven surface are not parallel to each other.",
+      "marking_scheme": [
+        "1.5 marks for contrasting regular and irregular reflection (surface type and reflected beam behavior).",
+        "1.5 marks for stating 'No' and explaining that normals at different points on a rough surface point in different directions."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q24",
+      "type": "descriptive",
+      "question": "State two differences between a real image and a virtual image. Also state the angle of inclination between the plane mirrors used in: (i) a simple periscope, and (ii) a kaleidoscope.",
+      "marks": 3,
+      "model_answer": "Differences: (1) A real image is formed by the actual intersection of reflected rays and can be obtained on a screen, whereas a virtual image is formed when reflected rays only appear to meet when produced backwards and cannot be obtained on a screen. (2) A real image is always inverted, whereas a virtual image is always upright (erect). Mirror angles: (i) In a simple periscope, two plane mirrors are placed parallel to each other (angle between them = 0°), each inclined at 45° to the axis of the tube. (ii) In a kaleidoscope, three plane mirrors are inclined to each other at 60°.",
+      "marking_scheme": [
+        "2 marks for two clear points of difference between real and virtual images.",
+        "1 mark for correctly stating the mirror angles in a periscope (parallel / 45° to tube axis) and kaleidoscope (60°)."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q25",
+      "type": "descriptive",
+      "question": "Define the principal focus of a concave mirror and a convex mirror. Explain why a ray of light directed towards or passing through the centre of curvature (C) of a spherical mirror retraces its path after reflection.",
+      "marks": 3,
+      "model_answer": "Principal Focus (Concave Mirror): It is a real point on the principal axis where rays of light incident parallel to the principal axis actually converge after reflection. Principal Focus (Convex Mirror): It is a virtual point on the principal axis from which rays of light incident parallel to the principal axis appear to diverge after reflection. Retracing Path: Any line joining the centre of curvature (C) to a point on the spherical surface acts as a radius, which is always perpendicular (normal) to the mirror surface at that point. Thus, a ray passing through C strikes the mirror normally (angle of incidence i = 0°), so angle of reflection r = 0°, causing the ray to retrace its path.",
+      "marking_scheme": [
+        "1 mark for defining principal focus of a concave mirror.",
+        "1 mark for defining principal focus of a convex mirror.",
+        "1 mark for explaining normal incidence (i = 0°, r = 0°) along the radius through C."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q26",
+      "type": "descriptive",
+      "question": "An object is placed between the centre of curvature (C) and the principal focus (F) of a concave mirror. Describe the two convenient rays used to draw the ray diagram to locate the image, and state the position, size, and nature of the image formed.",
+      "marks": 3,
+      "model_answer": "Convenient Rays: (1) A ray starting from the top of the object parallel to the principal axis reflects and passes through the principal focus (F). (2) A second ray from the top of the object passing through the principal focus (F) reflects parallel to the principal axis (or a ray directed along the line from C strikes normally and retraces its path). The point where these two reflected rays actually intersect gives the inverted image tip. Image Characteristics: Position — Beyond the centre of curvature (C) on the same side as the object; Size — Magnified (larger than the object); Nature — Real and inverted.",
+      "marking_scheme": [
+        "1.5 marks for describing/drawing two valid convenient rays intersecting beyond C.",
+        "1.5 marks for stating position (beyond C), size (magnified), and nature (real and inverted)."
+      ],
+      "diagram_required": true
+    },
+    {
+      "id": "Q27",
+      "type": "descriptive",
+      "question": "An object of height 4 cm is placed at a distance of 15 cm in front of a concave mirror of focal length 10 cm. Using the mirror formula and New Cartesian Sign Convention, calculate: (i) the position of the image, (ii) the linear magnification, and (iii) the height and nature of the image.",
+      "marks": 3,
+      "model_answer": "Given (by sign convention): Object distance u = -15 cm, Focal length f = -10 cm, Object height O = +4 cm. (i) Using mirror formula: 1/v + 1/u = 1/f => 1/v = 1/f - 1/u = 1/(-10) - 1/(-15) = -1/10 + 1/15 = (-3 + 2)/30 = -1/30 => v = -30 cm. The image is formed 30 cm in front of the mirror. (ii) Linear magnification m = -v / u = -(-30) / (-15) = -2. (iii) Image height I = m × O = (-2) × 4 cm = -8 cm. Nature: Since v and I are negative, the image is real, inverted, and magnified (height 8 cm).",
+      "marking_scheme": [
+        "1 mark for applying correct signs (u = -15 cm, f = -10 cm) and computing v = -30 cm.",
+        "1 mark for calculating linear magnification m = -2.",
+        "1 mark for finding image height (8 cm, inverted) and stating its real, inverted, magnified nature."
+      ],
+      "diagram_required": false
+    },
+    {
+      "id": "Q28",
+      "type": "descriptive",
+      "question": "How can you distinguish between a plane mirror, a concave mirror, and a convex mirror by simply looking at your face in each of them without touching their surfaces? Also state one practical application each for a concave mirror and a convex mirror.",
+      "marks": 3,
+      "model_answer": "Distinction (holding each mirror close to the face): (1) Plane mirror — forms an upright image of the exact same size as the face; size remains unchanged on moving the mirror away. (2) Concave mirror — forms an upright and magnified (enlarged) image when held close; as it is moved away, the image turns real and inverted. (3) Convex mirror — always forms an upright and diminished (smaller) image regardless of how far the mirror is held. Applications: Concave mirror is used as a reflector in car headlights/torches (or shaving mirror/dentist's mirror/solar furnace); Convex mirror is used as a rear-view mirror in vehicles (or street light reflector).",
+      "marking_scheme": [
+        "2 marks for distinguishing all three mirrors accurately based on erect image size (same, magnified, diminished).",
+        "1 mark for stating one correct use each for a concave mirror and a convex mirror."
+      ],
+      "diagram_required": false
+    }
+  ]
+}

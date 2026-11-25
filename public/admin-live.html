@@ -672,10 +672,10 @@
                 <div class="broadcast-deck">
                     <div id="admin-stream-console">
                         <span class="console-label" style="color: #93c5fd;">🎥 Video &amp; Voice</span>
-                        <button id="btn-admin-video" class="stream-btn" type="button" title="Toggle Camera (Ctrl+D)">📹 Video: OFF</button>
-                        <button id="btn-admin-audio" class="stream-btn" type="button" title="Toggle Microphone (Ctrl+A)">🎙️ Audio: OFF</button>
+                        <button id="btn-admin-video" class="stream-btn" type="button" title="Toggle Camera (Ctrl+D)">Video: OFF</button>
+                        <button id="btn-admin-audio" class="stream-btn" type="button" title="Toggle Microphone (Ctrl+A)"> Audio: OFF</button>
                         <button id="btn-admin-speakers" class="stream-btn active-mic" type="button" title="Mute or unmute incoming student voices in this room">🔊 Hear Students: ON</button>
-                        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">⏹️ Stop Stream</button>
+                        <button id="btn-admin-stop-stream" class="stream-btn stop-btn" type="button" style="display: none;">Stop Stream</button>
                         <span id="admin-caller-badge" style="display: none;"></span>
                     </div>
 
@@ -707,7 +707,7 @@
                                 <button id="prev-btn" type="button">◀ Prev</button>
                                 <span id="q-counter">No Question Set Active</span>
                                 <button id="next-btn" type="button">Next ▶</button>
-                                <button id="clear-responses-btn" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear S1</button>
+                                <button id="clear-responses-btn" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">Clear S1</button>
                             </div>
                         </div>
 
@@ -725,7 +725,7 @@
                                 <button id="prev-btn-2" type="button">◀ Prev</button>
                                 <span id="q-counter-2">Screen 2 Inactive</span>
                                 <button id="next-btn-2" type="button">Next ▶</button>
-                                <button id="clear-responses-btn-2" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">🧹 Clear S2</button>
+                                <button id="clear-responses-btn-2" type="button" style="margin-left: auto; background: #334155; color: #f8fafc; border: 1px solid #475569;">Clear S2</button>
                             </div>
                         </div>
 
@@ -1046,7 +1046,7 @@
         const shouldMute = Boolean(adminSpeakersManualMuted || adminSilencedByOtherTab);
         const spkBtn = document.getElementById('btn-admin-speakers');
         if (spkBtn) {
-            spkBtn.textContent = adminSpeakersManualMuted ? '🔇 Hear Students: OFF' : '🔊 Hear Students: ON';
+            spkBtn.textContent = adminSpeakersManualMuted ? 'Hear Students: OFF' : 'Hear Students: ON';
             spkBtn.classList.toggle('active-mic', !adminSpeakersManualMuted);
         }
         activeStudentAudioEls.forEach((el) => {
@@ -1510,10 +1510,10 @@
         const btnStop = document.getElementById('btn-admin-stop-stream');
         const pipBox = document.getElementById('admin-pip-box');
 
-        btnVideo.textContent = videoEnabled ? '📹 Video: ON' : '📹 Video: OFF';
+        btnVideo.textContent = videoEnabled ? 'Video: ON' : 'Video: OFF';
         btnVideo.classList.toggle('active-cam', videoEnabled);
 
-        btnAudio.textContent = audioEnabled ? '🎙️ Audio: ON' : '🎙️ Audio: OFF';
+        btnAudio.textContent = audioEnabled ? 'Audio: ON' : 'Audio: OFF';
         btnAudio.classList.toggle('active-mic', audioEnabled);
 
         if (pipBox) {
@@ -1694,7 +1694,7 @@
         isMicToggling = true;
         if (btnAudio) {
             btnAudio.disabled = true;
-            btnAudio.textContent = audioEnabled ? '🎙️ Muting...' : '🎙️ Starting...';
+            btnAudio.textContent = audioEnabled ? 'Muting...' : 'Starting...';
         }
         try {
             if (micMuteTimeout) {
