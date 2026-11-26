@@ -2070,9 +2070,6 @@ async function serveDynamicHtml(req, res, fileName, canonicalBaseRoute) {
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.setHeader('Content-Type', 'text/html');
-        if (canonicalBaseRoute === '/admin-live') {
-            res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
-        }
 
         res.send(dynamicHtml);
     });
